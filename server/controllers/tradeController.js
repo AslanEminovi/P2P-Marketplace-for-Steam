@@ -4,6 +4,7 @@ const Trade = require("../models/Trade");
 const steamApiService = require("../services/steamApiService");
 const socketService = require("../services/socketService");
 const mongoose = require("mongoose");
+const axios = require("axios");
 
 // GET /trades/history
 exports.getTradeHistory = async (req, res) => {
@@ -265,277 +266,106 @@ exports.sellerSentItem = async (req, res) => {
 // PUT /trades/:tradeId/buyer-confirm
 exports.buyerConfirmReceipt = async (req, res) => {
   try {
-    const { tradeId } = req.params;
+    const tradeId = req.params.id;
     const userId = req.user._id;
 
-    // Find the trade with populated data
+    console.log(
+      `Buyer ${userId} attempting to confirm receipt for trade ${tradeId}`
+    );
+
+    // First check if the trade exists and the user is the buyer
     const trade = await Trade.findById(tradeId)
-      .populate("item")
-      .populate("seller")
-      .populate("buyer");
+      .populate("seller", "steamId username")
+      .populate("item");
 
     if (!trade) {
       return res.status(404).json({ error: "Trade not found" });
     }
 
-    // Verify the user is the buyer
-    if (trade.buyer._id.toString() !== userId.toString()) {
+    if (trade.buyer.toString() !== userId.toString()) {
       return res
         .status(403)
-        .json({ error: "Only the buyer can confirm receipt" });
+        .json({ error: "Only the buyer can confirm receipt for this trade" });
     }
 
-    // Check current trade status
-    if (
-      trade.status !== "awaiting_confirmation" &&
-      trade.status !== "offer_sent" &&
-      trade.status !== "accepted"
-    ) {
+    if (trade.status !== "pending") {
       return res.status(400).json({
-        error: `Trade cannot be confirmed because it is in ${trade.status} state`,
+        error: `Cannot confirm receipt for a trade in '${trade.status}' status`,
       });
     }
 
+    // Verify the item is no longer in the seller's inventory before confirming
     try {
-      // First, check if this trade is already confirmed via Steam API
-      if (trade.tradeOfferId) {
-        // Get the buyer with steamLoginSecure
-        const buyer = await User.findById(userId).select("+steamLoginSecure");
+      const apiKey = "FSWJNSWYW8QSAQ6W";
+      const steamApiUrl = `https://steamwebapi.com/steam/api/inventory/${trade.seller.steamId}/730/2?key=${apiKey}`;
 
-        if (buyer.steamLoginSecure) {
-          try {
-            // Try to verify with Steam API that the trade was completed
-            const steamTrades = await steamApiService.getReceivedTradeOffers(
-              buyer.steamLoginSecure
-            );
-
-            // Look for the matching trade
-            const matchingTrade = steamTrades.trades?.find(
-              (t) => t.tradeofferid === trade.tradeOfferId
-            );
-
-            if (!matchingTrade || matchingTrade.status !== "accepted") {
-              // If the trade doesn't exist or is not accepted in Steam, require verification
-              if (req.body.forceConfirm !== true) {
-                return res.status(400).json({
-                  error:
-                    "Trade not found in Steam or not accepted yet. Are you sure you want to confirm?",
-                  requireForceConfirm: true,
-                });
-              }
-              // User chose to force confirm, proceed with caution
-            }
-          } catch (steamError) {
-            console.warn("Could not verify Steam trade status:", steamError);
-            // Allow confirmation to proceed even if Steam API check fails
-          }
-        }
-      }
-
-      // Process payment - This is the critical part
-      // 1. Deduct funds from buyer's wallet
-      // 2. Add funds to seller's wallet
-      // 3. Update item ownership
-
-      // Get the latest buyer and seller data to ensure accurate balances
-      const buyer = await User.findById(trade.buyer._id);
-      const seller = await User.findById(trade.seller._id);
-
-      // Calculate amounts
-      const price = trade.price;
-      const platformFee = trade.feeAmount || price * 0.025; // 2.5% fee
-      const sellerReceives = price - platformFee;
-
-      // Make sure buyer has enough balance
-      if (trade.currency === "USD" && buyer.walletBalance < price) {
-        return res.status(400).json({
-          error: "Insufficient USD balance to complete this transaction.",
-          required: price,
-          available: buyer.walletBalance,
-        });
-      } else if (trade.currency === "GEL" && buyer.walletBalanceGEL < price) {
-        return res.status(400).json({
-          error: "Insufficient GEL balance to complete this transaction.",
-          required: price,
-          available: buyer.walletBalanceGEL,
-        });
-      }
-
-      // Update buyer's wallet - deduct the payment
-      if (trade.currency === "USD") {
-        buyer.walletBalance = parseFloat(
-          (buyer.walletBalance - price).toFixed(2)
-        );
-      } else {
-        buyer.walletBalanceGEL = parseFloat(
-          (buyer.walletBalanceGEL - price).toFixed(2)
-        );
-      }
-
-      // Find the pending transaction and mark it completed
-      const pendingTransaction = buyer.transactions.find(
-        (t) => t.reference === trade._id.toString() && t.status === "pending"
+      console.log(
+        `Final check of seller's inventory before confirming receipt: ${steamApiUrl}`
       );
+      const response = await axios.get(steamApiUrl);
 
-      if (pendingTransaction) {
-        pendingTransaction.status = "completed";
-        pendingTransaction.completedAt = new Date();
-      } else {
-        // If no pending transaction is found, create a new one
-        buyer.transactions.push({
-          type: "purchase",
-          amount: -price,
-          currency: trade.currency,
-          itemId: trade.item._id,
-          reference: trade._id.toString(),
-          status: "completed",
-          completedAt: new Date(),
+      if (!response.data || !response.data.success) {
+        return res.status(500).json({
+          error: "Could not verify seller inventory before confirming",
         });
       }
 
-      // Update seller's wallet - add the payment
-      if (trade.currency === "USD") {
-        seller.walletBalance = parseFloat(
-          (seller.walletBalance + sellerReceives).toFixed(2)
+      // Look for the item in seller's inventory
+      const sellerInventory = response.data.items || [];
+
+      // Try to find the item by its market_hash_name and asset ID
+      const itemFound = sellerInventory.some((inventoryItem) => {
+        return (
+          inventoryItem.market_hash_name === trade.item.name ||
+          (trade.item.assetId && inventoryItem.assetid === trade.item.assetId)
         );
-      } else {
-        seller.walletBalanceGEL = parseFloat(
-          (seller.walletBalanceGEL + sellerReceives).toFixed(2)
-        );
+      });
+
+      if (itemFound) {
+        return res.status(400).json({
+          error:
+            "Item is still in seller's inventory. Cannot confirm receipt until the trade has been completed.",
+          tradeOffersLink: `https://steamcommunity.com/id/${req.user.steamId}/tradeoffers/`,
+        });
       }
 
-      // Add transaction record for seller
-      seller.transactions.push({
-        type: "sale",
-        amount: sellerReceives,
-        currency: trade.currency,
-        itemId: trade.item._id,
-        reference: trade._id.toString(),
-        status: "completed",
-        completedAt: new Date(),
-      });
+      // If we get here, the item is not in the seller's inventory and we can proceed with confirming
 
-      // Add platform fee transaction for record-keeping
-      seller.transactions.push({
-        type: "fee",
-        amount: -platformFee,
-        currency: trade.currency,
-        itemId: trade.item._id,
-        reference: trade._id.toString(),
-        status: "completed",
-        completedAt: new Date(),
-      });
-
-      // Update the item ownership
-      const item = await Item.findById(trade.item._id);
-      item.owner = buyer._id;
-      item.isListed = false;
-      item.tradeStatus = "completed";
-      item.priceHistory.push({
-        price: price,
-        currency: trade.currency,
-        timestamp: new Date(),
-      });
-      await item.save();
-
-      // Update trade status
-      trade.addStatusHistory("completed", "Buyer confirmed receipt");
+      // Update the trade status to 'completed'
+      trade.status = "completed";
       trade.completedAt = new Date();
+
       await trade.save();
 
-      // Create notification objects
-      const buyerNotification = {
-        type: "trade",
-        title: "Trade Status Updated",
-        message: `You have successfully purchased ${item.marketHashName} for ${
-          trade.currency === "USD" ? "$" : ""
-        }${price}${trade.currency === "GEL" ? " ₾" : ""}.`,
-        relatedItemId: item._id,
-        read: false,
-        createdAt: new Date(),
-      };
+      // Update the item's owner
+      const item = await Item.findById(trade.item._id);
+      if (item) {
+        item.owner = userId;
+        item.status = "owned";
+        await item.save();
+      }
 
-      const sellerNotification = {
-        type: "trade",
-        title: "Trade Status Updated",
-        message: `Your ${item.marketHashName} has been sold for ${
-          trade.currency === "USD" ? "$" : ""
-        }${price}${trade.currency === "GEL" ? " ₾" : ""}. You received ${
-          trade.currency === "USD" ? "$" : ""
-        }${sellerReceives.toFixed(2)}${
-          trade.currency === "GEL" ? " ₾" : ""
-        } after fees.`,
-        relatedItemId: item._id,
-        read: false,
-        createdAt: new Date(),
-      };
-
-      // Add notifications to database
-      buyer.notifications.push(buyerNotification);
-      seller.notifications.push(sellerNotification);
-
-      // Send real-time notifications via WebSocket
-      socketService.sendNotification(buyer._id.toString(), buyerNotification);
-      socketService.sendNotification(seller._id.toString(), sellerNotification);
-
-      // Send trade update via WebSocket
-      socketService.sendTradeUpdate(
-        trade._id.toString(),
-        buyer._id.toString(),
-        seller._id.toString(),
-        {
-          status: "completed",
-          item: item,
-          completedAt: new Date(),
-        }
-      );
-
-      // Send inventory update to buyer
-      socketService.sendInventoryUpdate(buyer._id.toString(), {
-        type: "item_added",
-        data: {
-          item: item,
-          source: "purchase",
-          tradeId: trade._id,
-        },
+      // Notify the seller that the trade has been completed
+      socketService.notifyUser(trade.seller.toString(), "trade_completed", {
+        tradeId: trade._id,
+        message: `Buyer confirmed receipt of item: ${trade.item.name}`,
       });
-
-      // Send wallet updates
-      socketService.sendWalletUpdate(buyer._id.toString(), {
-        balance: buyer.walletBalance,
-        balanceGEL: buyer.walletBalanceGEL,
-        transaction: {
-          type: "purchase",
-          amount: -price,
-          currency: trade.currency,
-        },
-      });
-
-      socketService.sendWalletUpdate(seller._id.toString(), {
-        balance: seller.walletBalance,
-        balanceGEL: seller.walletBalanceGEL,
-        transaction: {
-          type: "sale",
-          amount: sellerReceives,
-          currency: trade.currency,
-        },
-      });
-
-      // Save all changes
-      await Promise.all([buyer.save(), seller.save()]);
 
       return res.json({
         success: true,
-        message:
-          "Trade completed successfully. Item ownership has been transferred.",
+        message: "Trade completed successfully. The item is now yours!",
       });
-    } catch (processError) {
-      console.error("Error processing trade payment:", processError);
-      return res.status(500).json({ error: "Failed to process trade payment" });
+    } catch (error) {
+      console.error("Error checking seller inventory during confirm:", error);
+      return res.status(500).json({
+        error: "Server error while confirming receipt. Please try again.",
+      });
     }
-  } catch (err) {
-    console.error("Buyer confirm receipt error:", err);
-    return res.status(500).json({ error: "Failed to confirm receipt" });
+  } catch (error) {
+    console.error("Error in buyerConfirmReceipt:", error);
+    return res
+      .status(500)
+      .json({ error: "Server error while confirming receipt" });
   }
 };
 
@@ -1085,141 +915,104 @@ exports.sellerSentManual = async (req, res) => {
 // GET /trades/:tradeId/verify-inventory
 exports.verifyInventory = async (req, res) => {
   try {
-    const { tradeId } = req.params;
+    const tradeId = req.params.id;
     const userId = req.user._id;
-    console.log(
-      `Verifying inventory for trade ${tradeId} requested by user ${userId}`
-    );
 
-    // Find the trade with populated item and seller
+    // Fetch the trade with populated seller and buyer
     const trade = await Trade.findById(tradeId)
-      .populate("item")
-      .populate("seller");
+      .populate("seller", "steamId username")
+      .populate("buyer", "steamId username")
+      .populate("item");
 
     if (!trade) {
       return res.status(404).json({ error: "Trade not found" });
     }
 
-    // Verify this user is the buyer
-    if (trade.buyer.toString() !== userId.toString()) {
+    // Check if user is the buyer
+    if (userId.toString() !== trade.buyer._id.toString()) {
       return res
         .status(403)
-        .json({ error: "Only the buyer can verify item receipt" });
+        .json({ error: "Only the buyer can verify inventory for this trade" });
     }
 
-    // Get the seller info if not populated
-    if (!trade.seller || !trade.seller.steamId) {
-      const seller = await User.findById(trade.seller);
-      if (!seller || !seller.steamId) {
-        return res
-          .status(400)
-          .json({ error: "Seller's Steam account not linked" });
-      }
-      trade.seller = seller;
+    // Ensure seller has linked Steam account
+    if (!trade.seller.steamId) {
+      return res
+        .status(400)
+        .json({ error: "Seller has no linked Steam account" });
     }
 
-    // Prepare result object
+    // Ensure buyer has linked Steam account
+    if (!trade.buyer.steamId) {
+      return res
+        .status(400)
+        .json({ error: "Your Steam account is not linked" });
+    }
+
+    // Create the link to buyer's trade offers
+    const tradeOffersLink = `https://steamcommunity.com/id/${trade.buyer.steamId}/tradeoffers/`;
+
+    // Initialize result object
     const result = {
       itemRemovedFromSellerInventory: false,
+      itemName: trade.item.name,
       canConfirmReceived: false,
-      message: "",
-      error: null,
+      tradeOffersLink: tradeOffersLink,
     };
 
-    // Check seller's inventory to verify item is NO LONGER there
     try {
+      // Use the steamwebapi.com API with the provided key to check seller's inventory
+      const apiKey = "FSWJNSWYW8QSAQ6W";
+      const steamApiUrl = `https://steamwebapi.com/steam/api/inventory/${trade.seller.steamId}/730/2?key=${apiKey}`;
+
+      console.log(`Checking seller's inventory at: ${steamApiUrl}`);
+      const response = await axios.get(steamApiUrl);
+
+      if (!response.data || !response.data.success) {
+        throw new Error("Failed to fetch seller inventory from Steam API");
+      }
+
+      // Look for the item in seller's inventory
+      const sellerInventory = response.data.items || [];
       console.log(
-        `Checking seller (${trade.seller.steamId}) inventory for item ${trade.item.marketHashName} with assetId ${trade.item.assetId}`
+        `Seller inventory fetched. Items count: ${sellerInventory.length}`
       );
 
-      if (!trade.seller.steamId) {
-        throw new Error("Seller's Steam ID is missing");
-      }
-
-      // Force refresh the seller's inventory
-      const sellerInventory = await steamApiService.getInventory(
-        trade.seller.steamId,
-        null, // We don't need appId anymore as we're using 'game' parameter in the API
-        true // Force refresh
-      );
-
-      const assetId = trade.item.assetId;
-      const itemName = trade.item.marketHashName;
-      let itemFoundInSellerInventory = false;
-
-      if (sellerInventory && sellerInventory.assets) {
-        // Check if the specific asset ID is still in the seller's inventory
-        if (assetId) {
-          console.log(
-            `Looking for asset ID ${assetId} in seller's inventory with ${sellerInventory.assets.length} assets`
-          );
-          itemFoundInSellerInventory = sellerInventory.assets.some(
-            (asset) => asset.assetid === assetId
-          );
-
-          if (itemFoundInSellerInventory) {
-            console.log(`Asset ID ${assetId} found in seller's inventory`);
-          } else {
-            console.log(
-              `Asset ID ${assetId} NOT found in seller's inventory (good)`
-            );
-          }
-        }
-        // If there's no asset ID, fall back to matching by name
-        else if (sellerInventory.descriptions) {
-          console.log(
-            `No asset ID available. Looking for item by name: ${itemName}`
-          );
-          for (const asset of sellerInventory.assets) {
-            const description = sellerInventory.descriptions.find(
-              (desc) =>
-                desc.classid === asset.classid &&
-                desc.instanceid === asset.instanceid
-            );
-
-            if (description && description.market_hash_name === itemName) {
-              itemFoundInSellerInventory = true;
-              console.log(
-                `Item "${itemName}" found in seller's inventory by name match`
-              );
-              break;
-            }
-          }
-
-          if (!itemFoundInSellerInventory) {
-            console.log(
-              `Item "${itemName}" NOT found in seller's inventory by name (good)`
-            );
-          }
-        }
-      } else {
-        console.log(
-          `Couldn't properly parse seller's inventory or no assets found.`
+      // Try to find the item by its market_hash_name and asset ID
+      const itemFound = sellerInventory.some((inventoryItem) => {
+        return (
+          inventoryItem.market_hash_name === trade.item.name ||
+          (trade.item.assetId && inventoryItem.assetid === trade.item.assetId)
         );
-      }
+      });
 
-      // Update result - if the item is NOT found, that's good!
-      result.itemRemovedFromSellerInventory = !itemFoundInSellerInventory;
-      result.canConfirmReceived = result.itemRemovedFromSellerInventory;
+      // Update result based on whether item was found in seller's inventory
+      result.itemRemovedFromSellerInventory = !itemFound;
 
-      if (result.itemRemovedFromSellerInventory) {
+      // If the item is not in seller's inventory, the buyer can confirm receipt
+      result.canConfirmReceived = !itemFound;
+
+      if (itemFound) {
         result.message =
-          "Item has been withdrawn from seller's inventory. You can confirm receipt.";
+          "The item is still in the seller's inventory. The trade offer hasn't been sent yet or you haven't accepted it.";
       } else {
         result.message =
-          "Item is still in seller's inventory. The trade may not have been completed yet.";
+          "The item has been removed from the seller's inventory. You can now confirm receipt if you have received it.";
       }
-    } catch (err) {
-      console.error("Seller's inventory check error:", err);
-      result.error = err.message;
-      result.message =
-        "Could not check seller's inventory. You may need to verify manually or try again later.";
-    }
 
-    return res.json(result);
-  } catch (err) {
-    console.error("Verify inventory error:", err);
-    return res.status(500).json({ error: "Failed to verify inventory" });
+      return res.json(result);
+    } catch (error) {
+      console.error("Error checking inventory:", error);
+      return res.status(500).json({
+        error: "Failed to check seller inventory: " + error.message,
+        tradeOffersLink: tradeOffersLink,
+      });
+    }
+  } catch (error) {
+    console.error("Error in verifyInventory:", error);
+    return res
+      .status(500)
+      .json({ error: "Server error while verifying inventory" });
   }
 };
 

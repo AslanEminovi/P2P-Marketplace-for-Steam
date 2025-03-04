@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { formatCurrency, API_URL } from '../config/constants';
+import { Button, Spinner } from 'react-bootstrap';
 
 // Status badge component
 const StatusBadge = ({ status }) => {
@@ -72,6 +73,7 @@ const TradeDetails = ({ tradeId }) => {
   const [inventoryCheckLoading, setInventoryCheckLoading] = useState(false);
   const [inventoryCheckResult, setInventoryCheckResult] = useState(null);
   const [canConfirmReceived, setCanConfirmReceived] = useState(false);
+  const [tradeOffersUrl, setTradeOffersUrl] = useState('');
 
   useEffect(() => {
     if (tradeId) {
@@ -271,7 +273,7 @@ const TradeDetails = ({ tradeId }) => {
     setInventoryCheckLoading(true);
     setError(null);
     try {
-      console.log(`Checking if item has left seller's inventory for trade ${tradeId}...`);
+      console.log(`Checking inventory status for trade ${tradeId}...`);
       const response = await axios.get(`${API_URL}/trades/${tradeId}/verify-inventory`, {
         withCredentials: true
       });
@@ -282,18 +284,53 @@ const TradeDetails = ({ tradeId }) => {
       if (response.data.canConfirmReceived) {
         // Enable confirm button if item is no longer in seller's inventory
         setCanConfirmReceived(true);
+        // Display a positive message
+        if (window.showNotification) {
+          window.showNotification(
+            'Verification Complete',
+            'Item has been withdrawn from seller\'s inventory. You can now confirm receipt.',
+            'SUCCESS'
+          );
+        }
       } else {
         setCanConfirmReceived(false);
+        
         if (response.data.error) {
-          setError('Error checking seller\'s inventory. You may need to manually confirm.');
+          setError('Error checking seller\'s inventory: ' + response.data.error);
+          // Show link to trade offers
+          setTradeOffersUrl(response.data.tradeOffersLink);
+          
+          if (window.showNotification) {
+            window.showNotification(
+              'Verification Error',
+              'Please check your Steam trade offers manually.',
+              'WARNING'
+            );
+          }
+        } else if (!response.data.itemRemovedFromSellerInventory) {
+          setError('The item is still in seller\'s inventory. The trade offer hasn\'t been sent yet or you haven\'t accepted it.');
+          // Show link to trade offers
+          setTradeOffersUrl(response.data.tradeOffersLink);
+          
+          if (window.showNotification) {
+            window.showNotification(
+              'Trade Not Complete',
+              'Check your Steam trade offers or contact the seller.',
+              'WARNING'
+            );
+          }
         } else {
-          setError('Item appears to still be in seller\'s inventory. The trade may not be complete yet.');
+          setError(response.data.message || 'Verification failed. Please try again later.');
+          // Show link to trade offers if available
+          if (response.data.tradeOffersLink) {
+            setTradeOffersUrl(response.data.tradeOffersLink);
+          }
         }
       }
     } catch (err) {
       console.error('Error checking inventory:', err);
       setInventoryCheckResult(null);
-      setError(err.response?.data?.error || 'Failed to check inventory');
+      setError(err.response?.data?.error || 'Failed to check inventory status');
       setCanConfirmReceived(false);
     } finally {
       setInventoryCheckLoading(false);
@@ -410,6 +447,20 @@ const TradeDetails = ({ tradeId }) => {
           marginBottom: '20px'
         }}>
           {error}
+        </div>
+      )}
+
+      {/* Show inventory check results */}
+      {error && (
+        <div className="alert alert-warning mt-3">
+          <p>{error}</p>
+          {tradeOffersUrl && (
+            <p>
+              <a href={tradeOffersUrl} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary">
+                <i className="fas fa-external-link-alt mr-1"></i> Check Your Steam Trade Offers
+              </a>
+            </p>
+          )}
         </div>
       )}
 
@@ -743,24 +794,27 @@ const TradeDetails = ({ tradeId }) => {
                     </div>
                     
                     <div style={{ marginBottom: '16px' }}>
-                      <button
+                      <Button
                         onClick={handleCheckInventory}
                         disabled={inventoryCheckLoading}
-                        style={{
-                          backgroundColor: '#475569',
-                          color: '#f1f1f1',
-                          border: 'none',
-                          padding: '8px 16px',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontWeight: '500',
-                          width: '100%',
-                          marginBottom: '12px',
-                          opacity: inventoryCheckLoading ? '0.7' : '1'
-                        }}
+                        variant="info"
                       >
-                        {inventoryCheckLoading ? 'Checking...' : 'Check If Item Received'}
-                      </button>
+                        {inventoryCheckLoading ? (
+                          <>
+                            <Spinner
+                              as="span"
+                              animation="border"
+                              size="sm"
+                              role="status"
+                              aria-hidden="true"
+                              className="mr-2"
+                            />
+                            Checking...
+                          </>
+                        ) : (
+                          "Check If Item Received"
+                        )}
+                      </Button>
                       
                       {inventoryCheckResult && (
                         <div style={{
