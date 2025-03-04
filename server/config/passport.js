@@ -53,6 +53,21 @@ const callbackUrl =
 console.log("Steam authentication configuration:");
 console.log("- CALLBACK_URL:", callbackUrl);
 console.log("- NODE_ENV:", process.env.NODE_ENV);
+console.log(
+  "- STEAM API KEY:",
+  process.env.STEAMWEBAPI_KEY
+    ? `${process.env.STEAMWEBAPI_KEY.substring(0, 4)}...`
+    : "Not set"
+);
+
+// The official Steam API key is required for passport-steam
+// This is different from the third-party steamwebapi.com key
+const steamApiKey = process.env.STEAM_API_KEY;
+if (!steamApiKey) {
+  console.error(
+    "WARNING: STEAM_API_KEY is not set. Steam authentication may fail."
+  );
+}
 
 passport.use(
   new SteamStrategy(
@@ -61,14 +76,14 @@ passport.use(
       realm: isProduction
         ? callbackUrl.split("/auth/steam/return")[0] + "/"
         : "http://localhost:" + (process.env.PORT || 5001) + "/",
-      apiKey: process.env.STEAMWEBAPI_KEY || process.env.STEAM_API_KEY,
+      apiKey: steamApiKey, // Use the official Steam API key for authentication
     },
     async (identifier, profile, done) => {
-      console.log(
-        "Steam authentication callback received",
-        profile._json.steamid
-      );
       try {
+        console.log(
+          "Steam authentication callback received",
+          profile._json.steamid
+        );
         // Extract the Steam ID from the profile data
         const steamId = profile._json.steamid;
         // Find or create the user in your database

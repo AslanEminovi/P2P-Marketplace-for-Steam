@@ -484,34 +484,61 @@ const steamApiService = {
    */
   async getInventory(steamId, appId, forceRefresh = true) {
     try {
+      if (!steamId) {
+        throw new Error("Steam ID is required for inventory check");
+      }
+
+      // Log the API key being used (just the first few characters for security)
+      const apiKeyPreview = process.env.STEAMWEBAPI_KEY
+        ? process.env.STEAMWEBAPI_KEY.substring(0, 4) + "..."
+        : "Not set";
+      console.log(
+        `Using STEAMWEBAPI_KEY starting with: ${apiKeyPreview} for inventory check`
+      );
+      console.log(`Checking inventory for Steam ID: ${steamId}`);
+
       const response = await axios.get(`${STEAM_API_BASE_URL}/inventory`, {
         params: {
-          key: STEAM_API_KEY,
-          steamid: steamId,
-          appid: appId,
-          production: process.env.NODE_ENV === "production" ? 1 : 0,
+          key: process.env.STEAMWEBAPI_KEY, // Use STEAMWEBAPI_KEY directly
+          steam_id: steamId, // Changed from steamid to steam_id
+          game: "cs2", // Use the correct parameter name as per documentation
+          parse: 1,
           refresh: forceRefresh ? 1 : 0,
           // Add cache busting parameter to force fresh data
           _nocache: Date.now(),
         },
       });
 
+      if (!response.data) {
+        throw new Error("Empty response from Steam API");
+      }
+
       console.log(
-        `Retrieved inventory for steamId ${steamId}. Item count: ${
-          response.data?.assets?.length || 0
-        }`
+        `Retrieved inventory for steamId ${steamId}. Response status: ${response.status}`
       );
+
+      // Check if we have assets in the response
+      if (!response.data.assets || !Array.isArray(response.data.assets)) {
+        console.warn(`No assets found in inventory response for ${steamId}`);
+        return { assets: [] }; // Return empty assets array to prevent errors
+      }
+
+      console.log(`Found ${response.data.assets.length} assets in inventory`);
       return response.data;
     } catch (error) {
       console.error(
         "Steam API Inventory Error:",
         error.response?.data || error.message
       );
-      throw new Error(
-        `Failed to fetch Steam inventory: ${
-          error.response?.data?.message || error.message
-        }`
-      );
+
+      // Provide more detailed error information
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        "Unknown error";
+
+      throw new Error(`Failed to fetch Steam inventory: ${errorMessage}`);
     }
   },
 };

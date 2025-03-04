@@ -1128,10 +1128,14 @@ exports.verifyInventory = async (req, res) => {
         `Checking seller (${trade.seller.steamId}) inventory for item ${trade.item.marketHashName} with assetId ${trade.item.assetId}`
       );
 
+      if (!trade.seller.steamId) {
+        throw new Error("Seller's Steam ID is missing");
+      }
+
       // Force refresh the seller's inventory
       const sellerInventory = await steamApiService.getInventory(
         trade.seller.steamId,
-        process.env.CS2_APP_ID,
+        null, // We don't need appId anymore as we're using 'game' parameter in the API
         true // Force refresh
       );
 
