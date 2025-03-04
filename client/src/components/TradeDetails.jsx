@@ -832,12 +832,12 @@ const TradeDetails = ({ tradeId }) => {
                           <div style={{ fontSize: '0.8rem', opacity: '0.9' }}>
                             {inventoryCheckResult.itemRemovedFromSellerInventory && (
                               <p style={{ margin: '2px 0', color: '#10b981' }}>
-                                ✓ Item has been transferred out of seller's inventory
+                                ✓ Asset ID {inventoryCheckResult.assetId} has been withdrawn from seller's inventory
                               </p>
                             )}
                             {!inventoryCheckResult.itemRemovedFromSellerInventory && !inventoryCheckResult.error && (
                               <p style={{ margin: '2px 0', color: '#ef4444' }}>
-                                ✗ Item is still in seller's inventory
+                                ✗ Asset ID {inventoryCheckResult.assetId} is still in seller's inventory
                               </p>
                             )}
                             {inventoryCheckResult.error && (
@@ -850,9 +850,8 @@ const TradeDetails = ({ tradeId }) => {
                           {!inventoryCheckResult.canConfirmReceived && (
                             <div style={{ marginTop: '8px', fontSize: '0.8rem' }}>
                               <p style={{ margin: '0', color: '#64748b' }}>
-                                This check verifies if the item has left the seller's inventory.
-                                If you've already received the item in your inventory, you can use 
-                                the force confirm checkbox below.
+                                This check verifies if the specific item (Asset ID: {inventoryCheckResult.assetId}) 
+                                has left the seller's inventory. Please check your Steam trade offers.
                               </p>
                             </div>
                           )}

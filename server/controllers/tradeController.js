@@ -918,6 +918,8 @@ exports.verifyInventory = async (req, res) => {
     const tradeId = req.params.id;
     const userId = req.user._id;
 
+    console.log(`Verifying inventory for trade ${tradeId} by user ${userId}`);
+
     // Fetch the trade with populated seller and buyer
     const trade = await Trade.findById(tradeId)
       .populate("seller", "steamId username")
@@ -952,10 +954,23 @@ exports.verifyInventory = async (req, res) => {
     // Create the link to buyer's trade offers
     const tradeOffersLink = `https://steamcommunity.com/id/${trade.buyer.steamId}/tradeoffers/`;
 
+    // Get the asset ID from the trade or the item
+    const assetId = trade.assetId || trade.item.assetId;
+
+    if (!assetId) {
+      return res.status(400).json({
+        error: "Cannot verify this trade - missing asset ID for the item",
+        tradeOffersLink: tradeOffersLink,
+      });
+    }
+
+    console.log(`Checking for asset ID ${assetId} in seller's inventory`);
+
     // Initialize result object
     const result = {
       itemRemovedFromSellerInventory: false,
       itemName: trade.item.name,
+      assetId: assetId,
       canConfirmReceived: false,
       tradeOffersLink: tradeOffersLink,
     };
@@ -963,7 +978,10 @@ exports.verifyInventory = async (req, res) => {
     try {
       // Use the steamwebapi.com API with the provided key to check seller's inventory
       const apiKey = "FSWJNSWYW8QSAQ6W";
-      const steamApiUrl = `https://steamwebapi.com/steam/api/inventory/${trade.seller.steamId}/730/2?key=${apiKey}`;
+
+      // Add cache-busting parameters to force fresh data
+      const timestamp = Date.now();
+      const steamApiUrl = `https://steamwebapi.com/steam/api/inventory/${trade.seller.steamId}/730/2?key=${apiKey}&time=${timestamp}&forcefresh=true`;
 
       console.log(`Checking seller's inventory at: ${steamApiUrl}`);
       const response = await axios.get(steamApiUrl);
@@ -978,13 +996,32 @@ exports.verifyInventory = async (req, res) => {
         `Seller inventory fetched. Items count: ${sellerInventory.length}`
       );
 
-      // Try to find the item by its market_hash_name and asset ID
-      const itemFound = sellerInventory.some((inventoryItem) => {
-        return (
-          inventoryItem.market_hash_name === trade.item.name ||
-          (trade.item.assetId && inventoryItem.assetid === trade.item.assetId)
-        );
+      // First try to find by exact asset ID match (most accurate)
+      let itemFound = sellerInventory.some((inventoryItem) => {
+        const itemAssetId =
+          inventoryItem.assetid || inventoryItem.asset_id || inventoryItem.id;
+        const match = itemAssetId === assetId.toString();
+        if (match) {
+          console.log(`Found exact asset ID match: ${itemAssetId}`);
+        }
+        return match;
       });
+
+      if (!itemFound) {
+        console.log(
+          `Item with asset ID ${assetId} not found. Double-checking by name...`
+        );
+
+        // If not found by asset ID, try by name as fallback (less accurate)
+        itemFound = sellerInventory.some((inventoryItem) => {
+          const itemName = inventoryItem.market_hash_name || inventoryItem.name;
+          const match = itemName === trade.item.name;
+          if (match) {
+            console.log(`Found match by name: ${itemName}`);
+          }
+          return match;
+        });
+      }
 
       // Update result based on whether item was found in seller's inventory
       result.itemRemovedFromSellerInventory = !itemFound;
