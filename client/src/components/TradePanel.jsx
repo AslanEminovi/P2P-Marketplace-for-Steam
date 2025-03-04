@@ -69,9 +69,40 @@ const TradePanel = ({
   const [offerAmount, setOfferAmount] = useState('');
   const [offerCurrency, setOfferCurrency] = useState('USD');
   const [processingStage, setProcessingStage] = useState(0); // 0: initial, 1: processing, 2: success
+  const [userProfile, setUserProfile] = useState(null);
+  const [fetchingProfile, setFetchingProfile] = useState(false);
   const panelRef = useRef(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
+
+  // Fetch user profile when panel opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchUserProfile();
+    }
+  }, [isOpen]);
+
+  // Fetch user profile to get trade URL
+  const fetchUserProfile = async () => {
+    try {
+      setFetchingProfile(true);
+      const response = await axios.get(`${API_URL}/user/profile`, {
+        withCredentials: true
+      });
+      
+      setUserProfile(response.data);
+      
+      // Pre-fill trade URL if available in user profile
+      if (response.data.tradeUrl) {
+        setTradeUrl(response.data.tradeUrl);
+      }
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+      // Don't set error state here, just log it
+    } finally {
+      setFetchingProfile(false);
+    }
+  };
 
   // Reset state when panel opens
   useEffect(() => {
@@ -130,12 +161,21 @@ const TradePanel = ({
       setProcessingStage(1); // Processing
       
       try {
-        const requestData = {};
-        
-        // Add trade URL if provided
-        if (tradeUrl) {
-          requestData.tradeUrl = tradeUrl;
+        // Validate trade URL before sending request
+        if (!tradeUrl || !validateTradeUrl(tradeUrl)) {
+          throw {
+            response: {
+              data: {
+                error: "Please provide a valid Steam trade URL",
+                requiresTradeUrl: true
+              }
+            }
+          };
         }
+        
+        const requestData = {
+          tradeUrl: tradeUrl
+        };
         
         const response = await axios.post(
           `${API_URL}/marketplace/buy/${item._id}`,
@@ -156,42 +196,85 @@ const TradePanel = ({
         if (window.showNotification) {
           window.showNotification(
             'Purchase Successful',
-            'Your purchase has been processed. Check your trade offers.',
+            'Your purchase has been processed successfully. Redirecting to trade page...',
             'SUCCESS'
           );
         }
         
         // Automatically navigate to trade page after successful purchase
+        // Reduce the delay to make it more responsive
         setTimeout(() => {
-          navigate(`/trades/${response.data.tradeId}`);
-        }, 3000);
+          if (response.data.tradeId) {
+            navigate(`/trades/${response.data.tradeId}`);
+          }
+        }, 2000);
         
       } catch (err) {
         console.error('Error buying item:', err);
         setProcessingStage(0); // Reset to initial state
         
-        // Special handling for missing trade URL
+        const errorMsg = err.response?.data?.error || 'Failed to purchase item';
+        
+        // Enhanced error handling with specific messages
         if (err.response?.data?.requiresTradeUrl) {
-          setError(err.response.data.error);
+          setError("Please provide a valid Steam trade URL to complete this purchase.");
           setConfirmationStep(false); // Go back to input step
+          
+          // Show notification
+          if (window.showNotification) {
+            window.showNotification(
+              'Trade URL Required',
+              'Please enter your Steam trade URL to complete this purchase.',
+              'WARNING'
+            );
+          }
           return;
-        }
-        
-        setError(err.response?.data?.error || 'Failed to purchase item');
-        
-        // Show notification
-        if (window.showNotification) {
-          window.showNotification(
-            'Purchase Failed',
-            err.response?.data?.error || 'Failed to purchase item',
-            'ERROR'
-          );
+        } else if (errorMsg.includes('Insufficient balance')) {
+          setError("You don't have enough funds in your wallet to complete this purchase. Please add funds and try again.");
+          
+          // Show notification
+          if (window.showNotification) {
+            window.showNotification(
+              'Insufficient Funds',
+              'Add funds to your wallet to complete this purchase.',
+              'WARNING'
+            );
+          }
+        } else if (errorMsg.includes('Not authenticated') || errorMsg.includes('login')) {
+          setError("You need to be logged in to make a purchase. Please log in and try again.");
+          
+          // Show notification
+          if (window.showNotification) {
+            window.showNotification(
+              'Authentication Required',
+              'Please log in to complete this purchase.',
+              'WARNING'
+            );
+          }
+        } else {
+          setError(errorMsg);
+          
+          // Show notification
+          if (window.showNotification) {
+            window.showNotification(
+              'Purchase Failed',
+              errorMsg,
+              'ERROR'
+            );
+          }
         }
       } finally {
         setLoading(false);
       }
     } else {
       // Show confirmation step
+      
+      // Validate trade URL before proceeding to confirmation
+      if (!tradeUrl || !validateTradeUrl(tradeUrl)) {
+        setError("Please provide a valid Steam trade URL before proceeding.");
+        return;
+      }
+      
       setConfirmationStep(true);
     }
   };
@@ -556,72 +639,113 @@ const TradePanel = ({
           {/* Trade URL input - always shown in modern version for clarity */}
           <motion.div
             variants={contentVariants}
-            style={{ marginBottom: '20px' }}
+            style={{ 
+              marginBottom: '20px',
+              backgroundColor: 'rgba(15, 23, 42, 0.3)',
+              padding: '16px',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+            }}
           >
-            <label
-              htmlFor="tradeUrl"
-              style={{
-                display: 'block',
-                color: '#f1f1f1',
-                marginBottom: '8px',
-                fontWeight: '600',
-                fontSize: '0.95rem'
-              }}
-            >
-              Your Steam Trade URL {error && error.includes('trade URL') && 
-                <span style={{ color: '#ef4444', fontSize: '0.85rem' }}>(Required)</span>
-              }
-            </label>
-            <input
-              id="tradeUrl"
-              type="text"
-              value={tradeUrl}
-              onChange={(e) => setTradeUrl(e.target.value)}
-              placeholder="https://steamcommunity.com/tradeoffer/new/..."
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                backgroundColor: 'rgba(45, 27, 105, 0.3)',
-                border: error && error.includes('trade URL') 
-                  ? '1px solid rgba(239, 68, 68, 0.5)' 
-                  : '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '10px',
-                color: '#f1f1f1',
-                marginBottom: '8px',
-                fontSize: '0.9rem',
-                transition: 'all 0.3s ease',
-                boxShadow: error && error.includes('trade URL')
-                  ? '0 0 0 1px rgba(239, 68, 68, 0.2)'
-                  : 'none'
-              }}
-            />
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '10px'
+            }}>
+              <label
+                htmlFor="tradeUrl"
+                style={{
+                  display: 'block',
+                  color: '#f1f1f1',
+                  fontWeight: '600',
+                  fontSize: '0.95rem'
+                }}
+              >
+                Your Steam Trade URL {error && error.includes('trade URL') && 
+                  <span style={{ color: '#ef4444', fontSize: '0.85rem', marginLeft: '4px' }}>(Required)</span>
+                }
+              </label>
+              
+              {fetchingProfile && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <motion.div 
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                    style={{
+                      width: '14px',
+                      height: '14px',
+                      borderRadius: '50%',
+                      borderTop: '2px solid #4ade80',
+                      borderRight: '2px solid transparent',
+                      borderBottom: '2px solid transparent',
+                      borderLeft: '2px solid transparent'
+                    }}
+                  />
+                  <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Loading...</span>
+                </div>
+              )}
+            </div>
+            
+            <div style={{ position: 'relative' }}>
+              <input
+                id="tradeUrl"
+                type="text"
+                value={tradeUrl}
+                onChange={(e) => setTradeUrl(e.target.value)}
+                placeholder="https://steamcommunity.com/tradeoffer/new/..."
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  backgroundColor: 'rgba(45, 27, 105, 0.4)',
+                  border: error && error.includes('trade URL') 
+                    ? '1px solid rgba(239, 68, 68, 0.5)' 
+                    : '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '10px',
+                  color: '#f1f1f1',
+                  fontSize: '0.9rem',
+                  transition: 'all 0.3s ease',
+                  boxShadow: error && error.includes('trade URL')
+                    ? '0 0 0 1px rgba(239, 68, 68, 0.2)'
+                    : 'none'
+                }}
+              />
+              
+              {userProfile && userProfile.tradeUrl && tradeUrl === userProfile.tradeUrl && (
+                <div style={{ 
+                  position: 'absolute', 
+                  right: '10px', 
+                  top: '50%', 
+                  transform: 'translateY(-50%)',
+                  backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                  color: '#8b5cf6',
+                  fontSize: '0.75rem',
+                  padding: '4px 8px',
+                  borderRadius: '4px'
+                }}>
+                  From profile
+                </div>
+              )}
+            </div>
+            
             <div style={{ 
               fontSize: '0.85rem', 
               color: '#94a3b8', 
-              marginBottom: '5px',
+              marginTop: '10px',
               display: 'flex',
               alignItems: 'center',
               gap: '6px'
             }}>
-              <a
-                href="https://steamcommunity.com/my/tradeoffers/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ 
-                  color: '#38bdf8',
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                Find your trade URL here
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                  <polyline points="15 3 21 3 21 9"></polyline>
-                  <line x1="10" y1="14" x2="21" y2="3"></line>
-                </svg>
-              </a>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              {userProfile && userProfile.tradeUrl 
+                ? "Your saved trade URL has been automatically filled in"
+                : "Find your trade URL in your Steam profile settings"
+              }
             </div>
           </motion.div>
         </motion.div>

@@ -9,6 +9,7 @@ const TradeHistory = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all'); // 'all', 'active', 'completed'
+  const [roleFilter, setRoleFilter] = useState('all'); // 'all', 'sent', 'received'
 
   useEffect(() => {
     fetchTrades();
@@ -53,9 +54,9 @@ const TradeHistory = () => {
     const getStatusText = () => {
       switch (status) {
         case 'awaiting_seller':
-          return 'Awaiting Seller';
+          return 'Purchase Offer Sent';
         case 'offer_sent':
-          return 'Offer Sent';
+          return 'Steam Offer Sent';
         case 'awaiting_confirmation':
           return 'Awaiting Confirmation';
         case 'completed':
@@ -85,14 +86,24 @@ const TradeHistory = () => {
   };
 
   const getFilteredTrades = () => {
-    if (filter === 'all') return trades;
+    let filtered = trades;
+    
+    // First filter by role (buyer/seller)
+    if (roleFilter === 'sent') {
+      filtered = filtered.filter(trade => trade.isUserBuyer);
+    } else if (roleFilter === 'received') {
+      filtered = filtered.filter(trade => trade.isUserSeller);
+    }
+    
+    // Then filter by status
+    if (filter === 'all') return filtered;
     if (filter === 'active') {
-      return trades.filter(trade => ['awaiting_seller', 'offer_sent', 'awaiting_confirmation', 'created', 'pending'].includes(trade.status));
+      return filtered.filter(trade => ['awaiting_seller', 'offer_sent', 'awaiting_confirmation', 'created', 'pending'].includes(trade.status));
     }
     if (filter === 'completed') {
-      return trades.filter(trade => ['completed', 'cancelled', 'failed'].includes(trade.status));
+      return filtered.filter(trade => ['completed', 'cancelled', 'failed'].includes(trade.status));
     }
-    return trades;
+    return filtered;
   };
 
   const filteredTrades = getFilteredTrades();
@@ -205,63 +216,108 @@ const TradeHistory = () => {
           Trade History
         </h1>
         
-        <div style={{ 
+        <div className="filter-container" style={{ 
             display: 'flex', 
-            gap: '10px',
+            gap: '16px',
             background: 'rgba(45, 27, 105, 0.5)',
             padding: '8px',
             borderRadius: '12px',
             border: '1px solid rgba(255, 255, 255, 0.05)'
           }}
         >
-          <button
-            onClick={() => setFilter('all')}
-            style={{
-              backgroundColor: filter === 'all' ? '#4ade80' : 'transparent',
-              color: filter === 'all' ? '#064e3b' : '#f1f1f1',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              fontWeight: '600',
-              transition: 'all 0.3s ease',
-              boxShadow: filter === 'all' ? '0 4px 12px rgba(74, 222, 128, 0.3)' : 'none'
-            }}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilter('active')}
-            style={{
-              backgroundColor: filter === 'active' ? '#4ade80' : 'transparent',
-              color: filter === 'active' ? '#064e3b' : '#f1f1f1',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              fontWeight: '600',
-              transition: 'all 0.3s ease',
-              boxShadow: filter === 'active' ? '0 4px 12px rgba(74, 222, 128, 0.3)' : 'none'
-            }}
-          >
-            Active
-          </button>
-          <button
-            onClick={() => setFilter('completed')}
-            style={{
-              backgroundColor: filter === 'completed' ? '#4ade80' : 'transparent',
-              color: filter === 'completed' ? '#064e3b' : '#f1f1f1',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              fontWeight: '600',
-              transition: 'all 0.3s ease',
-              boxShadow: filter === 'completed' ? '0 4px 12px rgba(74, 222, 128, 0.3)' : 'none'
-            }}
-          >
-            Completed
-          </button>
+          <div className="filter-group">
+            <span style={{ color: '#e5e7eb', marginRight: '10px' }}>Status:</span>
+            <div className="filter-buttons" style={{
+              display: 'inline-flex',
+              backgroundColor: '#1f2937',
+              borderRadius: '8px',
+              overflow: 'hidden'
+            }}>
+              <button
+                onClick={() => setFilter('all')}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: filter === 'all' ? '#3b82f6' : 'transparent',
+                  color: filter === 'all' ? 'white' : '#d1d5db',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilter('active')}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: filter === 'active' ? '#3b82f6' : 'transparent',
+                  color: filter === 'active' ? 'white' : '#d1d5db',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                Active
+              </button>
+              <button
+                onClick={() => setFilter('completed')}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: filter === 'completed' ? '#3b82f6' : 'transparent',
+                  color: filter === 'completed' ? 'white' : '#d1d5db',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                Completed
+              </button>
+            </div>
+          </div>
+          
+          <div className="filter-group">
+            <span style={{ color: '#e5e7eb', marginRight: '10px' }}>Type:</span>
+            <div className="filter-buttons" style={{
+              display: 'inline-flex',
+              backgroundColor: '#1f2937',
+              borderRadius: '8px',
+              overflow: 'hidden'
+            }}>
+              <button
+                onClick={() => setRoleFilter('all')}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: roleFilter === 'all' ? '#3b82f6' : 'transparent',
+                  color: roleFilter === 'all' ? 'white' : '#d1d5db',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setRoleFilter('sent')}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: roleFilter === 'sent' ? '#3b82f6' : 'transparent',
+                  color: roleFilter === 'sent' ? 'white' : '#d1d5db',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                Sent Offers
+              </button>
+              <button
+                onClick={() => setRoleFilter('received')}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: roleFilter === 'received' ? '#3b82f6' : 'transparent',
+                  color: roleFilter === 'received' ? 'white' : '#d1d5db',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                Received Offers
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

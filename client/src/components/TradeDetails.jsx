@@ -25,11 +25,11 @@ const StatusBadge = ({ status }) => {
   const getStatusText = () => {
     switch (status) {
       case 'awaiting_seller':
-        return 'Awaiting Seller';
+        return 'Purchase Offer Sent';
       case 'accepted':
         return 'Seller Accepted';
       case 'offer_sent':
-        return 'Offer Sent';
+        return 'Steam Offer Sent';
       case 'awaiting_confirmation':
         return 'Awaiting Confirmation';
       case 'completed':
