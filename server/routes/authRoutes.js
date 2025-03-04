@@ -33,17 +33,68 @@ router.get(
     console.log("Is authenticated:", req.isAuthenticated());
     console.log("Session data:", req.session);
 
-    // Set a flag in the session to track redirection
-    req.session.justAuthenticated = true;
-    req.session.save((err) => {
-      if (err) {
-        console.error("Error saving session:", err);
-      }
-      // Redirect back to your React client
+    if (req.user) {
+      // Create a token with user information
+      const token = req.user._id.toString(); // Use user ID as the token
+      // Redirect with token in query params (frontend will handle this)
+      res.redirect(`${config.CLIENT_URL}?auth_token=${token}`);
+    } else {
       res.redirect(config.CLIENT_URL);
-    });
+    }
   }
 );
+
+// Add a new endpoint to verify tokens
+router.post("/verify-token", async (req, res) => {
+  const { token } = req.body;
+  console.log("Verifying token:", token);
+
+  if (!token) {
+    return res
+      .status(400)
+      .json({ authenticated: false, message: "No token provided" });
+  }
+
+  try {
+    // Find the user by ID (token)
+    const user = await User.findById(token);
+
+    if (!user) {
+      return res
+        .status(400)
+        .json({ authenticated: false, message: "Invalid token" });
+    }
+
+    // Log in the user using Passport
+    req.login(user, (err) => {
+      if (err) {
+        console.error("Login error:", err);
+        return res
+          .status(500)
+          .json({ authenticated: false, message: "Login failed" });
+      }
+
+      // Return user data
+      return res.json({
+        authenticated: true,
+        user: {
+          id: user._id,
+          steamId: user.steamId,
+          displayName: user.displayName,
+          avatar: user.avatar,
+          tradeUrl: user.tradeUrl,
+          tradeUrlExpiry: user.tradeUrlExpiry,
+          walletBalance: user.walletBalance,
+          walletBalanceGEL: user.walletBalanceGEL,
+          lastProfileUpdate: user.lastProfileUpdate,
+        },
+      });
+    });
+  } catch (error) {
+    console.error("Token verification error:", error);
+    res.status(500).json({ authenticated: false, message: "Server error" });
+  }
+});
 
 // @route GET /auth/user
 router.get("/user", async (req, res) => {
