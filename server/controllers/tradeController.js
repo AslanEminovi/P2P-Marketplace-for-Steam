@@ -728,8 +728,19 @@ exports.sellerInitiate = async (req, res) => {
     const { tradeId } = req.params;
     const sellerId = req.user._id;
 
+    console.log(
+      `[DEBUG] sellerInitiate called for tradeId: ${tradeId}, sellerId: ${sellerId}`
+    );
+
     // Find the trade and populate necessary fields
     const trade = await Trade.findById(tradeId).populate("item");
+    console.log(`[DEBUG] Trade fetched:`, trade ? "Found" : "Not Found");
+
+    if (trade) {
+      console.log(
+        `[DEBUG] Trade status: ${trade.status}, Trade seller: ${trade.seller}, Current user: ${sellerId}`
+      );
+    }
 
     // Validate trade exists
     if (!trade) {
@@ -759,8 +770,12 @@ exports.sellerInitiate = async (req, res) => {
     }
 
     // Update trade status using the model method
+    console.log(`[DEBUG] Before status update: ${trade.status}`);
     trade.addStatusHistory("in_process", "Seller accepted the trade");
+    console.log(`[DEBUG] After status update: ${trade.status}`);
+
     await trade.save();
+    console.log(`[DEBUG] Trade saved successfully`);
 
     // Create notification for the buyer
     const notification = {
@@ -772,13 +787,16 @@ exports.sellerInitiate = async (req, res) => {
     };
 
     // Add notification to the buyer
+    console.log(`[DEBUG] Adding notification to buyer: ${trade.buyer}`);
     await User.findByIdAndUpdate(trade.buyer, {
       $push: {
         notifications: notification,
       },
     });
+    console.log(`[DEBUG] Notification added to buyer`);
 
     // Send real-time notification via WebSocket if available
+    console.log(`[DEBUG] Sending WebSocket notification`);
     socketService.sendNotification(trade.buyer.toString(), notification);
 
     console.log(`Trade ${tradeId} initiated by seller ${sellerId}`);

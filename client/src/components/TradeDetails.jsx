@@ -95,16 +95,27 @@ const TradeDetails = ({ tradeId }) => {
   const handleSellerApprove = async () => {
     setLoading(true);
     setError(null);
+    console.log('[DEBUG] Initiating seller approve, tradeId:', tradeId);
+    
     try {
+      console.log(`[DEBUG] Making API call to ${API_URL}/trades/${tradeId}/seller-initiate`);
       const response = await axios.put(`${API_URL}/trades/${tradeId}/seller-initiate`, {}, {
         withCredentials: true
       });
       
+      console.log('[DEBUG] API Response:', response.data);
+      
       if (response.data.success) {
+        console.log('[DEBUG] Trade initiation successful, loading trade details');
         loadTradeDetails();
+      } else {
+        console.error('[DEBUG] API returned success:false:', response.data);
+        setError(response.data.error || 'Failed to initiate trade');
       }
     } catch (err) {
-      console.error('Error initiating trade:', err);
+      console.error('[DEBUG] Error initiating trade:', err);
+      console.error('[DEBUG] Response data:', err.response?.data);
+      console.error('[DEBUG] Status code:', err.response?.status);
       setError(err.response?.data?.error || 'Failed to initiate trade');
     } finally {
       setLoading(false);
