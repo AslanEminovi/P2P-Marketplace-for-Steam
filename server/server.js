@@ -72,9 +72,23 @@ const sessionMiddleware = session({
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Needed for cross-site cookie in production
     httpOnly: true, // Prevents client-side JS from reading the cookie
     // Allow cookies to be sent from frontend to backend across domains
-    domain: process.env.NODE_ENV === "production" ? ".onrender.com" : undefined, // Match your backend domain
+    domain: process.env.NODE_ENV === "production" ? undefined : undefined, // Removing domain restriction
   },
 });
+
+// Log session configuration for debugging
+console.log("Session configuration:");
+console.log("- Cookie secure:", process.env.NODE_ENV === "production");
+console.log(
+  "- Cookie sameSite:",
+  process.env.NODE_ENV === "production" ? "none" : "lax"
+);
+console.log(
+  "- Cookie domain:",
+  process.env.NODE_ENV === "production"
+    ? "undefined (browser will handle)"
+    : "undefined"
+);
 
 app.use(sessionMiddleware);
 

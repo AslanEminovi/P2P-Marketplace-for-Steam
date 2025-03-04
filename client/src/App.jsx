@@ -50,9 +50,31 @@ function App() {
   const checkAuthStatus = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_URL}/auth/user`, { withCredentials: true });
+      console.log("Checking auth status, API URL:", API_URL);
+      
+      // Add verbose debugging
+      const res = await axios.get(`${API_URL}/auth/user`, { 
+        withCredentials: true 
+      })
+      .then(response => {
+        console.log("Auth response:", response.data);
+        return response;
+      })
+      .catch(error => {
+        console.error("Auth request failed:", error.message);
+        if (error.response) {
+          console.error("Response data:", error.response.data);
+          console.error("Response status:", error.response.status);
+          console.error("Response headers:", error.response.headers);
+        }
+        throw error;
+      });
+      
       if (res.data.authenticated) {
+        console.log("User authenticated:", res.data.user);
         setUser(res.data.user);
+      } else {
+        console.log("User not authenticated");
       }
     } catch (err) {
       console.error('Auth check error:', err);

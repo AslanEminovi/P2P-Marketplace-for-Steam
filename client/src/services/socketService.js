@@ -19,6 +19,8 @@ class SocketService {
       return;
     }
 
+    console.log("Initializing socket connection to:", API_URL);
+
     // Connect to the WebSocket server (use the same URL as the API)
     this.socket = io(API_URL, {
       withCredentials: true,
@@ -26,6 +28,12 @@ class SocketService {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 10000,
+    });
+
+    console.log("Socket options:", {
+      withCredentials: true,
+      url: API_URL,
+      transports: this.socket.io.opts.transports,
     });
 
     // Setup event listeners
