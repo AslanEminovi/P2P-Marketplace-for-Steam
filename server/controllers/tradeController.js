@@ -1083,9 +1083,14 @@ exports.verifyInventory = async (req, res) => {
   try {
     const { tradeId } = req.params;
     const userId = req.user._id;
+    console.log(
+      `Verifying inventory for trade ${tradeId} requested by user ${userId}`
+    );
 
     // Find the trade
-    const trade = await Trade.findById(tradeId).populate("item");
+    const trade = await Trade.findById(tradeId)
+      .populate("item")
+      .populate("seller");
 
     if (!trade) {
       return res.status(404).json({ error: "Trade not found" });
@@ -1106,59 +1111,179 @@ exports.verifyInventory = async (req, res) => {
         .json({ error: "Buyer's Steam account not linked" });
     }
 
-    // Check buyer's inventory for the item
+    // Prepare result object
+    const result = {
+      itemFoundInBuyerInventory: false,
+      itemNotFoundInSellerInventory: false,
+      canConfirmReceived: false,
+      message: "",
+      buyerInventoryError: null,
+      sellerInventoryError: null,
+    };
+
+    // Step 1: Check buyer's inventory for the item
     try {
-      const steamInventory = await steamApiService.getInventory(
+      console.log(
+        `Checking buyer (${buyer.steamId}) inventory for item ${trade.item.marketHashName}`
+      );
+      const buyerInventory = await steamApiService.getInventory(
         buyer.steamId,
-        process.env.CS2_APP_ID
+        process.env.CS2_APP_ID,
+        true // Force refresh
       );
 
       // Look for the item in the inventory
       const assetId = trade.item.assetId;
       const itemName = trade.item.marketHashName;
 
-      let itemFound = false;
-
-      if (steamInventory && steamInventory.assets) {
+      if (buyerInventory && buyerInventory.assets) {
         // First try to match by asset ID if available
         if (assetId) {
-          itemFound = steamInventory.assets.some(
+          result.itemFoundInBuyerInventory = buyerInventory.assets.some(
             (asset) => asset.assetid === assetId
           );
         }
 
         // If not found by asset ID, try to match by name
-        if (!itemFound && steamInventory.descriptions) {
-          for (const asset of steamInventory.assets) {
-            const description = steamInventory.descriptions.find(
+        if (!result.itemFoundInBuyerInventory && buyerInventory.descriptions) {
+          for (const asset of buyerInventory.assets) {
+            const description = buyerInventory.descriptions.find(
               (desc) =>
                 desc.classid === asset.classid &&
                 desc.instanceid === asset.instanceid
             );
 
             if (description && description.market_hash_name === itemName) {
-              itemFound = true;
+              result.itemFoundInBuyerInventory = true;
               break;
             }
           }
         }
       }
 
-      return res.json({
-        itemFound,
-        message: itemFound
-          ? "Item was found in your inventory"
-          : "Item was not found in your inventory",
-      });
+      if (result.itemFoundInBuyerInventory) {
+        console.log(`Item found in buyer's inventory: ${itemName}`);
+      } else {
+        console.log(`Item NOT found in buyer's inventory: ${itemName}`);
+      }
     } catch (err) {
-      console.error("Steam inventory check error:", err);
-      return res.status(200).json({
-        itemFound: false,
-        message:
-          "Could not verify item in inventory. You may need to manually confirm.",
-        error: err.message,
-      });
+      console.error("Buyer's Steam inventory check error:", err);
+      result.buyerInventoryError = err.message;
     }
+
+    // Step 2: Check seller's inventory to verify item is NO LONGER there
+    try {
+      // Ensure we have seller info with steamId
+      if (!trade.seller || !trade.seller.steamId) {
+        const seller = await User.findById(trade.seller);
+        if (!seller || !seller.steamId) {
+          result.sellerInventoryError = "Seller's Steam account not linked";
+        } else {
+          trade.seller = seller;
+        }
+      }
+
+      if (trade.seller && trade.seller.steamId) {
+        console.log(
+          `Checking seller (${trade.seller.steamId}) inventory for item ${trade.item.marketHashName}`
+        );
+        const sellerInventory = await steamApiService.getInventory(
+          trade.seller.steamId,
+          process.env.CS2_APP_ID,
+          true // Force refresh
+        );
+
+        const assetId = trade.item.assetId;
+        const itemName = trade.item.marketHashName;
+        let itemFoundInSellerInventory = false;
+
+        if (sellerInventory && sellerInventory.assets) {
+          // Check if the item is still in the seller's inventory
+          if (assetId) {
+            itemFoundInSellerInventory = sellerInventory.assets.some(
+              (asset) => asset.assetid === assetId
+            );
+          }
+
+          // If not found by asset ID, try to match by name and other properties
+          if (!itemFoundInSellerInventory && sellerInventory.descriptions) {
+            for (const asset of sellerInventory.assets) {
+              const description = sellerInventory.descriptions.find(
+                (desc) =>
+                  desc.classid === asset.classid &&
+                  desc.instanceid === asset.instanceid
+              );
+
+              if (description && description.market_hash_name === itemName) {
+                // Additional check - if properties/float value match
+                if (
+                  trade.item.floatValue &&
+                  description.floatvalue === trade.item.floatValue
+                ) {
+                  itemFoundInSellerInventory = true;
+                  break;
+                } else if (!trade.item.floatValue) {
+                  // If we don't have float data to compare, just match on name
+                  itemFoundInSellerInventory = true;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        // Update result
+        result.itemNotFoundInSellerInventory = !itemFoundInSellerInventory;
+
+        if (itemFoundInSellerInventory) {
+          console.log(`Item is STILL in seller's inventory: ${itemName}`);
+        } else {
+          console.log(
+            `Item is NOT in seller's inventory: ${itemName} (good - means transfer likely complete)`
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Seller's Steam inventory check error:", err);
+      result.sellerInventoryError = err.message;
+    }
+
+    // Determine overall status
+    result.canConfirmReceived =
+      result.itemFoundInBuyerInventory || result.itemNotFoundInSellerInventory;
+
+    // Set appropriate message
+    if (result.itemFoundInBuyerInventory) {
+      result.message =
+        "Item was found in your inventory! You can confirm receipt.";
+    } else if (result.itemNotFoundInSellerInventory) {
+      result.message =
+        "Item has been withdrawn from seller's inventory. You can confirm receipt.";
+    } else if (result.buyerInventoryError && result.sellerInventoryError) {
+      result.message =
+        "Could not verify inventories. Please try again or confirm manually.";
+    } else if (result.buyerInventoryError) {
+      result.message =
+        "Could not verify your inventory. Checking seller's inventory...";
+      if (result.itemNotFoundInSellerInventory) {
+        result.message += " Item has been withdrawn from seller's inventory.";
+      } else {
+        result.message += " Item appears to still be in seller's inventory.";
+      }
+    } else if (result.sellerInventoryError) {
+      result.message =
+        "Could not verify seller's inventory. Checking your inventory...";
+      if (result.itemFoundInBuyerInventory) {
+        result.message += " Item was found in your inventory!";
+      } else {
+        result.message += " Item not found in your inventory yet.";
+      }
+    } else {
+      result.message =
+        "Item was not found in your inventory and appears to still be in seller's inventory. The trade offer may not have been completed yet.";
+    }
+
+    return res.json(result);
   } catch (err) {
     console.error("Verify inventory error:", err);
     return res.status(500).json({ error: "Failed to verify inventory" });

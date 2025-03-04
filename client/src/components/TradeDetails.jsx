@@ -71,6 +71,7 @@ const TradeDetails = ({ tradeId }) => {
   const [sellerConfirmation, setSellerConfirmation] = useState(false);
   const [inventoryCheckLoading, setInventoryCheckLoading] = useState(false);
   const [inventoryCheckResult, setInventoryCheckResult] = useState(null);
+  const [canConfirmReceived, setCanConfirmReceived] = useState(false);
 
   useEffect(() => {
     if (tradeId) {
@@ -261,18 +262,30 @@ const TradeDetails = ({ tradeId }) => {
     setInventoryCheckLoading(true);
     setError(null);
     try {
+      console.log(`Checking inventory for trade ${tradeId}...`);
       const response = await axios.get(`${API_URL}/trades/${tradeId}/verify-inventory`, {
         withCredentials: true
       });
       
+      console.log('Inventory check response:', response.data);
       setInventoryCheckResult(response.data);
       
-      if (!response.data.itemFound) {
-        setError('Item not found in buyer inventory. The trade offer may not have been accepted yet.');
+      if (response.data.canConfirmReceived) {
+        // Enable confirm button if item found in buyer inventory or not found in seller inventory
+        setCanConfirmReceived(true);
+      } else {
+        setCanConfirmReceived(false);
+        if (response.data.buyerInventoryError || response.data.sellerInventoryError) {
+          setError('Error checking inventories. You may need to manually confirm.');
+        } else {
+          setError('Item transfer not yet confirmed. The trade offer may not have been completed yet.');
+        }
       }
     } catch (err) {
       console.error('Error checking inventory:', err);
+      setInventoryCheckResult(null);
       setError(err.response?.data?.error || 'Failed to check inventory');
+      setCanConfirmReceived(false);
     } finally {
       setInventoryCheckLoading(false);
     }
@@ -742,16 +755,37 @@ const TradeDetails = ({ tradeId }) => {
                       
                       {inventoryCheckResult && (
                         <div style={{
-                          backgroundColor: inventoryCheckResult.itemFound ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                          color: inventoryCheckResult.itemFound ? '#10b981' : '#ef4444',
+                          backgroundColor: inventoryCheckResult.canConfirmReceived ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                          color: inventoryCheckResult.canConfirmReceived ? '#10b981' : '#ef4444',
                           padding: '8px 12px',
                           borderRadius: '4px',
                           fontSize: '0.875rem',
                           marginBottom: '12px'
                         }}>
-                          {inventoryCheckResult.itemFound ? 
-                            'Item was found in your inventory! You can safely confirm.' : 
-                            'Item was not found in your inventory. Please check that you\'ve accepted the trade offer.'}
+                          <p style={{ margin: '0 0 8px 0', fontWeight: '500' }}>
+                            {inventoryCheckResult.message}
+                          </p>
+                          <div style={{ fontSize: '0.8rem', opacity: '0.9' }}>
+                            {inventoryCheckResult.itemFoundInBuyerInventory && (
+                              <p style={{ margin: '2px 0', color: '#10b981' }}>✓ Item found in your inventory</p>
+                            )}
+                            {!inventoryCheckResult.itemFoundInBuyerInventory && !inventoryCheckResult.buyerInventoryError && (
+                              <p style={{ margin: '2px 0', color: '#ef4444' }}>✗ Item not found in your inventory</p>
+                            )}
+                            {inventoryCheckResult.buyerInventoryError && (
+                              <p style={{ margin: '2px 0', color: '#f59e0b' }}>! Could not check your inventory</p>
+                            )}
+                            
+                            {inventoryCheckResult.itemNotFoundInSellerInventory && (
+                              <p style={{ margin: '2px 0', color: '#10b981' }}>✓ Item no longer in seller's inventory</p>
+                            )}
+                            {!inventoryCheckResult.itemNotFoundInSellerInventory && !inventoryCheckResult.sellerInventoryError && (
+                              <p style={{ margin: '2px 0', color: '#ef4444' }}>✗ Item still in seller's inventory</p>
+                            )}
+                            {inventoryCheckResult.sellerInventoryError && (
+                              <p style={{ margin: '2px 0', color: '#f59e0b' }}>! Could not check seller's inventory</p>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -777,17 +811,17 @@ const TradeDetails = ({ tradeId }) => {
                     
                     <button
                       onClick={handleBuyerConfirm}
-                      disabled={loading || (!(inventoryCheckResult?.itemFound || confirmForceOverride))}
+                      disabled={loading || (!(canConfirmReceived || confirmForceOverride))}
                       style={{
                         backgroundColor: '#22c55e',
                         color: '#f1f1f1',
                         border: 'none',
                         padding: '10px 16px',
                         borderRadius: '4px',
-                        cursor: loading || (!(inventoryCheckResult?.itemFound || confirmForceOverride)) ? 'not-allowed' : 'pointer',
+                        cursor: loading || (!(canConfirmReceived || confirmForceOverride)) ? 'not-allowed' : 'pointer',
                         fontWeight: '500',
                         width: '100%',
-                        opacity: loading || (!(inventoryCheckResult?.itemFound || confirmForceOverride)) ? '0.7' : '1'
+                        opacity: loading || (!(canConfirmReceived || confirmForceOverride)) ? '0.7' : '1'
                       }}
                     >
                       {loading ? 'Processing...' : 'Confirm Item Received'}
