@@ -247,6 +247,29 @@ function App() {
 
       const handleTradeUpdate = (tradeData) => {
         console.log('Trade update:', tradeData);
+        
+        // Create a notification with a valid type
+        const notification = {
+          type: 'trade',
+          title: 'Trade Update',
+          message: `Your trade #${tradeData.tradeId} status has been updated to: ${tradeData.status}`,
+          read: false,
+          link: `/trades/${tradeData.tradeId}`,
+          createdAt: new Date()
+        };
+        
+        // Add the notification to state
+        setNotifications(prevNotifications => [notification, ...prevNotifications]);
+        
+        // Show notification UI if available
+        if (window.showNotification) {
+          window.showNotification(
+            notification.title,
+            notification.message,
+            'INFO'
+          );
+        }
+        
         // Implement trade update logic - you might need to update the trade list
         // or refresh data in the current page if it's a trade page
       };
