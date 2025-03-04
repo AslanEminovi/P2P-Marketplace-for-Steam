@@ -44,6 +44,9 @@ app.use(
   cors({
     origin: config.CLIENT_URL,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["set-cookie"],
   })
 );
 
@@ -68,6 +71,8 @@ const sessionMiddleware = session({
     secure: process.env.NODE_ENV === "production", // Set true in production
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Needed for cross-site cookie in production
     httpOnly: true, // Prevents client-side JS from reading the cookie
+    // Allow cookies to be sent from frontend to backend across domains
+    domain: process.env.NODE_ENV === "production" ? ".onrender.com" : undefined, // Match your backend domain
   },
 });
 
@@ -132,6 +137,10 @@ app.post("/api/webhooks/steam-trade", async (req, res) => {
 
 // Serve static files in production
 if (isProduction) {
+  // When using a separate frontend deployment (Vercel), we don't need to serve static files
+  // from the backend server. Keeping this commented out for reference.
+
+  /* 
   // Serve static files from the React app build directory
   const clientBuildPath = path.join(__dirname, "../client/build");
   app.use(express.static(clientBuildPath));
@@ -140,6 +149,10 @@ if (isProduction) {
   app.get("*", (req, res) => {
     res.sendFile(path.join(clientBuildPath, "index.html"));
   });
+  */
+
+  // Instead, just log the CLIENT_URL for reference
+  console.log(`Frontend client URL: ${config.CLIENT_URL}`);
 }
 
 // Create HTTP server and integrate with Express
@@ -149,8 +162,10 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: config.CLIENT_URL,
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["set-cookie"],
   },
 });
 
@@ -210,6 +225,15 @@ server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`WebSocket server initialized`);
   console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+
+  // Debug info for troubleshooting cross-domain authentication
+  console.log(`CLIENT_URL: ${config.CLIENT_URL}`);
+  console.log(`CORS origin: ${config.CLIENT_URL}`);
+  console.log(`Cookie secure: ${process.env.NODE_ENV === "production"}`);
+  console.log(
+    `Cookie sameSite: ${process.env.NODE_ENV === "production" ? "none" : "lax"}`
+  );
+
   if (isProduction) {
     console.log(
       `Serving static files from: ${path.join(__dirname, "../client/build")}`
