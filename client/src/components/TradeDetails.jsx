@@ -74,6 +74,12 @@ const TradeDetails = ({ tradeId }) => {
   const [inventoryCheckResult, setInventoryCheckResult] = useState(null);
   const [canConfirmReceived, setCanConfirmReceived] = useState(false);
   const [tradeOffersUrl, setTradeOffersUrl] = useState('');
+  const [sendingLoading, setSendingLoading] = useState(false);
+  const [sellerWaitingForBuyer, setSellerWaitingForBuyer] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [approveLoading, setApproveLoading] = useState(false);
+  const [isBuyer, setIsBuyer] = useState(false);
+  const [isSeller, setIsSeller] = useState(false);
 
   useEffect(() => {
     if (tradeId) {
@@ -81,191 +87,207 @@ const TradeDetails = ({ tradeId }) => {
     }
   }, [tradeId]);
 
+  // Set up auto-refresh for trade details
+  useEffect(() => {
+    // Initial load
+    loadTradeDetails();
+
+    // Set up refresh interval (every 15 seconds)
+    const refreshInterval = setInterval(() => {
+      if (trade && !loading && 
+          trade.status !== 'completed' && 
+          trade.status !== 'cancelled' && 
+          trade.status !== 'failed') {
+        // Only auto-refresh for active trades
+        console.log('Auto-refreshing trade details...');
+        loadTradeDetails();
+      }
+    }, 15000);
+
+    // Clean up the interval on component unmount
+    return () => clearInterval(refreshInterval);
+  }, [tradeId]); // Only re-run if tradeId changes
+
   const loadTradeDetails = async () => {
     setLoading(true);
     setError(null);
-    console.log('[TRADE DEBUG] Loading trade details for ID:', tradeId);
-    
     try {
       const response = await axios.get(`${API_URL}/trades/${tradeId}`, {
         withCredentials: true
       });
       
-      console.log('[TRADE DEBUG] Trade details loaded:', response.data);
-      
-      // Validate the trade data
-      if (!response.data || !response.data._id) {
-        console.error('[TRADE DEBUG] Invalid trade data received:', response.data);
-        setError('Received invalid trade data from server');
-        setLoading(false);
-        return;
-      }
-      
-      // Check for required fields
-      const requiredFields = ['status', 'buyer', 'seller', 'item'];
-      const missingFields = requiredFields.filter(field => !response.data[field]);
-      
-      if (missingFields.length > 0) {
-        console.error(`[TRADE DEBUG] Trade data missing required fields: ${missingFields.join(', ')}`, response.data);
-        setError('Trade data is incomplete');
-        setLoading(false);
-        return;
-      }
-      
       setTrade(response.data);
-    } catch (err) {
-      console.error('[TRADE DEBUG] Error loading trade details:', err);
-      if (err.response) {
-        console.error('[TRADE DEBUG] Error response:', err.response.data);
-        console.error('[TRADE DEBUG] Status code:', err.response.status);
+      console.log('Trade details loaded:', response.data);
+      
+      // Set UI states based on trade status
+      if (response.data.status === 'offer_sent') {
+        setSellerWaitingForBuyer(true);
       }
-      setError(err.response?.data?.error || 'Failed to load trade details');
+      
+      // Check if current user is buyer or seller
+      const currentUser = await axios.get(`${API_URL}/users/profile`, {
+        withCredentials: true
+      });
+      
+      const userId = currentUser.data._id;
+      setIsBuyer(userId === response.data.buyer._id);
+      setIsSeller(userId === response.data.seller._id);
+      
+      // Reset loading states based on status
+      if (response.data.status === 'completed' || 
+          response.data.status === 'cancelled' || 
+          response.data.status === 'failed') {
+        setCanConfirmReceived(false);
+        setConfirmLoading(false);
+        setSendingLoading(false);
+        setApproveLoading(false);
+      }
+    } catch (err) {
+      console.error('Error loading trade details:', err);
+      setError('Failed to load trade details. Please refresh the page.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSellerApprove = async () => {
-    setLoading(true);
-    setError(null);
-    console.log('[TRADE DEBUG] Starting seller approval process for trade ID:', tradeId);
-    
     try {
-      // Log request details
-      const requestUrl = `${API_URL}/trades/${tradeId}/seller-initiate`;
-      console.log('[TRADE DEBUG] Making API request to:', requestUrl);
-      console.log('[TRADE DEBUG] API_URL value:', API_URL);
+      setApproveLoading(true);
       
-      // Add a timestamp to debug latency
-      const startTime = Date.now();
+      console.log(`Seller approving trade ${tradeId}`);
+      const response = await axios.put(`${API_URL}/trades/${tradeId}/seller-approve`, {}, {
+        withCredentials: true
+      });
       
-      // Try the regular initiate route first
-      try {
-        const response = await axios.put(requestUrl, {}, {
-          withCredentials: true,
-          timeout: 15000 // 15 second timeout to detect slow responses
-        });
-        
-        console.log(`[TRADE DEBUG] Response received in ${Date.now() - startTime}ms:`, response.data);
-        
-        if (response.data.success) {
-          console.log('[TRADE DEBUG] Trade initiation successful, loading details');
-          loadTradeDetails();
-          return; // Success, end the function here
-        } else {
-          console.error('[TRADE DEBUG] API returned success:false:', response.data);
-          // Continue to the fallback method
-        }
-      } catch (primaryError) {
-        // Log the error but don't return - try the fallback method
-        console.error('[TRADE DEBUG] Primary method failed:', primaryError.message);
-        console.error('[TRADE DEBUG] Trying simplified alternative method...');
+      console.log('Seller approve response:', response.data);
+      
+      if (window.showNotification) {
+        window.showNotification(
+          'Trade Approved',
+          'You have approved this trade. Please send the trade offer to the buyer.',
+          'SUCCESS'
+        );
       }
       
-      // If we get here, try the simplified alternative route
-      console.log('[TRADE DEBUG] Attempting simplified alternative route');
-      const simplifiedUrl = `${API_URL}/trades/${tradeId}/seller-initiate-simple`;
+      // Immediately update the UI without requiring refresh
+      setTrade(prevTrade => ({
+        ...prevTrade,
+        status: 'accepted',
+        statusHistory: [
+          ...prevTrade.statusHistory || [],
+          { status: 'accepted', timestamp: new Date().toISOString() }
+        ]
+      }));
       
-      try {
-        const simplifiedResponse = await axios.put(simplifiedUrl, {}, {
-          withCredentials: true,
-          timeout: 15000
-        });
-        
-        console.log('[TRADE DEBUG] Simplified route response:', simplifiedResponse.data);
-        
-        if (simplifiedResponse.data.success) {
-          console.log('[TRADE DEBUG] Simplified route successful, loading details');
-          loadTradeDetails();
-        } else {
-          console.error('[TRADE DEBUG] Simplified route returned success:false:', simplifiedResponse.data);
-          setError(simplifiedResponse.data.error || 'Failed to initiate trade using both methods');
-        }
-      } catch (fallbackError) {
-        console.error('[TRADE DEBUG] Simplified route also failed:', fallbackError.message);
-        if (fallbackError.response) {
-          console.error('[TRADE DEBUG] Simplified response status:', fallbackError.response.status);
-          console.error('[TRADE DEBUG] Simplified response data:', fallbackError.response.data);
-        }
-        setError(fallbackError.response?.data?.error || 'Failed to initiate trade using both methods');
-      }
-      
+      // Refresh the trade details to get the latest status
+      await loadTradeDetails();
     } catch (err) {
-      console.error('[TRADE DEBUG] Unexpected error in handleSellerApprove:', err);
-      setError(err.message || 'An unexpected error occurred');
+      console.error('Error approving trade:', err);
+      setError(err.response?.data?.error || 'Failed to approve trade');
+      
+      if (window.showNotification) {
+        window.showNotification(
+          'Error',
+          err.response?.data?.error || 'Failed to approve trade',
+          'ERROR'
+        );
+      }
     } finally {
-      setLoading(false);
-      console.log('[TRADE DEBUG] Seller approval process finished');
+      setApproveLoading(false);
     }
   };
 
   const handleSellerConfirmSent = async () => {
-    setLoading(true);
-    setError(null);
     try {
-      const response = await axios.put(`${API_URL}/trades/${tradeId}/seller-sent-manual`, {
-        tradeOfferId: steamOfferUrl.trim(), // This can be the trade offer ID or URL
-      }, {
+      setSendingLoading(true);
+      
+      console.log(`Seller confirming trade ${tradeId} as sent`);
+      const response = await axios.put(`${API_URL}/trades/${tradeId}/seller-sent`, {}, {
         withCredentials: true
       });
       
-      if (response.data.success) {
-        setSellerConfirmation(true);
-        setSteamOfferUrl('');
-        loadTradeDetails();
+      console.log('Seller sent response:', response.data);
+      
+      if (window.showNotification) {
+        window.showNotification(
+          'Offer Sent',
+          'You have marked this trade as sent. The buyer has been notified.',
+          'SUCCESS'
+        );
       }
+      
+      // Immediately update the UI without requiring refresh
+      setTrade(prevTrade => ({
+        ...prevTrade,
+        status: 'offer_sent',
+        statusHistory: [
+          ...prevTrade.statusHistory || [],
+          { status: 'offer_sent', timestamp: new Date().toISOString() }
+        ]
+      }));
+      
+      // Show "Waiting for buyer" message
+      setSellerWaitingForBuyer(true);
+      
+      // Refresh the trade details to get the latest status
+      await loadTradeDetails();
     } catch (err) {
-      console.error('Error confirming trade sent:', err);
-      setError(err.response?.data?.error || 'Failed to confirm trade sent');
+      console.error('Error marking trade as sent:', err);
+      if (window.showNotification) {
+        window.showNotification(
+          'Error',
+          err.response?.data?.error || 'Failed to mark trade as sent',
+          'ERROR'
+        );
+      }
     } finally {
-      setLoading(false);
+      setSendingLoading(false);
     }
   };
 
   const handleBuyerConfirm = async () => {
-    setLoading(true);
-    setError(null);
-    
-    // First check the buyer's inventory for the item
     try {
-      setInventoryCheckLoading(true);
-      const checkResponse = await axios.get(`${API_URL}/trades/${tradeId}/verify-inventory`, {
+      setConfirmLoading(true);
+      setError(null);
+
+      console.log(`Buyer confirming receipt for trade ${tradeId}`);
+      const response = await axios.put(`${API_URL}/trades/${tradeId}/buyer-confirm`, {}, {
         withCredentials: true
       });
+
+      console.log('Buyer confirm response:', response.data);
       
-      setInventoryCheckResult(checkResponse.data);
-      
-      // If item found in inventory, proceed with confirmation
-      if (checkResponse.data.itemFound || confirmForceOverride) {
-        const response = await axios.put(`${API_URL}/trades/${tradeId}/buyer-confirm`, {
-          forceConfirm: confirmForceOverride
-        }, {
-          withCredentials: true
-        });
-        
-        if (response.data.success) {
-          loadTradeDetails();
-        }
-      } else {
-        // Item not found, ask user if they want to proceed anyway
-        setError('Warning: The item was not found in your inventory. If you still want to confirm, please check "Force confirm" below.');
-        setConfirmForceOverride(true);
+      if (window.showNotification) {
+        window.showNotification(
+          'Success',
+          'You have confirmed receipt of the item!',
+          'SUCCESS'
+        );
       }
-    } catch (err) {
-      console.error('Error confirming trade:', err);
-      const errorMsg = err.response?.data?.error || 'Failed to confirm trade';
       
-      // Check for specific error types and provide helpful guidance
-      if (errorMsg.includes('in offer_sent state') || errorMsg.includes('in accepted state')) {
-        setError(`${errorMsg}. Please try checking your Steam inventory first to verify the item is in your inventory.`);
-      } else if (errorMsg.includes('Insufficient')) {
-        setError(`${errorMsg}. Please add funds to your wallet to complete this purchase.`);
-      } else {
-        setError(errorMsg);
+      // Immediately update the UI without requiring refresh
+      setTrade(prevTrade => ({
+        ...prevTrade,
+        status: 'completed',
+        completedAt: new Date().toISOString(),
+        statusHistory: [
+          ...prevTrade.statusHistory || [],
+          { status: 'completed', timestamp: new Date().toISOString() }
+        ]
+      }));
+      
+      // Refresh the trade details to get the latest status
+      await loadTradeDetails();
+    } catch (err) {
+      console.error('Error confirming receipt:', err);
+      setError(err.response?.data?.error || 'Failed to confirm receipt');
+      
+      // If the error contains a tradeOffersLink, set it
+      if (err.response?.data?.tradeOffersLink) {
+        setTradeOffersUrl(err.response.data.tradeOffersLink);
       }
     } finally {
-      setLoading(false);
-      setInventoryCheckLoading(false);
+      setConfirmLoading(false);
     }
   };
 
@@ -628,36 +650,25 @@ const TradeDetails = ({ tradeId }) => {
                     </p>
                     <button
                       onClick={handleSellerApprove}
-                      disabled={loading}
+                      disabled={approveLoading}
                       style={{
-                        backgroundColor: '#22c55e',
+                        backgroundColor: '#3b82f6',
                         color: '#f1f1f1',
                         border: 'none',
                         padding: '10px 16px',
                         borderRadius: '4px',
-                        cursor: 'pointer',
+                        cursor: approveLoading ? 'not-allowed' : 'pointer',
                         fontWeight: '500',
-                        marginRight: '8px',
-                        opacity: loading ? '0.7' : '1'
+                        width: '100%',
+                        opacity: approveLoading ? '0.7' : '1'
                       }}
                     >
-                      {loading ? 'Processing...' : 'Accept Offer'}
-                    </button>
-                    <button
-                      onClick={() => document.getElementById('cancel-reason').style.display = 'block'}
-                      disabled={loading}
-                      style={{
-                        backgroundColor: '#ef4444',
-                        color: '#f1f1f1',
-                        border: 'none',
-                        padding: '10px 16px',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontWeight: '500',
-                        opacity: loading ? '0.7' : '1'
-                      }}
-                    >
-                      Decline
+                      {approveLoading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                          Processing...
+                        </>
+                      ) : 'Accept Purchase Offer'}
                     </button>
                   </div>
                 )}
@@ -713,20 +724,25 @@ const TradeDetails = ({ tradeId }) => {
                     
                     <button
                       onClick={handleSellerConfirmSent}
-                      disabled={loading || sellerConfirmation}
+                      disabled={sendingLoading || sellerWaitingForBuyer}
                       style={{
-                        backgroundColor: sellerConfirmation ? '#059669' : '#3b82f6',
+                        backgroundColor: sellerWaitingForBuyer ? '#10b981' : '#3b82f6',
                         color: '#f1f1f1',
                         border: 'none',
                         padding: '10px 16px',
                         borderRadius: '4px',
-                        cursor: loading || sellerConfirmation ? 'not-allowed' : 'pointer',
+                        cursor: sendingLoading || sellerWaitingForBuyer ? 'not-allowed' : 'pointer',
                         fontWeight: '500',
                         width: '100%',
-                        opacity: loading ? '0.7' : '1'
+                        opacity: sendingLoading ? '0.7' : '1'
                       }}
                     >
-                      {loading ? 'Processing...' : sellerConfirmation ? 'Trade Offer Sent ✓' : 'I\'ve Sent the Trade Offer'}
+                      {sendingLoading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                          Sending...
+                        </>
+                      ) : sellerWaitingForBuyer ? 'Waiting for buyer...' : 'I\'ve Sent the Trade Offer'}
                     </button>
                   </div>
                 )}
@@ -880,20 +896,25 @@ const TradeDetails = ({ tradeId }) => {
                     
                     <button
                       onClick={handleBuyerConfirm}
-                      disabled={loading || (!(canConfirmReceived || confirmForceOverride))}
+                      disabled={confirmLoading || !canConfirmReceived}
                       style={{
-                        backgroundColor: '#22c55e',
+                        backgroundColor: canConfirmReceived ? '#10b981' : '#9ca3af',
                         color: '#f1f1f1',
                         border: 'none',
                         padding: '10px 16px',
                         borderRadius: '4px',
-                        cursor: loading || (!(canConfirmReceived || confirmForceOverride)) ? 'not-allowed' : 'pointer',
+                        cursor: confirmLoading || !canConfirmReceived ? 'not-allowed' : 'pointer',
                         fontWeight: '500',
                         width: '100%',
-                        opacity: loading || (!(canConfirmReceived || confirmForceOverride)) ? '0.7' : '1'
+                        opacity: confirmLoading ? '0.7' : '1'
                       }}
                     >
-                      {loading ? 'Processing...' : 'Confirm Item Received'}
+                      {confirmLoading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                          Processing...
+                        </>
+                      ) : 'Confirm Item Received'}
                     </button>
                   </div>
                 )}
