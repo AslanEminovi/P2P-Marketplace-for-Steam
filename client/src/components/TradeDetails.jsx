@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { formatCurrency } from '../config/constants';
-
-const API_URL = 'http://localhost:5001';
+import { formatCurrency, API_URL } from '../config/constants';
 
 // Status badge component
 const StatusBadge = ({ status }) => {

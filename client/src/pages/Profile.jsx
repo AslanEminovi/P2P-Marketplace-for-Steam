@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_URL } from '../config/constants';
 import Wallet from '../components/Wallet';
-
-const API_URL = 'http://localhost:5001';
 
 const Profile = ({ user, onBalanceUpdate }) => {
   const [activeTab, setActiveTab] = useState('wallet');

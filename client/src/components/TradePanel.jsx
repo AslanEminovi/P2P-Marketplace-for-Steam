@@ -3,9 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { formatCurrency } from '../config/constants';
-
-const API_URL = 'http://localhost:5001';
+import { formatCurrency, API_URL } from '../config/constants';
 
 // Animation variants
 const backdropVariants = {

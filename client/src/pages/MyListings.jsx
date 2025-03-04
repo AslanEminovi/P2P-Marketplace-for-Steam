@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { API_URL } from '../config/constants';
 import './MyListings.css';
 
 function MyListings() {
@@ -20,7 +21,7 @@ function MyListings() {
   const fetchMyListings = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('http://localhost:5001/marketplace/my-listings', { withCredentials: true });
+      const res = await axios.get(`${API_URL}/marketplace/my-listings`, { withCredentials: true });
       setListings(res.data);
       setError('');
     } catch (err) {
@@ -37,7 +38,7 @@ function MyListings() {
 
   const handleCancelListing = async (itemId) => {
     try {
-      await axios.put(`http://localhost:5001/marketplace/cancel/${itemId}`, {}, { withCredentials: true });
+      await axios.put(`${API_URL}/marketplace/cancel/${itemId}`, {}, { withCredentials: true });
       setListings(listings.filter(item => item._id !== itemId));
       setSuccessMessage('Listing cancelled successfully');
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -72,7 +73,7 @@ function MyListings() {
         priceGEL: newPriceGEL ? parseFloat(newPriceGEL) : parseFloat(newPrice) * 1.8,
       };
 
-      const res = await axios.put(`http://localhost:5001/marketplace/update-price/${itemId}`, updatedItem, { withCredentials: true });
+      const res = await axios.put(`${API_URL}/marketplace/update-price/${itemId}`, updatedItem, { withCredentials: true });
       
       setListings(listings.map(item => 
         item._id === itemId ? { ...item, price: updatedItem.price, priceGEL: updatedItem.priceGEL } : item

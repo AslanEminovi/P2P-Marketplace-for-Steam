@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_URL } from '../config/constants';
 
 const UserListings = ({ show, onClose, userId }) => {
   const [listings, setListings] = useState([]);
@@ -9,7 +10,7 @@ const UserListings = ({ show, onClose, userId }) => {
   const fetchUserListings = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5001/marketplace/my-listings', {
+      const response = await axios.get(`${API_URL}/marketplace/my-listings`, {
         withCredentials: true
       });
       setListings(response.data);
@@ -24,7 +25,7 @@ const UserListings = ({ show, onClose, userId }) => {
 
   const cancelListing = async (itemId) => {
     try {
-      await axios.put(`http://localhost:5001/marketplace/cancel/${itemId}`, {}, {
+      await axios.put(`${API_URL}/marketplace/cancel/${itemId}`, {}, {
         withCredentials: true
       });
       // Update the listings list

@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
-
-const API_URL = 'http://localhost:5001';
+import { API_URL } from '../config/constants';
 
 // Define notification types and their associated colors/icons
 const NOTIFICATION_TYPES = {

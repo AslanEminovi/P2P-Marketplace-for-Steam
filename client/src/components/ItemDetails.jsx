@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { formatCurrency } from '../config/constants';
+import { formatCurrency, API_URL } from '../config/constants';
 import TradePanel from './TradePanel';
-
-const API_URL = 'http://localhost:5001';
 
 const ItemDetails = ({ 
   itemId, 

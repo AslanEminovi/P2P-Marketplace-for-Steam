@@ -7,6 +7,7 @@ import UserListings from '../components/UserListings';
 import ItemDetails from '../components/ItemDetails';
 import TradePanel from '../components/TradePanel';
 import ItemCard3D from '../components/ItemCard3D';
+import { API_URL } from '../config/constants';
 
 function Marketplace() {
   const [items, setItems] = useState([]);
@@ -74,7 +75,7 @@ function Marketplace() {
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('http://localhost:5001/marketplace', { withCredentials: true });
+      const res = await axios.get(`${API_URL}/marketplace`, { withCredentials: true });
       setItems(res.data);
       setMessage('');
     } catch (err) {
@@ -88,7 +89,7 @@ function Marketplace() {
   const fetchMyListings = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5001/marketplace/my-listings', {
+      const response = await axios.get(`${API_URL}/marketplace/my-listings`, {
         withCredentials: true
       });
       setMyListings(response.data);
@@ -103,7 +104,7 @@ function Marketplace() {
 
   const buyItem = async (itemId) => {
     try {
-      const res = await axios.post(`http://localhost:5001/marketplace/buy/${itemId}`, {}, { withCredentials: true });
+      const res = await axios.post(`${API_URL}/marketplace/buy/${itemId}`, {}, { withCredentials: true });
       setMessage(res.data.message || 'Item purchased successfully!');
       fetchItems();
     } catch (err) {
@@ -783,7 +784,7 @@ function Marketplace() {
                           e.stopPropagation();
                           const cancelListing = async () => {
                             try {
-                              await axios.put(`http://localhost:5001/marketplace/cancel/${item._id}`, {}, {
+                              await axios.put(`${API_URL}/marketplace/cancel/${item._id}`, {}, {
                                 withCredentials: true
                               });
                               // Update listings after cancellation

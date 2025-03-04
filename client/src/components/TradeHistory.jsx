@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 // Removed motion imports to fix build issues
-import { formatCurrency } from '../config/constants';
-
-const API_URL = 'http://localhost:5001';
+import { formatCurrency, API_URL } from '../config/constants';
 
 const TradeHistory = () => {
   const [trades, setTrades] = useState([]);

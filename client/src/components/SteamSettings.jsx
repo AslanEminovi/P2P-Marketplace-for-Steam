@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_URL } from '../config/constants';
 import './SteamSettings.css';
 
 function SteamSettings() {
@@ -12,7 +13,7 @@ function SteamSettings() {
     // Fetch current trade URL and expiry if available
     const fetchSettings = async () => {
       try {
-        const res = await axios.get('http://localhost:5001/auth/user', { withCredentials: true });
+        const res = await axios.get(`${API_URL}/auth/user`, { withCredentials: true });
         if (res.data.authenticated) {
           if (res.data.user.tradeUrlExpiry) {
             setTradeUrlExpiry(new Date(res.data.user.tradeUrlExpiry));
@@ -42,9 +43,10 @@ function SteamSettings() {
     setLoading(true);
     
     try {
+      const formData = { tradeUrl };
       const res = await axios.post(
-        'http://localhost:5001/offers/steam/trade-url',
-        { tradeUrl },
+        `${API_URL}/offers/steam/trade-url`,
+        formData,
         { withCredentials: true }
       );
       

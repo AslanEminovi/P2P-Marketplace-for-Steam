@@ -1,8 +1,9 @@
 import React, { useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { formatCurrency } from '../config/constants';
 import NotificationCenter from './NotificationCenter';
 import LanguageSwitcher from './LanguageSwitcher';
+import { API_URL } from '../config/constants';
 
 function Navbar({ user, onLogout }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -394,7 +395,7 @@ function Navbar({ user, onLogout }) {
           </div>
         ) : (
           <a 
-            href="http://localhost:5001/auth/steam"
+            href={`${API_URL}/auth/steam`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',

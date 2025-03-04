@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_URL } from '../config/constants';
 import SellModal from '../components/SellModal';
 import socketService from '../services/socketService';
 
@@ -48,7 +49,7 @@ function Inventory() {
 
   const checkAuthStatus = async () => {
     try {
-      const res = await axios.get('http://localhost:5001/auth/user', { withCredentials: true });
+      const res = await axios.get(`${API_URL}/auth/user`, { withCredentials: true });
       if (res.data.authenticated) {
         setUser(res.data.user);
         return true;
@@ -72,7 +73,7 @@ function Inventory() {
         return;
       }
 
-      const res = await axios.get('http://localhost:5001/inventory/my', { withCredentials: true });
+      const res = await axios.get(`${API_URL}/inventory/my`, { withCredentials: true });
       console.log('Inventory response:', res.data);
       
       if (res.data && Array.isArray(res.data)) {
@@ -115,7 +116,7 @@ function Inventory() {
       // Calculate price in USD based on selected currency rate
       const priceUSD = itemData.pricelatest || itemData.pricereal || 1;
 
-      await axios.post('http://localhost:5001/marketplace/list', {
+      await axios.post(`${API_URL}/marketplace/list`, {
         steamItemId: itemData.classid,
         assetId: itemData.assetid || itemData.asset_id,
         marketHashName: itemData.markethashname,

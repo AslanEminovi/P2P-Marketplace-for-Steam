@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { API_URL } from '../config/constants';
 
 const OfferModal = ({ item, onClose, onSuccess }) => {
   const [offerAmount, setOfferAmount] = useState('');
@@ -58,7 +59,7 @@ const OfferModal = ({ item, onClose, onSuccess }) => {
       };
 
       const response = await axios.post(
-        `http://localhost:5001/offers/${item._id}`,
+        `${API_URL}/offers/${item._id}`,
         payload,
         { withCredentials: true }
       );
