@@ -769,26 +769,44 @@ exports.sellerInitiate = async (req, res) => {
       });
     }
 
-    // Update trade status using the model method
-    console.log(`[DEBUG] Before status update: ${trade.status}`);
-    trade.addStatusHistory("in_process", "Seller accepted the trade");
-    console.log(`[DEBUG] After status update: ${trade.status}`);
+    // Update the trade status directly with Mongoose's findByIdAndUpdate
+    console.log(`[DEBUG] Updating trade status directly`);
+    const updatedTrade = await Trade.findByIdAndUpdate(
+      tradeId,
+      {
+        status: "in_process",
+        $push: {
+          statusHistory: {
+            status: "in_process",
+            timestamp: new Date(),
+            note: "Seller accepted the trade",
+          },
+        },
+      },
+      { new: true, runValidators: true }
+    ).populate("item");
 
-    await trade.save();
-    console.log(`[DEBUG] Trade saved successfully`);
+    if (!updatedTrade) {
+      console.error(`[DEBUG] Failed to update trade status`);
+      return res.status(500).json({ error: "Failed to update trade status" });
+    }
+
+    console.log(
+      `[DEBUG] Trade status updated successfully to: ${updatedTrade.status}`
+    );
 
     // Create notification for the buyer
     const notification = {
       type: "trade_update",
       title: "Trade Update",
-      message: `The seller has accepted your trade for ${trade.item.name}`,
-      relatedTradeId: trade._id,
+      message: `The seller has accepted your trade for ${updatedTrade.item.name}`,
+      relatedTradeId: updatedTrade._id,
       createdAt: new Date(),
     };
 
     // Add notification to the buyer
-    console.log(`[DEBUG] Adding notification to buyer: ${trade.buyer}`);
-    await User.findByIdAndUpdate(trade.buyer, {
+    console.log(`[DEBUG] Adding notification to buyer: ${updatedTrade.buyer}`);
+    await User.findByIdAndUpdate(updatedTrade.buyer, {
       $push: {
         notifications: notification,
       },
@@ -797,13 +815,13 @@ exports.sellerInitiate = async (req, res) => {
 
     // Send real-time notification via WebSocket if available
     console.log(`[DEBUG] Sending WebSocket notification`);
-    socketService.sendNotification(trade.buyer.toString(), notification);
+    socketService.sendNotification(updatedTrade.buyer.toString(), notification);
 
     console.log(`Trade ${tradeId} initiated by seller ${sellerId}`);
     return res.status(200).json({
       success: true,
       message: "Trade initiated successfully",
-      trade,
+      trade: updatedTrade,
     });
   } catch (error) {
     console.error("Error initiating trade:", error);
