@@ -61,7 +61,7 @@ passport.use(
       realm: isProduction
         ? callbackUrl.split("/auth/steam/return")[0] + "/"
         : "http://localhost:" + (process.env.PORT || 5001) + "/",
-      apiKey: process.env.STEAM_API_KEY,
+      apiKey: process.env.STEAMWEBAPI_KEY || process.env.STEAM_API_KEY,
     },
     async (identifier, profile, done) => {
       console.log(

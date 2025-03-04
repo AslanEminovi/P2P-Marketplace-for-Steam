@@ -8,12 +8,12 @@ const STEAM_API_BASE_URL =
   process.env.STEAM_API_BASE_URL || "https://www.steamwebapi.com/steam/api";
 
 // API key must be provided via environment variables
-const STEAM_API_KEY = process.env.STEAM_API_KEY;
+const STEAM_API_KEY = process.env.STEAMWEBAPI_KEY || process.env.STEAM_API_KEY;
 
 // Check if API key is missing and throw error to prevent service from starting with invalid config
 if (!STEAM_API_KEY) {
   throw new Error(
-    "STEAM_API_KEY environment variable is required but not provided"
+    "STEAMWEBAPI_KEY or STEAM_API_KEY environment variable is required but not provided"
   );
 }
 
