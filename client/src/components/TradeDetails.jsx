@@ -262,7 +262,7 @@ const TradeDetails = ({ tradeId }) => {
     setInventoryCheckLoading(true);
     setError(null);
     try {
-      console.log(`Checking inventory for trade ${tradeId}...`);
+      console.log(`Checking if item has left seller's inventory for trade ${tradeId}...`);
       const response = await axios.get(`${API_URL}/trades/${tradeId}/verify-inventory`, {
         withCredentials: true
       });
@@ -271,14 +271,14 @@ const TradeDetails = ({ tradeId }) => {
       setInventoryCheckResult(response.data);
       
       if (response.data.canConfirmReceived) {
-        // Enable confirm button if item found in buyer inventory or not found in seller inventory
+        // Enable confirm button if item is no longer in seller's inventory
         setCanConfirmReceived(true);
       } else {
         setCanConfirmReceived(false);
-        if (response.data.buyerInventoryError || response.data.sellerInventoryError) {
-          setError('Error checking inventories. You may need to manually confirm.');
+        if (response.data.error) {
+          setError('Error checking seller\'s inventory. You may need to manually confirm.');
         } else {
-          setError('Item transfer not yet confirmed. The trade offer may not have been completed yet.');
+          setError('Item appears to still be in seller\'s inventory. The trade may not be complete yet.');
         }
       }
     } catch (err) {
@@ -757,7 +757,7 @@ const TradeDetails = ({ tradeId }) => {
                         <div style={{
                           backgroundColor: inventoryCheckResult.canConfirmReceived ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
                           color: inventoryCheckResult.canConfirmReceived ? '#10b981' : '#ef4444',
-                          padding: '8px 12px',
+                          padding: '12px',
                           borderRadius: '4px',
                           fontSize: '0.875rem',
                           marginBottom: '12px'
@@ -765,27 +765,34 @@ const TradeDetails = ({ tradeId }) => {
                           <p style={{ margin: '0 0 8px 0', fontWeight: '500' }}>
                             {inventoryCheckResult.message}
                           </p>
+                          
                           <div style={{ fontSize: '0.8rem', opacity: '0.9' }}>
-                            {inventoryCheckResult.itemFoundInBuyerInventory && (
-                              <p style={{ margin: '2px 0', color: '#10b981' }}>✓ Item found in your inventory</p>
+                            {inventoryCheckResult.itemRemovedFromSellerInventory && (
+                              <p style={{ margin: '2px 0', color: '#10b981' }}>
+                                ✓ Item has been transferred out of seller's inventory
+                              </p>
                             )}
-                            {!inventoryCheckResult.itemFoundInBuyerInventory && !inventoryCheckResult.buyerInventoryError && (
-                              <p style={{ margin: '2px 0', color: '#ef4444' }}>✗ Item not found in your inventory</p>
+                            {!inventoryCheckResult.itemRemovedFromSellerInventory && !inventoryCheckResult.error && (
+                              <p style={{ margin: '2px 0', color: '#ef4444' }}>
+                                ✗ Item is still in seller's inventory
+                              </p>
                             )}
-                            {inventoryCheckResult.buyerInventoryError && (
-                              <p style={{ margin: '2px 0', color: '#f59e0b' }}>! Could not check your inventory</p>
-                            )}
-                            
-                            {inventoryCheckResult.itemNotFoundInSellerInventory && (
-                              <p style={{ margin: '2px 0', color: '#10b981' }}>✓ Item no longer in seller's inventory</p>
-                            )}
-                            {!inventoryCheckResult.itemNotFoundInSellerInventory && !inventoryCheckResult.sellerInventoryError && (
-                              <p style={{ margin: '2px 0', color: '#ef4444' }}>✗ Item still in seller's inventory</p>
-                            )}
-                            {inventoryCheckResult.sellerInventoryError && (
-                              <p style={{ margin: '2px 0', color: '#f59e0b' }}>! Could not check seller's inventory</p>
+                            {inventoryCheckResult.error && (
+                              <p style={{ margin: '2px 0', color: '#f59e0b' }}>
+                                ! Could not verify seller's inventory: {inventoryCheckResult.error}
+                              </p>
                             )}
                           </div>
+                          
+                          {!inventoryCheckResult.canConfirmReceived && (
+                            <div style={{ marginTop: '8px', fontSize: '0.8rem' }}>
+                              <p style={{ margin: '0', color: '#64748b' }}>
+                                This check verifies if the item has left the seller's inventory.
+                                If you've already received the item in your inventory, you can use 
+                                the force confirm checkbox below.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
