@@ -13,6 +13,33 @@ const { Server } = require("socket.io");
 const isProduction = process.env.NODE_ENV === "production";
 console.log(`Running in ${isProduction ? "production" : "development"} mode`);
 
+// Validate essential API keys
+if (!process.env.STEAMWEBAPI_KEY) {
+  console.error(
+    "WARNING: STEAMWEBAPI_KEY is not set in environment variables. Inventory checks will fail."
+  );
+} else {
+  console.log(
+    `STEAMWEBAPI_KEY is set (starts with: ${process.env.STEAMWEBAPI_KEY.substring(
+      0,
+      4
+    )}...)`
+  );
+}
+
+if (!process.env.STEAM_API_KEY) {
+  console.error(
+    "WARNING: STEAM_API_KEY is not set in environment variables. Steam authentication may fail."
+  );
+} else {
+  console.log(
+    `STEAM_API_KEY is set (starts with: ${process.env.STEAM_API_KEY.substring(
+      0,
+      4
+    )}...)`
+  );
+}
+
 // Load appropriate config
 const config = isProduction
   ? require("./config/production")
