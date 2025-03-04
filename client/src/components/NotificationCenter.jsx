@@ -453,17 +453,34 @@ const NotificationCenter = ({ user }) => {
                   animation: 'spin 1s linear infinite',
                   marginBottom: '10px'
                 }} />
-                <p>{t('notifications.loading')}</p>
+                <p style={{ fontSize: '0.9rem', marginTop: '10px' }}>
+                  {t('notifications.loading')}
+                </p>
               </div>
             ) : error ? (
               <div
                 style={{
                   padding: '20px',
                   textAlign: 'center',
-                  color: '#ef4444'
+                  color: '#f87171'
                 }}
               >
-                {error}
+                <p>{error}</p>
+                <button
+                  onClick={fetchNotifications}
+                  style={{
+                    marginTop: '10px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    color: '#f87171',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  Retry
+                </button>
               </div>
             ) : notifications.length === 0 ? (
               <div
@@ -473,7 +490,24 @@ const NotificationCenter = ({ user }) => {
                   color: '#94a3b8'
                 }}
               >
-                {t('notifications.empty')}
+                <div style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  width: '50px',
+                  height: '50px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 15px'
+                }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                  </svg>
+                </div>
+                <p style={{ fontSize: '0.9rem' }}>
+                  {t('notifications.empty')}
+                </p>
               </div>
             ) : (
               notifications.map((notification, index) => (
@@ -678,7 +712,7 @@ const NotificationCenter = ({ user }) => {
               }}
             >
               <Link
-                to="/profile"
+                to="/notifications"
                 style={{
                   color: '#cbd5e1',
                   textDecoration: 'none',

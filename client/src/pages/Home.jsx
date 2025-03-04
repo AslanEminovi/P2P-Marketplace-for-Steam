@@ -89,16 +89,72 @@ function Home({ user }) {
           
           <div className="hero-cta">
             {user ? (
-              <Link to="/marketplace" className="cta-button pulse">
+              <Link
+                to="/marketplace"
+                className="cta-button"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: '#4ade80',
+                  color: '#0f172a',
+                  padding: '14px 28px',
+                  borderRadius: '8px',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 0 0 0 rgba(74, 222, 128, 0.5)',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#22c55e';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 10px 20px -10px rgba(74, 222, 128, 0.5)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = '#4ade80';
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                  e.currentTarget.style.boxShadow = '0 0 0 0 rgba(74, 222, 128, 0.5)';
+                }}
+              >
                 Browse Marketplace
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
               </Link>
             ) : (
-              <a href={`${API_URL}/auth/steam`} className="cta-button pulse">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '8px' }}>
-                  <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" stroke="white" strokeWidth="2"/>
-                  <path d="M6 12L12 3L18 12L12 21L6 12Z" stroke="white" strokeWidth="2"/>
+              <a
+                href={`${API_URL}/auth/steam`}
+                className="cta-button"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: '#4ade80',
+                  color: '#0f172a',
+                  padding: '14px 28px',
+                  borderRadius: '8px',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 0 0 0 rgba(74, 222, 128, 0.5)',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#22c55e';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 10px 20px -10px rgba(74, 222, 128, 0.5)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = '#4ade80';
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                  e.currentTarget.style.boxShadow = '0 0 0 0 rgba(74, 222, 128, 0.5)';
+                }}
+              >
+                Connect with Steam
+                <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 0C4.475 0 0 4.475 0 10c0 4.126 2.434 7.934 6.415 9.639l3.045-2.434c-0.295 0.021-0.589 0.032-0.884 0.032-3.905 0-7.071-3.165-7.071-7.071 0-3.905 3.165-7.071 7.071-7.071 3.905 0 7.071 3.165 7.071 7.071 0 0.472-0.045 0.944-0.138 1.406l2.399 0.967C19.288 11.088 20 9.161 20 7.071 20 3.165 16.835 0 12.929 0H10zm4.556 8.877l-1.443-0.58c-0.295-0.119-0.611-0.18-0.932-0.18-1.364 0-2.475 1.111-2.475 2.475 0 1.364 1.111 2.475 2.475 2.475 1.364 0 2.475-1.111 2.475-2.475 0-0.325-0.063-0.637-0.183-0.932l0.58-1.443 0.603 0.241c0.393-0.603 0.634-1.303 0.634-2.071 0-2.123-1.722-3.845-3.845-3.845-2.123 0-3.845 1.722-3.845 3.845 0 2.123 1.722 3.845 3.845 3.845v-0.001c0.767 0 1.467-0.24 2.071-0.633l-0.241-0.603 1.28-0.518z"></path>
                 </svg>
-                Sign in with Steam
               </a>
             )}
           </div>

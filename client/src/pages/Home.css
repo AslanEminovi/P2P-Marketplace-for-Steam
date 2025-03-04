@@ -89,41 +89,24 @@
 .cta-button {
   display: inline-flex;
   align-items: center;
-  background: linear-gradient(90deg, #4ade80 0%, #38bdf8 100%);
-  color: white;
-  padding: 1rem 2.5rem;
-  border-radius: 12px;
+  gap: 8px;
+  background: #4ade80;
+  color: #0f172a;
+  padding: 14px 28px;
+  border-radius: 8px;
   font-weight: 600;
   font-size: 1.1rem;
   text-decoration: none;
   transition: all 0.3s ease;
-  box-shadow: 0 10px 20px rgba(74, 222, 128, 0.3);
+  box-shadow: 0 5px 15px rgba(74, 222, 128, 0.2);
   border: none;
   cursor: pointer;
 }
 
 .cta-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 15px 30px rgba(74, 222, 128, 0.4);
-}
-
-.pulse {
-  animation: pulse 3s infinite ease-in-out;
-}
-
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4);
-    transform: scale(1);
-  }
-  50% {
-    box-shadow: 0 0 0 10px rgba(74, 222, 128, 0);
-    transform: scale(1.03);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
-    transform: scale(1);
-  }
+  background-color: #22c55e;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(74, 222, 128, 0.3);
 }
 
 .hero-visual {
