@@ -76,8 +76,24 @@ function Inventory() {
       const res = await axios.get(`${API_URL}/inventory/my`, { withCredentials: true });
       console.log('Inventory response:', res.data);
       
-      if (res.data && Array.isArray(res.data)) {
-        setItems(res.data);
+      // Handle different possible response formats
+      let inventoryItems = [];
+      
+      if (res.data) {
+        if (Array.isArray(res.data)) {
+          // The API returned an array directly
+          inventoryItems = res.data;
+        } else if (res.data.items && Array.isArray(res.data.items)) {
+          // The API returned an object with items array
+          inventoryItems = res.data.items;
+        } else if (res.data.descriptions && Array.isArray(res.data.descriptions)) {
+          // Legacy format with descriptions
+          inventoryItems = res.data.descriptions;
+        }
+      }
+      
+      if (inventoryItems.length > 0) {
+        setItems(inventoryItems);
         setMessage('');
       } else {
         setMessage('No items found in inventory.');
@@ -85,7 +101,7 @@ function Inventory() {
       }
     } catch (err) {
       console.error('Inventory fetch error:', err.response || err);
-      setMessage(err.response?.data?.error || 'Failed to fetch inventory.');
+      setMessage(err.response?.data?.error || 'Failed to fetch Steam inventory. Please try refreshing the page or reconnecting your Steam account.');
       setItems([]);
     } finally {
       setLoading(false);
