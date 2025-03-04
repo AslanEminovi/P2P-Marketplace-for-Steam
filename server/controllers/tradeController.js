@@ -728,53 +728,71 @@ exports.sellerInitiate = async (req, res) => {
     const { tradeId } = req.params;
     const sellerId = req.user._id;
 
-    // Find the trade
+    // Find the trade and populate necessary fields
     const trade = await Trade.findById(tradeId).populate("item");
 
+    // Validate trade exists
     if (!trade) {
+      console.error(`Trade not found: ${tradeId}`);
       return res.status(404).json({ error: "Trade not found" });
     }
 
-    // Verify this user is the seller
+    // Validate that the user is the seller
     if (trade.seller.toString() !== sellerId.toString()) {
+      console.error(
+        `Unauthorized: User ${sellerId} is not the seller of trade ${tradeId}`
+      );
       return res
         .status(403)
-        .json({ error: "You are not authorized to initiate this trade" });
+        .json({ error: "Unauthorized: You are not the seller of this trade" });
     }
 
-    // Check trade status
+    // Check if trade is in the correct status
     if (trade.status !== "awaiting_seller") {
-      return res
-        .status(400)
-        .json({ error: `Cannot initiate a trade in ${trade.status} status` });
+      console.error(
+        `Invalid trade status: ${trade.status} for trade ${tradeId}`
+      );
+      return res.status(400).json({
+        error: "This trade cannot be initiated at this time",
+        details: `Current status: ${trade.status}`,
+      });
     }
 
-    // Update trade status to in_process (waiting for seller to send trade offer)
-    trade.status = "in_process";
-    trade.statusHistory.push({
-      status: "in_process",
-      timestamp: new Date(),
-      userId: sellerId,
-    });
-
+    // Update trade status using the model method
+    trade.addStatusHistory("in_process", "Seller accepted the trade");
     await trade.save();
 
-    // Notify buyer
-    socketService.sendNotification(trade.buyer, {
-      type: "TRADE_UPDATE",
+    // Create notification for the buyer
+    const notification = {
+      type: "trade_update",
       title: "Trade Update",
-      message: `Seller has accepted your offer for ${trade.item.marketHashName}`,
-      linkTo: `/trades/${trade._id}`,
-      trade: trade,
+      message: `The seller has accepted your trade for ${trade.item.name}`,
+      relatedTradeId: trade._id,
+      createdAt: new Date(),
+    };
+
+    // Add notification to the buyer
+    await User.findByIdAndUpdate(trade.buyer, {
+      $push: {
+        notifications: notification,
+      },
     });
 
-    return res.json({
+    // Send real-time notification via WebSocket if available
+    socketService.sendNotification(trade.buyer.toString(), notification);
+
+    console.log(`Trade ${tradeId} initiated by seller ${sellerId}`);
+    return res.status(200).json({
       success: true,
       message: "Trade initiated successfully",
+      trade,
     });
-  } catch (err) {
-    console.error("Seller initiate trade error:", err);
-    return res.status(500).json({ error: "Failed to initiate trade" });
+  } catch (error) {
+    console.error("Error initiating trade:", error);
+    return res.status(500).json({
+      error: "Failed to initiate trade",
+      details: error.message,
+    });
   }
 };
 
@@ -801,11 +819,9 @@ exports.sellerSentManual = async (req, res) => {
 
     // Check trade status
     if (trade.status !== "in_process") {
-      return res
-        .status(400)
-        .json({
-          error: `Cannot mark a trade as sent in ${trade.status} status`,
-        });
+      return res.status(400).json({
+        error: `Cannot mark a trade as sent in ${trade.status} status`,
+      });
     }
 
     // Update trade status to offer_sent
