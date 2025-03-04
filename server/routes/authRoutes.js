@@ -25,13 +25,32 @@ router.get(
   }),
   (req, res) => {
     // Successful authentication
-    // Redirect back to your React client or anywhere
-    res.redirect(config.CLIENT_URL);
+    console.log(
+      "Steam auth successful - user:",
+      req.user ? req.user._id : "not set"
+    );
+    console.log("Session ID:", req.sessionID);
+    console.log("Is authenticated:", req.isAuthenticated());
+    console.log("Session data:", req.session);
+
+    // Set a flag in the session to track redirection
+    req.session.justAuthenticated = true;
+    req.session.save((err) => {
+      if (err) {
+        console.error("Error saving session:", err);
+      }
+      // Redirect back to your React client
+      res.redirect(config.CLIENT_URL);
+    });
   }
 );
 
 // @route GET /auth/user
 router.get("/user", async (req, res) => {
+  console.log("Auth check - Session ID:", req.sessionID);
+  console.log("Auth check - Is authenticated:", req.isAuthenticated());
+  console.log("Auth check - User:", req.user ? req.user._id : "none");
+
   if (req.user) {
     try {
       // Automatically refresh the user's profile if it hasn't been updated in the last hour

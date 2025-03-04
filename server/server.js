@@ -64,30 +64,32 @@ if (!process.env.SESSION_SECRET) {
 // Express session configuration (required by Passport)
 const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET,
-  resave: false, // Only save session if modified
-  saveUninitialized: false, // Don't create session until something stored
+  resave: true, // Changed to true to ensure session is saved
+  saveUninitialized: true, // Changed to true to create session for all users
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 day
     secure: process.env.NODE_ENV === "production", // Set true in production
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Needed for cross-site cookie in production
     httpOnly: true, // Prevents client-side JS from reading the cookie
-    // Allow cookies to be sent from frontend to backend across domains
-    domain: process.env.NODE_ENV === "production" ? undefined : undefined, // Removing domain restriction
+    // Let the browser handle cookie domain
+    domain: undefined,
   },
 });
 
 // Log session configuration for debugging
 console.log("Session configuration:");
+console.log("- NODE_ENV:", process.env.NODE_ENV);
+console.log("- PORT:", PORT);
+console.log("- CLIENT_URL:", config.CLIENT_URL);
 console.log("- Cookie secure:", process.env.NODE_ENV === "production");
 console.log(
   "- Cookie sameSite:",
   process.env.NODE_ENV === "production" ? "none" : "lax"
 );
+console.log("- Cookie domain: undefined (browser will handle)");
 console.log(
-  "- Cookie domain:",
-  process.env.NODE_ENV === "production"
-    ? "undefined (browser will handle)"
-    : "undefined"
+  "- Session secret length:",
+  process.env.SESSION_SECRET ? process.env.SESSION_SECRET.length : "not set"
 );
 
 app.use(sessionMiddleware);
