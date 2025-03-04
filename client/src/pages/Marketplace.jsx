@@ -7,9 +7,10 @@ import UserListings from '../components/UserListings';
 import ItemDetails from '../components/ItemDetails';
 import TradePanel from '../components/TradePanel';
 import ItemCard3D from '../components/ItemCard3D';
+import TradeUrlPrompt from '../components/TradeUrlPrompt';
 import { API_URL } from '../config/constants';
 
-function Marketplace() {
+function Marketplace({ user }) {
   const [items, setItems] = useState([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -22,6 +23,8 @@ function Marketplace() {
   const [tradePanelOpen, setTradePanelOpen] = useState(false);
   const [tradeAction, setTradeAction] = useState(null);
   const [itemView, setItemView] = useState('grid'); // 'grid' or 'list'
+  const [showTradeUrlPrompt, setShowTradeUrlPrompt] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
   const { t } = useTranslation();
 
   const translateWear = (shortWear, marketHashName) => {
@@ -126,6 +129,38 @@ function Marketplace() {
     }
   }, [activeTab]);
 
+  useEffect(() => {
+    // If user is logged in, fetch their profile to check for trade URL
+    if (user) {
+      fetchUserProfile();
+    }
+  }, [user]);
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/user/profile`, {
+        withCredentials: true
+      });
+      
+      setUserProfile(response.data);
+      
+      // Check if trade URL is missing and show prompt
+      if (!response.data.tradeUrl) {
+        setShowTradeUrlPrompt(true);
+      }
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+    }
+  };
+
+  const handleTradeUrlSave = (tradeUrl) => {
+    // Update user profile with new trade URL
+    setUserProfile(prev => ({
+      ...prev,
+      tradeUrl
+    }));
+  };
+
   if (loading) {
     return (
       <div style={{ 
@@ -157,6 +192,16 @@ function Marketplace() {
       minHeight: '100vh',
       padding: '2rem'
     }}>
+      {/* Trade URL Prompt */}
+      <AnimatePresence>
+        {showTradeUrlPrompt && (
+          <TradeUrlPrompt 
+            onClose={() => setShowTradeUrlPrompt(false)}
+            onSave={handleTradeUrlSave}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Item Details Modal */}
       <ItemDetails 
         itemId={selectedItemId}

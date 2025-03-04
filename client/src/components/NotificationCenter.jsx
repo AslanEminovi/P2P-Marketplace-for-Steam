@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { API_URL } from '../config/constants';
+import OfferActionMenu from './OfferActionMenu';
 
 // Define notification types and their associated colors/icons
 const NOTIFICATION_TYPES = {
@@ -71,6 +72,7 @@ const NotificationCenter = ({ user }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [activeOfferMenu, setActiveOfferMenu] = useState(null);
   const dropdownRef = useRef(null);
   const { t } = useTranslation();
   
@@ -520,34 +522,93 @@ const NotificationCenter = ({ user }) => {
                       {getNotificationIcon(notification.type)}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{
-                        display: 'flex',
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
                         justifyContent: 'space-between',
-                        alignItems: 'baseline'
+                        marginBottom: '4px'
                       }}>
-                        <h4 style={{
-                          color: notification.read ? '#d1d5db' : '#f1f1f1',
-                          margin: '0 0 4px 0',
-                          fontSize: '14px',
-                          fontWeight: notification.read ? '500' : '600'
+                        <h4 style={{ 
+                          margin: 0, 
+                          fontSize: '14px', 
+                          fontWeight: '600',
+                          color: '#f1f1f1'
                         }}>
                           {notification.title}
                         </h4>
+                        
+                        {/* Add action buttons for offer notifications */}
+                        {notification.type === 'offer' && notification.relatedItemId && (
+                          <div style={{ position: 'relative' }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveOfferMenu(activeOfferMenu === notification._id ? null : notification._id);
+                              }}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#4ade80',
+                                cursor: 'pointer',
+                                padding: '4px',
+                                borderRadius: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="1"></circle>
+                                <circle cx="19" cy="12" r="1"></circle>
+                                <circle cx="5" cy="12" r="1"></circle>
+                              </svg>
+                            </button>
+                            
+                            {activeOfferMenu === notification._id && (
+                              <OfferActionMenu 
+                                offer={{
+                                  itemId: notification.relatedItemId,
+                                  offerId: notification.offerId
+                                }}
+                                onClose={() => {
+                                  setActiveOfferMenu(null);
+                                }}
+                                onActionComplete={(action, data) => {
+                                  // Remove this notification from the list
+                                  setNotifications(prevNotifications => 
+                                    prevNotifications.filter(n => n._id !== notification._id)
+                                  );
+                                }}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'baseline',
+                        marginBottom: '6px'
+                      }}>
+                        <p style={{
+                          color: notification.read ? '#94a3b8' : '#d1d5db',
+                          margin: '0',
+                          fontSize: '13px',
+                          lineHeight: '1.4'
+                        }}>
+                          {notification.message}
+                        </p>
+                        
                         <span style={{
                           color: '#9ca3af',
-                          fontSize: '12px'
+                          fontSize: '11px',
+                          marginLeft: '10px',
+                          flexShrink: 0
                         }}>
                           {formatDate(notification.createdAt)}
                         </span>
                       </div>
-                      <p style={{
-                        color: notification.read ? '#94a3b8' : '#d1d5db',
-                        margin: '0',
-                        fontSize: '13px',
-                        lineHeight: '1.4'
-                      }}>
-                        {notification.message}
-                      </p>
                       
                       {notification.link && (
                         <div>
@@ -560,7 +621,7 @@ const NotificationCenter = ({ user }) => {
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '5px',
-                              marginTop: '8px',
+                              marginTop: '4px',
                               fontWeight: '500'
                             }}
                             onClick={(e) => {
@@ -568,6 +629,11 @@ const NotificationCenter = ({ user }) => {
                               setIsOpen(false);
                               if (!notification.read) {
                                 markAsRead(notification._id);
+                              }
+                              // Prevent default only if it's not a valid link
+                              if (!notification.link.startsWith('/')) {
+                                e.preventDefault();
+                                console.error('Invalid notification link:', notification.link);
                               }
                             }}
                           >
