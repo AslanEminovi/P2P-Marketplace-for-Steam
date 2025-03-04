@@ -2,17 +2,35 @@ const passport = require("passport");
 const SteamStrategy = require("passport-steam").Strategy;
 const User = require("../models/User");
 
+// Keep track of serialization to avoid excessive logging
+const recentSerializations = new Set();
+const MAX_TRACKED_USERS = 20;
+
 passport.serializeUser((user, done) => {
-  console.log("Serializing user:", user._id);
+  const userId = user._id.toString();
+
+  // Only log if we haven't seen this user recently
+  if (!recentSerializations.has(userId)) {
+    console.log("Serializing user:", userId);
+
+    // Add to recently seen set
+    recentSerializations.add(userId);
+
+    // Limit the size of the set
+    if (recentSerializations.size > MAX_TRACKED_USERS) {
+      const iterator = recentSerializations.values();
+      recentSerializations.delete(iterator.next().value);
+    }
+  }
+
   done(null, user.id);
 });
 
 passport.deserializeUser(async (id, done) => {
   try {
-    console.log("Deserializing user ID:", id);
+    // No need to log every deserialization
     const user = await User.findById(id);
     if (user) {
-      console.log("User found during deserialization:", user._id);
       done(null, user);
     } else {
       console.log("No user found for ID:", id);

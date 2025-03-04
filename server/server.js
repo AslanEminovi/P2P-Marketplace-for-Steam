@@ -98,6 +98,10 @@ app.use(sessionMiddleware);
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Create a simple token cache to reduce database lookups
+const tokenCache = new Map();
+const TOKEN_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+
 // Middleware to check for token authentication
 app.use(async (req, res, next) => {
   // Skip if user is already authenticated via session
@@ -109,11 +113,30 @@ app.use(async (req, res, next) => {
   const token = req.query.auth_token;
   if (token) {
     try {
-      // Verify token by looking up user
+      // Check token cache first
+      const cachedUser = tokenCache.get(token);
+      if (cachedUser) {
+        // Token found in cache, use it
+        req.login(cachedUser, (err) => {
+          if (err) {
+            console.error("Token login error (from cache):", err);
+          }
+          return next();
+        });
+        return;
+      }
+
+      // Token not in cache, verify by looking up user
       const User = require("./models/User");
       const user = await User.findById(token);
 
       if (user) {
+        // Add to cache with TTL
+        tokenCache.set(token, user);
+        setTimeout(() => {
+          tokenCache.delete(token);
+        }, TOKEN_CACHE_TTL);
+
         // Log the user in
         req.login(user, (err) => {
           if (err) {
