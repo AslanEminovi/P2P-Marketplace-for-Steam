@@ -101,21 +101,22 @@ const NotificationCenter = ({ user }) => {
   useEffect(() => {
     if (user) {
       fetchNotifications();
-    }
-  }, [user]);
-
-  // Fetch notifications periodically every 30 seconds
-  useEffect(() => {
-    if (user) {
+      
+      // Refresh notifications every minute, but only if the dropdown is open
+      // to conserve resources
       const interval = setInterval(() => {
-        fetchNotifications();
-      }, 30000);
+        if (isOpen) {
+          fetchNotifications();
+        }
+      }, 60000); // Change from 30s to 60s to reduce load
       
       return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [user, isOpen]);
 
   const fetchNotifications = async () => {
+    if (loading) return; // Prevent multiple concurrent requests
+    
     setLoading(true);
     setError(null);
     try {
@@ -470,10 +471,30 @@ const NotificationCenter = ({ user }) => {
                 style={{
                   padding: '30px 20px',
                   textAlign: 'center',
-                  color: '#94a3b8'
+                  color: '#94a3b8',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: '200px'
                 }}
               >
-                {t('notifications.empty')}
+                <svg 
+                  width="48" 
+                  height="48" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="1.5" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  style={{ marginBottom: '16px', opacity: 0.7 }}
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  <path d="M3 9l9 6 9-6"></path>
+                </svg>
+                <p style={{ margin: '0 0 8px 0', fontWeight: '500' }}>{t('notifications.empty')}</p>
+                <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.7 }}>New notifications will appear here</p>
               </div>
             ) : (
               notifications.map((notification, index) => (
@@ -516,7 +537,11 @@ const NotificationCenter = ({ user }) => {
                         justifyContent: 'center',
                         boxShadow: notification.read 
                           ? 'none' 
-                          : '0 0 15px rgba(76, 44, 166, 0.3)'
+                          : '0 0 15px rgba(76, 44, 166, 0.3)',
+                        width: '36px',
+                        height: '36px',
+                        minWidth: '36px',
+                        alignSelf: 'flex-start'
                       }}
                     >
                       {getNotificationIcon(notification.type)}
