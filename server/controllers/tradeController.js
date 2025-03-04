@@ -217,7 +217,7 @@ exports.sellerSentItem = async (req, res) => {
       $push: {
         notifications: {
           type: "trade",
-          title: "Item Sent by Seller",
+          title: "Trade Item Sent",
           message: `The seller has sent you a trade offer for the ${trade.item.marketHashName}. Please check your Steam trade offers and confirm receipt.`,
           link: `/trades/${tradeId}`,
           relatedItemId: trade.item,
@@ -442,7 +442,7 @@ exports.buyerConfirmReceipt = async (req, res) => {
       // Create notification objects
       const buyerNotification = {
         type: "trade",
-        title: "Purchase Complete",
+        title: "Trade Status Updated",
         message: `You have successfully purchased ${item.marketHashName} for ${
           trade.currency === "USD" ? "$" : ""
         }${price}${trade.currency === "GEL" ? " ₾" : ""}.`,
@@ -453,7 +453,7 @@ exports.buyerConfirmReceipt = async (req, res) => {
 
       const sellerNotification = {
         type: "trade",
-        title: "Sale Complete",
+        title: "Trade Status Updated",
         message: `Your ${item.marketHashName} has been sold for ${
           trade.currency === "USD" ? "$" : ""
         }${price}${trade.currency === "GEL" ? " ₾" : ""}. You received ${
@@ -848,8 +848,8 @@ exports.sellerInitiate = async (req, res) => {
 
     // Create notification for the buyer
     const notification = {
-      type: "trade_update",
-      title: "Trade Update",
+      type: "trade",
+      title: "Trade Status Updated",
       message: `The seller has accepted your trade for ${updatedTrade.item.name}`,
       relatedTradeId: updatedTrade._id,
       createdAt: new Date(),
@@ -967,8 +967,8 @@ exports.sellerInitiateSimple = async (req, res) => {
     // Add notification separately - don't fail if this part has issues
     try {
       const notification = {
-        type: "trade_update",
-        title: "Trade Update",
+        type: "trade",
+        title: "Trade Status Updated",
         message: `The seller has accepted your trade for ${updatedTrade.item.name}`,
         relatedTradeId: updatedTrade._id,
         createdAt: new Date(),
@@ -1061,8 +1061,8 @@ exports.sellerSentManual = async (req, res) => {
 
     // Notify buyer
     socketService.sendNotification(trade.buyer, {
-      type: "TRADE_UPDATE",
-      title: "Trade Offer Sent",
+      type: "trade",
+      title: "Trade Item Sent",
       message: `Seller has sent a trade offer for ${trade.item.marketHashName}. Please check Steam and confirm receipt.`,
       linkTo: `/trades/${trade._id}`,
       trade: trade,
