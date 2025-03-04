@@ -1,0 +1,153 @@
+{
+  "common": {
+    "marketplace": "Marketplace",
+    "inventory": "Inventory",
+    "profile": "Profile",
+    "settings": "Settings",
+    "signOut": "Sign Out",
+    "signIn": "Sign in with Steam",
+    "buyNow": "Buy Now",
+    "makeOffer": "Make Offer",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "success": "Success!",
+    "viewAll": "View All",
+    "search": "Search",
+    "notifications": "Notifications",
+    "noItems": "No items available"
+  },
+  "notifications": {
+    "markAllRead": "Mark all as read",
+    "viewAll": "View All Notifications",
+    "loading": "Loading notifications...",
+    "empty": "No notifications yet",
+    "viewDetails": "View Details"
+  },
+  "home": {
+    "hero": {
+      "title": "CS2 Marketplace Georgia",
+      "subtitle": "Buy, sell, and trade CS2 items with custom GEL pricing",
+      "stats": {
+        "items": "Items Listed",
+        "users": "Active Users",
+        "trades": "Completed Trades"
+      },
+      "cta": "Browse Marketplace",
+      "signIn": "Sign in with Steam"
+    },
+    "search": {
+      "placeholder": "Search for skins, weapons, cases...",
+      "categories": {
+        "knives": "Knives",
+        "gloves": "Gloves", 
+        "rifles": "Rifles",
+        "cases": "Cases",
+        "pistols": "Pistols"
+      }
+    },
+    "featured": {
+      "title": "Featured Items",
+      "viewAll": "View All Items",
+      "loading": "Loading featured items...",
+      "noItems": "No items available at the moment",
+      "viewItem": "View Item"
+    },
+    "features": {
+      "secureTradingTitle": "Secure Trading",
+      "secureTradingDesc": "Direct integration with Steam's trading system ensures your items remain secure throughout the entire process.",
+      "gelPricingTitle": "GEL Pricing",
+      "gelPricingDesc": "Sell your items in Georgian Lari with custom currency rates specifically for the local market.",
+      "makeOffersTitle": "Make Offers",
+      "makeOffersDesc": "Negotiate better deals by making custom offers to sellers in both USD and GEL currencies.",
+      "fastTransactionsTitle": "Fast Transactions",
+      "fastTransactionsDesc": "Complete trades quickly with our streamlined process from purchase to delivery."
+    },
+    "howItWorks": {
+      "title": "How It Works",
+      "steps": {
+        "step1Title": "Connect Your Steam Account",
+        "step1Desc": "Link your Steam account to browse your inventory and access trading features.",
+        "step2Title": "List Your Items",
+        "step2Desc": "Price your items in USD or GEL with custom exchange rates for the Georgian market.",
+        "step3Title": "Receive Offers",
+        "step3Desc": "Get and respond to offers from potential buyers or make instant sales.",
+        "step4Title": "Complete Secure Trades",
+        "step4Desc": "Finalize trades through Steam's trading system with our secure integration."
+      }
+    },
+    "cta": {
+      "title": "Ready to Start Trading?",
+      "subtitle": "Join the largest CS2 marketplace in Georgia",
+      "inventory": "View Your Inventory",
+      "signIn": "Sign in with Steam"
+    }
+  },
+  "marketplace": {
+    "tabs": {
+      "all": "All Listings",
+      "my": "My Listings"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "buy": "Buy Now",
+      "offer": "Offer",
+      "cancelListing": "Cancel Listing"
+    },
+    "itemDetails": {
+      "wear": "Wear",
+      "rarity": "Rarity",
+      "seller": "Seller",
+      "price": "Price",
+      "float": "Float Value",
+      "pattern": "Pattern Index",
+      "trade": "Start Trade",
+      "makeOffer": "Make Offer"
+    },
+    "filters": {
+      "category": "Category",
+      "rarity": "Rarity",
+      "wear": "Wear",
+      "priceRange": "Price Range",
+      "sort": "Sort By",
+      "reset": "Reset Filters"
+    }
+  },
+  "inventory": {
+    "title": "My Inventory",
+    "actions": {
+      "sell": "Sell",
+      "refresh": "Refresh Inventory"
+    },
+    "filters": {
+      "category": "Category",
+      "rarity": "Rarity",
+      "searchPlaceholder": "Search your inventory..."
+    },
+    "noItems": "No items found in your inventory"
+  },
+  "tradePanel": {
+    "title": "Trade Details",
+    "buyNow": "Buy Now",
+    "makeOffer": "Make Offer",
+    "successMessage": "Trade offer created successfully!",
+    "waitingMessage": "Waiting for seller to accept...",
+    "errorMessage": "There was an error creating the trade offer",
+    "tradeURL": {
+      "title": "Steam Trade URL Required",
+      "description": "To complete this trade, we need your Steam Trade URL",
+      "placeholder": "Enter your Steam Trade URL...",
+      "help": "Learn how to find your Trade URL",
+      "save": "Save and Continue",
+      "savedSuccess": "Trade URL saved successfully!"
+    }
+  },
+  "footer": {
+    "marketplace": "Marketplace",
+    "user": "User",
+    "help": "Help",
+    "copyright": "© 2025 CS2 Marketplace Georgia. All rights reserved.",
+    "disclaimer": "Not affiliated with Valve or Steam."
+  }
+}

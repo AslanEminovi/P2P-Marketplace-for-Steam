@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: cs2-marketplace-server
+    runtime: node
+    rootDir: cs2-marketplace/server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGO_URI
+        sync: false # User provides this
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: STEAMWEBAPI_KEY
+        sync: false # User provides this
+      - key: STEAM_API_KEY
+        sync: false # User provides this
+      - key: CLIENT_URL
+        sync: false # User provides this
+      - key: CALLBACK_URL
+        sync: false # User provides this

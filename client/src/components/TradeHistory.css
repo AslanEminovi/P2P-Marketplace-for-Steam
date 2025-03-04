@@ -1,0 +1,275 @@
+.trade-history-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  color: white;
+}
+
+.trade-history-container h2 {
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 2rem;
+}
+
+.filters {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+  gap: 1rem;
+}
+
+.filters button {
+  background-color: rgba(255, 255, 255, 0.1);
+  border: none;
+  padding: 0.5rem 1.5rem;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filters button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.filters button.active {
+  background-color: #4ade80;
+  color: #1f2937;
+  font-weight: bold;
+}
+
+.loader {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.error-message {
+  background-color: rgba(220, 38, 38, 0.2);
+  border: 1px solid rgba(220, 38, 38, 0.5);
+  color: #fecaca;
+  padding: 1rem;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 0;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.trades-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+.trade-card {
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.trade-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.item-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.item-info img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.item-info h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.item-details {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.badge-success {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #a7f3d0;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+}
+
+.badge-warning {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+}
+
+.badge-info {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.5);
+}
+
+.badge-danger {
+  background-color: rgba(220, 38, 38, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(220, 38, 38, 0.5);
+}
+
+.badge-secondary {
+  background-color: rgba(107, 114, 128, 0.2);
+  color: #d1d5db;
+  border: 1px solid rgba(107, 114, 128, 0.5);
+}
+
+.trade-details {
+  padding: 1rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.detail-row .label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.message {
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.message.success {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+}
+
+.message.error {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+.trade-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.buyer-trade-url {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.buyer-trade-url span {
+  font-weight: 500;
+  color: #d1d5db;
+}
+
+.url-container {
+  display: flex;
+  width: 100%;
+}
+
+.url-container input {
+  flex: 1;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #d1d5db;
+  padding: 0.5rem;
+  border-radius: 4px 0 0 4px;
+  cursor: pointer;
+}
+
+.copy-button {
+  background-color: #4b5563;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.copy-button:hover {
+  background-color: #6b7280;
+}
+
+.action-button {
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.send-offer-button {
+  background-color: #1b2838;
+  color: white;
+  border: 1px solid #66c0f4;
+}
+
+.send-offer-button:hover {
+  background-color: #66c0f4;
+  color: #1b2838;
+}
+
+.confirm-button {
+  background-color: #10b981;
+  color: white;
+}
+
+.confirm-button:hover {
+  background-color: #059669;
+}
+
+.cancel-button {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+.cancel-button:hover {
+  background-color: rgba(239, 68, 68, 0.3);
+}
+
+.action-loading {
+  text-align: center;
+  padding: 0.75rem;
+  color: #d1d5db;
+  font-style: italic;
+}
