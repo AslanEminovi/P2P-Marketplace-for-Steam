@@ -26,6 +26,8 @@ const StatusBadge = ({ status }) => {
     switch (status) {
       case 'awaiting_seller':
         return 'Awaiting Seller';
+      case 'accepted':
+        return 'Seller Accepted';
       case 'offer_sent':
         return 'Offer Sent';
       case 'awaiting_confirmation':
@@ -587,7 +589,7 @@ const TradeDetails = ({ tradeId }) => {
                   </div>
                 )}
 
-                {trade.status === 'in_process' && (
+                {trade.status === 'accepted' && (
                   <div style={{ marginBottom: '16px' }}>
                     <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginBottom: '12px' }}>
                       Please send a trade offer to the buyer using their trade link:
@@ -656,7 +658,7 @@ const TradeDetails = ({ tradeId }) => {
                   </div>
                 )}
 
-                {(['awaiting_seller', 'in_process'].includes(trade.status)) && (
+                {(['awaiting_seller', 'accepted'].includes(trade.status)) && (
                   <button
                     onClick={() => {
                       const modal = document.getElementById('cancelModal');

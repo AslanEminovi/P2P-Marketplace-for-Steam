@@ -805,10 +805,10 @@ exports.sellerInitiate = async (req, res) => {
       updatedTrade = await Trade.findByIdAndUpdate(
         tradeId,
         {
-          status: "in_process",
+          status: "accepted",
           $push: {
             statusHistory: {
-              status: "in_process",
+              status: "accepted",
               timestamp: new Date(),
               note: "Seller accepted the trade",
             },
@@ -925,11 +925,11 @@ exports.sellerInitiateSimple = async (req, res) => {
       },
       {
         $set: {
-          status: "in_process",
+          status: "accepted",
         },
         $push: {
           statusHistory: {
-            status: "in_process",
+            status: "accepted",
             timestamp: new Date(),
             note: "Seller accepted the trade (simple method)",
           },
@@ -1027,7 +1027,7 @@ exports.sellerSentManual = async (req, res) => {
     }
 
     // Check trade status
-    if (trade.status !== "in_process") {
+    if (trade.status !== "accepted") {
       return res.status(400).json({
         error: `Cannot mark a trade as sent in ${trade.status} status`,
       });
