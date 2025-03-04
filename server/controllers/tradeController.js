@@ -286,7 +286,11 @@ exports.buyerConfirmReceipt = async (req, res) => {
     }
 
     // Check current trade status
-    if (trade.status !== "awaiting_confirmation") {
+    if (
+      trade.status !== "awaiting_confirmation" &&
+      trade.status !== "offer_sent" &&
+      trade.status !== "accepted"
+    ) {
       return res.status(400).json({
         error: `Trade cannot be confirmed because it is in ${trade.status} state`,
       });

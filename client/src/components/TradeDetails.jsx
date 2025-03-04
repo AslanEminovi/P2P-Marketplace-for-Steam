@@ -251,7 +251,16 @@ const TradeDetails = ({ tradeId }) => {
       }
     } catch (err) {
       console.error('Error confirming trade:', err);
-      setError(err.response?.data?.error || 'Failed to confirm trade');
+      const errorMsg = err.response?.data?.error || 'Failed to confirm trade';
+      
+      // Check for specific error types and provide helpful guidance
+      if (errorMsg.includes('in offer_sent state') || errorMsg.includes('in accepted state')) {
+        setError(`${errorMsg}. Please try checking your Steam inventory first to verify the item is in your inventory.`);
+      } else if (errorMsg.includes('Insufficient')) {
+        setError(`${errorMsg}. Please add funds to your wallet to complete this purchase.`);
+      } else {
+        setError(errorMsg);
+      }
     } finally {
       setLoading(false);
       setInventoryCheckLoading(false);
