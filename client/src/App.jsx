@@ -1,21 +1,19 @@
-import React, { useState, useEffect, Suspense, createContext, useRef } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import socketService from './services/socketService';
-import io from 'socket.io-client';
-import Navbar from './components/Navbar';
+
+// Pages
 import Home from './pages/Home';
 import Inventory from './pages/Inventory';
 import Marketplace from './pages/Marketplace';
 import MyListings from './pages/MyListings';
 import Profile from './pages/Profile';
 import TradeDetailPage from './pages/TradeDetailPage';
-import Notifications from './pages/Notifications';
-import TradeUrlPrompt from './components/TradeUrlPrompt';
-import NotificationPopup from './components/NotificationPopup';
 
 // Components
+import Navbar from './components/Navbar';
 import SteamSettings from './components/SteamSettings';
 import TradeHistory from './components/TradeHistory';
 import NotificationCenter from './components/NotificationCenter';
@@ -41,20 +39,11 @@ const PageWrapper = ({ children }) => {
   );
 };
 
-// Create contexts
-export const UserContext = createContext(null);
-export const SocketContext = createContext(null);
-export const NotificationContext = createContext(null);
-
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
-  const [socket, setSocket] = useState(null);
-  const [notification, setNotification] = useState(null);
-  const [showTradeUrlPrompt, setShowTradeUrlPrompt] = useState(false);
-  const socketRef = useRef(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -312,374 +301,182 @@ function App() {
     }
   }, [user]);
 
-  // Initialize Socket.IO connection
-  useEffect(() => {
-    const fetchUserAndConnectSocket = async () => {
-      try {
-        setLoading(true);
-        
-        // Try to get user info using token
-        const token = localStorage.getItem('auth_token');
-        
-        if (token) {
-          const response = await axios.get(`${API_URL}/user/profile`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          
-          if (response.data) {
-            setUser(response.data);
-            
-            // Check if user has a tradeUrl set
-            if (response.data.settings && !response.data.settings.tradeUrl) {
-              setShowTradeUrlPrompt(true);
-            }
-            
-            // Connect Socket.IO with token
-            if (!socketRef.current) {
-              const socketConnection = io(API_URL, {
-                query: { token },
-                transports: ['websocket', 'polling']
-              });
-              
-              socketConnection.on('connect', () => {
-                console.log('Socket.IO connected');
-              });
-              
-              socketConnection.on('disconnect', () => {
-                console.log('Socket.IO disconnected');
-              });
-              
-              socketConnection.on('notification', (data) => {
-                console.log('Received notification:', data);
-                showNotification(data.title, data.message, data.type);
-              });
-              
-              socketRef.current = socketConnection;
-              setSocket(socketConnection);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
-        localStorage.removeItem('auth_token');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchUserAndConnectSocket();
-    
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-    };
-  }, []);
-  
-  // Function to handle user authentication callback
-  const handleAuthCallback = async (token) => {
-    if (token) {
-      localStorage.setItem('auth_token', token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
-      try {
-        const response = await axios.get(`${API_URL}/user/profile`);
-        setUser(response.data);
-        
-        // Check if user has a tradeUrl set
-        if (response.data.settings && !response.data.settings.tradeUrl) {
-          setShowTradeUrlPrompt(true);
-        }
-      } catch (error) {
-        console.error('Error fetching user profile after auth:', error);
-      }
-    }
-  };
-  
-  // Create a global notification function
-  const showNotification = (title, message, type = 'INFO') => {
-    setNotification({
-      id: Date.now(),
-      title,
-      message,
-      type
-    });
-    
-    // Auto-dismiss after 5 seconds
-    setTimeout(() => {
-      setNotification(null);
-    }, 5000);
-  };
-  
-  // Add showNotification to window for global access
-  useEffect(() => {
-    window.showNotification = showNotification;
-    
-    return () => {
-      delete window.showNotification;
-    };
-  }, []);
-  
-  // Handle trade URL update
-  const handleTradeUrlSave = async (tradeUrl) => {
-    if (user) {
-      try {
-        // Update user state locally to reflect the new trade URL
-        setUser(prevUser => ({
-          ...prevUser,
-          settings: {
-            ...prevUser.settings,
-            tradeUrl
-          }
-        }));
-        
-        showNotification('Trade URL Saved', 'Your Steam trade URL has been saved successfully.', 'SUCCESS');
-      } catch (error) {
-        console.error('Error updating user with trade URL:', error);
-      }
-    }
-  };
-  
-  // Check URL for token param on load
-  useEffect(() => {
-    const queryParams = new URLSearchParams(window.location.search);
-    const token = queryParams.get('token');
-    
-    if (token) {
-      handleAuthCallback(token);
-      
-      // Remove token from URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
-  
-  // AuthCallback component that handles redirects with token
-  const AuthCallback = () => {
-    const navigate = useNavigate();
-    
-    useEffect(() => {
-      const queryParams = new URLSearchParams(window.location.search);
-      const token = queryParams.get('token');
-      
-      if (token) {
-        handleAuthCallback(token);
-        navigate('/');
-      } else {
-        navigate('/');
-      }
-    }, [navigate]);
-    
-    return <div className="loading">Authenticating...</div>;
-  };
-
   return (
-    <UserContext.Provider value={{ user, setUser }}>
-      <SocketContext.Provider value={socket}>
-        <NotificationContext.Provider value={{ showNotification }}>
+    <div style={{ 
+      minHeight: '100vh', 
+      background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      <Navbar user={user} onLogout={handleLogout} />
+      
+      {/* WebSocket connection indicator */}
+      {user && (
+        <div 
+          style={{
+            position: 'fixed',
+            bottom: '10px',
+            right: '10px',
+            width: '10px',
+            height: '10px',
+            borderRadius: '50%',
+            backgroundColor: socketConnected ? '#4ade80' : '#ef4444',
+            boxShadow: `0 0 10px ${socketConnected ? 'rgba(74, 222, 128, 0.6)' : 'rgba(239, 68, 68, 0.6)'}`,
+            zIndex: 1000,
+            transition: 'all 0.3s ease'
+          }}
+          title={socketConnected ? 'Real-time connection active' : 'Real-time connection inactive'}
+        />
+      )}
+      
+      {/* Background patterns */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundImage: 'radial-gradient(circle at 15% 50%, rgba(74, 222, 128, 0.05) 0%, transparent 60%), radial-gradient(circle at 85% 30%, rgba(56, 189, 248, 0.05) 0%, transparent 60%)',
+        pointerEvents: 'none',
+        zIndex: 0
+      }} />
+      
+      {/* CSS for spinner animation */}
+      <style>
+        {`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+          .spinner {
+            animation: spin 1s linear infinite;
+          }
+        `}
+      </style>
+      
+      {/* These UI controls will be moved to the Navbar */}
+      
+      <Suspense fallback={
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center',
+          height: '80vh'
+        }}>
+          <div 
+            className="spinner"
+            style={{
+              width: '60px',
+              height: '60px',
+              border: '4px solid rgba(255,255,255,0.1)',
+              borderRadius: '50%',
+              borderTopColor: '#4ade80',
+              animation: 'spin 1s linear infinite'
+            }}
+          />
+        </div>
+      }>
+        {loading ? (
           <div style={{ 
-            minHeight: '100vh', 
-            background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
-            position: 'relative',
-            overflow: 'hidden'
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center',
+            height: '80vh',
+            flexDirection: 'column',
+            gap: '20px'
           }}>
-            <Navbar user={user} onLogout={handleLogout} />
-            
-            {/* WebSocket connection indicator */}
-            {user && (
-              <div 
-                style={{
-                  position: 'fixed',
-                  bottom: '10px',
-                  right: '10px',
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  backgroundColor: socketConnected ? '#4ade80' : '#ef4444',
-                  boxShadow: `0 0 10px ${socketConnected ? 'rgba(74, 222, 128, 0.6)' : 'rgba(239, 68, 68, 0.6)'}`,
-                  zIndex: 1000,
-                  transition: 'all 0.3s ease'
-                }}
-                title={socketConnected ? 'Real-time connection active' : 'Real-time connection inactive'}
-              />
-            )}
-            
-            {/* Background patterns */}
-            <div style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundImage: 'radial-gradient(circle at 15% 50%, rgba(74, 222, 128, 0.05) 0%, transparent 60%), radial-gradient(circle at 85% 30%, rgba(56, 189, 248, 0.05) 0%, transparent 60%)',
-              pointerEvents: 'none',
-              zIndex: 0
-            }} />
-            
-            {/* CSS for spinner animation */}
-            <style>
-              {`
-                @keyframes spin {
-                  to { transform: rotate(360deg); }
-                }
-                .spinner {
-                  animation: spin 1s linear infinite;
-                }
-              `}
-            </style>
-            
-            <Suspense fallback={
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'center', 
-                alignItems: 'center',
-                height: '80vh'
-              }}>
-                <div 
-                  className="spinner"
-                  style={{
-                    width: '60px',
-                    height: '60px',
-                    border: '4px solid rgba(255,255,255,0.1)',
-                    borderRadius: '50%',
-                    borderTopColor: '#4ade80',
-                    animation: 'spin 1s linear infinite'
-                  }}
-                />
-              </div>
-            }>
-              {loading ? (
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'center', 
-                  alignItems: 'center',
-                  height: '80vh',
-                  flexDirection: 'column',
-                  gap: '20px'
-                }}>
-                  <div 
-                    className="spinner"
-                    style={{
-                      width: '80px',
-                      height: '80px',
-                      border: '4px solid rgba(255,255,255,0.1)',
-                      borderRadius: '50%',
-                      borderTopColor: '#4ade80',
-                      borderRightColor: 'rgba(56, 189, 248, 0.5)',
-                      animation: 'spin 1s linear infinite'
-                    }}
-                  />
-                  <p
-                    style={{ 
-                      color: '#e2e8f0', 
-                      fontSize: '1.2rem',
-                      fontWeight: '500',
-                      textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
-                    }}
-                  >
-                    {t('common.loading')}
-                  </p>
-                </div>
-              ) : (
-                <Routes>
-                  <Route path="/" element={
-                    <PageWrapper key="home">
-                      <Home user={user} />
-                    </PageWrapper>
-                  } />
-                  
-                  <Route path="/inventory" element={
-                    <ProtectedRoute user={user}>
-                      <PageWrapper key="inventory">
-                        <Inventory />
-                      </PageWrapper>
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/marketplace" element={
-                    <PageWrapper key="marketplace">
-                      <Marketplace user={user} />
-                    </PageWrapper>
-                  } />
-                  
-                  <Route path="/my-listings" element={
-                    <ProtectedRoute user={user}>
-                      <PageWrapper key="my-listings">
-                        <MyListings />
-                      </PageWrapper>
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/settings/steam" element={
-                    <ProtectedRoute user={user}>
-                      <PageWrapper key="steam-settings">
-                        <SteamSettings />
-                      </PageWrapper>
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/trades" element={
-                    <ProtectedRoute user={user}>
-                      <PageWrapper key="trades">
-                        <TradeHistory />
-                      </PageWrapper>
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/trades/:tradeId" element={
-                    <ProtectedRoute user={user}>
-                      <PageWrapper key="trade-detail">
-                        <TradeDetailPage />
-                      </PageWrapper>
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/profile" element={
-                    <ProtectedRoute user={user}>
-                      <PageWrapper key="profile">
-                        <Profile user={user} onBalanceUpdate={refreshWalletBalance} />
-                      </PageWrapper>
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/notifications" element={
-                    <ProtectedRoute user={user}>
-                      <PageWrapper key="notifications">
-                        <Notifications />
-                      </PageWrapper>
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/auth/callback" element={<AuthCallback />} />
-                  
-                  {/* Catch-all route */}
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              )}
-            </Suspense>
-            
-            {/* Notification Popup */}
-            {notification && (
-              <NotificationPopup
-                id={notification.id}
-                title={notification.title}
-                message={notification.message}
-                type={notification.type}
-                onClose={() => setNotification(null)}
-              />
-            )}
-            
-            {/* Trade URL Prompt */}
-            {showTradeUrlPrompt && (
-              <TradeUrlPrompt
-                onClose={() => setShowTradeUrlPrompt(false)}
-                onSuccess={handleTradeUrlSave}
-              />
-            )}
+            <div 
+              className="spinner"
+              style={{
+                width: '80px',
+                height: '80px',
+                border: '4px solid rgba(255,255,255,0.1)',
+                borderRadius: '50%',
+                borderTopColor: '#4ade80',
+                borderRightColor: 'rgba(56, 189, 248, 0.5)',
+                animation: 'spin 1s linear infinite'
+              }}
+            />
+            <p
+              style={{ 
+                color: '#e2e8f0', 
+                fontSize: '1.2rem',
+                fontWeight: '500',
+                textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
+              }}
+            >
+              {t('common.loading')}
+            </p>
           </div>
-        </NotificationContext.Provider>
-      </SocketContext.Provider>
-    </UserContext.Provider>
+        ) : (
+          <Routes>
+            <Route path="/" element={
+              <PageWrapper key="home">
+                <Home user={user} />
+              </PageWrapper>
+            } />
+            
+            <Route path="/inventory" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper key="inventory">
+                  <Inventory />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/marketplace" element={
+              <PageWrapper key="marketplace">
+                <Marketplace user={user} />
+              </PageWrapper>
+            } />
+            
+            <Route path="/my-listings" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper key="my-listings">
+                  <MyListings />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/settings/steam" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper key="steam-settings">
+                  <SteamSettings />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/trades" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper key="trades">
+                  <TradeHistory />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/trades/:tradeId" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper key="trade-detail">
+                  <TradeDetailPage />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/profile" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper key="profile">
+                  <Profile user={user} onBalanceUpdate={refreshWalletBalance} />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+            
+            {/* Catch-all route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        )}
+      </Suspense>
+      
+      {/* Audio elements will be added later */}
+    </div>
   );
 }
 
