@@ -11,6 +11,8 @@ function Inventory() {
   const [user, setUser] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showSellModal, setShowSellModal] = useState(false);
+  const [cacheWarning, setCacheWarning] = useState('');
+  const [lastRefreshTime, setLastRefreshTime] = useState(null);
 
   const translateWear = (shortWear) => {
     const wearTranslations = {
@@ -63,9 +65,10 @@ function Inventory() {
     }
   };
 
-  const fetchInventory = async () => {
+  const fetchInventory = async (forceRefresh = false) => {
     try {
       setLoading(true);
+      setCacheWarning('');
       const isAuthenticated = await checkAuthStatus();
       
       if (!isAuthenticated) {
@@ -73,19 +76,31 @@ function Inventory() {
         return;
       }
 
-      const res = await axios.get(`${API_URL}/inventory/my`, { withCredentials: true });
+      const url = forceRefresh 
+        ? `${API_URL}/inventory/my?refresh=true` 
+        : `${API_URL}/inventory/my`;
+        
+      const res = await axios.get(url, { withCredentials: true });
       console.log('Inventory response:', res.data);
+      
+      // Record refresh time
+      setLastRefreshTime(new Date());
+      
+      // Check if we got cached data with a warning
+      if (res.data.warning) {
+        setCacheWarning(res.data.warning);
+      }
       
       // Handle different possible response formats
       let inventoryItems = [];
       
       if (res.data) {
-        if (Array.isArray(res.data)) {
+        if (res.data.items && Array.isArray(res.data.items)) {
+          // The API returned a structured response with items
+          inventoryItems = res.data.items;
+        } else if (Array.isArray(res.data)) {
           // The API returned an array directly
           inventoryItems = res.data;
-        } else if (res.data.items && Array.isArray(res.data.items)) {
-          // The API returned an object with items array
-          inventoryItems = res.data.items;
         } else if (res.data.descriptions && Array.isArray(res.data.descriptions)) {
           // Legacy format with descriptions
           inventoryItems = res.data.descriptions;
@@ -101,7 +116,23 @@ function Inventory() {
       }
     } catch (err) {
       console.error('Inventory fetch error:', err.response || err);
-      setMessage(err.response?.data?.error || 'Failed to fetch Steam inventory. Please try refreshing the page or reconnecting your Steam account.');
+      
+      // Check for rate limit errors
+      if (err.response?.status === 402 || 
+          err.response?.status === 429 ||
+          err.response?.data?.rateLimitExceeded ||
+          err.response?.data?.message?.includes('exceeded your daily limit') ||
+          err.response?.data?.error?.includes('exceeded your daily limit') ||
+          err.response?.data?.message?.includes('rate limit') ||
+          err.response?.data?.error?.includes('rate limit')) {
+        setMessage(
+          'Steam API rate limit exceeded. We\'ve reached our daily limit of API calls. ' +
+          'Please try again tomorrow, or check if we have cached data available.'
+        );
+      } else {
+        setMessage(err.response?.data?.error || 'Failed to fetch Steam inventory. Please try refreshing the page or reconnecting your Steam account.');
+      }
+      
       setItems([]);
     } finally {
       setLoading(false);
@@ -502,6 +533,40 @@ function Inventory() {
           </div>
         ))}
       </div>
+
+      {/* Refresh controls */}
+      <div className="mb-4 d-flex justify-content-between align-items-center">
+        <button 
+          className="btn btn-outline-primary" 
+          onClick={() => fetchInventory(true)}
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <span className="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+              Refreshing...
+            </>
+          ) : (
+            <>
+              <i className="fas fa-sync-alt mr-2"></i> 
+              Refresh Inventory
+            </>
+          )}
+        </button>
+        
+        {lastRefreshTime && (
+          <div className="text-muted small">
+            Last updated: {lastRefreshTime.toLocaleTimeString()}
+          </div>
+        )}
+      </div>
+      
+      {cacheWarning && (
+        <div className="alert alert-warning">
+          <i className="fas fa-exclamation-triangle mr-2"></i>
+          {cacheWarning}
+        </div>
+      )}
     </div>
   );
 }
