@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { formatCurrency, API_URL } from '../config/constants';
+import SteamLoginSecure from './SteamLoginSecure';
 
 // Status badge component
 const StatusBadge = ({ status }) => {
@@ -66,6 +67,7 @@ const TradeDetails = ({ tradeId }) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [steamStatus, setSteamStatus] = useState(null);
   const [confirmForceOverride, setConfirmForceOverride] = useState(false);
+  const [showSteamLoginSecure, setShowSteamLoginSecure] = useState(false);
 
   useEffect(() => {
     if (tradeId) {
@@ -102,7 +104,11 @@ const TradeDetails = ({ tradeId }) => {
       }
     } catch (err) {
       console.error('Error approving trade:', err);
-      setError(err.response?.data?.error || 'Failed to approve trade');
+      if (err.response?.data?.error === "You need to update your steam login secure token to process trades.") {
+        setShowSteamLoginSecure(true);
+      } else {
+        setError(err.response?.data?.error || 'Failed to approve trade');
+      }
     } finally {
       setLoading(false);
     }
@@ -206,6 +212,12 @@ const TradeDetails = ({ tradeId }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSteamLoginSecureSave = async () => {
+    setShowSteamLoginSecure(false);
+    // Retry the trade approval after token has been updated
+    handleSellerApprove();
   };
 
   if (loading && !trade) {
@@ -761,6 +773,13 @@ const TradeDetails = ({ tradeId }) => {
           </div>
         </div>
       </div>
+
+      {showSteamLoginSecure && (
+        <SteamLoginSecure 
+          onClose={() => setShowSteamLoginSecure(false)}
+          onSave={handleSteamLoginSecureSave}
+        />
+      )}
 
       <style>
         {`

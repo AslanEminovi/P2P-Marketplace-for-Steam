@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config/constants';
 import Wallet from '../components/Wallet';
+import { Link } from 'react-router-dom';
 
 const Profile = ({ user, onBalanceUpdate }) => {
   const [activeTab, setActiveTab] = useState('wallet');
@@ -344,7 +345,8 @@ const Profile = ({ user, onBalanceUpdate }) => {
               padding: '25px',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
               backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)'
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              marginBottom: '30px'
             }}>
               <h2 style={{ 
                 color: '#f1f1f1', 
@@ -577,6 +579,65 @@ const Profile = ({ user, onBalanceUpdate }) => {
                   {loading ? 'Saving...' : 'Save Settings'}
                 </button>
               </form>
+            </div>
+            
+            {/* Steam Trading Settings Section */}
+            <div style={{
+              background: 'rgba(45, 27, 105, 0.3)',
+              borderRadius: '16px',
+              padding: '25px',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              marginBottom: '30px'
+            }}>
+              <h2 style={{ 
+                color: '#f1f1f1', 
+                marginBottom: '25px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                fontSize: '1.75rem'
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 5v2" />
+                  <path d="M15 11v2" />
+                  <path d="M15 17v2" />
+                  <path d="M5 5h14" />
+                  <path d="M5 11h14" />
+                  <path d="M5 17h14" />
+                </svg>
+                Steam Trading Settings
+              </h2>
+              
+              <p style={{ color: '#e2e8f0', marginBottom: '20px' }}>
+                Configure your Steam trade URL and login secure token to enable selling and trading items.
+              </p>
+              
+              <Link 
+                to="/steam-settings"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  backgroundColor: '#3b82f6',
+                  textDecoration: 'none',
+                  color: '#ffffff',
+                  padding: '14px 20px',
+                  borderRadius: '12px',
+                  transition: 'background-color 0.2s',
+                  fontWeight: '500',
+                  width: 'fit-content'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+                Manage Steam Settings
+              </Link>
             </div>
           </div>
         )}

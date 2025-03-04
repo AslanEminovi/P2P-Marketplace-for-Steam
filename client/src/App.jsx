@@ -11,6 +11,7 @@ import Marketplace from './pages/Marketplace';
 import MyListings from './pages/MyListings';
 import Profile from './pages/Profile';
 import TradeDetailPage from './pages/TradeDetailPage';
+import SteamSettingsPage from './pages/SteamSettings';
 
 // Components
 import Navbar from './components/Navbar';
@@ -466,6 +467,12 @@ function App() {
                 <PageWrapper key="profile">
                   <Profile user={user} onBalanceUpdate={refreshWalletBalance} />
                 </PageWrapper>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/steam-settings" element={
+              <ProtectedRoute>
+                <SteamSettingsPage />
               </ProtectedRoute>
             } />
             
