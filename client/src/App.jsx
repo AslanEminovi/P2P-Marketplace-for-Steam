@@ -47,6 +47,36 @@ function App() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
+  // Configure Axios to include auth token with all requests
+  useEffect(() => {
+    // Add request interceptor to include token with all requests
+    const interceptor = axios.interceptors.request.use(config => {
+      // Always include withCredentials
+      config.withCredentials = true;
+      
+      // Get token from localStorage
+      const token = localStorage.getItem('auth_token');
+      
+      // If token exists, include it in query params
+      if (token) {
+        // Include token in URL if it's to our API
+        if (config.url.startsWith(API_URL)) {
+          // Initialize params object if not exists
+          config.params = config.params || {};
+          // Add token to params
+          config.params.auth_token = token;
+        }
+      }
+      
+      return config;
+    });
+
+    // Remove interceptor on cleanup
+    return () => {
+      axios.interceptors.request.eject(interceptor);
+    };
+  }, []);
+
   const checkAuthStatus = async () => {
     try {
       setLoading(true);

@@ -98,6 +98,42 @@ app.use(sessionMiddleware);
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Middleware to check for token authentication
+app.use(async (req, res, next) => {
+  // Skip if user is already authenticated via session
+  if (req.isAuthenticated()) {
+    return next();
+  }
+
+  // Check for token in query parameters
+  const token = req.query.auth_token;
+  if (token) {
+    try {
+      // Verify token by looking up user
+      const User = require("./models/User");
+      const user = await User.findById(token);
+
+      if (user) {
+        // Log the user in
+        req.login(user, (err) => {
+          if (err) {
+            console.error("Token login error:", err);
+          } else {
+            console.log(`User authenticated via token: ${user._id}`);
+          }
+          next();
+        });
+        return;
+      }
+    } catch (error) {
+      console.error("Token authentication error:", error);
+    }
+  }
+
+  // Continue without authentication
+  next();
+});
+
 // API Routes
 app.use("/auth", authRoutes);
 app.use("/inventory", inventoryRoutes);
@@ -191,6 +227,41 @@ const wrap = (middleware) => (socket, next) =>
 io.use(wrap(sessionMiddleware));
 io.use(wrap(passport.initialize()));
 io.use(wrap(passport.session()));
+
+io.use(async (socket, next) => {
+  try {
+    // First try to authenticate via session
+    if (socket.request.user) {
+      console.log(`User authenticated via session: ${socket.request.user._id}`);
+      return next();
+    }
+
+    // If no session auth, check for token in handshake
+    const token = socket.handshake.auth.token || socket.handshake.query.token;
+
+    if (token) {
+      console.log(`Attempting to authenticate socket with token: ${token}`);
+
+      const User = require("./models/User");
+      const user = await User.findById(token);
+
+      if (user) {
+        console.log(`User authenticated via token: ${user._id}`);
+        socket.request.user = user;
+        return next();
+      }
+
+      console.log(`Invalid token provided for socket authentication: ${token}`);
+    }
+
+    // If we reach here, no valid authentication
+    console.log(`Unauthenticated socket connection: ${socket.id}`);
+    next(new Error("Authentication required"));
+  } catch (error) {
+    console.error(`Socket authentication error:`, error);
+    next(new Error("Internal server error"));
+  }
+});
 
 // WebSocket connection handling
 io.on("connection", (socket) => {

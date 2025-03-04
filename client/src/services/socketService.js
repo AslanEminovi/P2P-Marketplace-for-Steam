@@ -21,6 +21,10 @@ class SocketService {
 
     console.log("Initializing socket connection to:", API_URL);
 
+    // Get authentication token if available
+    const authToken = localStorage.getItem("auth_token");
+    console.log("Socket auth token available:", !!authToken);
+
     // Connect to the WebSocket server (use the same URL as the API)
     this.socket = io(API_URL, {
       withCredentials: true,
@@ -28,12 +32,19 @@ class SocketService {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 10000,
+      auth: {
+        token: authToken, // Send token in auth object
+      },
+      query: {
+        token: authToken, // Send token in query as fallback
+      },
     });
 
     console.log("Socket options:", {
       withCredentials: true,
       url: API_URL,
       transports: this.socket.io.opts.transports,
+      auth: { token: authToken ? "present" : "not found" },
     });
 
     // Setup event listeners
