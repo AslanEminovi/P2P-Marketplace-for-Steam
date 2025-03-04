@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { formatCurrency, API_URL } from '../config/constants';
-import SteamLoginSecure from './SteamLoginSecure';
 
 // Status badge component
 const StatusBadge = ({ status }) => {
@@ -67,7 +66,9 @@ const TradeDetails = ({ tradeId }) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [steamStatus, setSteamStatus] = useState(null);
   const [confirmForceOverride, setConfirmForceOverride] = useState(false);
-  const [showSteamLoginSecure, setShowSteamLoginSecure] = useState(false);
+  const [sellerConfirmation, setSellerConfirmation] = useState(false);
+  const [inventoryCheckLoading, setInventoryCheckLoading] = useState(false);
+  const [inventoryCheckResult, setInventoryCheckResult] = useState(null);
 
   useEffect(() => {
     if (tradeId) {
@@ -95,7 +96,7 @@ const TradeDetails = ({ tradeId }) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.put(`${API_URL}/trades/${tradeId}/seller-approve`, {}, {
+      const response = await axios.put(`${API_URL}/trades/${tradeId}/seller-initiate`, {}, {
         withCredentials: true
       });
       
@@ -103,39 +104,31 @@ const TradeDetails = ({ tradeId }) => {
         loadTradeDetails();
       }
     } catch (err) {
-      console.error('Error approving trade:', err);
-      if (err.response?.data?.error === "You need to update your steam login secure token to process trades.") {
-        setShowSteamLoginSecure(true);
-      } else {
-        setError(err.response?.data?.error || 'Failed to approve trade');
-      }
+      console.error('Error initiating trade:', err);
+      setError(err.response?.data?.error || 'Failed to initiate trade');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSellerSent = async () => {
-    if (!steamOfferUrl) {
-      setError('Please enter the Steam trade offer URL');
-      return;
-    }
-
+  const handleSellerConfirmSent = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.put(`${API_URL}/trades/${tradeId}/seller-sent`, {
-        steamOfferUrl
+      const response = await axios.put(`${API_URL}/trades/${tradeId}/seller-sent-manual`, {
+        tradeOfferId: steamOfferUrl.trim(), // This can be the trade offer ID or URL
       }, {
         withCredentials: true
       });
       
       if (response.data.success) {
+        setSellerConfirmation(true);
         setSteamOfferUrl('');
         loadTradeDetails();
       }
     } catch (err) {
-      console.error('Error sending trade:', err);
-      setError(err.response?.data?.error || 'Failed to send trade');
+      console.error('Error confirming trade sent:', err);
+      setError(err.response?.data?.error || 'Failed to confirm trade sent');
     } finally {
       setLoading(false);
     }
@@ -144,28 +137,59 @@ const TradeDetails = ({ tradeId }) => {
   const handleBuyerConfirm = async () => {
     setLoading(true);
     setError(null);
+    
+    // First check the buyer's inventory for the item
     try {
-      const response = await axios.put(`${API_URL}/trades/${tradeId}/buyer-confirm`, {
-        forceConfirm: confirmForceOverride
-      }, {
+      setInventoryCheckLoading(true);
+      const checkResponse = await axios.get(`${API_URL}/trades/${tradeId}/verify-inventory`, {
         withCredentials: true
       });
       
-      if (response.data.success) {
-        loadTradeDetails();
+      setInventoryCheckResult(checkResponse.data);
+      
+      // If item found in inventory, proceed with confirmation
+      if (checkResponse.data.itemFound || confirmForceOverride) {
+        const response = await axios.put(`${API_URL}/trades/${tradeId}/buyer-confirm`, {
+          forceConfirm: confirmForceOverride
+        }, {
+          withCredentials: true
+        });
+        
+        if (response.data.success) {
+          loadTradeDetails();
+        }
+      } else {
+        // Item not found, ask user if they want to proceed anyway
+        setError('Warning: The item was not found in your inventory. If you still want to confirm, please check "Force confirm" below.');
+        setConfirmForceOverride(true);
       }
     } catch (err) {
       console.error('Error confirming trade:', err);
-      
-      // Handle the case where Steam verification fails
-      if (err.response?.data?.requireForceConfirm) {
-        setError('Warning: ' + err.response.data.error);
-        setConfirmForceOverride(true);
-      } else {
-        setError(err.response?.data?.error || 'Failed to confirm trade');
-      }
+      setError(err.response?.data?.error || 'Failed to confirm trade');
     } finally {
       setLoading(false);
+      setInventoryCheckLoading(false);
+    }
+  };
+
+  const handleCheckInventory = async () => {
+    setInventoryCheckLoading(true);
+    setError(null);
+    try {
+      const response = await axios.get(`${API_URL}/trades/${tradeId}/verify-inventory`, {
+        withCredentials: true
+      });
+      
+      setInventoryCheckResult(response.data);
+      
+      if (!response.data.itemFound) {
+        setError('Item not found in buyer inventory. The trade offer may not have been accepted yet.');
+      }
+    } catch (err) {
+      console.error('Error checking inventory:', err);
+      setError(err.response?.data?.error || 'Failed to check inventory');
+    } finally {
+      setInventoryCheckLoading(false);
     }
   };
 
@@ -212,12 +236,6 @@ const TradeDetails = ({ tradeId }) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSteamLoginSecureSave = async () => {
-    setShowSteamLoginSecure(false);
-    // Retry the trade approval after token has been updated
-    handleSellerApprove();
   };
 
   if (loading && !trade) {
@@ -446,105 +464,116 @@ const TradeDetails = ({ tradeId }) => {
             {trade.isUserSeller && (
               <div>
                 {trade.status === 'awaiting_seller' && (
-                  <button
-                    onClick={handleSellerApprove}
-                    disabled={loading}
-                    style={{
-                      backgroundColor: '#059669',
-                      color: 'white',
-                      border: 'none',
-                      padding: '10px 16px',
-                      borderRadius: '4px',
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                      width: '100%',
-                      fontWeight: 'bold',
-                      marginBottom: '12px'
-                    }}
-                  >
-                    {loading ? 'Processing...' : 'Approve Trade'}
-                  </button>
-                )}
-
-                {trade.status === 'offer_sent' && (
-                  <div>
-                    <p style={{ color: '#d1d5db', marginBottom: '8px' }}>
-                      Buyer's Trade URL:
+                  <div style={{ marginBottom: '16px' }}>
+                    <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+                      A buyer wants to purchase your item. You need to send them a trade offer.
                     </p>
-                    <div style={{
-                      backgroundColor: '#374151',
-                      padding: '8px',
-                      borderRadius: '4px',
-                      marginBottom: '12px',
-                      wordBreak: 'break-all',
-                      fontSize: '0.875rem',
-                      color: '#9ca3af'
-                    }}>
-                      {trade.buyer.tradeUrl}
-                      <a
-                        href={trade.buyer.tradeUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          color: '#3b82f6',
-                          marginLeft: '8px',
-                          textDecoration: 'none',
-                          display: 'inline-block'
-                        }}
-                      >
-                        Open
-                      </a>
-                    </div>
-
-                    <div style={{ marginBottom: '12px' }}>
-                      <label 
-                        htmlFor="steamOfferUrl" 
-                        style={{ 
-                          display: 'block', 
-                          color: '#d1d5db', 
-                          marginBottom: '8px' 
-                        }}
-                      >
-                        Enter Steam Trade Offer URL:
-                      </label>
-                      <input
-                        id="steamOfferUrl"
-                        type="text"
-                        value={steamOfferUrl}
-                        onChange={(e) => setSteamOfferUrl(e.target.value)}
-                        placeholder="https://steamcommunity.com/tradeoffer/..."
-                        style={{
-                          width: '100%',
-                          padding: '10px',
-                          backgroundColor: '#374151',
-                          border: '1px solid #4b5563',
-                          borderRadius: '4px',
-                          color: '#f1f1f1'
-                        }}
-                      />
-                    </div>
-
                     <button
-                      onClick={handleSellerSent}
-                      disabled={loading || !steamOfferUrl}
+                      onClick={handleSellerApprove}
+                      disabled={loading}
                       style={{
-                        backgroundColor: '#059669',
-                        color: 'white',
+                        backgroundColor: '#22c55e',
+                        color: '#f1f1f1',
                         border: 'none',
                         padding: '10px 16px',
                         borderRadius: '4px',
-                        cursor: (loading || !steamOfferUrl) ? 'not-allowed' : 'pointer',
-                        width: '100%',
-                        fontWeight: 'bold',
-                        marginBottom: '12px',
-                        opacity: (!steamOfferUrl) ? 0.7 : 1
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        marginRight: '8px',
+                        opacity: loading ? '0.7' : '1'
                       }}
                     >
-                      {loading ? 'Processing...' : 'I\'ve Sent the Item'}
+                      {loading ? 'Processing...' : 'Accept Offer'}
+                    </button>
+                    <button
+                      onClick={() => document.getElementById('cancel-reason').style.display = 'block'}
+                      disabled={loading}
+                      style={{
+                        backgroundColor: '#ef4444',
+                        color: '#f1f1f1',
+                        border: 'none',
+                        padding: '10px 16px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        opacity: loading ? '0.7' : '1'
+                      }}
+                    >
+                      Decline
                     </button>
                   </div>
                 )}
 
-                {(['awaiting_seller', 'offer_sent'].includes(trade.status)) && (
+                {trade.status === 'in_process' && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginBottom: '12px' }}>
+                      Please send a trade offer to the buyer using their trade link:
+                    </p>
+                    
+                    <div style={{
+                      backgroundColor: '#1f2937',
+                      padding: '10px',
+                      borderRadius: '4px',
+                      marginBottom: '12px',
+                      wordBreak: 'break-all',
+                      fontSize: '0.875rem',
+                      color: '#e5e7eb'
+                    }}>
+                      <a 
+                        href={trade.buyer.tradeUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ color: '#3b82f6', textDecoration: 'none' }}
+                      >
+                        {trade.buyer.tradeUrl}
+                      </a>
+                    </div>
+                    
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ color: '#f1f1f1', display: 'block', marginBottom: '8px' }}>
+                        Trade Offer ID/URL (optional):
+                      </label>
+                      <input
+                        type="text"
+                        value={steamOfferUrl}
+                        onChange={(e) => setSteamOfferUrl(e.target.value)}
+                        placeholder="Enter Steam trade offer ID or URL"
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          backgroundColor: '#1f2937',
+                          border: '1px solid #374151',
+                          borderRadius: '4px',
+                          color: '#f1f1f1',
+                          marginBottom: '8px'
+                        }}
+                      />
+                      <p style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: '0' }}>
+                        This helps us track the trade (the buyer will see this)
+                      </p>
+                    </div>
+                    
+                    <button
+                      onClick={handleSellerConfirmSent}
+                      disabled={loading || sellerConfirmation}
+                      style={{
+                        backgroundColor: sellerConfirmation ? '#059669' : '#3b82f6',
+                        color: '#f1f1f1',
+                        border: 'none',
+                        padding: '10px 16px',
+                        borderRadius: '4px',
+                        cursor: loading || sellerConfirmation ? 'not-allowed' : 'pointer',
+                        fontWeight: '500',
+                        width: '100%',
+                        opacity: loading ? '0.7' : '1'
+                      }}
+                    >
+                      {loading ? 'Processing...' : sellerConfirmation ? 'Trade Offer Sent ✓' : 'I\'ve Sent the Trade Offer'}
+                    </button>
+                  </div>
+                )}
+
+                {(['awaiting_seller', 'in_process'].includes(trade.status)) && (
                   <button
                     onClick={() => {
                       const modal = document.getElementById('cancelModal');
@@ -570,42 +599,113 @@ const TradeDetails = ({ tradeId }) => {
             {/* Buyer actions */}
             {trade.isUserBuyer && (
               <div>
-                {trade.status === 'awaiting_confirmation' && (
-                  <div>
+                {trade.status === 'offer_sent' && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{
+                      backgroundColor: '#1e40af',
+                      color: '#93c5fd',
+                      padding: '12px',
+                      borderRadius: '4px',
+                      marginBottom: '16px'
+                    }}>
+                      <p style={{ margin: '0 0 8px 0', fontWeight: '500' }}>
+                        Seller has sent you a trade offer
+                      </p>
+                      <p style={{ margin: '0', fontSize: '0.875rem' }}>
+                        Please check your Steam trade offers and accept the offer before confirming below.
+                      </p>
+                      {trade.tradeOfferId && (
+                        <a
+                          href={`https://steamcommunity.com/tradeoffer/${trade.tradeOfferId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-block',
+                            marginTop: '8px',
+                            color: '#3b82f6',
+                            textDecoration: 'none',
+                            backgroundColor: '#1f2937',
+                            padding: '6px 12px',
+                            borderRadius: '4px',
+                            fontSize: '0.875rem'
+                          }}
+                        >
+                          View Trade Offer
+                        </a>
+                      )}
+                    </div>
+                    
+                    <div style={{ marginBottom: '16px' }}>
+                      <button
+                        onClick={handleCheckInventory}
+                        disabled={inventoryCheckLoading}
+                        style={{
+                          backgroundColor: '#475569',
+                          color: '#f1f1f1',
+                          border: 'none',
+                          padding: '8px 16px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: '500',
+                          width: '100%',
+                          marginBottom: '12px',
+                          opacity: inventoryCheckLoading ? '0.7' : '1'
+                        }}
+                      >
+                        {inventoryCheckLoading ? 'Checking...' : 'Check If Item Received'}
+                      </button>
+                      
+                      {inventoryCheckResult && (
+                        <div style={{
+                          backgroundColor: inventoryCheckResult.itemFound ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                          color: inventoryCheckResult.itemFound ? '#10b981' : '#ef4444',
+                          padding: '8px 12px',
+                          borderRadius: '4px',
+                          fontSize: '0.875rem',
+                          marginBottom: '12px'
+                        }}>
+                          {inventoryCheckResult.itemFound ? 
+                            'Item was found in your inventory! You can safely confirm.' : 
+                            'Item was not found in your inventory. Please check that you\'ve accepted the trade offer.'}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {confirmForceOverride && (
+                      <div style={{ marginBottom: '12px' }}>
+                        <label style={{
+                          color: '#f1f1f1',
+                          display: 'flex',
+                          alignItems: 'center',
+                          cursor: 'pointer'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={confirmForceOverride}
+                            onChange={(e) => setConfirmForceOverride(e.target.checked)}
+                            style={{ marginRight: '8px' }}
+                          />
+                          Force confirm (use this if verification fails but you received the item)
+                        </label>
+                      </div>
+                    )}
+                    
                     <button
                       onClick={handleBuyerConfirm}
-                      disabled={loading}
+                      disabled={loading || (!(inventoryCheckResult?.itemFound || confirmForceOverride))}
                       style={{
-                        backgroundColor: '#059669',
-                        color: 'white',
+                        backgroundColor: '#22c55e',
+                        color: '#f1f1f1',
                         border: 'none',
                         padding: '10px 16px',
                         borderRadius: '4px',
-                        cursor: loading ? 'not-allowed' : 'pointer',
+                        cursor: loading || (!(inventoryCheckResult?.itemFound || confirmForceOverride)) ? 'not-allowed' : 'pointer',
+                        fontWeight: '500',
                         width: '100%',
-                        fontWeight: 'bold',
-                        marginBottom: '12px'
+                        opacity: loading || (!(inventoryCheckResult?.itemFound || confirmForceOverride)) ? '0.7' : '1'
                       }}
                     >
-                      {loading ? 'Processing...' : confirmForceOverride ? 'Yes, Confirm Receipt Anyway' : 'Confirm Item Receipt'}
-                    </button>
-
-                    <button
-                      onClick={handleCheckSteamStatus}
-                      disabled={isVerifying}
-                      style={{
-                        backgroundColor: '#1d4ed8',
-                        color: 'white',
-                        border: 'none',
-                        padding: '10px 16px',
-                        borderRadius: '4px',
-                        cursor: isVerifying ? 'not-allowed' : 'pointer',
-                        width: '100%',
-                        fontWeight: 'bold',
-                        marginBottom: '12px'
-                      }}
-                    >
-                      {isVerifying ? 'Checking...' : 'Check Steam Trade Status'}
+                      {loading ? 'Processing...' : 'Confirm Item Received'}
                     </button>
                   </div>
                 )}
@@ -774,12 +874,62 @@ const TradeDetails = ({ tradeId }) => {
         </div>
       </div>
 
-      {showSteamLoginSecure && (
-        <SteamLoginSecure 
-          onClose={() => setShowSteamLoginSecure(false)}
-          onSave={handleSteamLoginSecureSave}
+      {/* Cancel reason form (hidden by default) */}
+      <div id="cancel-reason" style={{ display: 'none', marginTop: '20px' }}>
+        <h3 style={{ color: '#f1f1f1' }}>Cancel Trade</h3>
+        <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+          Please provide a reason for cancelling this trade:
+        </p>
+        <textarea
+          value={cancelReason}
+          onChange={(e) => setCancelReason(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '8px 12px',
+            backgroundColor: '#1f2937',
+            border: '1px solid #374151',
+            borderRadius: '4px',
+            color: '#f1f1f1',
+            marginBottom: '16px',
+            minHeight: '100px',
+            resize: 'vertical'
+          }}
+          placeholder="Enter cancellation reason..."
         />
-      )}
+        <div>
+          <button
+            onClick={handleCancelTrade}
+            disabled={loading || !cancelReason}
+            style={{
+              backgroundColor: '#ef4444',
+              color: '#f1f1f1',
+              border: 'none',
+              padding: '10px 16px',
+              borderRadius: '4px',
+              cursor: loading || !cancelReason ? 'not-allowed' : 'pointer',
+              fontWeight: '500',
+              marginRight: '8px',
+              opacity: loading || !cancelReason ? '0.7' : '1'
+            }}
+          >
+            {loading ? 'Processing...' : 'Confirm Cancellation'}
+          </button>
+          <button
+            onClick={() => document.getElementById('cancel-reason').style.display = 'none'}
+            style={{
+              backgroundColor: 'transparent',
+              color: '#9ca3af',
+              border: '1px solid #4b5563',
+              padding: '10px 16px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
+          >
+            Back
+          </button>
+        </div>
+      </div>
 
       <style>
         {`

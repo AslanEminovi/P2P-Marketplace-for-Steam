@@ -18,6 +18,16 @@ router.put("/:tradeId/seller-approve", tradeController.sellerApproveTrade);
 // Seller sent item via Steam trade
 router.put("/:tradeId/seller-sent", tradeController.sellerSentItem);
 
+// New P2P trading flow routes
+// Seller initiates the trade process
+router.put("/:tradeId/seller-initiate", tradeController.sellerInitiate);
+
+// Seller manually confirms they've sent the trade offer
+router.put("/:tradeId/seller-sent-manual", tradeController.sellerSentManual);
+
+// Verify item in buyer's inventory
+router.get("/:tradeId/verify-inventory", tradeController.verifyInventory);
+
 // Buyer confirms receipt of item
 router.put("/:tradeId/buyer-confirm", tradeController.buyerConfirmReceipt);
 
@@ -25,6 +35,9 @@ router.put("/:tradeId/buyer-confirm", tradeController.buyerConfirmReceipt);
 router.put("/:tradeId/cancel", tradeController.cancelTrade);
 
 // Check Steam trade status
-router.get("/:tradeId/check-steam-status", tradeController.checkSteamTradeStatus);
+router.get(
+  "/:tradeId/check-steam-status",
+  tradeController.checkSteamTradeStatus
+);
 
 module.exports = router;

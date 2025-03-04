@@ -660,11 +660,9 @@ exports.checkSteamTradeStatus = async (req, res) => {
       const user = await User.findById(userId).select("+steamLoginSecure");
 
       if (!user.steamLoginSecure) {
-        return res
-          .status(400)
-          .json({
-            error: "Steam login secure token is required to check trade status",
-          });
+        return res.status(400).json({
+          error: "Steam login secure token is required to check trade status",
+        });
       }
 
       // Check trade offers - try both sent and received
@@ -719,6 +717,226 @@ exports.checkSteamTradeStatus = async (req, res) => {
   } catch (err) {
     console.error("Check Steam trade status error:", err);
     return res.status(500).json({ error: "Failed to check trade status" });
+  }
+};
+
+// Add new controller functions for the P2P trading flow
+
+// PUT /trades/:tradeId/seller-initiate
+exports.sellerInitiate = async (req, res) => {
+  try {
+    const { tradeId } = req.params;
+    const sellerId = req.user._id;
+
+    // Find the trade
+    const trade = await Trade.findById(tradeId).populate("item");
+
+    if (!trade) {
+      return res.status(404).json({ error: "Trade not found" });
+    }
+
+    // Verify this user is the seller
+    if (trade.seller.toString() !== sellerId.toString()) {
+      return res
+        .status(403)
+        .json({ error: "You are not authorized to initiate this trade" });
+    }
+
+    // Check trade status
+    if (trade.status !== "awaiting_seller") {
+      return res
+        .status(400)
+        .json({ error: `Cannot initiate a trade in ${trade.status} status` });
+    }
+
+    // Update trade status to in_process (waiting for seller to send trade offer)
+    trade.status = "in_process";
+    trade.statusHistory.push({
+      status: "in_process",
+      timestamp: new Date(),
+      userId: sellerId,
+    });
+
+    await trade.save();
+
+    // Notify buyer
+    socketService.sendNotification(trade.buyer, {
+      type: "TRADE_UPDATE",
+      title: "Trade Update",
+      message: `Seller has accepted your offer for ${trade.item.marketHashName}`,
+      linkTo: `/trades/${trade._id}`,
+      trade: trade,
+    });
+
+    return res.json({
+      success: true,
+      message: "Trade initiated successfully",
+    });
+  } catch (err) {
+    console.error("Seller initiate trade error:", err);
+    return res.status(500).json({ error: "Failed to initiate trade" });
+  }
+};
+
+// PUT /trades/:tradeId/seller-sent-manual
+exports.sellerSentManual = async (req, res) => {
+  try {
+    const { tradeId } = req.params;
+    const { tradeOfferId } = req.body;
+    const sellerId = req.user._id;
+
+    // Find the trade
+    const trade = await Trade.findById(tradeId).populate("item");
+
+    if (!trade) {
+      return res.status(404).json({ error: "Trade not found" });
+    }
+
+    // Verify this user is the seller
+    if (trade.seller.toString() !== sellerId.toString()) {
+      return res
+        .status(403)
+        .json({ error: "You are not authorized to mark this trade as sent" });
+    }
+
+    // Check trade status
+    if (trade.status !== "in_process") {
+      return res
+        .status(400)
+        .json({
+          error: `Cannot mark a trade as sent in ${trade.status} status`,
+        });
+    }
+
+    // Update trade status to offer_sent
+    trade.status = "offer_sent";
+    trade.statusHistory.push({
+      status: "offer_sent",
+      timestamp: new Date(),
+      userId: sellerId,
+    });
+
+    // Store trade offer ID if provided
+    if (tradeOfferId) {
+      // Extract the ID if a full URL was provided
+      if (tradeOfferId.includes("tradeoffer")) {
+        const parts = tradeOfferId.split("/");
+        const idIndex = parts.findIndex((part) => part === "tradeoffer") + 1;
+        if (idIndex < parts.length) {
+          trade.tradeOfferId = parts[idIndex];
+        } else {
+          trade.tradeOfferId = tradeOfferId;
+        }
+      } else {
+        trade.tradeOfferId = tradeOfferId;
+      }
+    }
+
+    await trade.save();
+
+    // Notify buyer
+    socketService.sendNotification(trade.buyer, {
+      type: "TRADE_UPDATE",
+      title: "Trade Offer Sent",
+      message: `Seller has sent a trade offer for ${trade.item.marketHashName}. Please check Steam and confirm receipt.`,
+      linkTo: `/trades/${trade._id}`,
+      trade: trade,
+    });
+
+    return res.json({
+      success: true,
+      message: "Trade marked as sent successfully",
+    });
+  } catch (err) {
+    console.error("Seller sent trade manual error:", err);
+    return res.status(500).json({ error: "Failed to mark trade as sent" });
+  }
+};
+
+// GET /trades/:tradeId/verify-inventory
+exports.verifyInventory = async (req, res) => {
+  try {
+    const { tradeId } = req.params;
+    const userId = req.user._id;
+
+    // Find the trade
+    const trade = await Trade.findById(tradeId).populate("item");
+
+    if (!trade) {
+      return res.status(404).json({ error: "Trade not found" });
+    }
+
+    // Verify this user is the buyer
+    if (trade.buyer.toString() !== userId.toString()) {
+      return res
+        .status(403)
+        .json({ error: "Only the buyer can verify item receipt" });
+    }
+
+    // Get buyer details
+    const buyer = await User.findById(trade.buyer);
+    if (!buyer || !buyer.steamId) {
+      return res
+        .status(400)
+        .json({ error: "Buyer's Steam account not linked" });
+    }
+
+    // Check buyer's inventory for the item
+    try {
+      const steamInventory = await steamApiService.getInventory(
+        buyer.steamId,
+        process.env.CS2_APP_ID
+      );
+
+      // Look for the item in the inventory
+      const assetId = trade.item.assetId;
+      const itemName = trade.item.marketHashName;
+
+      let itemFound = false;
+
+      if (steamInventory && steamInventory.assets) {
+        // First try to match by asset ID if available
+        if (assetId) {
+          itemFound = steamInventory.assets.some(
+            (asset) => asset.assetid === assetId
+          );
+        }
+
+        // If not found by asset ID, try to match by name
+        if (!itemFound && steamInventory.descriptions) {
+          for (const asset of steamInventory.assets) {
+            const description = steamInventory.descriptions.find(
+              (desc) =>
+                desc.classid === asset.classid &&
+                desc.instanceid === asset.instanceid
+            );
+
+            if (description && description.market_hash_name === itemName) {
+              itemFound = true;
+              break;
+            }
+          }
+        }
+      }
+
+      return res.json({
+        itemFound,
+        message: itemFound
+          ? "Item was found in your inventory"
+          : "Item was not found in your inventory",
+      });
+    } catch (err) {
+      console.error("Steam inventory check error:", err);
+      return res.status(200).json({
+        itemFound: false,
+        message:
+          "Could not verify item in inventory. You may need to manually confirm.",
+        error: err.message,
+      });
+    }
+  } catch (err) {
+    console.error("Verify inventory error:", err);
+    return res.status(500).json({ error: "Failed to verify inventory" });
   }
 };
 
