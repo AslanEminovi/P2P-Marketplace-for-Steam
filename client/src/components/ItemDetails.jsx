@@ -14,6 +14,7 @@ const ItemDetails = ({
   const [error, setError] = useState(null);
   const [tradePanelOpen, setTradePanelOpen] = useState(false);
   const [tradeAction, setTradeAction] = useState(null);
+  const [isUserOwner, setIsUserOwner] = useState(false);
   
   useEffect(() => {
     if (itemId && isOpen) {
@@ -29,6 +30,18 @@ const ItemDetails = ({
         withCredentials: true
       });
       setItem(response.data);
+      
+      // Check if the current user is the owner
+      const userResponse = await axios.get(`${API_URL}/user/profile`, {
+        withCredentials: true
+      });
+      
+      if (response.data.owner && userResponse.data && 
+          response.data.owner._id === userResponse.data._id) {
+        setIsUserOwner(true);
+      } else {
+        setIsUserOwner(false);
+      }
     } catch (err) {
       console.error('Error fetching item details:', err);
       setError(err.response?.data?.error || 'Failed to load item details');
@@ -50,6 +63,46 @@ const ItemDetails = ({
   const handleTradeComplete = (data) => {
     if (onItemUpdated) {
       onItemUpdated(data);
+    }
+  };
+  
+  const handleCancelListing = async (itemId) => {
+    try {
+      const response = await axios.put(
+        `${API_URL}/marketplace/cancel/${itemId}`,
+        {},
+        { withCredentials: true }
+      );
+      
+      if (response.data.success) {
+        if (window.showNotification) {
+          window.showNotification(
+            'Listing Removed',
+            'Your item has been removed from the marketplace.',
+            'SUCCESS'
+          );
+        }
+        
+        // Close the modal and notify parent component
+        if (onItemUpdated) {
+          onItemUpdated({
+            ...item,
+            isListed: false
+          });
+        }
+        
+        onClose();
+      }
+    } catch (err) {
+      console.error('Error cancelling listing:', err);
+      
+      if (window.showNotification) {
+        window.showNotification(
+          'Error',
+          err.response?.data?.error || 'Failed to remove listing. Please try again.',
+          'ERROR'
+        );
+      }
     }
   };
   
@@ -333,38 +386,59 @@ const ItemDetails = ({
                     gap: '12px',
                     marginTop: '24px'
                   }}>
-                    <button
-                      onClick={handleBuyNow}
-                      style={{
-                        backgroundColor: '#059669',
-                        color: 'white',
-                        padding: '10px 20px',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontSize: '1rem',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        flex: '1'
-                      }}
-                    >
-                      Buy Now
-                    </button>
-                    
-                    {item.allowOffers && (
+                    {!isUserOwner ? (
+                      <>
+                        <button
+                          onClick={handleBuyNow}
+                          style={{
+                            backgroundColor: '#059669',
+                            color: 'white',
+                            padding: '10px 20px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '1rem',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            flex: '1'
+                          }}
+                        >
+                          Buy Now
+                        </button>
+                        
+                        {item.allowOffers && (
+                          <button
+                            onClick={handleMakeOffer}
+                            style={{
+                              backgroundColor: '#374151',
+                              color: '#f1f1f1',
+                              padding: '10px 20px',
+                              border: '1px solid #4b5563',
+                              borderRadius: '4px',
+                              fontSize: '1rem',
+                              cursor: 'pointer',
+                              flex: '1'
+                            }}
+                          >
+                            Make Offer
+                          </button>
+                        )}
+                      </>
+                    ) : (
                       <button
-                        onClick={handleMakeOffer}
+                        onClick={() => handleCancelListing(item._id)}
                         style={{
-                          backgroundColor: '#374151',
-                          color: '#f1f1f1',
+                          backgroundColor: '#7f1d1d',
+                          color: 'white',
                           padding: '10px 20px',
-                          border: '1px solid #4b5563',
+                          border: 'none',
                           borderRadius: '4px',
                           fontSize: '1rem',
+                          fontWeight: 'bold',
                           cursor: 'pointer',
                           flex: '1'
                         }}
                       >
-                        Make Offer
+                        Remove Listing
                       </button>
                     )}
                   </div>
