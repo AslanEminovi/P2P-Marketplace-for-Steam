@@ -3,6 +3,7 @@ const User = require("../models/User");
 const Trade = require("../models/Trade");
 const steamApiService = require("../services/steamApiService");
 const socketService = require("../services/socketService");
+const mongoose = require("mongoose");
 
 // GET /trades/history
 exports.getTradeHistory = async (req, res) => {
@@ -724,44 +725,72 @@ exports.checkSteamTradeStatus = async (req, res) => {
 
 // PUT /trades/:tradeId/seller-initiate
 exports.sellerInitiate = async (req, res) => {
+  console.log(
+    `[TRADE SERVER] sellerInitiate called at ${new Date().toISOString()}`
+  );
+  console.log(`[TRADE SERVER] Request params:`, req.params);
+  console.log(
+    `[TRADE SERVER] Request user:`,
+    req.user ? req.user._id : "No user"
+  );
+
   try {
     const { tradeId } = req.params;
     const sellerId = req.user._id;
 
+    // Check for valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(tradeId)) {
+      console.error(`[TRADE SERVER] Invalid trade ID format: ${tradeId}`);
+      return res.status(400).json({ error: "Invalid trade ID format" });
+    }
+
+    console.log(`[TRADE SERVER] Looking up trade ${tradeId}`);
+
+    // Find the trade with full population for debugging
+    const trade = await Trade.findById(tradeId)
+      .populate("item")
+      .populate("buyer", "displayName steamId")
+      .populate("seller", "displayName steamId");
+
     console.log(
-      `[DEBUG] sellerInitiate called for tradeId: ${tradeId}, sellerId: ${sellerId}`
+      `[TRADE SERVER] Trade lookup result:`,
+      trade ? "Found" : "Not Found"
     );
 
-    // Find the trade and populate necessary fields
-    const trade = await Trade.findById(tradeId).populate("item");
-    console.log(`[DEBUG] Trade fetched:`, trade ? "Found" : "Not Found");
-
     if (trade) {
+      console.log(`[TRADE SERVER] Trade status: ${trade.status}`);
       console.log(
-        `[DEBUG] Trade status: ${trade.status}, Trade seller: ${trade.seller}, Current user: ${sellerId}`
+        `[TRADE SERVER] Trade seller: ${trade.seller._id}, Current user: ${sellerId}`
       );
+      console.log(`[TRADE SERVER] Full trade object:`, JSON.stringify(trade));
     }
 
     // Validate trade exists
     if (!trade) {
-      console.error(`Trade not found: ${tradeId}`);
+      console.error(`[TRADE SERVER] Trade not found: ${tradeId}`);
       return res.status(404).json({ error: "Trade not found" });
     }
 
     // Validate that the user is the seller
-    if (trade.seller.toString() !== sellerId.toString()) {
+    if (trade.seller._id.toString() !== sellerId.toString()) {
       console.error(
-        `Unauthorized: User ${sellerId} is not the seller of trade ${tradeId}`
+        `[TRADE SERVER] Unauthorized: User ${sellerId} is not the seller of trade ${tradeId}`
       );
       return res
         .status(403)
         .json({ error: "Unauthorized: You are not the seller of this trade" });
     }
 
+    // Log existing status history
+    console.log(
+      `[TRADE SERVER] Current status history:`,
+      JSON.stringify(trade.statusHistory)
+    );
+
     // Check if trade is in the correct status
     if (trade.status !== "awaiting_seller") {
       console.error(
-        `Invalid trade status: ${trade.status} for trade ${tradeId}`
+        `[TRADE SERVER] Invalid trade status: ${trade.status} for trade ${tradeId}`
       );
       return res.status(400).json({
         error: "This trade cannot be initiated at this time",
@@ -770,29 +799,51 @@ exports.sellerInitiate = async (req, res) => {
     }
 
     // Update the trade status directly with Mongoose's findByIdAndUpdate
-    console.log(`[DEBUG] Updating trade status directly`);
-    const updatedTrade = await Trade.findByIdAndUpdate(
-      tradeId,
-      {
-        status: "in_process",
-        $push: {
-          statusHistory: {
-            status: "in_process",
-            timestamp: new Date(),
-            note: "Seller accepted the trade",
+    console.log(`[TRADE SERVER] Updating trade status directly`);
+    let updatedTrade;
+    try {
+      updatedTrade = await Trade.findByIdAndUpdate(
+        tradeId,
+        {
+          status: "in_process",
+          $push: {
+            statusHistory: {
+              status: "in_process",
+              timestamp: new Date(),
+              note: "Seller accepted the trade",
+            },
           },
         },
-      },
-      { new: true, runValidators: true }
-    ).populate("item");
+        { new: true, runValidators: true }
+      ).populate("item");
+
+      console.log(`[TRADE SERVER] Trade status update successful`);
+      console.log(
+        `[TRADE SERVER] Updated trade:`,
+        updatedTrade ? JSON.stringify(updatedTrade) : "No result"
+      );
+    } catch (updateError) {
+      console.error(
+        `[TRADE SERVER] Failed to update trade status:`,
+        updateError
+      );
+      return res.status(500).json({
+        error: "Failed to update trade status",
+        details: updateError.message,
+      });
+    }
 
     if (!updatedTrade) {
-      console.error(`[DEBUG] Failed to update trade status`);
-      return res.status(500).json({ error: "Failed to update trade status" });
+      console.error(
+        `[TRADE SERVER] Failed to update trade: No document returned`
+      );
+      return res
+        .status(500)
+        .json({ error: "Failed to update trade: No document returned" });
     }
 
     console.log(
-      `[DEBUG] Trade status updated successfully to: ${updatedTrade.status}`
+      `[TRADE SERVER] Trade status updated successfully to: ${updatedTrade.status}`
     );
 
     // Create notification for the buyer
@@ -805,26 +856,148 @@ exports.sellerInitiate = async (req, res) => {
     };
 
     // Add notification to the buyer
-    console.log(`[DEBUG] Adding notification to buyer: ${updatedTrade.buyer}`);
-    await User.findByIdAndUpdate(updatedTrade.buyer, {
-      $push: {
-        notifications: notification,
-      },
-    });
-    console.log(`[DEBUG] Notification added to buyer`);
+    console.log(
+      `[TRADE SERVER] Adding notification to buyer: ${updatedTrade.buyer}`
+    );
+    try {
+      await User.findByIdAndUpdate(updatedTrade.buyer, {
+        $push: {
+          notifications: notification,
+        },
+      });
+      console.log(`[TRADE SERVER] Notification added to buyer`);
+    } catch (notifyError) {
+      // Don't fail the whole transaction if notification fails
+      console.error(`[TRADE SERVER] Failed to add notification:`, notifyError);
+    }
 
     // Send real-time notification via WebSocket if available
-    console.log(`[DEBUG] Sending WebSocket notification`);
-    socketService.sendNotification(updatedTrade.buyer.toString(), notification);
+    try {
+      console.log(`[TRADE SERVER] Sending WebSocket notification`);
+      socketService.sendNotification(
+        updatedTrade.buyer.toString(),
+        notification
+      );
+    } catch (socketError) {
+      console.error(`[TRADE SERVER] Socket notification error:`, socketError);
+    }
 
-    console.log(`Trade ${tradeId} initiated by seller ${sellerId}`);
+    console.log(
+      `[TRADE SERVER] Trade ${tradeId} initiated by seller ${sellerId}`
+    );
+    console.log(`[TRADE SERVER] Sending success response`);
+
     return res.status(200).json({
       success: true,
       message: "Trade initiated successfully",
       trade: updatedTrade,
     });
   } catch (error) {
-    console.error("Error initiating trade:", error);
+    console.error(`[TRADE SERVER] Uncaught error in sellerInitiate:`, error);
+    return res.status(500).json({
+      error: "Failed to initiate trade",
+      details: error.message,
+    });
+  }
+};
+
+// Simplified alternative for seller initiation that uses a different approach
+exports.sellerInitiateSimple = async (req, res) => {
+  console.log(`[TRADE SIMPLE] Starting simplified seller initiation for trade`);
+
+  try {
+    const { tradeId } = req.params;
+    const sellerId = req.user._id;
+
+    // Verify valid ObjectID
+    if (!mongoose.Types.ObjectId.isValid(tradeId)) {
+      return res.status(400).json({ error: "Invalid trade ID format" });
+    }
+
+    console.log(`[TRADE SIMPLE] Finding trade by ID: ${tradeId}`);
+
+    // Simple update operation without populating first
+    const updateResult = await Trade.updateOne(
+      {
+        _id: tradeId,
+        seller: sellerId,
+        status: "awaiting_seller",
+      },
+      {
+        $set: {
+          status: "in_process",
+        },
+        $push: {
+          statusHistory: {
+            status: "in_process",
+            timestamp: new Date(),
+            note: "Seller accepted the trade (simple method)",
+          },
+        },
+      }
+    );
+
+    console.log(`[TRADE SIMPLE] Update result:`, updateResult);
+
+    // Check if document was found and updated
+    if (!updateResult || updateResult.matchedCount === 0) {
+      console.error(`[TRADE SIMPLE] Trade not found or conditions not met`);
+      return res.status(404).json({
+        error: "Trade not found or cannot be initiated",
+        details:
+          "Trade may not exist, you may not be the seller, or status may not be awaiting_seller",
+      });
+    }
+
+    if (updateResult.modifiedCount === 0) {
+      console.error(`[TRADE SIMPLE] Trade matched but not modified`);
+      return res.status(500).json({ error: "Failed to update trade status" });
+    }
+
+    // Now get the updated trade for response
+    const updatedTrade = await Trade.findById(tradeId)
+      .populate("item")
+      .populate("buyer", "displayName steamId")
+      .populate("seller", "displayName steamId");
+
+    console.log(
+      `[TRADE SIMPLE] Trade updated successfully, status: ${updatedTrade.status}`
+    );
+
+    // Add notification separately - don't fail if this part has issues
+    try {
+      const notification = {
+        type: "trade_update",
+        title: "Trade Update",
+        message: `The seller has accepted your trade for ${updatedTrade.item.name}`,
+        relatedTradeId: updatedTrade._id,
+        createdAt: new Date(),
+      };
+
+      await User.findByIdAndUpdate(updatedTrade.buyer, {
+        $push: { notifications: notification },
+      });
+
+      socketService.sendNotification(
+        updatedTrade.buyer.toString(),
+        notification
+      );
+      console.log(`[TRADE SIMPLE] Notification sent to buyer`);
+    } catch (notifyError) {
+      console.error(
+        `[TRADE SIMPLE] Failed to send notification: ${notifyError.message}`
+      );
+      // Continue anyway - trade was updated successfully
+    }
+
+    console.log(`[TRADE SIMPLE] Sending success response`);
+    return res.status(200).json({
+      success: true,
+      message: "Trade initiated successfully",
+      trade: updatedTrade,
+    });
+  } catch (error) {
+    console.error(`[TRADE SIMPLE] Error in sellerInitiateSimple:`, error);
     return res.status(500).json({
       error: "Failed to initiate trade",
       details: error.message,

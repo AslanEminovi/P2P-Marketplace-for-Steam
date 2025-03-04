@@ -79,13 +79,41 @@ const TradeDetails = ({ tradeId }) => {
   const loadTradeDetails = async () => {
     setLoading(true);
     setError(null);
+    console.log('[TRADE DEBUG] Loading trade details for ID:', tradeId);
+    
     try {
       const response = await axios.get(`${API_URL}/trades/${tradeId}`, {
         withCredentials: true
       });
+      
+      console.log('[TRADE DEBUG] Trade details loaded:', response.data);
+      
+      // Validate the trade data
+      if (!response.data || !response.data._id) {
+        console.error('[TRADE DEBUG] Invalid trade data received:', response.data);
+        setError('Received invalid trade data from server');
+        setLoading(false);
+        return;
+      }
+      
+      // Check for required fields
+      const requiredFields = ['status', 'buyer', 'seller', 'item'];
+      const missingFields = requiredFields.filter(field => !response.data[field]);
+      
+      if (missingFields.length > 0) {
+        console.error(`[TRADE DEBUG] Trade data missing required fields: ${missingFields.join(', ')}`, response.data);
+        setError('Trade data is incomplete');
+        setLoading(false);
+        return;
+      }
+      
       setTrade(response.data);
     } catch (err) {
-      console.error('Error loading trade details:', err);
+      console.error('[TRADE DEBUG] Error loading trade details:', err);
+      if (err.response) {
+        console.error('[TRADE DEBUG] Error response:', err.response.data);
+        console.error('[TRADE DEBUG] Status code:', err.response.status);
+      }
       setError(err.response?.data?.error || 'Failed to load trade details');
     } finally {
       setLoading(false);
@@ -95,30 +123,74 @@ const TradeDetails = ({ tradeId }) => {
   const handleSellerApprove = async () => {
     setLoading(true);
     setError(null);
-    console.log('[DEBUG] Initiating seller approve, tradeId:', tradeId);
+    console.log('[TRADE DEBUG] Starting seller approval process for trade ID:', tradeId);
     
     try {
-      console.log(`[DEBUG] Making API call to ${API_URL}/trades/${tradeId}/seller-initiate`);
-      const response = await axios.put(`${API_URL}/trades/${tradeId}/seller-initiate`, {}, {
-        withCredentials: true
-      });
+      // Log request details
+      const requestUrl = `${API_URL}/trades/${tradeId}/seller-initiate`;
+      console.log('[TRADE DEBUG] Making API request to:', requestUrl);
+      console.log('[TRADE DEBUG] API_URL value:', API_URL);
       
-      console.log('[DEBUG] API Response:', response.data);
+      // Add a timestamp to debug latency
+      const startTime = Date.now();
       
-      if (response.data.success) {
-        console.log('[DEBUG] Trade initiation successful, loading trade details');
-        loadTradeDetails();
-      } else {
-        console.error('[DEBUG] API returned success:false:', response.data);
-        setError(response.data.error || 'Failed to initiate trade');
+      // Try the regular initiate route first
+      try {
+        const response = await axios.put(requestUrl, {}, {
+          withCredentials: true,
+          timeout: 15000 // 15 second timeout to detect slow responses
+        });
+        
+        console.log(`[TRADE DEBUG] Response received in ${Date.now() - startTime}ms:`, response.data);
+        
+        if (response.data.success) {
+          console.log('[TRADE DEBUG] Trade initiation successful, loading details');
+          loadTradeDetails();
+          return; // Success, end the function here
+        } else {
+          console.error('[TRADE DEBUG] API returned success:false:', response.data);
+          // Continue to the fallback method
+        }
+      } catch (primaryError) {
+        // Log the error but don't return - try the fallback method
+        console.error('[TRADE DEBUG] Primary method failed:', primaryError.message);
+        console.error('[TRADE DEBUG] Trying simplified alternative method...');
       }
+      
+      // If we get here, try the simplified alternative route
+      console.log('[TRADE DEBUG] Attempting simplified alternative route');
+      const simplifiedUrl = `${API_URL}/trades/${tradeId}/seller-initiate-simple`;
+      
+      try {
+        const simplifiedResponse = await axios.put(simplifiedUrl, {}, {
+          withCredentials: true,
+          timeout: 15000
+        });
+        
+        console.log('[TRADE DEBUG] Simplified route response:', simplifiedResponse.data);
+        
+        if (simplifiedResponse.data.success) {
+          console.log('[TRADE DEBUG] Simplified route successful, loading details');
+          loadTradeDetails();
+        } else {
+          console.error('[TRADE DEBUG] Simplified route returned success:false:', simplifiedResponse.data);
+          setError(simplifiedResponse.data.error || 'Failed to initiate trade using both methods');
+        }
+      } catch (fallbackError) {
+        console.error('[TRADE DEBUG] Simplified route also failed:', fallbackError.message);
+        if (fallbackError.response) {
+          console.error('[TRADE DEBUG] Simplified response status:', fallbackError.response.status);
+          console.error('[TRADE DEBUG] Simplified response data:', fallbackError.response.data);
+        }
+        setError(fallbackError.response?.data?.error || 'Failed to initiate trade using both methods');
+      }
+      
     } catch (err) {
-      console.error('[DEBUG] Error initiating trade:', err);
-      console.error('[DEBUG] Response data:', err.response?.data);
-      console.error('[DEBUG] Status code:', err.response?.status);
-      setError(err.response?.data?.error || 'Failed to initiate trade');
+      console.error('[TRADE DEBUG] Unexpected error in handleSellerApprove:', err);
+      setError(err.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
+      console.log('[TRADE DEBUG] Seller approval process finished');
     }
   };
 
