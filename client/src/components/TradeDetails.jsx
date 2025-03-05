@@ -326,7 +326,36 @@ const TradeDetails = ({ tradeId }) => {
       await loadTradeDetails();
     } catch (err) {
       console.error('Error confirming receipt:', err);
-      setError(err.response?.data?.error || 'Failed to confirm receipt');
+      
+      // Get more descriptive error message
+      let errorMessage = 'Failed to confirm receipt';
+      
+      if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+        
+        // Add a more helpful message if the error is about trade status
+        if (errorMessage.includes("Cannot confirm receipt for a trade")) {
+          errorMessage += ". Please check that you have accepted the Steam trade offer first.";
+        }
+      }
+      
+      setError(errorMessage);
+      
+      toast.error(
+        <div>
+          {errorMessage}
+          <br/>
+          <a 
+            href="https://steamcommunity.com/my/tradeoffers" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            style={{ color: '#4a9eff', textDecoration: 'underline' }}
+          >
+            View your Steam trade offers
+          </a>
+        </div>,
+        { autoClose: 10000 }
+      );
       
       // If the error contains a tradeOffersLink, set it
       if (err.response?.data?.tradeOffersLink) {

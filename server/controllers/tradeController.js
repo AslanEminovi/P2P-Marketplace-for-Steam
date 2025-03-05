@@ -288,7 +288,7 @@ exports.buyerConfirmReceipt = async (req, res) => {
         .json({ error: "Only the buyer can confirm receipt for this trade" });
     }
 
-    if (trade.status !== "pending") {
+    if (trade.status !== "pending" && trade.status !== "offer_sent") {
       return res.status(400).json({
         error: `Cannot confirm receipt for a trade in '${trade.status}' status`,
       });
