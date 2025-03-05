@@ -1012,12 +1012,24 @@ exports.verifyInventory = async (req, res) => {
       // Add cache-busting parameters to force fresh data
       const timestamp = Date.now();
 
-      // Use the most reliable API endpoint format with proper parameters
-      const steamApiUrl = `https://steamwebapi.com/steam/api/inventory?key=${apiKey}&steam_id=${trade.seller.steamId}&game=730&parse=1&no_cache=1&_nocache=${timestamp}`;
+      // Try with "cs2" first as it's the newer game shortname
+      let steamApiUrl = `https://steamwebapi.com/steam/api/inventory?key=${apiKey}&steam_id=${trade.seller.steamId}&game=cs2&parse=1&no_cache=1&_nocache=${timestamp}`;
 
-      console.log(`Checking seller's inventory at: ${steamApiUrl}`);
+      console.log(`Checking seller's inventory using CS2 API: ${steamApiUrl}`);
 
-      const response = await axios.get(steamApiUrl);
+      let response;
+      try {
+        response = await axios.get(steamApiUrl);
+      } catch (initialError) {
+        console.log(
+          `Error with CS2 API, trying CSGO fallback: ${initialError.message}`
+        );
+
+        // If cs2 fails, try csgo as fallback
+        steamApiUrl = `https://steamwebapi.com/steam/api/inventory?key=${apiKey}&steam_id=${trade.seller.steamId}&game=csgo&parse=1&no_cache=1&_nocache=${timestamp}`;
+        console.log(`Trying fallback with CSGO API: ${steamApiUrl}`);
+        response = await axios.get(steamApiUrl);
+      }
 
       // First check if the request was successful
       if (response.status !== 200) {
