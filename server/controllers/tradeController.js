@@ -1064,12 +1064,29 @@ exports.verifyInventory = async (req, res) => {
       }
 
       // Log the data structure to debug
-      console.log("Response data structure: ", Object.keys(response.data));
+      console.log(
+        "Response data structure: ",
+        Object.keys(response.data).slice(0, 20)
+      ); // Only show first 20 keys to avoid log flooding
+
+      // Check if the keys are numeric which indicates an array-like object
+      const keys = Object.keys(response.data);
+      const isNumericKeys =
+        keys.length > 0 && keys.every((key) => !isNaN(parseInt(key)));
 
       // Parse the inventory from response data according to the API documentation
       let inventory = [];
 
-      if (response.data.success === true) {
+      // First determine if we're dealing with an array or array-like object
+      if (Array.isArray(response.data)) {
+        // The API is returning an array of items directly
+        inventory = response.data;
+        console.log(`Found ${inventory.length} items in direct array response`);
+      } else if (isNumericKeys) {
+        // The response is an object with numeric keys (array-like)
+        inventory = Object.values(response.data);
+        console.log(`Found ${inventory.length} items in numeric-keyed object`);
+      } else if (response.data.success === true) {
         // Success response format
         if (response.data.items && Array.isArray(response.data.items)) {
           inventory = response.data.items;
@@ -1107,11 +1124,24 @@ exports.verifyInventory = async (req, res) => {
           : Object.values(response.data.inventory);
         console.log(`Found ${inventory.length} items in inventory object`);
       } else {
-        // Log complete response for debugging
-        console.log(
-          "Complete API response:",
-          JSON.stringify(response.data).substring(0, 1000) + "..."
-        );
+        // Log complete response for debugging - but be careful not to flood logs
+        if (Object.keys(response.data).length > 10) {
+          console.log("Response keys:", Object.keys(response.data));
+
+          // Log a sample of the first item if available
+          const firstKey = Object.keys(response.data)[0];
+          if (firstKey) {
+            console.log(
+              "First item sample:",
+              JSON.stringify(response.data[firstKey])
+            );
+          }
+        } else {
+          console.log(
+            "Complete API response:",
+            JSON.stringify(response.data).substring(0, 1000) + "..."
+          );
+        }
         throw new Error("Could not parse inventory data from response");
       }
 
@@ -1130,6 +1160,7 @@ exports.verifyInventory = async (req, res) => {
       // Check each item using multiple possible property names for asset ID
       for (const item of inventory) {
         // These are all possible property names for asset IDs in various formats
+        // Based on the actual API response format seen in the logs
         const possibleAssetIdFields = [
           "assetid",
           "asset_id",
@@ -1165,7 +1196,10 @@ exports.verifyInventory = async (req, res) => {
         );
 
         for (const item of inventory) {
+          // Based on the actual response format seen in the logs
           const nameFields = [
+            "markethashname",
+            "marketname",
             "market_hash_name",
             "name",
             "market_name",
