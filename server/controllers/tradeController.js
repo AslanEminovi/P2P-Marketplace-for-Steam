@@ -381,6 +381,9 @@ exports.buyerConfirmReceipt = async (req, res) => {
       if (item) {
         item.owner = userId;
         item.status = "owned";
+        item.isListed = false;
+        item.tradeStatus = "none";
+        item.tradeOfferId = null;
         await item.save();
       }
 
