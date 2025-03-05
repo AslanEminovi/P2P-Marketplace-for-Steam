@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { formatCurrency, API_URL } from '../config/constants';
 import { Button, Spinner } from 'react-bootstrap';
-import { toast } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 // Status badge component
 const StatusBadge = ({ status }) => {
@@ -183,14 +183,14 @@ const TradeDetails = ({ tradeId }) => {
       
       setError(errorMessage);
       
-      // If this is a critical 500 error, try again once after a short delay
-      if (err.response && err.response.status >= 500 && !retryAttempted.current) {
-        retryAttempted.current = true;
-        console.log('Server error, attempting to retry after 2 seconds...');
-        setTimeout(() => {
-          console.log('Retrying loadTradeDetails...');
-          loadTradeDetails();
-        }, 2000);
+      toast.error(
+        `${errorMessage} Please check your Steam trade offers.`,
+        { duration: 10000 }
+      );
+      
+      // If the error contains a tradeOffersLink, set it
+      if (err.response?.data?.tradeOffersLink) {
+        setTradeOffersUrl(err.response.data.tradeOffersLink);
       }
     } finally {
       setLoading(false);
@@ -343,19 +343,8 @@ const TradeDetails = ({ tradeId }) => {
       setError(errorMessage);
       
       toast.error(
-        <div>
-          {errorMessage}
-          <br/>
-          <a 
-            href="https://steamcommunity.com/my/tradeoffers" 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            style={{ color: '#4a9eff', textDecoration: 'underline' }}
-          >
-            View your Steam trade offers
-          </a>
-        </div>,
-        { autoClose: 10000 }
+        `${errorMessage} Please check your Steam trade offers.`,
+        { duration: 10000 }
       );
       
       // If the error contains a tradeOffersLink, set it
@@ -400,20 +389,9 @@ const TradeDetails = ({ tradeId }) => {
           setCanConfirmReceived(true);
         } else {
           // Item is still in seller's inventory
-          toast.warning(
-            <div>
-              {resultData.message}
-              <br />
-              <a 
-                href="https://steamcommunity.com/my/tradeoffers" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                style={{ color: '#4a9eff', textDecoration: 'underline' }}
-              >
-                View your Steam trade offers
-              </a>
-            </div>,
-            { autoClose: 10000 }
+          toast.error(
+            `${resultData.message} Please check your Steam trade offers.`, 
+            { duration: 10000 }
           );
           setCanConfirmReceived(false);
         }
@@ -461,21 +439,8 @@ const TradeDetails = ({ tradeId }) => {
         assetId: errorAssetId
       });
       
-      toast.error(
-        <div>
-          {errorMsg}
-          <br />
-          <a 
-            href={tradeOffersLink} 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            style={{ color: '#4a9eff', textDecoration: 'underline' }}
-          >
-            View your Steam trade offers
-          </a>
-        </div>,
-        { autoClose: 10000 } // Keep toast open longer so user can click the link
-      );
+      // Use simple string for toast instead of JSX when there's an error
+      toast.error(errorMsg + " Please check your Steam trade offers.", { duration: 10000 });
       
       setCanConfirmReceived(false);
     } finally {
