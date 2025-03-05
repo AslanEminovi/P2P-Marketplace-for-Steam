@@ -157,6 +157,9 @@ const TradeDetails = ({ tradeId }) => {
         setConfirmLoading(false);
         setSendingLoading(false);
         setApproveLoading(false);
+        // Reset inventory check result when trade is completed, cancelled, or failed
+        setInventoryCheckResult(null);
+        setIsCheckingInventory(false);
       }
     } catch (err) {
       console.error('Error loading trade details:', err);
@@ -914,7 +917,7 @@ const TradeDetails = ({ tradeId }) => {
             {/* Buyer actions */}
             {trade.isUserBuyer && (
               <div>
-                {trade.status === 'offer_sent' && (
+                {trade.status === 'offer_sent' && trade.status !== 'completed' && (
                   <div style={{ marginBottom: '16px' }}>
                     <div style={{
                       backgroundColor: '#1e40af',
