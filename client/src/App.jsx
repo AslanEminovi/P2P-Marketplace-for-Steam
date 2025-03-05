@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import socketService from './services/socketService';
+import { Toaster } from 'react-hot-toast';
 
 // Pages
 import Home from './pages/Home';
@@ -333,6 +334,34 @@ function App() {
       overflow: 'hidden'
     }}>
       <Navbar user={user} onLogout={handleLogout} />
+      
+      {/* Toast notifications */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          success: {
+            duration: 3000,
+            style: {
+              background: '#166534',
+              color: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            style: {
+              background: '#991b1b',
+              color: '#fff',
+            },
+          },
+          warning: {
+            duration: 4000,
+            style: {
+              background: '#854d0e',
+              color: '#fff',
+            },
+          },
+        }}
+      />
       
       {/* WebSocket connection indicator */}
       {user && (
