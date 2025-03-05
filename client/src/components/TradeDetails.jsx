@@ -257,7 +257,7 @@ const TradeDetails = ({ tradeId }) => {
       const response = await axios.put(
         `${API_URL}/trades/${trade._id}/seller-sent`,
         { steamOfferUrl },
-        getAuthHeader()
+        { withCredentials: true }
       );
       
       if (response.data?.success) {
