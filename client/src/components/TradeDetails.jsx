@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { formatCurrency, API_URL } from '../config/constants';
 import { Button, Spinner } from 'react-bootstrap';
+import { toast } from 'react-hot-toast';
 
 // Status badge component
 const StatusBadge = ({ status }) => {
@@ -81,6 +82,7 @@ const TradeDetails = ({ tradeId }) => {
   const [isBuyer, setIsBuyer] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
   const retryAttempted = useRef(false);
+  const [isCheckingInventory, setIsCheckingInventory] = useState(false);
 
   useEffect(() => {
     if (tradeId) {
@@ -335,88 +337,66 @@ const TradeDetails = ({ tradeId }) => {
   };
 
   const handleCheckInventory = async () => {
-    setInventoryCheckLoading(true);
-    setError(null);
+    setIsCheckingInventory(true);
     try {
-      console.log(`Checking inventory status for trade ${tradeId} with assetId: ${trade?.item?.assetId}`);
-      const response = await axios.get(`${API_URL}/trades/${tradeId}/verify-inventory`, {
-        withCredentials: true,
-        timeout: 30000 // 30 second timeout to allow for slow API responses
-      });
+      console.log("Checking if item has been transferred...");
+      const response = await axios.get(`${API_URL}/trades/${trade._id}/verify-inventory`);
       
-      console.log('Inventory check response:', response.data);
-      setInventoryCheckResult(response.data);
-      
-      if (response.data.canConfirmReceived) {
-        // Enable confirm button if specific item is no longer in seller's inventory
-        setCanConfirmReceived(true);
-        // Display a positive message
-        if (window.showNotification) {
-          window.showNotification(
-            'Asset Verification Complete',
-            `Asset ID ${response.data.assetId} has been withdrawn from seller's inventory. You can confirm receipt.`,
-            'SUCCESS'
-          );
+      // Check if the response has a message
+      if (response.data.message) {
+        // Store the result of the check
+        setInventoryCheckResult(response.data);
+        
+        // If success is true, item is no longer in seller's inventory
+        if (response.data.success) {
+          toast.success(response.data.message);
+          // Enable confirm button if the item is no longer in seller's inventory
+          setCanConfirmReceived(true);
+        } else {
+          // Item is still in seller's inventory
+          toast.warning(response.data.message);
+          setCanConfirmReceived(false);
         }
       } else {
+        // No message in response
+        toast.error("Received invalid response when checking inventory status");
         setCanConfirmReceived(false);
-        
-        if (response.data.error) {
-          setError('Error checking seller\'s inventory: ' + response.data.error);
-          // Show link to trade offers
-          setTradeOffersUrl(response.data.tradeOffersLink);
-          
-          if (window.showNotification) {
-            window.showNotification(
-              'Verification Error',
-              'Please check your Steam trade offers manually.',
-              'WARNING'
-            );
-          }
-        } else if (!response.data.itemRemovedFromSellerInventory) {
-          setError(`Asset ID ${response.data.assetId || 'unknown'} is still in seller's inventory. The trade offer hasn't been sent yet or you haven't accepted it.`);
-          // Show link to trade offers
-          setTradeOffersUrl(response.data.tradeOffersLink);
-          
-          if (window.showNotification) {
-            window.showNotification(
-              'Trade Not Complete',
-              'Check your Steam trade offers or contact the seller.',
-              'WARNING'
-            );
-          }
-        } else {
-          setError(response.data.message || 'Verification failed. Please try again later.');
-          // Show link to trade offers if available
-          if (response.data.tradeOffersLink) {
-            setTradeOffersUrl(response.data.tradeOffersLink);
-          }
-        }
       }
-    } catch (err) {
-      console.error('Error checking inventory:', err);
-      setInventoryCheckResult(null);
+    } catch (error) {
+      console.error("Error checking inventory:", error);
       
-      // Provide more detailed error information
-      let errorMessage = 'Failed to check inventory status';
+      // Get the Steam trade offers link if available in the error response
+      const tradeOffersLink = error.response?.data?.tradeOffersLink || "https://steamcommunity.com/my/tradeoffers";
       
-      if (err.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        if (err.response.status === 404) {
-          errorMessage = 'Trade not found. Please refresh the page.';
-        } else {
-          errorMessage = err.response.data?.error || `Server error (${err.response.status}): Failed to check inventory status`;
-        }
-      } else if (err.request) {
-        // The request was made but no response was received
-        errorMessage = 'No response received from server. Please check your internet connection and try again.';
+      // Create error message with link to Steam trade offers
+      let errorMsg = "Failed to verify inventory. ";
+      
+      // Add more specific error details if available
+      if (error.response?.data?.error) {
+        errorMsg += error.response.data.error;
+      } else if (error.message) {
+        errorMsg += error.message;
       }
       
-      setError(errorMessage);
+      toast.error(
+        <div>
+          {errorMsg}
+          <br />
+          <a 
+            href={tradeOffersLink} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            style={{ color: '#4a9eff', textDecoration: 'underline' }}
+          >
+            View your Steam trade offers
+          </a>
+        </div>,
+        { autoClose: 10000 } // Keep toast open longer so user can click the link
+      );
+      
       setCanConfirmReceived(false);
     } finally {
-      setInventoryCheckLoading(false);
+      setIsCheckingInventory(false);
     }
   };
 
@@ -873,10 +853,10 @@ const TradeDetails = ({ tradeId }) => {
                     <div style={{ marginBottom: '16px' }}>
                       <Button
                         onClick={handleCheckInventory}
-                        disabled={inventoryCheckLoading}
+                        disabled={isCheckingInventory}
                         variant="info"
                       >
-                        {inventoryCheckLoading ? (
+                        {isCheckingInventory ? (
                           <>
                             <Spinner
                               as="span"

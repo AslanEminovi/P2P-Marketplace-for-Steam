@@ -915,12 +915,15 @@ exports.sellerSentManual = async (req, res) => {
 // GET /trades/:tradeId/verify-inventory
 exports.verifyInventory = async (req, res) => {
   try {
-    const tradeId = req.params.tradeId;
-    const userId = req.user._id;
+    const { tradeId } = req.params;
 
-    console.log(`Verifying inventory for trade ${tradeId} by user ${userId}`);
+    if (!tradeId) {
+      return res.status(400).json({ error: "Trade ID is required" });
+    }
 
-    // Fetch the trade with populated seller and buyer
+    console.log(`Verifying inventory for trade: ${tradeId}`);
+
+    // Populate trade with seller details to get their Steam ID
     const trade = await Trade.findById(tradeId)
       .populate("seller", "steamId username")
       .populate("buyer", "steamId username")
@@ -930,12 +933,22 @@ exports.verifyInventory = async (req, res) => {
       return res.status(404).json({ error: "Trade not found" });
     }
 
-    // Check if user is the buyer
-    if (userId.toString() !== trade.buyer._id.toString()) {
+    // Check if the current user is the buyer
+    if (req.user._id.toString() !== trade.buyer._id.toString()) {
       return res
         .status(403)
-        .json({ error: "Only the buyer can verify inventory for this trade" });
+        .json({ error: "Only the buyer can verify this trade" });
     }
+
+    // Prepare the Steam trade offers link for the buyer
+    const tradeOffersLink = "https://steamcommunity.com/my/tradeoffers";
+
+    // Create the result object that will be returned
+    const result = {
+      success: false,
+      message: "",
+      tradeOffersLink: tradeOffersLink,
+    };
 
     // Ensure seller has linked Steam account
     if (!trade.seller.steamId) {
@@ -951,9 +964,6 @@ exports.verifyInventory = async (req, res) => {
         .json({ error: "Your Steam account is not linked" });
     }
 
-    // Create the link to buyer's trade offers
-    const tradeOffersLink = `https://steamcommunity.com/id/${trade.buyer.steamId}/tradeoffers/`;
-
     // Get the asset ID from the trade or the item
     const assetId = trade.assetId || trade.item.assetId;
 
@@ -966,90 +976,109 @@ exports.verifyInventory = async (req, res) => {
 
     console.log(`Checking for asset ID ${assetId} in seller's inventory`);
 
-    // Initialize result object
-    const result = {
-      itemRemovedFromSellerInventory: false,
-      itemName: trade.item.name,
-      assetId: assetId,
-      canConfirmReceived: false,
-      tradeOffersLink: tradeOffersLink,
-    };
-
     try {
       // Use the steamwebapi.com API with the provided key to check seller's inventory
       const apiKey = "FSWJNSWYW8QSAQ6W";
 
       // Add cache-busting parameters to force fresh data
       const timestamp = Date.now();
-      const steamApiUrl = `https://steamwebapi.com/steam/api/inventory/${trade.seller.steamId}/730/2?key=${apiKey}&time=${timestamp}&forcefresh=true`;
+
+      // Use the most reliable API endpoint format with proper parameters
+      const steamApiUrl = `https://steamwebapi.com/steam/api/inventory?key=${apiKey}&steam_id=${trade.seller.steamId}&game=730&parse=1&no_cache=1&_nocache=${timestamp}`;
 
       console.log(`Checking seller's inventory at: ${steamApiUrl}`);
+
       const response = await axios.get(steamApiUrl);
 
-      if (!response.data || !response.data.success) {
-        throw new Error("Failed to fetch seller inventory from Steam API");
-      }
-
-      // Look for the item in seller's inventory
-      const sellerInventory = response.data.items || [];
-      console.log(
-        `Seller inventory fetched. Items count: ${sellerInventory.length}`
-      );
-
-      // First try to find by exact asset ID match (most accurate)
-      let itemFound = sellerInventory.some((inventoryItem) => {
-        const itemAssetId =
-          inventoryItem.assetid || inventoryItem.asset_id || inventoryItem.id;
-        const match = itemAssetId === assetId.toString();
-        if (match) {
-          console.log(`Found exact asset ID match: ${itemAssetId}`);
-        }
-        return match;
-      });
-
-      if (!itemFound) {
-        console.log(
-          `Item with asset ID ${assetId} not found. Double-checking by name...`
+      // First check if the request was successful
+      if (response.status !== 200) {
+        console.error(
+          "Steam API returned non-200 status code:",
+          response.status
         );
-
-        // If not found by asset ID, try by name as fallback (less accurate)
-        itemFound = sellerInventory.some((inventoryItem) => {
-          const itemName = inventoryItem.market_hash_name || inventoryItem.name;
-          const match = itemName === trade.item.name;
-          if (match) {
-            console.log(`Found match by name: ${itemName}`);
-          }
-          return match;
-        });
+        throw new Error(`Steam API returned status code ${response.status}`);
       }
 
-      // Update result based on whether item was found in seller's inventory
-      result.itemRemovedFromSellerInventory = !itemFound;
+      console.log("API response received, checking data structure...");
 
-      // If the item is not in seller's inventory, the buyer can confirm receipt
-      result.canConfirmReceived = !itemFound;
+      // Check that we have valid data
+      if (!response.data || typeof response.data !== "object") {
+        console.error("Invalid response data format:", response.data);
+        throw new Error("Invalid response data format from Steam API");
+      }
 
-      if (itemFound) {
+      // Parse the inventory from response data - handle different response formats
+      let inventory = [];
+
+      if (response.data.success === true && response.data.rgInventory) {
+        // Standard Steam inventory format
+        inventory = Object.values(response.data.rgInventory);
+      } else if (response.data.items && Array.isArray(response.data.items)) {
+        // Parsed format from steamwebapi.com
+        inventory = response.data.items;
+      } else if (response.data.assets && Array.isArray(response.data.assets)) {
+        // Alternative format
+        inventory = response.data.assets;
+      } else {
+        console.log(
+          "Inventory response structure:",
+          JSON.stringify(response.data).substring(0, 500) + "..."
+        );
+        throw new Error("Could not parse inventory data from response");
+      }
+
+      console.log(`Found ${inventory.length} items in seller's inventory`);
+
+      // Try to find the asset in the inventory
+      let assetFound = false;
+
+      // The asset ID we're looking for
+      const assetIdToFind = trade.assetId;
+      console.log(`Looking for asset ID: ${assetIdToFind}`);
+
+      for (const item of inventory) {
+        // Check by asset ID which could be in different properties depending on API response format
+        const itemAssetId = item.assetid || item.asset_id || item.id || "";
+
+        // Log the first few items for debugging
+        if (inventory.indexOf(item) < 3) {
+          console.log(
+            `Sample item ${inventory.indexOf(item)}: ${JSON.stringify(item)}`
+          );
+        }
+
+        if (itemAssetId === assetIdToFind) {
+          console.log(`Found matching asset ID: ${itemAssetId}`);
+          assetFound = true;
+          break;
+        }
+      }
+
+      result.itemInSellerInventory = assetFound;
+
+      if (assetFound) {
         result.message =
-          "The item is still in the seller's inventory. The trade offer hasn't been sent yet or you haven't accepted it.";
+          "The item is still in the seller's inventory. The trade offer may not have been sent or accepted yet.";
+        result.success = false;
       } else {
         result.message =
-          "The item has been removed from the seller's inventory. You can now confirm receipt if you have received it.";
+          "The item is no longer in the seller's inventory. It may have been transferred to your inventory.";
+        result.success = true;
       }
-
-      return res.json(result);
     } catch (error) {
       console.error("Error checking inventory:", error);
-      return res.status(500).json({
-        error: "Failed to check seller inventory: " + error.message,
-        tradeOffersLink: tradeOffersLink,
-      });
+      result.success = false;
+      result.message = `Failed to check seller inventory: ${error.message}`;
+      result.tradeOffersLink = tradeOffersLink;
     }
+
+    return res.json(result);
   } catch (error) {
     console.error("Error in verifyInventory:", error);
-    return res
-      .status(500)
-      .json({ error: "Server error while verifying inventory" });
+    return res.status(500).json({
+      error: error.message,
+      tradeOffersLink: "https://steamcommunity.com/my/tradeoffers",
+    });
   }
 };
 
