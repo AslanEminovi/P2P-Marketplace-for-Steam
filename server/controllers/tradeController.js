@@ -1012,23 +1012,38 @@ exports.verifyInventory = async (req, res) => {
       // Add cache-busting parameters to force fresh data
       const timestamp = Date.now();
 
-      // Try with "cs2" first as it's the newer game shortname
-      let steamApiUrl = `https://steamwebapi.com/steam/api/inventory?key=${apiKey}&steam_id=${trade.seller.steamId}&game=cs2&parse=1&no_cache=1&_nocache=${timestamp}`;
+      // Format the API URL according to the documentation with specific parameters
+      // steam_id: The seller's Steam ID
+      // game: cs2 (default is cs2 according to docs)
+      // parse: 1 (for detailed item information)
+      // no_cache: 1 (bypass cache to get fresh data)
+      let steamApiUrl = `https://steamwebapi.com/steam/api/inventory?key=${apiKey}&steam_id=${trade.seller.steamId}&parse=1&no_cache=1&_nocache=${timestamp}`;
 
-      console.log(`Checking seller's inventory using CS2 API: ${steamApiUrl}`);
+      console.log(`Checking seller's inventory: ${steamApiUrl}`);
 
       let response;
       try {
-        response = await axios.get(steamApiUrl);
+        // Set a longer timeout for the API call (30 seconds)
+        response = await axios.get(steamApiUrl, { timeout: 30000 });
+        console.log("Response status:", response.status);
+        console.log("Response headers:", response.headers);
       } catch (initialError) {
-        console.log(
-          `Error with CS2 API, trying CSGO fallback: ${initialError.message}`
-        );
+        console.error(`API request failed: ${initialError.message}`);
 
-        // If cs2 fails, try csgo as fallback
-        steamApiUrl = `https://steamwebapi.com/steam/api/inventory?key=${apiKey}&steam_id=${trade.seller.steamId}&game=csgo&parse=1&no_cache=1&_nocache=${timestamp}`;
-        console.log(`Trying fallback with CSGO API: ${steamApiUrl}`);
-        response = await axios.get(steamApiUrl);
+        // More detailed error info
+        if (initialError.response) {
+          console.error(`Status: ${initialError.response.status}`);
+          console.error(
+            `Headers: ${JSON.stringify(initialError.response.headers)}`
+          );
+          if (initialError.response.data) {
+            console.error(
+              `Error data: ${JSON.stringify(initialError.response.data)}`
+            );
+          }
+        }
+
+        throw initialError; // Re-throw to be caught by the outer catch block
       }
 
       // First check if the request was successful
@@ -1048,81 +1063,130 @@ exports.verifyInventory = async (req, res) => {
         throw new Error("Invalid response data format from Steam API");
       }
 
-      // Parse the inventory from response data - handle different response formats
+      // Log the data structure to debug
+      console.log("Response data structure: ", Object.keys(response.data));
+
+      // Parse the inventory from response data according to the API documentation
       let inventory = [];
 
-      if (response.data.success === true && response.data.rgInventory) {
-        // Standard Steam inventory format
-        inventory = Object.values(response.data.rgInventory);
+      if (response.data.success === true) {
+        // Success response format
+        if (response.data.items && Array.isArray(response.data.items)) {
+          inventory = response.data.items;
+          console.log(
+            `Found ${inventory.length} items in the successful response`
+          );
+        } else if (
+          response.data.descriptions &&
+          Array.isArray(response.data.descriptions)
+        ) {
+          inventory = response.data.descriptions;
+          console.log(`Found ${inventory.length} item descriptions`);
+        } else {
+          console.error(
+            "Success response doesn't contain expected items array"
+          );
+          console.log(
+            "Response sample:",
+            JSON.stringify(response.data).substring(0, 500) + "..."
+          );
+          throw new Error("Response format doesn't match expected structure");
+        }
       } else if (response.data.items && Array.isArray(response.data.items)) {
-        // Parsed format from steamwebapi.com
+        // Simple items array format
         inventory = response.data.items;
+        console.log(`Found ${inventory.length} items in simple format`);
       } else if (response.data.assets && Array.isArray(response.data.assets)) {
-        // Alternative format
+        // Alternative assets array format
         inventory = response.data.assets;
+        console.log(`Found ${inventory.length} assets`);
+      } else if (response.data.inventory) {
+        // Another potential format
+        inventory = Array.isArray(response.data.inventory)
+          ? response.data.inventory
+          : Object.values(response.data.inventory);
+        console.log(`Found ${inventory.length} items in inventory object`);
       } else {
+        // Log complete response for debugging
         console.log(
-          "Inventory response structure:",
-          JSON.stringify(response.data).substring(0, 500) + "..."
+          "Complete API response:",
+          JSON.stringify(response.data).substring(0, 1000) + "..."
         );
         throw new Error("Could not parse inventory data from response");
       }
 
-      console.log(`Found ${inventory.length} items in seller's inventory`);
+      // Log sample items for debugging
+      if (inventory.length > 0) {
+        console.log("Sample item structure:", JSON.stringify(inventory[0]));
+      } else {
+        console.log("Inventory is empty");
+      }
 
-      // Try to find the asset in the inventory
+      // Try to find the asset in the inventory - use exact asset ID
       let assetFound = false;
-
-      // The asset ID we're looking for
       const assetIdToFind = trade.assetId;
       console.log(`Looking for asset ID: ${assetIdToFind}`);
 
-      // Log a few sample items to verify format
-      for (let i = 0; i < Math.min(3, inventory.length); i++) {
-        console.log(`Sample item ${i + 1}:`, JSON.stringify(inventory[i]));
+      // Check each item using multiple possible property names for asset ID
+      for (const item of inventory) {
+        // These are all possible property names for asset IDs in various formats
+        const possibleAssetIdFields = [
+          "assetid",
+          "asset_id",
+          "id",
+          "classid",
+          "instanceid",
+          "asset",
+          "market_id",
+          "tradable_id",
+        ];
+
+        // Check each possible field for a match
+        for (const field of possibleAssetIdFields) {
+          if (
+            item[field] &&
+            item[field].toString() === assetIdToFind.toString()
+          ) {
+            console.log(
+              `Found matching asset ID in field "${field}": ${item[field]}`
+            );
+            assetFound = true;
+            break;
+          }
+        }
+
+        if (assetFound) break;
       }
 
-      if (inventory.length > 0) {
-        // Try different property names for asset ID since API formats vary
+      // If not found by ID, try by name as fallback
+      if (!assetFound && trade.item && trade.item.name) {
+        console.log(
+          `Asset ID not found, trying to match by item name: ${trade.item.name}`
+        );
+
         for (const item of inventory) {
-          const possibleAssetIdFields = [
-            "assetid",
-            "asset_id",
-            "id",
-            "classid",
+          const nameFields = [
+            "market_hash_name",
+            "name",
+            "market_name",
+            "item_name",
           ];
+          let itemName = null;
 
-          for (const field of possibleAssetIdFields) {
-            if (item[field] && item[field].toString() === assetIdToFind) {
-              console.log(
-                `Found matching asset ID in field "${field}": ${item[field]}`
-              );
-              assetFound = true;
+          // Try each possible name field
+          for (const field of nameFields) {
+            if (item[field]) {
+              itemName = item[field];
               break;
             }
           }
 
-          if (assetFound) break;
-        }
-
-        // If not found by ID, try by item name as fallback
-        if (!assetFound && trade.item && trade.item.name) {
-          console.log(
-            `Asset ID not found, trying to match by item name: ${trade.item.name}`
-          );
-
-          for (const item of inventory) {
-            const itemName = item.market_hash_name || item.name || "";
-
-            if (itemName && itemName === trade.item.name) {
-              console.log(`Found item by name match: ${itemName}`);
-              assetFound = true;
-              break;
-            }
+          if (itemName && itemName === trade.item.name) {
+            console.log(`Found item by name match: ${itemName}`);
+            assetFound = true;
+            break;
           }
         }
-      } else {
-        console.log("Seller's inventory is empty or could not be parsed");
       }
 
       result.itemInSellerInventory = assetFound;
