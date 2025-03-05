@@ -297,36 +297,75 @@ exports.buyerConfirmReceipt = async (req, res) => {
     // Verify the item is no longer in the seller's inventory before confirming
     try {
       const apiKey = "FSWJNSWYW8QSAQ6W";
-      const steamApiUrl = `https://steamwebapi.com/steam/api/inventory/${trade.seller.steamId}/730/2?key=${apiKey}`;
+
+      // Format the API URL according to the improved pattern
+      const timestamp = Date.now();
+      const steamApiUrl = `https://steamwebapi.com/steam/api/inventory?key=${apiKey}&steam_id=${trade.seller.steamId}&parse=1&no_cache=1&_nocache=${timestamp}`;
 
       console.log(
         `Final check of seller's inventory before confirming receipt: ${steamApiUrl}`
       );
-      const response = await axios.get(steamApiUrl);
 
-      if (!response.data || !response.data.success) {
-        return res.status(500).json({
-          error: "Could not verify seller inventory before confirming",
-        });
+      // Use our improved API call approach
+      const response = await axios.get(steamApiUrl, { timeout: 30000 });
+
+      // Parse inventory data using our improved methods
+      let inventory = [];
+      let assetFound = false;
+
+      // First determine if we're dealing with an array or array-like object
+      if (Array.isArray(response.data)) {
+        inventory = response.data;
+      } else if (
+        Object.keys(response.data).length > 0 &&
+        Object.keys(response.data).every((key) => !isNaN(parseInt(key)))
+      ) {
+        // The response is an object with numeric keys (array-like)
+        inventory = Object.values(response.data);
+      } else if (response.data.items && Array.isArray(response.data.items)) {
+        inventory = response.data.items;
+      } else {
+        console.log(
+          "Unexpected inventory format, proceeding with confirmation anyway"
+        );
       }
 
-      // Look for the item in seller's inventory
-      const sellerInventory = response.data.items || [];
+      // Try to find the item by its asset ID
+      const assetId = trade.assetId;
 
-      // Try to find the item by its market_hash_name and asset ID
-      const itemFound = sellerInventory.some((inventoryItem) => {
-        return (
-          inventoryItem.market_hash_name === trade.item.name ||
-          (trade.item.assetId && inventoryItem.assetid === trade.item.assetId)
-        );
-      });
+      // Search the inventory for the asset
+      if (inventory.length > 0) {
+        for (const item of inventory) {
+          // Check all possible asset ID fields
+          const possibleAssetIdFields = [
+            "assetid",
+            "asset_id",
+            "id",
+            "classid",
+            "instanceid",
+            "asset",
+            "market_id",
+            "tradable_id",
+          ];
 
-      if (itemFound) {
-        return res.status(400).json({
-          error:
-            "Item is still in seller's inventory. Cannot confirm receipt until the trade has been completed.",
-          tradeOffersLink: `https://steamcommunity.com/id/${req.user.steamId}/tradeoffers/`,
-        });
+          for (const field of possibleAssetIdFields) {
+            if (item[field] && item[field].toString() === assetId.toString()) {
+              assetFound = true;
+              break;
+            }
+          }
+
+          if (assetFound) break;
+        }
+
+        // If asset still in seller's inventory, prevent confirmation
+        if (assetFound) {
+          return res.status(400).json({
+            error:
+              "Cannot confirm receipt: The item is still in the seller's inventory",
+            tradeOffersLink: "https://steamcommunity.com/my/tradeoffers",
+          });
+        }
       }
 
       // If we get here, the item is not in the seller's inventory and we can proceed with confirming

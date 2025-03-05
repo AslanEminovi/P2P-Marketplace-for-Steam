@@ -344,7 +344,7 @@ const TradeDetails = ({ tradeId }) => {
       const response = await axios.get(`${API_URL}/trades/${trade._id}/verify-inventory`);
       
       // Check if the response has a message
-      if (response.data.message) {
+      if (response.data) {
         // Store the result of the check
         setInventoryCheckResult(response.data);
         
@@ -355,16 +355,16 @@ const TradeDetails = ({ tradeId }) => {
         
         // If success is true, item is no longer in seller's inventory
         if (response.data.success) {
-          toast.success(response.data.message);
-          // Enable confirm button if the item is no longer in seller's inventory
+          toast.success(response.data.message || "Item has left the seller's inventory");
+          // Enable confirm button only if the item is no longer in seller's inventory
           setCanConfirmReceived(true);
         } else {
           // Item is still in seller's inventory
-          toast.warning(response.data.message);
+          toast.warning(response.data.message || "Item is still in seller's inventory");
           setCanConfirmReceived(false);
         }
       } else {
-        // No message in response
+        // No response data
         toast.error("Received invalid response when checking inventory status");
         setCanConfirmReceived(false);
       }
@@ -604,7 +604,9 @@ const TradeDetails = ({ tradeId }) => {
                     </div>
                     <div>
                       <strong>
-                        {inventoryCheckResult.success ? '✓ Item is ready to be confirmed' : '✗ Asset ID is still in seller\'s inventory'}
+                        {inventoryCheckResult.success 
+                          ? '✓ Item has left the seller\'s inventory' 
+                          : '✗ Asset ID is still in seller\'s inventory'}
                       </strong>
                       <p className="mb-0 small">{inventoryCheckResult.message}</p>
                     </div>
