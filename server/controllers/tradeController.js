@@ -221,27 +221,6 @@ exports.sellerSentItem = async (req, res) => {
       },
     });
 
-    // Start monitoring the Steam trade
-    try {
-      const seller = await User.findById(userId).select("+steamLoginSecure");
-
-      if (seller.steamLoginSecure) {
-        // Initialize trade history monitoring
-        const isProduction = process.env.NODE_ENV === "production";
-        const baseUrl = isProduction
-          ? process.env.CALLBACK_URL.split("/auth/steam/return")[0]
-          : `http://localhost:${process.env.PORT || 5001}`;
-
-        await steamApiService.initTradeHistory(
-          seller.steamLoginSecure,
-          `${process.env.WEBHOOK_URL || `${baseUrl}/api/webhooks/steam-trade`}`
-        );
-      }
-    } catch (monitorError) {
-      console.error("Failed to initialize trade monitoring:", monitorError);
-      // Don't fail the request if monitoring setup fails
-    }
-
     return res.json({
       success: true,
       message:
@@ -525,65 +504,14 @@ exports.checkSteamTradeStatus = async (req, res) => {
       });
     }
 
-    try {
-      // Get user with steamLoginSecure
-      const user = await User.findById(userId).select("+steamLoginSecure");
-
-      if (!user.steamLoginSecure) {
-        return res.status(400).json({
-          error: "Steam login secure token is required to check trade status",
-        });
-      }
-
-      // Check trade offers - try both sent and received
-      const promises = [
-        steamApiService.getSentTradeOffers(user.steamLoginSecure),
-        steamApiService.getReceivedTradeOffers(user.steamLoginSecure),
-      ];
-
-      const [sent, received] = await Promise.all(promises);
-
-      // Look for the matching trade in both sent and received
-      const allTrades = [...(sent.trades || []), ...(received.trades || [])];
-      const matchingTrade = allTrades.find(
-        (t) => t.tradeofferid === trade.tradeOfferId
-      );
-
-      if (!matchingTrade) {
-        return res.json({
-          status: "not_found",
-          message: "Trade offer not found in Steam",
-        });
-      }
-
-      // Map Steam status to our system
-      let status = matchingTrade.status;
-      let statusMessage = `Steam trade status: ${status}`;
-
-      // If trade is accepted in Steam but not in our system
-      if (status === "accepted" && trade.status !== "completed") {
-        // Update our system to reflect Steam status
-        trade.addStatusHistory("completed", "Confirmed via Steam API");
-        trade.completedAt = new Date();
-        await trade.save();
-
-        // You might want to trigger the payment processing here as well,
-        // but for simplicity, we'll just notify the user to confirm manually
-        statusMessage =
-          "Trade is completed in Steam. Please confirm receipt to complete the transaction.";
-      }
-
-      return res.json({
-        status,
-        message: statusMessage,
-        steamDetails: matchingTrade,
-      });
-    } catch (steamError) {
-      console.error("Steam API error:", steamError);
-      return res
-        .status(500)
-        .json({ error: "Failed to check Steam trade status" });
-    }
+    // Just return the current state from our database
+    return res.json({
+      status: trade.status,
+      tradeOfferId: trade.tradeOfferId,
+      message:
+        "Please check your Steam trade offers page directly for the most up-to-date status",
+      tradeUrl: `https://steamcommunity.com/tradeoffer/${trade.tradeOfferId}`,
+    });
   } catch (err) {
     console.error("Check Steam trade status error:", err);
     return res.status(500).json({ error: "Failed to check trade status" });
@@ -1285,6 +1213,65 @@ exports.verifyInventory = async (req, res) => {
       error: error.message,
       tradeOffersLink: "https://steamcommunity.com/my/tradeoffers",
     });
+  }
+};
+
+// This function creates a new trade offer if possible
+const handleTradeOfferCreation = async (userId, tradeId) => {
+  try {
+    const trade = await Trade.findById(tradeId);
+    if (!trade) {
+      console.error(`Trade ${tradeId} not found for trade offer creation`);
+      return false;
+    }
+
+    // Don't try to auto-create trade offer - we're using manual trading
+    // Just log the information that would be needed
+    console.log(`Trade offer creation info:
+      - Seller: ${userId}
+      - Buyer Trade URL: ${trade.buyerTradeUrl}
+      - Item Asset ID: ${trade.assetId}
+      - Item appid: 730 (CS2)
+    `);
+
+    return true;
+
+    /* Commenting out automatic trade offer creation
+    // Get the seller with steamLoginSecure for the Steam API
+    const seller = await User.findById(userId).select("+steamLoginSecure");
+    
+    // Only attempt to create a trade offer if the seller has their steamLoginSecure token
+    if (seller.steamLoginSecure) {
+      try {
+        // Create a trade offer using Steam API
+        const tradeOfferResult = await steamApiService.createTradeOffer(
+          seller.steamLoginSecure,
+          trade.buyerTradeUrl,
+          [trade.assetId],
+          [],
+          `Item purchase from CS2 Marketplace for trade #${trade._id}`
+        );
+        
+        if (tradeOfferResult.success) {
+          // Update trade with the new offer ID
+          trade.tradeOfferId = tradeOfferResult.tradeOfferId;
+          await trade.save();
+          
+          console.log(`Trade offer created successfully: ${tradeOfferResult.tradeOfferId}`);
+          return true;
+        } else {
+          console.error(`Failed to create trade offer: ${tradeOfferResult.error}`);
+        }
+      } catch (err) {
+        console.error(`Error creating trade offer: ${err.message}`);
+      }
+    }
+    */
+
+    return false;
+  } catch (err) {
+    console.error(`Error in handleTradeOfferCreation: ${err.message}`);
+    return false;
   }
 };
 
