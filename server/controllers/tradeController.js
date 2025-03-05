@@ -94,15 +94,8 @@ exports.sellerApproveTrade = async (req, res) => {
       });
     }
 
-    // Make sure the seller has their Steam login secure token
-    const seller = await User.findById(userId).select("+steamLoginSecure");
-
-    if (!seller.steamLoginSecure) {
-      return res.status(400).json({
-        error:
-          "You need to update your Steam login secure token to process trades",
-      });
-    }
+    // Find the seller
+    const seller = await User.findById(userId);
 
     // Update trade status
     trade.addStatusHistory(
