@@ -343,10 +343,20 @@ const TradeDetails = ({ tradeId }) => {
       console.log("Checking if item has been transferred...");
       const response = await axios.get(`${API_URL}/trades/${trade._id}/verify-inventory`);
       
-      // Check if the response has a message
+      // Check if the response has data
       if (response.data) {
+        // Create a consistent result object
+        const resultData = {
+          ...response.data,
+          itemRemovedFromSellerInventory: response.data.success, // Set this based on success flag
+          canConfirmReceived: response.data.success, // Enable confirm only if success is true
+          message: response.data.message || (response.data.success 
+            ? "Item has left the seller's inventory" 
+            : "Item is still in seller's inventory")
+        };
+        
         // Store the result of the check
-        setInventoryCheckResult(response.data);
+        setInventoryCheckResult(resultData);
         
         // Update asset ID display if available
         if (response.data.assetId) {
@@ -355,25 +365,33 @@ const TradeDetails = ({ tradeId }) => {
         
         // If success is true, item is no longer in seller's inventory
         if (response.data.success) {
-          toast.success(response.data.message || "Item has left the seller's inventory");
+          toast.success(resultData.message);
           // Enable confirm button only if the item is no longer in seller's inventory
           setCanConfirmReceived(true);
         } else {
           // Item is still in seller's inventory
-          toast.warning(response.data.message || "Item is still in seller's inventory");
+          toast.warning(resultData.message);
           setCanConfirmReceived(false);
         }
       } else {
         // No response data
         toast.error("Received invalid response when checking inventory status");
+        setInventoryCheckResult({
+          success: false,
+          itemRemovedFromSellerInventory: false,
+          canConfirmReceived: false,
+          message: "Received invalid response when checking inventory status",
+          assetId: assetId
+        });
         setCanConfirmReceived(false);
       }
     } catch (error) {
       console.error("Error checking inventory:", error);
       
       // Get the asset ID if available in the error response
-      if (error.response?.data?.assetId) {
-        setAssetId(error.response.data.assetId);
+      const errorAssetId = error.response?.data?.assetId || assetId;
+      if (errorAssetId) {
+        setAssetId(errorAssetId);
       }
       
       // Get the Steam trade offers link if available in the error response
@@ -388,6 +406,16 @@ const TradeDetails = ({ tradeId }) => {
       } else if (error.message) {
         errorMsg += error.message;
       }
+      
+      // Set consistent error state
+      setInventoryCheckResult({
+        success: false,
+        itemRemovedFromSellerInventory: false,
+        canConfirmReceived: false,
+        error: errorMsg,
+        message: "Failed to verify inventory status",
+        assetId: errorAssetId
+      });
       
       toast.error(
         <div>
@@ -606,9 +634,27 @@ const TradeDetails = ({ tradeId }) => {
                       <strong>
                         {inventoryCheckResult.success 
                           ? '✓ Item has left the seller\'s inventory' 
-                          : '✗ Asset ID is still in seller\'s inventory'}
+                          : `✗ Asset ID ${assetId || trade?.assetId || ''} is still in seller's inventory`}
                       </strong>
                       <p className="mb-0 small">{inventoryCheckResult.message}</p>
+                      <p className="mb-0 small">
+                        This check verifies if the specific item (Asset ID: {assetId || trade?.assetId || ''}) 
+                        {inventoryCheckResult.success 
+                          ? ' has left' 
+                          : ' is still in'} the seller's inventory. 
+                        {!inventoryCheckResult.success && ' Please check your Steam trade offers.'}
+                      </p>
+                      {inventoryCheckResult.tradeOffersLink && !inventoryCheckResult.success && (
+                        <a 
+                          href={inventoryCheckResult.tradeOffersLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-sm btn-outline-primary mt-2"
+                        >
+                          <i className="fas fa-external-link-alt me-1"></i>
+                          View Steam Trade Offers
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
