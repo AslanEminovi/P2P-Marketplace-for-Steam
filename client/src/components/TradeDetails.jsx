@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { formatCurrency, API_URL } from '../config/constants';
 import { Button, Spinner } from 'react-bootstrap';
@@ -80,6 +80,7 @@ const TradeDetails = ({ tradeId }) => {
   const [approveLoading, setApproveLoading] = useState(false);
   const [isBuyer, setIsBuyer] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
+  const retryAttempted = useRef(false);
 
   useEffect(() => {
     if (tradeId) {
@@ -112,9 +113,16 @@ const TradeDetails = ({ tradeId }) => {
     setLoading(true);
     setError(null);
     try {
+      console.log(`Loading trade details for ID: ${tradeId}`);
       const response = await axios.get(`${API_URL}/trades/${tradeId}`, {
-        withCredentials: true
+        withCredentials: true,
+        timeout: 15000 // 15 second timeout
       });
+      
+      if (!response.data || !response.data._id) {
+        console.error('Invalid or empty trade data received:', response.data);
+        throw new Error('Received invalid trade data from server');
+      }
       
       setTrade(response.data);
       console.log('Trade details loaded:', response.data);
@@ -124,14 +132,19 @@ const TradeDetails = ({ tradeId }) => {
         setSellerWaitingForBuyer(true);
       }
       
-      // Check if current user is buyer or seller
-      const currentUser = await axios.get(`${API_URL}/users/profile`, {
-        withCredentials: true
-      });
-      
-      const userId = currentUser.data._id;
-      setIsBuyer(userId === response.data.buyer._id);
-      setIsSeller(userId === response.data.seller._id);
+      try {
+        // Check if current user is buyer or seller
+        const currentUser = await axios.get(`${API_URL}/users/profile`, {
+          withCredentials: true
+        });
+        
+        const userId = currentUser.data._id;
+        setIsBuyer(userId === response.data.buyer._id);
+        setIsSeller(userId === response.data.seller._id);
+      } catch (profileError) {
+        console.error('Error loading user profile:', profileError);
+        // Continue even if this part fails - we can still show trade details
+      }
       
       // Reset loading states based on status
       if (response.data.status === 'completed' || 
@@ -144,7 +157,37 @@ const TradeDetails = ({ tradeId }) => {
       }
     } catch (err) {
       console.error('Error loading trade details:', err);
-      setError('Failed to load trade details. Please refresh the page.');
+      
+      // Provide more detailed error information
+      let errorMessage = 'Failed to load trade details. Please refresh the page.';
+      
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        if (err.response.status === 404) {
+          errorMessage = 'Trade not found. The trade may have been deleted or you do not have access to it.';
+        } else {
+          errorMessage = err.response.data?.error || `Server error (${err.response.status}): ${errorMessage}`;
+        }
+      } else if (err.request) {
+        // The request was made but no response was received
+        errorMessage = 'No response received from server. Please check your internet connection and try again.';
+      } else if (err.message) {
+        // Something happened in setting up the request that triggered an Error
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      
+      // If this is a critical 500 error, try again once after a short delay
+      if (err.response && err.response.status >= 500 && !retryAttempted.current) {
+        retryAttempted.current = true;
+        console.log('Server error, attempting to retry after 2 seconds...');
+        setTimeout(() => {
+          console.log('Retrying loadTradeDetails...');
+          loadTradeDetails();
+        }, 2000);
+      }
     } finally {
       setLoading(false);
     }
@@ -295,22 +338,23 @@ const TradeDetails = ({ tradeId }) => {
     setInventoryCheckLoading(true);
     setError(null);
     try {
-      console.log(`Checking inventory status for trade ${tradeId}...`);
+      console.log(`Checking inventory status for trade ${tradeId} with assetId: ${trade?.item?.assetId}`);
       const response = await axios.get(`${API_URL}/trades/${tradeId}/verify-inventory`, {
-        withCredentials: true
+        withCredentials: true,
+        timeout: 30000 // 30 second timeout to allow for slow API responses
       });
       
       console.log('Inventory check response:', response.data);
       setInventoryCheckResult(response.data);
       
       if (response.data.canConfirmReceived) {
-        // Enable confirm button if item is no longer in seller's inventory
+        // Enable confirm button if specific item is no longer in seller's inventory
         setCanConfirmReceived(true);
         // Display a positive message
         if (window.showNotification) {
           window.showNotification(
-            'Verification Complete',
-            'Item has been withdrawn from seller\'s inventory. You can now confirm receipt.',
+            'Asset Verification Complete',
+            `Asset ID ${response.data.assetId} has been withdrawn from seller's inventory. You can confirm receipt.`,
             'SUCCESS'
           );
         }
@@ -330,7 +374,7 @@ const TradeDetails = ({ tradeId }) => {
             );
           }
         } else if (!response.data.itemRemovedFromSellerInventory) {
-          setError('The item is still in seller\'s inventory. The trade offer hasn\'t been sent yet or you haven\'t accepted it.');
+          setError(`Asset ID ${response.data.assetId || 'unknown'} is still in seller's inventory. The trade offer hasn't been sent yet or you haven't accepted it.`);
           // Show link to trade offers
           setTradeOffersUrl(response.data.tradeOffersLink);
           
@@ -352,7 +396,24 @@ const TradeDetails = ({ tradeId }) => {
     } catch (err) {
       console.error('Error checking inventory:', err);
       setInventoryCheckResult(null);
-      setError(err.response?.data?.error || 'Failed to check inventory status');
+      
+      // Provide more detailed error information
+      let errorMessage = 'Failed to check inventory status';
+      
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        if (err.response.status === 404) {
+          errorMessage = 'Trade not found. Please refresh the page.';
+        } else {
+          errorMessage = err.response.data?.error || `Server error (${err.response.status}): Failed to check inventory status`;
+        }
+      } else if (err.request) {
+        // The request was made but no response was received
+        errorMessage = 'No response received from server. Please check your internet connection and try again.';
+      }
+      
+      setError(errorMessage);
       setCanConfirmReceived(false);
     } finally {
       setInventoryCheckLoading(false);

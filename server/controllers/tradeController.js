@@ -266,7 +266,7 @@ exports.sellerSentItem = async (req, res) => {
 // PUT /trades/:tradeId/buyer-confirm
 exports.buyerConfirmReceipt = async (req, res) => {
   try {
-    const tradeId = req.params.id;
+    const tradeId = req.params.tradeId;
     const userId = req.user._id;
 
     console.log(
@@ -915,7 +915,7 @@ exports.sellerSentManual = async (req, res) => {
 // GET /trades/:tradeId/verify-inventory
 exports.verifyInventory = async (req, res) => {
   try {
-    const tradeId = req.params.id;
+    const tradeId = req.params.tradeId;
     const userId = req.user._id;
 
     console.log(`Verifying inventory for trade ${tradeId} by user ${userId}`);
