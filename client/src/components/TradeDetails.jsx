@@ -29,19 +29,17 @@ const StatusBadge = ({ status }) => {
       case 'awaiting_seller':
         return 'Purchase Offer Sent';
       case 'accepted':
-        return 'Seller Accepted';
+        return 'Seller Accepted - Waiting for Steam Trade Offer';
       case 'offer_sent':
-        return 'Steam Offer Sent';
+        return 'Steam Trade Offer Created';
       case 'awaiting_confirmation':
-        return 'Awaiting Confirmation';
+        return 'Awaiting Your Confirmation';
       case 'completed':
         return 'Completed';
       case 'cancelled':
         return 'Cancelled';
-      case 'failed':
-        return 'Failed';
       default:
-        return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        return status?.replace(/_/g, ' ') || 'Unknown';
     }
   };
 
@@ -247,48 +245,48 @@ const TradeDetails = ({ tradeId }) => {
   };
 
   const handleSellerConfirmSent = async () => {
+    setSendingLoading(true);
     try {
-      setSendingLoading(true);
-      
-      console.log(`Seller confirming trade ${tradeId} as sent`);
-      const response = await axios.put(`${API_URL}/trades/${tradeId}/seller-sent`, {}, {
-        withCredentials: true
-      });
-      
-      console.log('Seller sent response:', response.data);
-      
-      if (window.showNotification) {
-        window.showNotification(
-          'Offer Sent',
-          'You have marked this trade as sent. The buyer has been notified.',
-          'SUCCESS'
-        );
+      // Validate that they've entered a trade offer ID or URL
+      if (!steamOfferUrl || steamOfferUrl.trim() === '') {
+        toast.warning('Please enter the Steam trade offer ID or URL to help the buyer identify your offer');
+        setSendingLoading(false);
+        return;
       }
       
-      // Immediately update the UI without requiring refresh
-      setTrade(prevTrade => ({
-        ...prevTrade,
-        status: 'offer_sent',
-        statusHistory: [
-          ...prevTrade.statusHistory || [],
-          { status: 'offer_sent', timestamp: new Date().toISOString() }
-        ]
-      }));
+      const response = await axios.put(
+        `${API_URL}/trades/${trade._id}/seller-sent`,
+        { steamOfferUrl },
+        getAuthHeader()
+      );
       
-      // Show "Waiting for buyer" message
-      setSellerWaitingForBuyer(true);
-      
-      // Refresh the trade details to get the latest status
-      await loadTradeDetails();
+      if (response.data?.success) {
+        toast.success('Successfully marked the trade offer as sent. The buyer has been notified.');
+        // Update the local state to reflect the status change
+        setTrade({
+          ...trade,
+          status: 'offer_sent', 
+          statusHistory: [
+            ...trade.statusHistory,
+            {
+              status: 'offer_sent',
+              timestamp: new Date(),
+              note: 'Seller sent trade offer'
+            }
+          ]
+        });
+        // Force a refresh of the trade data
+        await loadTradeDetails();
+      }
     } catch (err) {
-      console.error('Error marking trade as sent:', err);
-      if (window.showNotification) {
-        window.showNotification(
-          'Error',
-          err.response?.data?.error || 'Failed to mark trade as sent',
-          'ERROR'
-        );
+      console.error('Error confirming sent:', err);
+      
+      let errorMessage = 'Failed to update trade status';
+      if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
       }
+      
+      toast.error(errorMessage);
     } finally {
       setSendingLoading(false);
     }
@@ -384,7 +382,7 @@ const TradeDetails = ({ tradeId }) => {
           canConfirmReceived: response.data.success, // Enable confirm only if success is true
           message: response.data.message || (response.data.success 
             ? "Item has left the seller's inventory" 
-            : "Item is still in seller's inventory")
+            : `Item with Asset ID ${response.data.assetId || trade.assetId} is still in seller's inventory`)
         };
         
         // Store the result of the check
@@ -402,7 +400,21 @@ const TradeDetails = ({ tradeId }) => {
           setCanConfirmReceived(true);
         } else {
           // Item is still in seller's inventory
-          toast.warning(resultData.message);
+          toast.warning(
+            <div>
+              {resultData.message}
+              <br />
+              <a 
+                href="https://steamcommunity.com/my/tradeoffers" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                style={{ color: '#4a9eff', textDecoration: 'underline' }}
+              >
+                View your Steam trade offers
+              </a>
+            </div>,
+            { autoClose: 10000 }
+          );
           setCanConfirmReceived(false);
         }
       } else {
@@ -413,15 +425,15 @@ const TradeDetails = ({ tradeId }) => {
           itemRemovedFromSellerInventory: false,
           canConfirmReceived: false,
           message: "Received invalid response when checking inventory status",
-          assetId: assetId
+          assetId: assetId || trade.assetId
         });
         setCanConfirmReceived(false);
       }
     } catch (error) {
       console.error("Error checking inventory:", error);
       
-      // Get the asset ID if available in the error response
-      const errorAssetId = error.response?.data?.assetId || assetId;
+      // Get the asset ID if available in the error response or fallback to current values
+      const errorAssetId = error.response?.data?.assetId || assetId || trade.assetId;
       if (errorAssetId) {
         setAssetId(errorAssetId);
       }
@@ -430,7 +442,7 @@ const TradeDetails = ({ tradeId }) => {
       const tradeOffersLink = error.response?.data?.tradeOffersLink || "https://steamcommunity.com/my/tradeoffers";
       
       // Create error message with link to Steam trade offers
-      let errorMsg = "Failed to verify inventory. ";
+      let errorMsg = `Failed to verify inventory status for Asset ID ${errorAssetId || "unknown"}. `;
       
       // Add more specific error details if available
       if (error.response?.data?.error) {
@@ -445,7 +457,7 @@ const TradeDetails = ({ tradeId }) => {
         itemRemovedFromSellerInventory: false,
         canConfirmReceived: false,
         error: errorMsg,
-        message: "Failed to verify inventory status",
+        message: errorMsg,
         assetId: errorAssetId
       });
       

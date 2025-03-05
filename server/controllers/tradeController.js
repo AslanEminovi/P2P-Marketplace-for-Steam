@@ -5,6 +5,7 @@ const steamApiService = require("../services/steamApiService");
 const socketService = require("../services/socketService");
 const mongoose = require("mongoose");
 const axios = require("axios");
+const notificationService = require("../services/notificationService");
 
 // GET /trades/history
 exports.getTradeHistory = async (req, res) => {
@@ -71,65 +72,39 @@ exports.sellerApproveTrade = async (req, res) => {
     const { tradeId } = req.params;
     const userId = req.user._id;
 
-    // Find the trade and populate buyer info
+    // Find the trade
     const trade = await Trade.findById(tradeId)
-      .populate("item")
-      .populate("buyer", "displayName steamId tradeUrl");
+      .populate("buyer", "username email tradeUrl")
+      .populate("item");
 
     if (!trade) {
       return res.status(404).json({ error: "Trade not found" });
     }
 
-    // Verify the user is the seller
+    // Check if the user is the seller
     if (trade.seller.toString() !== userId.toString()) {
       return res
         .status(403)
         .json({ error: "Only the seller can approve this trade" });
     }
 
-    // Check current trade status
+    // Check if the trade status is correct
     if (trade.status !== "awaiting_seller") {
       return res.status(400).json({
-        error: `Trade cannot be approved because it is in ${trade.status} state`,
+        error: `Cannot approve a trade that is already in ${trade.status} state`,
       });
     }
 
-    // Find the seller
-    const seller = await User.findById(userId);
-
-    // Update trade status
-    trade.addStatusHistory(
-      "offer_sent",
-      "Seller approved and sent trade offer"
-    );
+    // Update trade status to "accepted" instead of "offer_sent"
+    // This is more accurate since the seller approved but hasn't sent a Steam offer yet
+    trade.addStatusHistory("accepted", "Seller accepted purchase offer");
     await trade.save();
 
-    // Add notification to the buyer
-    const notification = {
-      type: "trade",
-      title: "Trade Approved by Seller",
-      message: `Seller ${seller.displayName} has approved your purchase of ${trade.item.marketHashName}. Check your Steam trade offers or your trade link.`,
-      link: `/trades/${tradeId}`,
-      relatedItemId: trade.item._id,
-      read: false,
-      createdAt: new Date(),
-    };
-
-    await User.findByIdAndUpdate(trade.buyer._id, {
-      $push: {
-        notifications: notification,
-      },
-    });
-
-    // Send real-time notification via WebSocket
-    socketService.sendNotification(trade.buyer._id, notification);
-
-    // Send trade update via WebSocket
-    socketService.sendTradeUpdate(
-      tradeId,
+    // Notify the buyer that the seller has approved the offer
+    await notificationService.createNotification(
       trade.buyer._id,
       trade.seller.toString(),
-      { status: "offer_sent", item: trade.item, timeUpdated: new Date() }
+      { status: "accepted", item: trade.item, timeUpdated: new Date() }
     );
 
     return res.json({
@@ -151,7 +126,10 @@ exports.sellerSentItem = async (req, res) => {
     const { steamOfferUrl } = req.body;
 
     // Find the trade
-    const trade = await Trade.findById(tradeId);
+    const trade = await Trade.findById(tradeId).populate(
+      "buyer",
+      "username email"
+    );
 
     if (!trade) {
       return res.status(404).json({ error: "Trade not found" });
@@ -165,9 +143,9 @@ exports.sellerSentItem = async (req, res) => {
     }
 
     // Check current trade status
-    if (trade.status !== "offer_sent") {
+    if (trade.status !== "accepted") {
       return res.status(400).json({
-        error: `Trade cannot be marked as sent because it is in ${trade.status} state`,
+        error: `Trade cannot be marked as sent because it is in ${trade.status} state. It needs to be in 'accepted' state.`,
       });
     }
 
@@ -194,44 +172,27 @@ exports.sellerSentItem = async (req, res) => {
 
     // Update trade with offer ID and status
     trade.tradeOfferId = tradeOfferId;
-    trade.addStatusHistory(
-      "awaiting_confirmation",
-      "Seller sent Steam trade offer"
-    );
+    trade.addStatusHistory("offer_sent", "Seller sent Steam trade offer");
     await trade.save();
 
-    // Update the item status
-    await Item.findByIdAndUpdate(trade.item, {
-      tradeOfferId: tradeOfferId,
-      tradeStatus: "pending",
-    });
-
-    // Add notification to the buyer
-    await User.findByIdAndUpdate(trade.buyer, {
-      $push: {
-        notifications: {
-          type: "trade",
-          title: "Trade Item Sent",
-          message: `The seller has sent you a trade offer for the ${trade.item.marketHashName}. Please check your Steam trade offers and confirm receipt.`,
-          link: `/trades/${tradeId}`,
-          relatedItemId: trade.item,
-          read: false,
-          createdAt: new Date(),
-        },
-      },
-    });
+    // Notify the buyer that a trade offer has been sent
+    await notificationService.createNotification(
+      trade.buyer._id,
+      trade.seller.toString(),
+      {
+        status: "offer_sent",
+        message: `The seller has sent you a Steam trade offer. Please check your Steam trade offers.`,
+        tradeOfferId: tradeOfferId,
+      }
+    );
 
     return res.json({
       success: true,
-      message:
-        "Trade marked as sent. The buyer has been notified to confirm receipt.",
-      tradeOfferId,
+      message: "Trade marked as sent. The buyer has been notified.",
     });
   } catch (err) {
-    console.error("Seller sent item error:", err);
-    return res
-      .status(500)
-      .json({ error: "Failed to process trade sent status" });
+    console.error("Error marking trade as sent:", err);
+    return res.status(500).json({ error: "Failed to update trade status" });
   }
 };
 
