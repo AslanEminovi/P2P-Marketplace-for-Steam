@@ -83,6 +83,7 @@ const TradeDetails = ({ tradeId }) => {
   const [isSeller, setIsSeller] = useState(false);
   const retryAttempted = useRef(false);
   const [isCheckingInventory, setIsCheckingInventory] = useState(false);
+  const [assetId, setAssetId] = useState('');
 
   useEffect(() => {
     if (tradeId) {
@@ -347,6 +348,11 @@ const TradeDetails = ({ tradeId }) => {
         // Store the result of the check
         setInventoryCheckResult(response.data);
         
+        // Update asset ID display if available
+        if (response.data.assetId) {
+          setAssetId(response.data.assetId);
+        }
+        
         // If success is true, item is no longer in seller's inventory
         if (response.data.success) {
           toast.success(response.data.message);
@@ -364,6 +370,11 @@ const TradeDetails = ({ tradeId }) => {
       }
     } catch (error) {
       console.error("Error checking inventory:", error);
+      
+      // Get the asset ID if available in the error response
+      if (error.response?.data?.assetId) {
+        setAssetId(error.response.data.assetId);
+      }
       
       // Get the Steam trade offers link if available in the error response
       const tradeOffersLink = error.response?.data?.tradeOffersLink || "https://steamcommunity.com/my/tradeoffers";
@@ -571,22 +582,34 @@ const TradeDetails = ({ tradeId }) => {
           
           <h4 style={{ color: '#f1f1f1', margin: '16px 0 8px 0' }}>Steam Trade Details</h4>
           <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
-            <div>Asset ID: {trade.assetId || 'N/A'}</div>
-            {trade.tradeOfferId && (
-              <div style={{ marginTop: '8px' }}>
-                Trade Offer ID: {trade.tradeOfferId}
-                <a
-                  href={`https://steamcommunity.com/tradeoffer/${trade.tradeOfferId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    color: '#3b82f6',
-                    marginLeft: '8px',
-                    textDecoration: 'none'
-                  }}
-                >
-                  View on Steam
-                </a>
+            {/* Asset ID row */}
+            <div className="detail-row">
+              <div className="detail-label">Asset ID:</div>
+              <div className="detail-value">
+                {assetId || trade?.assetId || "Loading..."}
+              </div>
+            </div>
+            
+            {/* Inventory check result message */}
+            {inventoryCheckResult && (
+              <div className="mt-3 mb-3">
+                <div className={`alert ${inventoryCheckResult.success ? 'alert-success' : 'alert-warning'}`}>
+                  <div className="d-flex align-items-center">
+                    <div className="me-2">
+                      {inventoryCheckResult.success ? (
+                        <i className="fas fa-check-circle"></i>
+                      ) : (
+                        <i className="fas fa-exclamation-triangle"></i>
+                      )}
+                    </div>
+                    <div>
+                      <strong>
+                        {inventoryCheckResult.success ? '✓ Item is ready to be confirmed' : '✗ Asset ID is still in seller\'s inventory'}
+                      </strong>
+                      <p className="mb-0 small">{inventoryCheckResult.message}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

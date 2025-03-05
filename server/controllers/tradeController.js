@@ -933,6 +933,32 @@ exports.verifyInventory = async (req, res) => {
       return res.status(404).json({ error: "Trade not found" });
     }
 
+    // Debug the trade object to see what's available
+    console.log("Trade object for debugging:", {
+      tradeId: trade._id,
+      seller: trade.seller
+        ? {
+            id: trade.seller._id,
+            steamId: trade.seller.steamId,
+            username: trade.seller.username,
+          }
+        : "No seller",
+      buyer: trade.buyer
+        ? {
+            id: trade.buyer._id,
+            steamId: trade.buyer.steamId,
+            username: trade.buyer.username,
+          }
+        : "No buyer",
+      item: trade.item
+        ? {
+            id: trade.item._id,
+            name: trade.item.name,
+            assetId: trade.assetId || trade.item.assetId || "Not available",
+          }
+        : "No item",
+    });
+
     // Check if the current user is the buyer
     if (req.user._id.toString() !== trade.buyer._id.toString()) {
       return res
@@ -948,13 +974,14 @@ exports.verifyInventory = async (req, res) => {
       success: false,
       message: "",
       tradeOffersLink: tradeOffersLink,
+      assetId: trade.assetId || "unknown",
     };
 
     // Ensure seller has linked Steam account
     if (!trade.seller.steamId) {
       return res
         .status(400)
-        .json({ error: "Seller has no linked Steam account" });
+        .json({ error: "Seller's Steam account is not linked" });
     }
 
     // Ensure buyer has linked Steam account
@@ -964,12 +991,14 @@ exports.verifyInventory = async (req, res) => {
         .json({ error: "Your Steam account is not linked" });
     }
 
-    // Get the asset ID from the trade or the item
-    const assetId = trade.assetId || trade.item.assetId;
+    // Get the asset ID from the trade object directly
+    const assetId = trade.assetId;
 
+    // Check if the asset ID is available
     if (!assetId) {
+      console.error("Asset ID not found in trade object", trade);
       return res.status(400).json({
-        error: "Cannot verify this trade - missing asset ID for the item",
+        error: "Asset ID not found for this trade",
         tradeOffersLink: tradeOffersLink,
       });
     }
@@ -1036,25 +1065,56 @@ exports.verifyInventory = async (req, res) => {
       const assetIdToFind = trade.assetId;
       console.log(`Looking for asset ID: ${assetIdToFind}`);
 
-      for (const item of inventory) {
-        // Check by asset ID which could be in different properties depending on API response format
-        const itemAssetId = item.assetid || item.asset_id || item.id || "";
+      // Log a few sample items to verify format
+      for (let i = 0; i < Math.min(3, inventory.length); i++) {
+        console.log(`Sample item ${i + 1}:`, JSON.stringify(inventory[i]));
+      }
 
-        // Log the first few items for debugging
-        if (inventory.indexOf(item) < 3) {
+      if (inventory.length > 0) {
+        // Try different property names for asset ID since API formats vary
+        for (const item of inventory) {
+          const possibleAssetIdFields = [
+            "assetid",
+            "asset_id",
+            "id",
+            "classid",
+          ];
+
+          for (const field of possibleAssetIdFields) {
+            if (item[field] && item[field].toString() === assetIdToFind) {
+              console.log(
+                `Found matching asset ID in field "${field}": ${item[field]}`
+              );
+              assetFound = true;
+              break;
+            }
+          }
+
+          if (assetFound) break;
+        }
+
+        // If not found by ID, try by item name as fallback
+        if (!assetFound && trade.item && trade.item.name) {
           console.log(
-            `Sample item ${inventory.indexOf(item)}: ${JSON.stringify(item)}`
+            `Asset ID not found, trying to match by item name: ${trade.item.name}`
           );
-        }
 
-        if (itemAssetId === assetIdToFind) {
-          console.log(`Found matching asset ID: ${itemAssetId}`);
-          assetFound = true;
-          break;
+          for (const item of inventory) {
+            const itemName = item.market_hash_name || item.name || "";
+
+            if (itemName && itemName === trade.item.name) {
+              console.log(`Found item by name match: ${itemName}`);
+              assetFound = true;
+              break;
+            }
+          }
         }
+      } else {
+        console.log("Seller's inventory is empty or could not be parsed");
       }
 
       result.itemInSellerInventory = assetFound;
+      result.assetId = assetIdToFind; // Always include the asset ID in the result
 
       if (assetFound) {
         result.message =
@@ -1070,6 +1130,7 @@ exports.verifyInventory = async (req, res) => {
       result.success = false;
       result.message = `Failed to check seller inventory: ${error.message}`;
       result.tradeOffersLink = tradeOffersLink;
+      result.assetId = assetId || "unknown";
     }
 
     return res.json(result);
