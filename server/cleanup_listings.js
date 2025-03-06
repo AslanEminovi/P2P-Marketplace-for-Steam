@@ -70,9 +70,17 @@ const tradeSchema = new mongoose.Schema({
   status: String,
 });
 
-// Create models from schemas
-const Item = mongoose.model("Item", itemSchema);
-const Trade = mongoose.model("Trade", tradeSchema);
+// Create models from schemas - only if they don't already exist
+let Item, Trade;
+try {
+  // Try to get existing models first
+  Item = mongoose.model("Item");
+  Trade = mongoose.model("Trade");
+} catch (error) {
+  // If models don't exist, create them
+  Item = mongoose.model("Item", itemSchema);
+  Trade = mongoose.model("Trade", tradeSchema);
+}
 
 // Function to clean up stuck listings
 async function cleanupStuckListings(userId = null) {
