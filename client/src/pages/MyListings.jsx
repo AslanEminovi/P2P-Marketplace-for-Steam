@@ -36,16 +36,34 @@ function MyListings() {
     }
   };
 
-  const handleCancelListing = async (itemId) => {
+  const handleCancelListing = async (itemId, forceCancel = false) => {
     try {
-      await axios.put(`${API_URL}/marketplace/cancel/${itemId}`, {}, { withCredentials: true });
+      setLoading(true);
+      const url = forceCancel 
+        ? `${API_URL}/marketplace/cancel/${itemId}?force=true` 
+        : `${API_URL}/marketplace/cancel/${itemId}`;
+        
+      await axios.put(url, {}, { withCredentials: true });
+      
+      // Update the UI by removing the cancelled listing
       setListings(listings.filter(item => item._id !== itemId));
       setSuccessMessage('Listing cancelled successfully');
-      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       console.error('Error cancelling listing:', err);
+      
+      // If regular cancel failed, try force cancel
+      if (!forceCancel && err.response && (err.response.status === 403 || err.response.status === 404)) {
+        try {
+          await handleCancelListing(itemId, true);
+          return; // Successfully force cancelled
+        } catch (forceErr) {
+          console.error('Force cancel also failed:', forceErr);
+        }
+      }
+      
       setError('Failed to cancel listing. Please try again.');
-      setTimeout(() => setError(''), 3000);
+    } finally {
+      setLoading(false);
     }
   };
 

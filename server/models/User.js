@@ -82,6 +82,9 @@ const userSchema = new mongoose.Schema({
   isBanned: { type: Boolean, default: false },
   banReason: { type: String },
 
+  // Admin status
+  isAdmin: { type: Boolean, default: false },
+
   createdAt: {
     type: Date,
     default: Date.now,

@@ -13,6 +13,7 @@ import MyListings from './pages/MyListings';
 import Profile from './pages/Profile';
 import TradeDetailPage from './pages/TradeDetailPage';
 import SteamSettingsPage from './pages/SteamSettings';
+import AdminTools from './pages/AdminTools';
 
 // Components
 import Navbar from './components/Navbar';
@@ -27,6 +28,14 @@ import { API_URL } from './config/constants';
 // Auth-protected route component
 const ProtectedRoute = ({ user, children }) => {
   if (!user) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+};
+
+// Admin-protected route component
+const AdminRoute = ({ user, children }) => {
+  if (!user || !user.isAdmin) {
     return <Navigate to="/" replace />;
   }
   return children;
@@ -55,10 +64,10 @@ function App() {
     const interceptor = axios.interceptors.request.use(config => {
       // Always include withCredentials
       config.withCredentials = true;
-      
+
       // Get token from localStorage
       const token = localStorage.getItem('auth_token');
-      
+
       // If token exists, include it in query params
       if (token) {
         // Include token in URL if it's to our API
@@ -69,7 +78,7 @@ function App() {
           config.params.auth_token = token;
         }
       }
-      
+
       return config;
     });
 
@@ -83,26 +92,26 @@ function App() {
     try {
       setLoading(true);
       console.log("Checking auth status, API URL:", API_URL);
-      
+
       // Check for auth token in URL
       const urlParams = new URLSearchParams(window.location.search);
       const authToken = urlParams.get('auth_token');
-      
+
       if (authToken) {
         console.log("Found auth token in URL, verifying...");
         // Remove token from URL to prevent bookmarking with token
         window.history.replaceState({}, document.title, window.location.pathname);
-        
+
         // Verify token with backend
         const verifyResponse = await axios.post(`${API_URL}/auth/verify-token`, { token: authToken }, { withCredentials: true });
-        
+
         if (verifyResponse.data.authenticated) {
           console.log("Token verified, user authenticated:", verifyResponse.data.user);
           setUser(verifyResponse.data.user);
-          
+
           // Store token in localStorage for future use
           localStorage.setItem('auth_token', authToken);
-          
+
           // Show success notification
           if (window.showNotification) {
             window.showNotification(
@@ -111,20 +120,20 @@ function App() {
               'SUCCESS'
             );
           }
-          
+
           setLoading(false);
           return;
         }
       }
-      
+
       // Check if we have a token in localStorage
       const storedToken = localStorage.getItem('auth_token');
       if (storedToken) {
         console.log("Found stored token, verifying...");
-        
+
         try {
           const verifyResponse = await axios.post(`${API_URL}/auth/verify-token`, { token: storedToken }, { withCredentials: true });
-          
+
           if (verifyResponse.data.authenticated) {
             console.log("Stored token verified, user authenticated:", verifyResponse.data.user);
             setUser(verifyResponse.data.user);
@@ -139,26 +148,26 @@ function App() {
           localStorage.removeItem('auth_token');
         }
       }
-      
+
       // If we reach here, try the regular session-based auth as fallback
       try {
-        const res = await axios.get(`${API_URL}/auth/user`, { 
-          withCredentials: true 
+        const res = await axios.get(`${API_URL}/auth/user`, {
+          withCredentials: true
         })
-        .then(response => {
-          console.log("Auth response:", response.data);
-          return response;
-        })
-        .catch(error => {
-          console.error("Auth request failed:", error.message);
-          if (error.response) {
-            console.error("Response data:", error.response.data);
-            console.error("Response status:", error.response.status);
-            console.error("Response headers:", error.response.headers);
-          }
-          throw error;
-        });
-        
+          .then(response => {
+            console.log("Auth response:", response.data);
+            return response;
+          })
+          .catch(error => {
+            console.error("Auth request failed:", error.message);
+            if (error.response) {
+              console.error("Response data:", error.response.data);
+              console.error("Response status:", error.response.status);
+              console.error("Response headers:", error.response.headers);
+            }
+            throw error;
+          });
+
         if (res.data.authenticated) {
           console.log("User authenticated via session:", res.data.user);
           setUser(res.data.user);
@@ -179,12 +188,12 @@ function App() {
     try {
       await axios.get(`${API_URL}/auth/logout`, { withCredentials: true });
       setUser(null);
-      
+
       // Clear token from localStorage
       localStorage.removeItem('auth_token');
-      
+
       navigate('/');
-      
+
       // Show notification
       if (window.showNotification) {
         window.showNotification(
@@ -225,7 +234,7 @@ function App() {
     if (user) {
       // Initialize WebSocket connection
       socketService.init();
-      
+
       // Setup event listeners
       const handleConnectionStatus = (status) => {
         setSocketConnected(status.connected);
@@ -235,7 +244,7 @@ function App() {
       const handleNotification = (notification) => {
         // Add the notification to state
         setNotifications(prevNotifications => [notification, ...prevNotifications]);
-        
+
         // Show notification UI if available
         if (window.showNotification) {
           window.showNotification(
@@ -248,7 +257,7 @@ function App() {
 
       const handleTradeUpdate = (tradeData) => {
         console.log('Trade update:', tradeData);
-        
+
         // Create a notification with a valid type
         const notification = {
           type: 'trade',
@@ -258,10 +267,10 @@ function App() {
           link: `/trades/${tradeData.tradeId}`,
           createdAt: new Date()
         };
-        
+
         // Add the notification to state
         setNotifications(prevNotifications => [notification, ...prevNotifications]);
-        
+
         // Show notification UI if available
         if (window.showNotification) {
           window.showNotification(
@@ -270,7 +279,7 @@ function App() {
             'INFO'
           );
         }
-        
+
         // Implement trade update logic - you might need to update the trade list
         // or refresh data in the current page if it's a trade page
       };
@@ -312,7 +321,7 @@ function App() {
         unsubscribeInventoryUpdate();
         unsubscribeWalletUpdate();
         unsubscribeMarketUpdate();
-        
+
         // Disconnect socket when user logs out or component unmounts
         socketService.disconnect();
       };
@@ -327,14 +336,14 @@ function App() {
   }, [user]);
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
+    <div style={{
+      minHeight: '100vh',
       background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
       position: 'relative',
       overflow: 'hidden'
     }}>
       <Navbar user={user} onLogout={handleLogout} />
-      
+
       {/* Toast notifications */}
       <Toaster
         position="top-right"
@@ -362,10 +371,10 @@ function App() {
           },
         }}
       />
-      
+
       {/* WebSocket connection indicator */}
       {user && (
-        <div 
+        <div
           style={{
             position: 'fixed',
             bottom: '10px',
@@ -381,7 +390,7 @@ function App() {
           title={socketConnected ? 'Real-time connection active' : 'Real-time connection inactive'}
         />
       )}
-      
+
       {/* Background patterns */}
       <div style={{
         position: 'fixed',
@@ -393,7 +402,7 @@ function App() {
         pointerEvents: 'none',
         zIndex: 0
       }} />
-      
+
       {/* CSS for spinner animation */}
       <style>
         {`
@@ -405,17 +414,17 @@ function App() {
           }
         `}
       </style>
-      
+
       {/* These UI controls will be moved to the Navbar */}
-      
+
       <Suspense fallback={
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
           alignItems: 'center',
           height: '80vh'
         }}>
-          <div 
+          <div
             className="spinner"
             style={{
               width: '60px',
@@ -429,15 +438,15 @@ function App() {
         </div>
       }>
         {loading ? (
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
             alignItems: 'center',
             height: '80vh',
             flexDirection: 'column',
             gap: '20px'
           }}>
-            <div 
+            <div
               className="spinner"
               style={{
                 width: '80px',
@@ -450,8 +459,8 @@ function App() {
               }}
             />
             <p
-              style={{ 
-                color: '#e2e8f0', 
+              style={{
+                color: '#e2e8f0',
                 fontSize: '1.2rem',
                 fontWeight: '500',
                 textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
@@ -467,7 +476,7 @@ function App() {
                 <Home user={user} />
               </PageWrapper>
             } />
-            
+
             <Route path="/inventory" element={
               <ProtectedRoute user={user}>
                 <PageWrapper key="inventory">
@@ -475,13 +484,13 @@ function App() {
                 </PageWrapper>
               </ProtectedRoute>
             } />
-            
+
             <Route path="/marketplace" element={
               <PageWrapper key="marketplace">
                 <Marketplace user={user} />
               </PageWrapper>
             } />
-            
+
             <Route path="/my-listings" element={
               <ProtectedRoute user={user}>
                 <PageWrapper key="my-listings">
@@ -489,7 +498,7 @@ function App() {
                 </PageWrapper>
               </ProtectedRoute>
             } />
-            
+
             <Route path="/settings/steam" element={
               <ProtectedRoute user={user}>
                 <PageWrapper key="steam-settings">
@@ -497,7 +506,7 @@ function App() {
                 </PageWrapper>
               </ProtectedRoute>
             } />
-            
+
             <Route path="/trades" element={
               <ProtectedRoute user={user}>
                 <PageWrapper key="trades">
@@ -505,7 +514,7 @@ function App() {
                 </PageWrapper>
               </ProtectedRoute>
             } />
-            
+
             <Route path="/trades/:tradeId" element={
               <ProtectedRoute user={user}>
                 <PageWrapper key="trade-detail">
@@ -513,7 +522,7 @@ function App() {
                 </PageWrapper>
               </ProtectedRoute>
             } />
-            
+
             <Route path="/profile" element={
               <ProtectedRoute user={user}>
                 <PageWrapper key="profile">
@@ -521,19 +530,27 @@ function App() {
                 </PageWrapper>
               </ProtectedRoute>
             } />
-            
+
             <Route path="/steam-settings" element={
               <ProtectedRoute>
                 <SteamSettingsPage />
               </ProtectedRoute>
             } />
-            
+
+            <Route path="/admin/tools" element={
+              <AdminRoute user={user}>
+                <PageWrapper key="admin-tools">
+                  <AdminTools />
+                </PageWrapper>
+              </AdminRoute>
+            } />
+
             {/* Catch-all route */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}
       </Suspense>
-      
+
       {/* Audio elements will be added later */}
     </div>
   );

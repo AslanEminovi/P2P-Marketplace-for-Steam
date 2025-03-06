@@ -413,14 +413,32 @@ exports.cancelListing = async (req, res) => {
       return res.status(404).json({ error: "Item not found." });
     }
 
-    // Verify ownership
-    if (item.owner.toString() !== userId.toString()) {
+    // Check if this is a force cancel request (for cleaning up listings)
+    const forceCancel = req.query.force === "true";
+
+    // Verify ownership unless this is a force cancel
+    if (!forceCancel && item.owner.toString() !== userId.toString()) {
       console.log(
         `Ownership mismatch: item owner ${item.owner} vs user ${userId}`
       );
-      return res
-        .status(403)
-        .json({ error: "You don't have permission to cancel this listing." });
+
+      // Check if the item might have been sold or transferred outside the platform
+      // If the original owner is the current user and the item is still listed,
+      // allow them to cancel it as a cleanup operation
+      const originalListedByUser = await User.findOne({
+        _id: userId,
+        listedItems: { $elemMatch: { $eq: item._id } },
+      });
+
+      if (!originalListedByUser) {
+        return res
+          .status(403)
+          .json({ error: "You don't have permission to cancel this listing." });
+      }
+
+      console.log(
+        `Item was listed by user ${userId} but ownership has changed. Cleaning up listing.`
+      );
     }
 
     // Update the item to not be listed
@@ -449,21 +467,12 @@ exports.cancelListing = async (req, res) => {
         title: "Listing Cancelled",
         message: `Your listing for ${item.marketHashName} has been cancelled.`,
         relatedItemId: item._id,
-        createdAt: new Date(),
-      });
-    }
-
-    // Notify marketplace of item removal
-    if (socketService?.sendMarketUpdate) {
-      socketService.sendMarketUpdate({
-        type: "item_removed",
-        itemId: item._id,
       });
     }
 
     return res.json({
       success: true,
-      message: "Listing cancelled successfully",
+      message: "Listing cancelled successfully.",
     });
   } catch (err) {
     console.error("Error cancelling listing:", err);

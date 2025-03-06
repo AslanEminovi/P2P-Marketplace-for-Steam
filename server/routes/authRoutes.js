@@ -87,6 +87,7 @@ router.post("/verify-token", async (req, res) => {
           walletBalance: user.walletBalance,
           walletBalanceGEL: user.walletBalanceGEL,
           lastProfileUpdate: user.lastProfileUpdate,
+          isAdmin: user.isAdmin || false,
         },
       });
     });
@@ -134,6 +135,7 @@ router.get("/user", async (req, res) => {
           walletBalance: req.user.walletBalance,
           walletBalanceGEL: req.user.walletBalanceGEL,
           lastProfileUpdate: req.user.lastProfileUpdate,
+          isAdmin: req.user.isAdmin || false,
         },
       });
     } catch (error) {
