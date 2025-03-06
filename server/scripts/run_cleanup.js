@@ -10,7 +10,7 @@
  */
 
 require("dotenv").config({ path: "../.env" });
-const { cleanupStuckListings } = require("../../cleanup_listings");
+const { cleanupStuckListings } = require("../cleanup_listings");
 
 // Main function
 const runCleanup = async () => {

@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { requireAuth, requireAdmin } = require("../middlewares/authMiddleware");
-const { cleanupStuckListings } = require("../../cleanup_listings");
+const { cleanupStuckListings } = require("../cleanup_listings");
 const mongoose = require("mongoose");
 
 // Middleware to ensure the user is authenticated and has admin privileges
