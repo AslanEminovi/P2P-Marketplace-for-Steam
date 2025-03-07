@@ -43,27 +43,41 @@ const TradeHistory = () => {
       }
       
       // Add safety defaults for missing fields that might cause rendering errors
-      const safeData = response.data.map(trade => ({
-        ...trade,
-        // Ensure these fields exist to prevent rendering errors
-        _id: trade._id || `temp-${Math.random()}`,
-        status: trade.status || 'unknown',
-        isUserBuyer: !!trade.isUserBuyer,
-        isUserSeller: !!trade.isUserSeller,
-        item: trade.item || { 
-          marketHashName: 'Unknown Item',
-          imageUrl: null
-        },
-        seller: trade.seller || { 
-          displayName: 'Unknown Seller',
-          avatar: null
-        },
-        buyer: trade.buyer || {
-          displayName: 'Unknown Buyer',
-          avatar: null
-        },
-        price: trade.price || 0
-      }));
+      const safeData = response.data.map(trade => {
+        // Log any trades with missing item data
+        if (!trade.item || !trade.item.marketHashName) {
+          console.warn('Trade with missing or incomplete item data:', trade);
+        }
+        
+        return {
+          ...trade,
+          // Ensure these fields exist to prevent rendering errors
+          _id: trade._id || `temp-${Math.random()}`,
+          status: trade.status || 'unknown',
+          isUserBuyer: !!trade.isUserBuyer,
+          isUserSeller: !!trade.isUserSeller,
+          item: trade.item || { 
+            marketHashName: 'Unknown Item',
+            imageUrl: null
+          },
+          // Ensure item has all needed properties
+          item: {
+            ...trade.item,
+            marketHashName: trade.item?.marketHashName || 'Unknown Item',
+            imageUrl: trade.item?.imageUrl || null,
+            wear: trade.item?.wear || ''
+          },
+          seller: trade.seller || { 
+            displayName: 'Unknown Seller',
+            avatar: null
+          },
+          buyer: trade.buyer || {
+            displayName: 'Unknown Buyer',
+            avatar: null
+          },
+          price: trade.price || 0
+        };
+      });
       
       setTrades(safeData);
     } catch (err) {
@@ -150,10 +164,6 @@ const TradeHistory = () => {
       }
       if (filter === 'completed') {
         return filtered.filter(trade => trade && trade.status === 'completed');
-      }
-      if (filter === 'cancelled') {
-        return filtered.filter(trade => trade && trade.status && 
-          ['cancelled', 'failed'].includes(trade.status));
       }
       return filtered;
     } catch (err) {
@@ -379,18 +389,6 @@ const TradeHistory = () => {
                 }}
               >
                 Completed
-              </button>
-              <button
-                onClick={() => setFilter('cancelled')}
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: filter === 'cancelled' ? '#3b82f6' : 'transparent',
-                  color: filter === 'cancelled' ? 'white' : '#d1d5db',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                Cancelled
               </button>
             </div>
           </div>

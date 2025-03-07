@@ -13,8 +13,10 @@ exports.getTradeHistory = async (req, res) => {
     const userId = req.user._id;
 
     // Look up trades where the user is either buyer or seller
+    // EXCLUDE cancelled and failed trades completely
     const trades = await Trade.find({
       $or: [{ buyer: userId }, { seller: userId }],
+      status: { $nin: ["cancelled", "failed"] }, // Exclude cancelled and failed trades
     })
       .populate("item")
       .populate("buyer", "displayName avatar steamId")
