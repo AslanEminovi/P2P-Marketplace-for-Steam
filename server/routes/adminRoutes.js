@@ -4,6 +4,7 @@ const { requireAuth, requireAdmin } = require("../middlewares/authMiddleware");
 const { cleanupStuckListings } = require("../cleanup_listings");
 const mongoose = require("mongoose");
 const axios = require("axios");
+const adminController = require("../controllers/adminController");
 
 // Middleware to ensure the user is authenticated and has admin privileges
 router.use(requireAuth);
@@ -320,6 +321,20 @@ router.post("/clear-sessions", async (req, res) => {
   } catch (error) {
     console.error("Error clearing sessions:", error);
     res.status(500).json({ error: "Failed to clear user sessions" });
+  }
+});
+
+/**
+ * @route   GET /admin/check-api-keys
+ * @desc    Check if Steam API keys are valid
+ * @access  Admin
+ */
+router.get("/check-api-keys", async (req, res) => {
+  try {
+    await adminController.checkApiKeys(req, res);
+  } catch (error) {
+    console.error("Error checking API keys:", error);
+    res.status(500).json({ error: "Failed to check API keys" });
   }
 });
 

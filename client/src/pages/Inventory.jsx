@@ -66,26 +66,57 @@ function Inventory() {
   const fetchInventory = async () => {
     try {
       setLoading(true);
+      setMessage('');
       const isAuthenticated = await checkAuthStatus();
       
       if (!isAuthenticated) {
         setLoading(false);
+        // Keep the message set by checkAuthStatus
         return;
       }
 
-      const res = await axios.get(`${API_URL}/inventory/my`, { withCredentials: true });
+      console.log('Fetching inventory...');
+      const res = await axios.get(`${API_URL}/inventory/my`, { 
+        withCredentials: true,
+        timeout: 30000 // 30 second timeout
+      });
+      
       console.log('Inventory response:', res.data);
       
       if (res.data && Array.isArray(res.data)) {
-        setItems(res.data);
-        setMessage('');
+        if (res.data.length === 0) {
+          setMessage('Your CS2 inventory is empty or private. Please check your Steam inventory privacy settings.');
+        } else {
+          setItems(res.data);
+          setMessage('');
+        }
       } else {
         setMessage('No items found in inventory.');
         setItems([]);
       }
     } catch (err) {
       console.error('Inventory fetch error:', err.response || err);
-      setMessage(err.response?.data?.error || 'Failed to fetch inventory.');
+      
+      // Handle various error codes with specific messages
+      const errorCode = err.response?.data?.code;
+      const errorDetails = err.response?.data?.error || 'Failed to fetch inventory.';
+      
+      if (errorCode === 'MISSING_API_KEY') {
+        setMessage('Server configuration error. Please contact administrators.');
+      } else if (errorCode === 'API_AUTH_ERROR') {
+        setMessage('Steam API authentication failed. Please contact administrators.');
+      } else if (errorCode === 'RATE_LIMIT') {
+        setMessage('Rate limit exceeded. Please wait a few minutes and try again.');
+      } else if (errorCode === 'INVENTORY_NOT_FOUND') {
+        setMessage('Your Steam inventory appears to be private. Please check your Steam privacy settings and ensure your inventory is set to "Public".');
+      } else if (errorCode === 'TIMEOUT') {
+        setMessage('Connection timed out when fetching inventory. Steam servers might be busy, please try again later.');
+      } else if (errorCode === 'NETWORK_ERROR') {
+        setMessage('Network error when connecting to Steam. Please check your internet connection and try again.');
+      } else {
+        setMessage(errorDetails);
+      }
+      
       setItems([]);
     } finally {
       setLoading(false);
@@ -223,6 +254,106 @@ function Inventory() {
           maxWidth: '400px',
           margin: '0 auto'
         }}>{message}</p>
+      </div>
+    );
+  }
+
+  if (message) {
+    return (
+      <div style={{ 
+        color: '#e2e8f0',
+        padding: '30px',
+        maxWidth: '1200px',
+        margin: '0 auto'
+      }}>
+        <div style={{
+          padding: '2rem',
+          borderRadius: '1rem',
+          backgroundColor: 'rgba(45, 27, 105, 0.5)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            marginBottom: '1.5rem'
+          }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" 
+              style={{ margin: '0 auto' }}
+              stroke="#f87171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+          
+          <h2 style={{ 
+            fontSize: '1.5rem',
+            marginBottom: '1rem',
+            color: '#f1f1f1'
+          }}>
+            Unable to Load Inventory
+          </h2>
+          
+          <p style={{
+            fontSize: '1rem',
+            marginBottom: '1.5rem',
+            color: '#d1d5db',
+            maxWidth: '600px',
+            margin: '0 auto 1.5rem'
+          }}>
+            {message}
+          </p>
+          
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '1rem'
+          }}>
+            <button
+              onClick={fetchInventory}
+              style={{
+                background: 'linear-gradient(to right, #3b82f6, #8b5cf6)',
+                color: 'white',
+                border: 'none',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '0.5rem',
+                cursor: 'pointer',
+                fontWeight: '500',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Try Again
+            </button>
+            
+            <a 
+              href="https://steamcommunity.com/my/edit/settings" 
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                background: 'transparent',
+                color: '#93c5fd',
+                border: '1px solid #3b82f6',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '0.5rem',
+                cursor: 'pointer',
+                fontWeight: '500',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              Steam Privacy Settings
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
+          </div>
+        </div>
       </div>
     );
   }
