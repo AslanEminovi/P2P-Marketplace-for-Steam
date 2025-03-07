@@ -20,7 +20,7 @@
 }
 
 .cyber-grid {
-  background: url('/path/to/cyber-grid.png') repeat;
+  background: url('/cyber-grid.png') repeat;
   opacity: 0.05;
   width: 100%;
   height: 100%;
