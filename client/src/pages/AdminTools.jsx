@@ -301,6 +301,34 @@ function AdminTools() {
     return <Pagination>{items}</Pagination>;
   };
 
+  // First, add a function to remove a listing
+  const removeItemListing = async (itemId) => {
+    try {
+      setItemsLoading(true);
+      const response = await axios.post(`${API_URL}/admin/items/${itemId}/remove-listing`, {}, { 
+        withCredentials: true 
+      });
+      
+      // Update the items list to reflect the change
+      setItems(items.map(item => 
+        item._id === itemId ? { ...item, isListed: false } : item
+      ));
+      
+      setMessage({
+        type: 'success',
+        text: 'Item listing removed successfully'
+      });
+    } catch (error) {
+      console.error('Error removing item listing:', error);
+      setMessage({
+        type: 'danger',
+        text: `Error removing listing: ${error.response?.data?.error || error.message}`
+      });
+    } finally {
+      setItemsLoading(false);
+    }
+  };
+
   return (
     <Container className="py-5">
       <h1 className="mb-4">Admin Tools</h1>
@@ -808,9 +836,10 @@ function ItemsTab({
               <tr>
                 <th>Name</th>
                 <th>Owner</th>
-                <th>Type</th>
+                <th>Rarity</th>
                 <th>Status</th>
                 <th>Price</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -836,6 +865,17 @@ function ItemsTab({
                     )}
                   </td>
                   <td>${item.price?.toFixed(2) || 'N/A'}</td>
+                  <td>
+                    {item.isListed && (
+                      <Button 
+                        variant="outline-danger" 
+                        size="sm"
+                        onClick={() => removeItemListing(item._id)}
+                      >
+                        Remove Listing
+                      </Button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

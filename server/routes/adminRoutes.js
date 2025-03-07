@@ -279,4 +279,35 @@ router.get("/items", async (req, res) => {
   }
 });
 
+/**
+ * @route   POST /admin/items/:itemId/remove-listing
+ * @desc    Remove a specific item listing
+ * @access  Admin
+ */
+router.post("/items/:itemId/remove-listing", async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const Item = mongoose.model("Item");
+
+    const item = await Item.findById(itemId);
+
+    if (!item) {
+      return res.status(404).json({ error: "Item not found" });
+    }
+
+    // Update the item to not listed
+    item.isListed = false;
+    await item.save();
+
+    res.json({
+      success: true,
+      message: "Item listing removed successfully",
+      item,
+    });
+  } catch (error) {
+    console.error("Error removing item listing:", error);
+    res.status(500).json({ error: "Failed to remove item listing" });
+  }
+});
+
 module.exports = router;
