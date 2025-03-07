@@ -121,14 +121,47 @@ async function cleanupStuckListings(userId = null) {
       console.log("Query:", JSON.stringify(query));
     }
 
-    // Find and update all items that are still marked as listed
-    console.log("Running update query with:", JSON.stringify(query));
-    const updateResult = await Item.updateMany(query, {
-      $set: { isListed: false },
-    });
+    // Instead of updateMany, which can trigger duplicate key errors,
+    // find all items first and process them one by one
+    console.log("Finding listed items with query:", JSON.stringify(query));
+    const listedItems = await Item.find(query);
+    console.log(`Found ${listedItems.length} listed items to clean up`);
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Process each item individually
+    for (const item of listedItems) {
+      try {
+        // Try to find if a duplicate exists (same owner and assetId but already unlisted)
+        const duplicateExists = await Item.findOne({
+          _id: { $ne: item._id }, // Not this item
+          $or: [{ owner: item.owner }, { ownerId: item.ownerId }],
+          assetId: item.assetId,
+          isListed: false,
+        });
+
+        if (duplicateExists) {
+          console.log(
+            `Found duplicate for item ${item._id} - will delete this item instead of unlisting`
+          );
+          // If a duplicate already exists unlisted, delete this one instead
+          await Item.deleteOne({ _id: item._id });
+          successCount++;
+        } else {
+          // No duplicate, safe to update
+          item.isListed = false;
+          await item.save();
+          successCount++;
+        }
+      } catch (itemError) {
+        console.error(`Error processing item ${item._id}:`, itemError);
+        errorCount++;
+      }
+    }
 
     console.log(
-      `Cleanup completed: ${updateResult.modifiedCount} listings updated`
+      `Cleanup completed: ${successCount} listings processed successfully, ${errorCount} errors`
     );
 
     // Also clean up any trades that are in pending or offer_sent status
@@ -164,8 +197,9 @@ async function cleanupStuckListings(userId = null) {
     }
 
     return {
-      itemsUpdated: updateResult.modifiedCount,
+      itemsUpdated: successCount,
       tradesUpdated: tradeUpdateResult.modifiedCount,
+      itemErrors: errorCount,
     };
   } catch (error) {
     console.error("Error during cleanup:", error);

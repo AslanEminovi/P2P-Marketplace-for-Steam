@@ -41,6 +41,11 @@ function AdminTools() {
   const [itemSearch, setItemSearch] = useState('');
   const [itemFilter, setItemFilter] = useState({ isListed: null });
 
+  // In the AdminTools component, add state for fixing glitched items
+  const [assetId, setAssetId] = useState('');
+  const [fixingGlitched, setFixingGlitched] = useState(false);
+  const [fixResults, setFixResults] = useState(null);
+
   // Load initial data
   useEffect(() => {
     if (activeTab === 'dashboard') {
@@ -260,6 +265,55 @@ function AdminTools() {
     }
   };
 
+  // Add a function to fix glitched items
+  const fixGlitchedItem = async (e) => {
+    e.preventDefault();
+    if (!assetId.trim()) {
+      setMessage({
+        type: 'warning',
+        text: 'Please enter a valid Asset ID'
+      });
+      return;
+    }
+
+    try {
+      setFixingGlitched(true);
+      setMessage(null);
+      
+      console.log(`Calling API to fix glitched item with assetId: ${assetId}`);
+      const response = await axios.post(`${API_URL}/admin/fix-glitched-item`, 
+        { assetId }, 
+        { withCredentials: true }
+      );
+      
+      console.log('Fix glitched item response:', response.data);
+      setFixResults(response.data);
+      setMessage({
+        type: 'success',
+        text: response.data.message
+      });
+    } catch (error) {
+      console.error('Error fixing glitched item:', error);
+      // Show more detailed error information
+      let errorMessage = 'Error fixing glitched item';
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        errorMessage += `: ${error.response.data.details || error.response.data.error || error.message}`;
+      } else if (error.request) {
+        errorMessage += ': No response from server. Please check your connection.';
+      } else {
+        errorMessage += `: ${error.message}`;
+      }
+      
+      setMessage({
+        type: 'danger',
+        text: errorMessage
+      });
+    } finally {
+      setFixingGlitched(false);
+    }
+  };
+
   // Pagination component
   const renderPagination = (pagination, onPageChange) => {
     if (!pagination || pagination.pages <= 1) return null;
@@ -394,10 +448,15 @@ function AdminTools() {
           <CleanupTab 
             userId={userId}
             setUserId={setUserId}
+            assetId={assetId}
+            setAssetId={setAssetId}
             loading={loading}
+            fixingGlitched={fixingGlitched}
             results={cleanupResults}
+            fixResults={fixResults}
             cleanupAllListings={cleanupAllListings}
             cleanupUserListings={cleanupUserListings}
+            fixGlitchedItem={fixGlitchedItem}
           />
         </Tab>
         
@@ -670,7 +729,13 @@ function DashboardTab({ stats, loading, refreshStats }) {
 }
 
 // Cleanup Tab Component
-function CleanupTab({ userId, setUserId, loading, results, cleanupAllListings, cleanupUserListings }) {
+function CleanupTab({ 
+  userId, setUserId, 
+  assetId, setAssetId,
+  loading, fixingGlitched,
+  results, fixResults, 
+  cleanupAllListings, cleanupUserListings, fixGlitchedItem 
+}) {
   return (
     <Row>
       <Col md={6} className="mb-4">
@@ -725,6 +790,40 @@ function CleanupTab({ userId, setUserId, loading, results, cleanupAllListings, c
         </Card>
       </Col>
       
+      <Col md={12} className="mb-4">
+        <Card className="bg-dark text-white">
+          <Card.Body>
+            <Card.Title>Fix Glitched Item</Card.Title>
+            <Card.Text>
+              This will fix a specific glitched item that appears listed but should not be.
+              Use this for items that show duplicate key errors.
+            </Card.Text>
+            <Form onSubmit={fixGlitchedItem}>
+              <Form.Group className="mb-3">
+                <Form.Label>Asset ID</Form.Label>
+                <Form.Control 
+                  type="text" 
+                  placeholder="Enter Steam Asset ID (e.g., 41301620924)" 
+                  value={assetId}
+                  onChange={(e) => setAssetId(e.target.value)}
+                  disabled={fixingGlitched}
+                />
+                <Form.Text className="text-muted">
+                  Enter the Steam Asset ID of the glitched item (from the error message)
+                </Form.Text>
+              </Form.Group>
+              <Button 
+                variant="info" 
+                type="submit" 
+                disabled={fixingGlitched}
+              >
+                {fixingGlitched ? 'Processing...' : 'Fix Glitched Item'}
+              </Button>
+            </Form>
+          </Card.Body>
+        </Card>
+      </Col>
+      
       {results && (
         <Col md={12}>
           <Card className="mt-4 bg-dark text-white">
@@ -732,6 +831,19 @@ function CleanupTab({ userId, setUserId, loading, results, cleanupAllListings, c
               <Card.Title>Cleanup Results</Card.Title>
               <pre className="bg-dark text-white p-3 rounded">
                 {JSON.stringify(results, null, 2)}
+              </pre>
+            </Card.Body>
+          </Card>
+        </Col>
+      )}
+      
+      {fixResults && (
+        <Col md={12}>
+          <Card className="mt-4 bg-dark text-white">
+            <Card.Body>
+              <Card.Title>Fix Results</Card.Title>
+              <pre className="bg-dark text-white p-3 rounded">
+                {JSON.stringify(fixResults, null, 2)}
               </pre>
             </Card.Body>
           </Card>

@@ -21,6 +21,20 @@ router.post("/cleanup-listings", async (req, res) => {
     res.json(results);
   } catch (error) {
     console.error("Error in cleanup-listings route:", error);
+
+    // Check for duplicate key error
+    if (error.message && error.message.includes("E11000 duplicate key error")) {
+      console.log(
+        "Duplicate key error detected, will provide specific guidance"
+      );
+      return res.status(500).json({
+        error: "Duplicate item detected in database",
+        details:
+          "There is a duplicate item in your database. The script has been updated to handle this. Please try again.",
+        errorCode: "E11000",
+      });
+    }
+
     // Send more detailed error information
     res.status(500).json({
       error: "Failed to cleanup listings",
@@ -44,6 +58,20 @@ router.post("/cleanup-listings/:userId", async (req, res) => {
     res.json(results);
   } catch (error) {
     console.error("Error in cleanup-listings/:userId route:", error);
+
+    // Check for duplicate key error
+    if (error.message && error.message.includes("E11000 duplicate key error")) {
+      console.log(
+        "Duplicate key error detected, will provide specific guidance"
+      );
+      return res.status(500).json({
+        error: "Duplicate item detected in database",
+        details:
+          "There is a duplicate item in your database. The script has been updated to handle this. Please try again.",
+        errorCode: "E11000",
+      });
+    }
+
     // Send more detailed error information
     res.status(500).json({
       error: "Failed to cleanup user listings",
@@ -339,6 +367,89 @@ router.post("/items/:itemId/remove-listing", async (req, res) => {
     // Send more detailed error information
     res.status(500).json({
       error: "Failed to remove item listing",
+      details: error.message,
+      stack: process.env.NODE_ENV === "production" ? null : error.stack,
+    });
+  }
+});
+
+/**
+ * @route   POST /admin/fix-glitched-item
+ * @desc    Fix a specific glitched item by assetId
+ * @access  Admin
+ */
+router.post("/fix-glitched-item", async (req, res) => {
+  try {
+    const { assetId } = req.body;
+
+    if (!assetId) {
+      return res.status(400).json({ error: "Asset ID is required" });
+    }
+
+    console.log(`Admin route: Fixing glitched item with assetId: ${assetId}`);
+
+    const Item = mongoose.model("Item");
+
+    // Find all items with this assetId
+    const items = await Item.find({ assetId });
+
+    console.log(`Found ${items.length} items with assetId ${assetId}`);
+
+    if (items.length === 0) {
+      return res
+        .status(404)
+        .json({ error: "No items found with that Asset ID" });
+    }
+
+    // If there are multiple items with the same assetId, keep only one (the unlisted one)
+    if (items.length > 1) {
+      console.log(
+        `Found ${items.length} duplicate items with assetId ${assetId}`
+      );
+
+      // First, ensure all are unlisted
+      for (const item of items) {
+        item.isListed = false;
+        await item.save();
+      }
+
+      // Then delete all but one
+      const keepItem = items[0];
+      for (let i = 1; i < items.length; i++) {
+        console.log(`Deleting duplicate item ${items[i]._id}`);
+        await Item.deleteOne({ _id: items[i]._id });
+      }
+
+      return res.json({
+        success: true,
+        message: `Fixed glitched item. Kept item ${keepItem._id} and deleted ${
+          items.length - 1
+        } duplicates`,
+        keptItem: keepItem,
+      });
+    }
+
+    // If there's only one item, make sure it's not listed
+    const item = items[0];
+    if (item.isListed) {
+      item.isListed = false;
+      await item.save();
+      return res.json({
+        success: true,
+        message: "Item was listed and has been set to unlisted",
+        item,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Item was already properly unlisted",
+      item,
+    });
+  } catch (error) {
+    console.error("Error fixing glitched item:", error);
+    res.status(500).json({
+      error: "Failed to fix glitched item",
       details: error.message,
       stack: process.env.NODE_ENV === "production" ? null : error.stack,
     });
