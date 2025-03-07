@@ -341,12 +341,13 @@ function App() {
   }, [user]);
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
+    <div className="app-container">
+      {/* Background effects */}
+      <div className="grid-pattern"></div>
+      <div className="noise-overlay"></div>
+      <div className="scan-lines"></div>
+      
+      {/* Main content */}
       <Navbar user={user} onLogout={handleLogout} />
       
       {/* Toast notifications */}
