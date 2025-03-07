@@ -538,8 +538,10 @@ function App() {
             } />
             
             <Route path="/steam-settings" element={
-              <ProtectedRoute>
-                <SteamSettingsPage />
+              <ProtectedRoute user={user}>
+                <PageWrapper key="steam-settings">
+                  <SteamSettingsPage />
+                </PageWrapper>
               </ProtectedRoute>
             } />
             

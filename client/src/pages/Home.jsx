@@ -22,10 +22,10 @@ function Home({ user }) {
     backgroundImage: `url(${cyberGridBg})`,
     backgroundRepeat: 'repeat',
     backgroundSize: '200px 200px',
-    opacity: 0.03,
+    opacity: 0.5, // 50% visibility as requested
     width: '100%',
-    height: '100%',
-    position: 'fixed',
+    height: '100vh', // Limit height to viewport height to cover until search section
+    position: 'absolute', // Changed from fixed to absolute
     top: 0,
     left: 0,
     zIndex: 1,
@@ -38,11 +38,11 @@ function Home({ user }) {
     backgroundRepeat: 'no-repeat',
     backgroundPosition: 'center',
     backgroundSize: 'contain',
-    opacity: 0.02,
-    width: '80%',
-    height: '80%',
-    position: 'fixed',
-    top: '50%',
+    opacity: 0.75, // 75% visibility as requested
+    width: '50%',
+    height: '50%',
+    position: 'absolute', // Changed from fixed to absolute
+    top: '30%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
     zIndex: 1,
