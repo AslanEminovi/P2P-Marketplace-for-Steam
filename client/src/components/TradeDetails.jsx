@@ -120,16 +120,41 @@ const TradeDetails = ({ tradeId }) => {
         timeout: 15000 // 15 second timeout
       });
       
+      // Check if we received a valid response
       if (!response.data || !response.data._id) {
         console.error('Invalid or empty trade data received:', response.data);
         throw new Error('Received invalid trade data from server');
       }
       
-      setTrade(response.data);
-      console.log('Trade details loaded:', response.data);
+      // Ensure the trade has item data - provide fallbacks if missing
+      const trade = response.data;
+      
+      // If item is missing, create a fallback item with any available data
+      if (!trade.item || typeof trade.item !== 'object') {
+        console.warn('Trade missing item data, creating fallback:', trade);
+        trade.item = {
+          marketHashName: trade.itemName || 'Unknown Item',
+          imageUrl: trade.itemImage || 'https://community.cloudflare.steamstatic.com/economy/image/fWFc82js0fmoRAP-qOIPu5THSWqfSmTELLqcUywGkijVjZULUrsm1j-9xgEGegouTxTgsSxQt5M1V_eNC-VZzY89ssYDjGIzw1B_Z7PlMmQzJVGaVaUJC_Q7-Q28UiRh7pQ7VoLj9ewDKw_us4PAN7coOopJTMDWXvSGMF_860g60agOe8ONpyK-i3vuaGgCUg25_ToQnOKE6bBunMsoYhg/360fx360f',
+          wear: trade.itemWear || 'Unknown',
+          rarity: trade.itemRarity || 'Unknown',
+          assetId: trade.assetId || 'Unknown'
+        };
+      }
+      
+      // Ensure buyer and seller objects exist
+      if (!trade.buyer || typeof trade.buyer !== 'object') {
+        trade.buyer = { displayName: 'Unknown Buyer', avatar: '' };
+      }
+      
+      if (!trade.seller || typeof trade.seller !== 'object') {
+        trade.seller = { displayName: 'Unknown Seller', avatar: '' };
+      }
+      
+      setTrade(trade);
+      console.log('Trade details loaded:', trade);
       
       // Set UI states based on trade status
-      if (response.data.status === 'offer_sent') {
+      if (trade.status === 'offer_sent') {
         setSellerWaitingForBuyer(true);
       }
       
@@ -140,17 +165,17 @@ const TradeDetails = ({ tradeId }) => {
         });
         
         const userId = currentUser.data._id;
-        setIsBuyer(userId === response.data.buyer._id);
-        setIsSeller(userId === response.data.seller._id);
+        setIsBuyer(userId === trade.buyer._id);
+        setIsSeller(userId === trade.seller._id);
       } catch (profileError) {
         console.error('Error loading user profile:', profileError);
         // Continue even if this part fails - we can still show trade details
       }
       
       // Reset loading states based on status
-      if (response.data.status === 'completed' || 
-          response.data.status === 'cancelled' || 
-          response.data.status === 'failed') {
+      if (trade.status === 'completed' || 
+          trade.status === 'cancelled' || 
+          trade.status === 'failed') {
         setCanConfirmReceived(false);
         setConfirmLoading(false);
         setSendingLoading(false);
