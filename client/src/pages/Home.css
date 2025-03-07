@@ -47,10 +47,8 @@
   bottom: 0;
   background: 
     radial-gradient(circle at 15% 50%, rgba(124, 58, 237, 0.15) 0%, transparent 40%),
-    radial-gradient(circle at 85% 30%, rgba(6, 182, 212, 0.15) 0%, transparent 40%),
-    radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 60%);
+    radial-gradient(circle at 85% 30%, rgba(6, 182, 212, 0.15) 0%, transparent 40%);
   z-index: 0;
-  animation: gradientShift 15s ease infinite;
 }
 
 .search-section-container {
@@ -61,6 +59,10 @@
   z-index: 10;
   border-top: 1px solid rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  background-image: url('/images/cs2-knife.png'), url('/images/cs2-weapon.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .featured-section-container {
@@ -177,6 +179,10 @@
   line-height: 1.1;
   margin-bottom: 1.5rem;
   letter-spacing: -0.02em;
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 @media (max-width: 768px) {
@@ -190,6 +196,18 @@
   line-height: 1.6;
   color: var(--text-secondary);
   margin-bottom: 2.5rem;
+  background: var(--secondary-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-content::after {
+  content: 'Explore the ultimate CS2 marketplace with secure trading and exclusive items!';
+  display: block;
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-top: 1rem;
 }
 
 .gradient-text {
@@ -540,6 +558,16 @@
   backdrop-filter: blur(10px);
   position: relative;
   overflow: hidden;
+  box-shadow: var(--glow-effect);
+}
+
+.feature-card::after {
+  content: 'Secure Trading';
+  display: block;
+  font-size: 1.2rem;
+  color: var(--accent-color);
+  margin-top: 1rem;
+  text-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
 }
 
 .feature-card::before {
@@ -609,6 +637,12 @@
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 2.5rem;
   margin-top: 4rem;
+  animation: roadmapScroll 1s ease-out forwards;
+}
+
+@keyframes roadmapScroll {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .step-card {
@@ -850,15 +884,9 @@
 }
 
 @keyframes gradientShift {
-  0% {
-    background-position: 0% 50%, 100% 50%, 50% 50%;
-  }
-  50% {
-    background-position: 100% 50%, 0% 50%, 30% 70%;
-  }
-  100% {
-    background-position: 0% 50%, 100% 50%, 50% 50%;
-  }
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* Responsive adjustments */
@@ -884,285 +912,31 @@
   }
 }
 
-/* Loading Screen */
+/* ===== LOADING SCREEN STYLES ===== */
 .loading-screen {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  height: 100vh;
+  height: 100%;
   background: var(--surface-darker);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: fadeIn 0.5s ease-out;
 }
 
-.loading-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2rem;
+.loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 6px solid rgba(139, 92, 246, 0.1);
+  border-left-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
-.loading-logo {
-  position: relative;
-}
-
-.loading-icon {
-  font-size: 4rem;
-  font-weight: 800;
-  background: var(--primary-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 0 15px rgba(124, 58, 237, 0.5));
-}
-
-.loading-bar {
-  width: 200px;
-  height: 4px;
-  background: var(--primary-gradient);
-  border-radius: 2px;
-  overflow: hidden;
-  position: relative;
-}
-
-.loading-text {
-  color: var(--text-secondary);
-  font-size: 1.1rem;
-  font-weight: 500;
-}
-
-/* Hero Features */
-.hero-features {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin: 2rem 0;
-}
-
-.feature-tag {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 1.2rem;
-  background: rgba(124, 58, 237, 0.1);
-  border: 1px solid rgba(124, 58, 237, 0.2);
-  border-radius: 12px;
-  color: white;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.feature-tag:hover {
-  transform: translateY(-2px);
-  background: rgba(124, 58, 237, 0.2);
-  border-color: rgba(124, 58, 237, 0.3);
-  box-shadow: var(--glow-effect);
-}
-
-.feature-icon {
-  font-size: 1.2rem;
-}
-
-/* Hero Image Grid */
-.hero-image-grid {
-  position: relative;
-  width: 100%;
-  height: 500px;
-}
-
-.hero-image {
-  position: absolute;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
-}
-
-.hero-image.featured-1 {
-  width: 60%;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 3;
-}
-
-.hero-image.featured-2 {
-  width: 50%;
-  top: 30%;
-  left: 30%;
-  transform: translate(-50%, -50%);
-  z-index: 2;
-}
-
-.hero-image.featured-3 {
-  width: 45%;
-  top: 60%;
-  left: 65%;
-  transform: translate(-50%, -50%);
-  z-index: 1;
-}
-
-/* Gradient Text Highlights */
-.highlight-purple {
-  color: #8B5CF6;
-  font-weight: 600;
-  position: relative;
-  display: inline-block;
-}
-
-.highlight-blue {
-  color: #3B82F6;
-  font-weight: 600;
-  position: relative;
-  display: inline-block;
-}
-
-.highlight-green {
-  color: #10B981;
-  font-weight: 600;
-  position: relative;
-  display: inline-block;
-}
-
-.highlight-purple::after,
-.highlight-blue::after,
-.highlight-green::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  border-radius: 2px;
-  opacity: 0.3;
-}
-
-.highlight-purple::after {
-  background: #8B5CF6;
-}
-
-.highlight-blue::after {
-  background: #3B82F6;
-}
-
-.highlight-green::after {
-  background: #10B981;
-}
-
-/* Scroll Animations */
-.animate-in {
-  animation: fadeInUp 0.8s ease forwards;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(50px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Features Section Enhancements */
-.feature-card {
-  position: relative;
-  overflow: hidden;
-}
-
-.feature-card::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.feature-card:hover::after {
-  opacity: 1;
-}
-
-.feature-icon {
-  position: relative;
-}
-
-.feature-icon::after {
-  content: '';
-  position: absolute;
-  inset: -5px;
-  background: var(--primary-gradient);
-  opacity: 0.1;
-  border-radius: inherit;
-  filter: blur(10px);
-}
-
-/* How It Works Section - Roadmap Style */
-.steps-container {
-  position: relative;
-}
-
-.steps-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 2px;
-  height: 100%;
-  background: var(--primary-gradient);
-  opacity: 0.3;
-}
-
-.step-card {
-  position: relative;
-  margin-left: auto;
-  margin-right: auto;
-  width: calc(50% - 2rem);
-}
-
-.step-card:nth-child(odd) {
-  margin-right: 50%;
-}
-
-.step-card:nth-child(even) {
-  margin-left: 50%;
-}
-
-.step-card::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  width: 2rem;
-  height: 2px;
-  background: var(--primary-gradient);
-}
-
-.step-card:nth-child(odd)::before {
-  right: -2rem;
-}
-
-.step-card:nth-child(even)::before {
-  left: -2rem;
-}
-
-@media (max-width: 768px) {
-  .steps-container::before {
-    left: 0;
-  }
-  
-  .step-card {
-    width: calc(100% - 3rem);
-    margin-left: 3rem !important;
-  }
-  
-  .step-card::before {
-    left: -2rem !important;
-  }
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
