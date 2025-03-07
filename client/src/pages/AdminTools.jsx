@@ -301,7 +301,7 @@ function AdminTools() {
     return <Pagination>{items}</Pagination>;
   };
 
-  // First, add a function to remove a listing
+  // Function to remove a specific item listing
   const removeItemListing = async (itemId) => {
     try {
       setItemsLoading(true);
@@ -386,6 +386,7 @@ function AdminTools() {
             handleItemSearch={handleItemSearch}
             fetchItems={fetchItems}
             renderPagination={renderPagination}
+            removeItemListing={removeItemListing}
           />
         </Tab>
       </Tabs>
@@ -789,7 +790,8 @@ function UsersTab({
 // Items Tab Component
 function ItemsTab({ 
   items, loading, pagination, itemSearch, setItemSearch, 
-  itemFilter, handleItemFilter, handleItemSearch, fetchItems, renderPagination
+  itemFilter, handleItemFilter, handleItemSearch, fetchItems, renderPagination,
+  removeItemListing
 }) {
   return (
     <>
