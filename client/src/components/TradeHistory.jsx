@@ -23,17 +23,17 @@ const TradeHistory = () => {
       const response = await axios.get(`${API_URL}/trades/history`, {
         withCredentials: true
       });
-      
+
       if (!response || !response.data) {
         console.error('Empty response from server');
         setTrades([]);
         setError('No data received from server');
         return;
       }
-      
+
       // Log the response for debugging
       console.log('Trade History API Response:', response.data);
-      
+
       // Handle non-array responses
       if (!Array.isArray(response.data)) {
         console.error('Expected array but got:', typeof response.data);
@@ -41,14 +41,14 @@ const TradeHistory = () => {
         setError('Received invalid data format from server');
         return;
       }
-      
+
       // Add safety defaults for missing fields that might cause rendering errors
       const safeData = response.data.map(trade => {
         // Log any trades with missing item data
         if (!trade.item || !trade.item.marketHashName) {
           console.warn('Trade with missing or incomplete item data:', trade);
         }
-        
+
         return {
           ...trade,
           // Ensure these fields exist to prevent rendering errors
@@ -56,7 +56,7 @@ const TradeHistory = () => {
           status: trade.status || 'unknown',
           isUserBuyer: !!trade.isUserBuyer,
           isUserSeller: !!trade.isUserSeller,
-          item: trade.item || { 
+          item: trade.item || {
             marketHashName: 'Unknown Item',
             imageUrl: null
           },
@@ -67,7 +67,7 @@ const TradeHistory = () => {
             imageUrl: trade.item?.imageUrl || null,
             wear: trade.item?.wear || ''
           },
-          seller: trade.seller || { 
+          seller: trade.seller || {
             displayName: 'Unknown Seller',
             avatar: null
           },
@@ -78,7 +78,7 @@ const TradeHistory = () => {
           price: trade.price || 0
         };
       });
-      
+
       setTrades(safeData);
     } catch (err) {
       console.error('Error fetching trades:', err);
@@ -123,7 +123,7 @@ const TradeHistory = () => {
     };
 
     const colors = getStatusColor();
-    
+
     return (
       <span style={{
         display: 'inline-flex',
@@ -145,21 +145,21 @@ const TradeHistory = () => {
       console.error('Trades is not an array:', trades);
       return [];
     }
-    
+
     try {
       let filtered = [...trades]; // Make a copy to avoid mutations
-      
+
       // First filter by role (buyer/seller)
       if (roleFilter === 'sent') {
         filtered = filtered.filter(trade => trade && trade.isUserBuyer);
       } else if (roleFilter === 'received') {
         filtered = filtered.filter(trade => trade && trade.isUserSeller);
       }
-      
+
       // Then filter by status
       if (filter === 'all') return filtered;
       if (filter === 'active') {
-        return filtered.filter(trade => trade && trade.status && 
+        return filtered.filter(trade => trade && trade.status &&
           ['awaiting_seller', 'offer_sent', 'awaiting_confirmation', 'created', 'pending'].includes(trade.status));
       }
       if (filter === 'completed') {
@@ -183,8 +183,8 @@ const TradeHistory = () => {
         <tr key={trade._id || index}>
           <td style={{ padding: '12px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              <img 
-                src={trade.item?.imageUrl || 'https://via.placeholder.com/50'} 
+              <img
+                src={trade.item?.imageUrl || 'https://via.placeholder.com/50'}
                 alt={trade.item?.marketHashName || 'Unknown Item'}
                 style={{
                   width: '50px',
@@ -206,14 +206,14 @@ const TradeHistory = () => {
           </td>
           <td style={{ padding: '12px 16px' }}>
             <div style={{ color: '#f1f1f1' }}>
-              <div style={{ 
-                display: 'flex', 
+              <div style={{
+                display: 'flex',
                 alignItems: 'center',
                 margin: '4px 0',
                 color: trade.isUserBuyer ? '#f1f1f1' : '#4ade80'
               }}>
-                <span style={{ 
-                  display: 'inline-block', 
+                <span style={{
+                  display: 'inline-block',
                   width: '60px',
                   color: '#9ca3af',
                   fontSize: '0.75rem'
@@ -221,7 +221,7 @@ const TradeHistory = () => {
                   Seller:
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <img 
+                  <img
                     src={trade.seller?.avatar || 'https://via.placeholder.com/20'}
                     alt={trade.seller?.displayName || 'Unknown'}
                     style={{
@@ -234,14 +234,14 @@ const TradeHistory = () => {
                   {trade.seller?.displayName || 'Unknown'}
                 </div>
               </div>
-              <div style={{ 
-                display: 'flex', 
+              <div style={{
+                display: 'flex',
                 alignItems: 'center',
                 margin: '4px 0',
                 color: trade.isUserBuyer ? '#4ade80' : '#f1f1f1'
               }}>
-                <span style={{ 
-                  display: 'inline-block', 
+                <span style={{
+                  display: 'inline-block',
                   width: '60px',
                   color: '#9ca3af',
                   fontSize: '0.75rem'
@@ -249,7 +249,7 @@ const TradeHistory = () => {
                   Buyer:
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <img 
+                  <img
                     src={trade.buyer?.avatar || 'https://via.placeholder.com/20'}
                     alt={trade.buyer?.displayName || 'Unknown'}
                     style={{
@@ -322,9 +322,9 @@ const TradeHistory = () => {
         backdropFilter: 'blur(8px)',
         border: '1px solid rgba(255, 255, 255, 0.1)'
       }}>
-        <h1 style={{ 
-          color: '#f1f1f1', 
-          margin: '0', 
+        <h1 style={{
+          color: '#f1f1f1',
+          margin: '0',
           fontSize: '1.75rem',
           display: 'flex',
           alignItems: 'center',
@@ -336,9 +336,9 @@ const TradeHistory = () => {
           </svg>
           Trade History
         </h1>
-        
-        <div className="filter-container" style={{ 
-          display: 'flex', 
+
+        <div className="filter-container" style={{
+          display: 'flex',
           gap: '16px',
           background: 'rgba(45, 27, 105, 0.5)',
           padding: '8px',
@@ -392,7 +392,7 @@ const TradeHistory = () => {
               </button>
             </div>
           </div>
-          
+
           <div className="filter-group">
             <span style={{ color: '#e5e7eb', marginRight: '10px' }}>Role:</span>
             <div className="filter-buttons" style={{
@@ -444,15 +444,15 @@ const TradeHistory = () => {
 
       {/* Loading state */}
       {loading && (
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
           alignItems: 'center',
           padding: '60px 0',
           flexDirection: 'column',
           gap: '1.5rem'
         }}>
-          <div 
+          <div
             className="spinner"
             style={{
               width: '60px',
@@ -465,8 +465,8 @@ const TradeHistory = () => {
             }}
           />
           <p
-            style={{ 
-              color: '#e2e8f0', 
+            style={{
+              color: '#e2e8f0',
               fontSize: '1.2rem',
               fontWeight: '500'
             }}
@@ -478,7 +478,7 @@ const TradeHistory = () => {
 
       {/* Error state */}
       {error && !loading && (
-        <div 
+        <div
           style={{
             backgroundColor: 'rgba(220, 38, 38, 0.2)',
             color: '#f87171',
@@ -490,11 +490,11 @@ const TradeHistory = () => {
             boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)'
           }}
         >
-          <div 
-            style={{ 
-              display: 'flex', 
+          <div
+            style={{
+              display: 'flex',
               alignItems: 'center',
-              gap: '10px', 
+              gap: '10px',
               marginBottom: '10px'
             }}
           >
@@ -508,7 +508,7 @@ const TradeHistory = () => {
           <p style={{ marginBottom: 0 }}>
             {error}
           </p>
-          <button 
+          <button
             onClick={fetchTrades}
             style={{
               marginTop: '16px',
@@ -541,7 +541,7 @@ const TradeHistory = () => {
             No trades found
           </h2>
           <p style={{ color: '#d1d5db', maxWidth: '600px', margin: '0 auto' }}>
-            {filter !== 'all' || roleFilter !== 'all' 
+            {filter !== 'all' || roleFilter !== 'all'
               ? 'Try changing your filters to see more trades.'
               : "You don't have any trade history yet. Start trading to see your history here!"}
           </p>

@@ -1232,8 +1232,8 @@ const handleTradeOfferCreation = async (userId, tradeId) => {
           return true;
         } else {
           console.error(`Failed to create trade offer: ${tradeOfferResult.error}`);
-        }
-      } catch (err) {
+    }
+  } catch (err) {
         console.error(`Error creating trade offer: ${err.message}`);
       }
     }
