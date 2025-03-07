@@ -349,10 +349,33 @@ router.post("/items/:itemId/remove-listing", async (req, res) => {
     console.log(
       `Found item: ${item.marketHashName || "Unknown"}, Listed: ${
         item.isListed
-      }`
+      }, AssetId: ${item.assetId}`
     );
 
-    // Update the item to not listed
+    // Check if there's already an unlisted duplicate of this item
+    const duplicateExists = await Item.findOne({
+      _id: { $ne: item._id }, // Not this item
+      $or: [{ owner: item.owner }, { ownerId: item.ownerId }],
+      assetId: item.assetId,
+      isListed: false,
+    });
+
+    if (duplicateExists) {
+      console.log(
+        `Found duplicate for item ${item._id} with assetId ${item.assetId} - will delete this item instead of unlisting`
+      );
+      // If a duplicate already exists unlisted, delete this one instead
+      await Item.deleteOne({ _id: item._id });
+
+      return res.json({
+        success: true,
+        message: "Duplicate item detected and removed successfully",
+        method: "delete",
+        item: duplicateExists,
+      });
+    }
+
+    // No duplicate, safe to update
     item.isListed = false;
     await item.save();
     console.log(`Successfully removed listing for item: ${item._id}`);
@@ -360,10 +383,27 @@ router.post("/items/:itemId/remove-listing", async (req, res) => {
     res.json({
       success: true,
       message: "Item listing removed successfully",
+      method: "update",
       item,
     });
   } catch (error) {
     console.error("Error removing item listing:", error);
+
+    // Check for duplicate key error
+    if (error.message && error.message.includes("E11000 duplicate key error")) {
+      console.log("Duplicate key error detected, providing specific guidance");
+      // Parse the error message to extract the asset ID
+      const assetIdMatch = error.message.match(/assetId: "([^"]+)"/);
+      const assetId = assetIdMatch ? assetIdMatch[1] : "unknown";
+
+      return res.status(500).json({
+        error: "Duplicate item detected",
+        details: `There is already an unlisted version of this item. Please use the "Fix Glitched Item" tool with Asset ID: ${assetId}`,
+        errorCode: "E11000",
+        assetId,
+      });
+    }
+
     // Send more detailed error information
     res.status(500).json({
       error: "Failed to remove item listing",

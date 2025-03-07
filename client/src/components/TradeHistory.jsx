@@ -8,7 +8,7 @@ const TradeHistory = () => {
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('all'); // 'all', 'active', 'completed'
+  const [filter, setFilter] = useState('all'); // 'all', 'active', 'completed', 'cancelled'
   const [roleFilter, setRoleFilter] = useState('all'); // 'all', 'sent', 'received'
 
   useEffect(() => {
@@ -101,7 +101,10 @@ const TradeHistory = () => {
       return filtered.filter(trade => ['awaiting_seller', 'offer_sent', 'awaiting_confirmation', 'created', 'pending'].includes(trade.status));
     }
     if (filter === 'completed') {
-      return filtered.filter(trade => ['completed', 'cancelled', 'failed'].includes(trade.status));
+      return filtered.filter(trade => trade.status === 'completed');
+    }
+    if (filter === 'cancelled') {
+      return filtered.filter(trade => ['cancelled', 'failed'].includes(trade.status));
     }
     return filtered;
   };
@@ -268,6 +271,18 @@ const TradeHistory = () => {
                 }}
               >
                 Completed
+              </button>
+              <button
+                onClick={() => setFilter('cancelled')}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: filter === 'cancelled' ? '#3b82f6' : 'transparent',
+                  color: filter === 'cancelled' ? 'white' : '#d1d5db',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancelled
               </button>
             </div>
           </div>

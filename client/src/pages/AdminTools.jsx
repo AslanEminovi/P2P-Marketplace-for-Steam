@@ -400,10 +400,36 @@ function AdminTools() {
       
       setMessage({
         type: 'success',
-        text: 'Item listing removed successfully'
+        text: response.data.message
       });
     } catch (error) {
       console.error('Error removing item listing:', error);
+      
+      // Check if this is a duplicate key error
+      if (error.response?.data?.errorCode === 'E11000' && error.response?.data?.assetId) {
+        const assetId = error.response.data.assetId;
+        
+        setMessage({
+          type: 'warning',
+          text: `${error.response.data.details} Would you like to fix it now?`,
+          action: {
+            text: 'Fix Now',
+            handler: () => {
+              setAssetId(assetId);
+              setActiveTab('cleanup');
+              // Focus on the assetId input field (will happen on next render)
+              setTimeout(() => {
+                const assetIdInput = document.querySelector('input[placeholder*="Asset ID"]');
+                if (assetIdInput) {
+                  assetIdInput.focus();
+                }
+              }, 100);
+            }
+          }
+        });
+        return;
+      }
+      
       // Show more detailed error information
       let errorMessage = 'Error removing listing';
       if (error.response) {
@@ -431,6 +457,21 @@ function AdminTools() {
       {message && (
         <Alert variant={message.type} className="mb-4" dismissible onClose={() => setMessage(null)}>
           {message.text}
+          
+          {message.action && (
+            <div className="mt-2">
+              <Button 
+                variant={message.type === 'danger' ? 'outline-light' : message.type === 'warning' ? 'warning' : 'primary'} 
+                size="sm"
+                onClick={() => {
+                  message.action.handler();
+                  setMessage(null);
+                }}
+              >
+                {message.action.text}
+              </Button>
+            </div>
+          )}
         </Alert>
       )}
       

@@ -21,7 +21,15 @@ exports.getTradeHistory = async (req, res) => {
       .populate("seller", "displayName avatar steamId")
       .sort({ createdAt: -1 });
 
-    return res.json(trades);
+    // Add flags to indicate if user is buyer or seller
+    const tradesWithFlags = trades.map((trade) => {
+      const tradeObj = trade.toObject();
+      tradeObj.isUserBuyer = trade.buyer._id.toString() === userId.toString();
+      tradeObj.isUserSeller = trade.seller._id.toString() === userId.toString();
+      return tradeObj;
+    });
+
+    return res.json(tradesWithFlags);
   } catch (err) {
     console.error("Get trade history error:", err);
     return res.status(500).json({ error: "Failed to retrieve trade history" });
