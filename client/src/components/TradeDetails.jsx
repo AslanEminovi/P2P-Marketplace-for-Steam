@@ -24,27 +24,6 @@ const StatusBadge = ({ status }) => {
     }
   };
 
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'awaiting_seller':
-        return 'Purchase Offer Sent';
-      case 'accepted':
-        return 'Seller Accepted';
-      case 'offer_sent':
-        return 'Steam Trade Offer Sent';
-      case 'awaiting_confirmation':
-        return 'Awaiting Buyer Confirmation';
-      case 'completed':
-        return 'Trade Completed';
-      case 'cancelled':
-        return 'Trade Cancelled';
-      case 'failed':
-        return 'Trade Failed';
-      default:
-        return status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown';
-    }
-  };
-
   const colors = getStatusColor();
   return (
     <span style={{
@@ -1772,6 +1751,30 @@ const getDefaultStatusMessage = (status) => {
       return 'Trade failed to complete';
     default:
       return 'Status updated';
+  }
+};
+
+// Helper functions - these should be placed at the file level, outside of any component
+
+// This line is to identify where to place the code
+const getStatusText = (status) => {
+  switch (status) {
+    case 'awaiting_seller':
+      return 'Purchase Offer Sent';
+    case 'accepted':
+      return 'Seller Accepted';
+    case 'offer_sent':
+      return 'Steam Trade Offer Sent';
+    case 'awaiting_confirmation':
+      return 'Awaiting Buyer Confirmation';
+    case 'completed':
+      return 'Trade Completed';
+    case 'cancelled':
+      return 'Trade Cancelled';
+    case 'failed':
+      return 'Trade Failed';
+    default:
+      return status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown';
   }
 };
 
