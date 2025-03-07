@@ -4,6 +4,7 @@
   min-height: 100vh;
   color: var(--color-text-primary);
   position: relative;
+  padding-top: 20px;
 }
 
 .marketplace-container {
@@ -19,6 +20,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  margin-top: 1.5rem;
 }
 
 .marketplace-title {
@@ -92,6 +94,8 @@
   margin-bottom: 2rem;
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-md);
+  position: relative;
+  z-index: 2;
 }
 
 .filter-row {
@@ -441,11 +445,10 @@
 }
 
 .bg-elements {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
@@ -457,8 +460,9 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-image: url('/cyber-grid.png');
-  background-size: cover;
+  background-image: url('../assets/cyber-grid.png');
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
   opacity: 0.05;
   z-index: 1;
 }

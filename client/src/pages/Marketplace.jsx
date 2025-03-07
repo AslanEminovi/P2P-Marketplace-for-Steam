@@ -241,8 +241,8 @@ function Marketplace({ user }) {
   if (loading) {
     return (
       <div className="page-container dark-theme">
-        {/* Background elements */}
-        <div className="bg-elements">
+        {/* Background elements - controlled in CSS with limits */}
+        <div className="bg-elements" style={{ height: '400px' }}>
           <div className="grid-pattern"></div>
           <div className="noise-overlay"></div>
           <div className="scan-lines"></div>
@@ -260,8 +260,8 @@ function Marketplace({ user }) {
 
   return (
     <div className="page-container dark-theme">
-      {/* Background elements */}
-      <div className="bg-elements">
+      {/* Background elements - controlled in CSS with limits */}
+      <div className="bg-elements" style={{ height: '400px' }}>
         <div className="grid-pattern"></div>
         <div className="noise-overlay"></div>
         <div className="scan-lines"></div>
