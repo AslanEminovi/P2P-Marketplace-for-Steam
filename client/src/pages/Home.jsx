@@ -90,11 +90,11 @@ function Home({ user }) {
             
             <div className="hero-cta">
               {user ? (
-                <Link to="/marketplace" className="cta-button pulse">
+                <Link to="/marketplace" className="primary-button">
                   Browse Marketplace
                 </Link>
               ) : (
-                <a href={`${API_URL}/auth/steam`} className="cta-button pulse">
+                <a href={`${API_URL}/auth/steam`} className="primary-button">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '8px' }}>
                     <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" stroke="white" strokeWidth="2"/>
                     <path d="M6 12L12 3L18 12L12 21L6 12Z" stroke="white" strokeWidth="2"/>
@@ -105,36 +105,12 @@ function Home({ user }) {
             </div>
           </div>
           
-          <div className="hero-visual">
-            <div className="hero-background-gradient"></div>
-            <div className="hero-image">
-              <img 
-                src="https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ5VeP-TLQDDX1D2e3RaofNt57tET-v1KyYUIP17mWJefDOXp2Vcq1wsWfm8IWxukVQ0jfKeSXod7I_nw4Dvlag3aT_0UZB4jZMojO_H9on02Va3_kFqamiiJoLAI1c_MwzQ_ACggb_n2VQ/360fx360f"
-                alt="CS2 Marketplace"
-                className="floating-image"
-                style={{ transform: 'rotate(-12deg)' }}
-              />
-              <img 
-                src="https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ5VeP-TLQDDX1D2e3RaofNt57tET-v1KyYUIP17mWJefDOXp2NQN1lxcAFbe066w1Jx0vHEf4ju2YPvx9TfkfXyZ-7TlT9X7sEjiejCptui3Abk-RJqNmihcI7DcAI6aVmD_1S9wL_v1pH84spFl5CS/360fx360f"
-                alt="CS2 Marketplace"
-                className="floating-image-delay"
-                style={{ transform: 'rotate(8deg)', zIndex: 1 }}
-              />
-              <img 
-                src="https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ5VeP-TLQDDX1D2e3RaofNt57tET-v1KyYUIP17mWJefDOXp2NdZl92YPK6JqmxZ1Jmg_30dT9GpYvnw4PuzfX2N7-CxzgHvpQn2u2Qrdqs3QzsqkRoMjz2JIKKcws-YAxzux9NCQ/360fx360f"
-                alt="CS2 Marketplace"
-                className="floating-image-delay2"
-                style={{ transform: 'rotate(-5deg)', zIndex: 2 }}
-              />
-              <div className="price-tag price-tag-1">
-                <span className="price-tag-currency">$</span>
-                <span className="price-tag-amount">74.50</span>
-              </div>
-              <div className="price-tag price-tag-2">
-                <span className="price-tag-currency">₾</span>
-                <span className="price-tag-amount">134.10</span>
-              </div>
-            </div>
+          <div className="hero-image-container">
+            <img 
+              src="https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ5VeP-TLQDDX1D2e3RaofNt57tET-v1KyYUIP17mWJefDOXp2Vcq1wsWfm8IWxukVQ0jfKeSXod7I_nw4Dvlag3aT_0UZB4jZMojO_H9on02Va3_kFqamiiJoLAI1c_MwzQ_ACggb_n2VQ/360fx360f"
+              alt="CS2 Marketplace"
+              className="hero-image"
+            />
           </div>
         </div>
       </section>
@@ -332,23 +308,24 @@ function Home({ user }) {
       {/* Final CTA Section - with its own background and styling */}
       <section className="final-cta-section-container">
         <div className="final-cta-section">
-          <h2>Ready to Start Trading?</h2>
-          <p>Join the largest CS2 marketplace in Georgia</p>
-          
-          <div className="cta-buttons">
-            {user ? (
-              <Link to="/inventory" className="cta-button primary">
-                View Your Inventory
-              </Link>
-            ) : (
-              <a href={`${API_URL}/auth/steam`} className="cta-button primary">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '8px' }}>
-                  <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" stroke="white" strokeWidth="2"/>
-                  <path d="M6 12L12 3L18 12L12 21L6 12Z" stroke="white" strokeWidth="2"/>
-                </svg>
-                Sign in with Steam
-              </a>
-            )}
+          <div className="cta-content">
+            <h2 className="cta-title">Ready to Start Trading?</h2>
+            <p className="cta-description">Join the largest CS2 marketplace in Georgia</p>
+            <div className="cta-buttons">
+              {user ? (
+                <Link to="/inventory" className="primary-button">
+                  View Your Inventory
+                </Link>
+              ) : (
+                <a href={`${API_URL}/auth/steam`} className="primary-button">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '8px' }}>
+                    <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" stroke="white" strokeWidth="2"/>
+                    <path d="M6 12L12 3L18 12L12 21L6 12Z" stroke="white" strokeWidth="2"/>
+                  </svg>
+                  Sign in with Steam
+                </a>
+              )}
+            </div>
           </div>
         </div>
       </section>
