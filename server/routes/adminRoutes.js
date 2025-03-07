@@ -15,11 +15,18 @@ router.use(requireAdmin);
  */
 router.post("/cleanup-listings", async (req, res) => {
   try {
+    console.log("Admin route: Starting cleanup for all listings");
     const results = await cleanupStuckListings();
+    console.log("Cleanup results:", results);
     res.json(results);
   } catch (error) {
     console.error("Error in cleanup-listings route:", error);
-    res.status(500).json({ error: "Failed to cleanup listings" });
+    // Send more detailed error information
+    res.status(500).json({
+      error: "Failed to cleanup listings",
+      details: error.message,
+      stack: process.env.NODE_ENV === "production" ? null : error.stack,
+    });
   }
 });
 
@@ -31,11 +38,18 @@ router.post("/cleanup-listings", async (req, res) => {
 router.post("/cleanup-listings/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
+    console.log(`Admin route: Starting cleanup for user ID: ${userId}`);
     const results = await cleanupStuckListings(userId);
+    console.log("User cleanup results:", results);
     res.json(results);
   } catch (error) {
     console.error("Error in cleanup-listings/:userId route:", error);
-    res.status(500).json({ error: "Failed to cleanup user listings" });
+    // Send more detailed error information
+    res.status(500).json({
+      error: "Failed to cleanup user listings",
+      details: error.message,
+      stack: process.env.NODE_ENV === "production" ? null : error.stack,
+    });
   }
 });
 
@@ -287,17 +301,33 @@ router.get("/items", async (req, res) => {
 router.post("/items/:itemId/remove-listing", async (req, res) => {
   try {
     const { itemId } = req.params;
+    console.log(`Admin route: Removing listing for item ID: ${itemId}`);
+
     const Item = mongoose.model("Item");
+
+    // Validate the item ID
+    if (!mongoose.Types.ObjectId.isValid(itemId)) {
+      console.error(`Invalid item ID format: ${itemId}`);
+      return res.status(400).json({ error: "Invalid item ID format" });
+    }
 
     const item = await Item.findById(itemId);
 
     if (!item) {
+      console.error(`Item not found with ID: ${itemId}`);
       return res.status(404).json({ error: "Item not found" });
     }
+
+    console.log(
+      `Found item: ${item.marketHashName || "Unknown"}, Listed: ${
+        item.isListed
+      }`
+    );
 
     // Update the item to not listed
     item.isListed = false;
     await item.save();
+    console.log(`Successfully removed listing for item: ${item._id}`);
 
     res.json({
       success: true,
@@ -306,7 +336,12 @@ router.post("/items/:itemId/remove-listing", async (req, res) => {
     });
   } catch (error) {
     console.error("Error removing item listing:", error);
-    res.status(500).json({ error: "Failed to remove item listing" });
+    // Send more detailed error information
+    res.status(500).json({
+      error: "Failed to remove item listing",
+      details: error.message,
+      stack: process.env.NODE_ENV === "production" ? null : error.stack,
+    });
   }
 });
 

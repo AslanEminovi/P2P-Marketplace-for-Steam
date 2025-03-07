@@ -89,15 +89,40 @@ async function cleanupStuckListings(userId = null) {
     await connectToMongoDB();
 
     console.log("Starting cleanup process...");
+    console.log(
+      "MongoDB connection status:",
+      mongoose.connection.readyState ? "Connected" : "Disconnected"
+    );
+
+    // Get model references
+    let Item, Trade;
+    try {
+      Item = mongoose.model("Item");
+      console.log("Item model loaded successfully");
+    } catch (error) {
+      console.error("Error getting Item model:", error);
+      throw new Error("Failed to get Item model: " + error.message);
+    }
+
+    try {
+      Trade = mongoose.model("Trade");
+      console.log("Trade model loaded successfully");
+    } catch (error) {
+      console.error("Error getting Trade model:", error);
+      throw new Error("Failed to get Trade model: " + error.message);
+    }
 
     // Create query for finding listed items
     const query = { isListed: true };
     if (userId) {
+      // Check both owner and ownerId fields to ensure compatibility
       query.$or = [{ owner: userId }, { ownerId: userId }];
       console.log(`Targeting cleanup for user: ${userId}`);
+      console.log("Query:", JSON.stringify(query));
     }
 
     // Find and update all items that are still marked as listed
+    console.log("Running update query with:", JSON.stringify(query));
     const updateResult = await Item.updateMany(query, {
       $set: { isListed: false },
     });
@@ -107,22 +132,25 @@ async function cleanupStuckListings(userId = null) {
     );
 
     // Also clean up any trades that are in pending or offer_sent status
-    const tradeUpdateResult = await Trade.updateMany(
-      {
-        status: { $nin: ["completed", "cancelled"] },
-        ...(userId
-          ? {
-              $or: [
-                { seller: userId },
-                { sellerId: userId },
-                { buyer: userId },
-                { buyerId: userId },
-              ],
-            }
-          : {}),
-      },
-      { $set: { status: "cancelled" } }
-    );
+    const tradeQuery = {
+      status: { $nin: ["completed", "cancelled"] },
+      // If userId is provided, filter trades to that user
+      ...(userId
+        ? {
+            $or: [
+              { seller: userId },
+              { sellerId: userId },
+              { buyer: userId },
+              { buyerId: userId },
+            ],
+          }
+        : {}),
+    };
+
+    console.log("Trade query:", JSON.stringify(tradeQuery));
+    const tradeUpdateResult = await Trade.updateMany(tradeQuery, {
+      $set: { status: "cancelled" },
+    });
 
     console.log(
       `Trade cleanup completed: ${tradeUpdateResult.modifiedCount} trades updated to cancelled`
@@ -144,7 +172,11 @@ async function cleanupStuckListings(userId = null) {
 
     // Close MongoDB connection if the script was run directly
     if (require.main === module) {
-      await mongoose.connection.close();
+      try {
+        await mongoose.connection.close();
+      } catch (closeError) {
+        console.error("Error closing MongoDB connection:", closeError);
+      }
       process.exit(1);
     }
 

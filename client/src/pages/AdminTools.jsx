@@ -184,8 +184,10 @@ function AdminTools() {
       setLoading(true);
       setMessage(null);
       
+      console.log('Calling API to cleanup all listings');
       const response = await axios.post(`${API_URL}/admin/cleanup-listings`, {}, { withCredentials: true });
       
+      console.log('Cleanup response:', response.data);
       setCleanupResults(response.data);
       setMessage({
         type: 'success',
@@ -193,9 +195,20 @@ function AdminTools() {
       });
     } catch (error) {
       console.error('Error cleaning up listings:', error);
+      // Show more detailed error information
+      let errorMessage = 'Error cleaning up listings';
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        errorMessage += `: ${error.response.data.details || error.response.data.error || error.message}`;
+      } else if (error.request) {
+        errorMessage += ': No response from server. Please check your connection.';
+      } else {
+        errorMessage += `: ${error.message}`;
+      }
+      
       setMessage({
         type: 'danger',
-        text: `Error cleaning up listings: ${error.response?.data?.error || error.message}`
+        text: errorMessage
       });
     } finally {
       setLoading(false);
@@ -216,8 +229,10 @@ function AdminTools() {
       setLoading(true);
       setMessage(null);
       
+      console.log(`Calling API to cleanup listings for user: ${userId}`);
       const response = await axios.post(`${API_URL}/admin/cleanup-listings/${userId}`, {}, { withCredentials: true });
       
+      console.log('User cleanup response:', response.data);
       setCleanupResults(response.data);
       setMessage({
         type: 'success',
@@ -225,9 +240,20 @@ function AdminTools() {
       });
     } catch (error) {
       console.error('Error cleaning up user listings:', error);
+      // Show more detailed error information
+      let errorMessage = 'Error cleaning up user listings';
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        errorMessage += `: ${error.response.data.details || error.response.data.error || error.message}`;
+      } else if (error.request) {
+        errorMessage += ': No response from server. Please check your connection.';
+      } else {
+        errorMessage += `: ${error.message}`;
+      }
+      
       setMessage({
         type: 'danger',
-        text: `Error cleaning up user listings: ${error.response?.data?.error || error.message}`
+        text: errorMessage
       });
     } finally {
       setLoading(false);
@@ -305,9 +331,13 @@ function AdminTools() {
   const removeItemListing = async (itemId) => {
     try {
       setItemsLoading(true);
+      console.log(`Calling API to remove listing for item: ${itemId}`);
+      
       const response = await axios.post(`${API_URL}/admin/items/${itemId}/remove-listing`, {}, { 
         withCredentials: true 
       });
+      
+      console.log('Remove listing response:', response.data);
       
       // Update the items list to reflect the change
       setItems(items.map(item => 
@@ -320,9 +350,20 @@ function AdminTools() {
       });
     } catch (error) {
       console.error('Error removing item listing:', error);
+      // Show more detailed error information
+      let errorMessage = 'Error removing listing';
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        errorMessage += `: ${error.response.data.details || error.response.data.error || error.message}`;
+      } else if (error.request) {
+        errorMessage += ': No response from server. Please check your connection.';
+      } else {
+        errorMessage += `: ${error.message}`;
+      }
+      
       setMessage({
         type: 'danger',
-        text: `Error removing listing: ${error.response?.data?.error || error.message}`
+        text: errorMessage
       });
     } finally {
       setItemsLoading(false);
