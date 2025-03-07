@@ -62,6 +62,7 @@ const offerRoutes = require("./routes/offerRoutes");
 const tradeRoutes = require("./routes/tradeRoutes");
 const walletRoutes = require("./routes/walletRoutes");
 const userRoutes = require("./routes/userRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
 const PORT = config.PORT;
@@ -192,6 +193,7 @@ app.use("/offers", offerRoutes);
 app.use("/trades", tradeRoutes);
 app.use("/wallet", walletRoutes);
 app.use("/user", userRoutes);
+app.use("/admin", adminRoutes);
 
 // Steam Web API webhook endpoint
 app.post("/api/webhooks/steam-trade", async (req, res) => {
