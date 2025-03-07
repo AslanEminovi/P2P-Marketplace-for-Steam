@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import socketService from './services/socketService';
 import { Toaster } from 'react-hot-toast';
+import AdminTools from './pages/AdminTools';
 
 // Pages
 import Home from './pages/Home';
@@ -29,6 +30,19 @@ const ProtectedRoute = ({ user, children }) => {
   if (!user) {
     return <Navigate to="/" replace />;
   }
+  return children;
+};
+
+// Admin-protected route component
+const AdminRoute = ({ user, children }) => {
+  console.log("AdminRoute check - User:", user);
+  console.log("AdminRoute check - isAdmin:", user?.isAdmin);
+  
+  if (!user || !user.isAdmin) {
+    console.log("AdminRoute - Access denied, redirecting to home");
+    return <Navigate to="/" replace />;
+  }
+  console.log("AdminRoute - Access granted");
   return children;
 };
 
@@ -526,6 +540,14 @@ function App() {
               <ProtectedRoute>
                 <SteamSettingsPage />
               </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/tools" element={
+              <AdminRoute user={user}>
+                <PageWrapper key="admin-tools">
+                  <AdminTools />
+                </PageWrapper>
+              </AdminRoute>
             } />
             
             {/* Catch-all route */}

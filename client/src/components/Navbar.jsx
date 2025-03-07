@@ -113,6 +113,10 @@ function Navbar({ user, onLogout }) {
             {user.isAdmin && (
               <Link
                 to="/admin/tools"
+                onClick={() => {
+                  console.log("Admin button clicked");
+                  console.log("User isAdmin:", user.isAdmin);
+                }}
                 style={{ 
                   textDecoration: 'none',
                   padding: '0.5rem 1rem',
