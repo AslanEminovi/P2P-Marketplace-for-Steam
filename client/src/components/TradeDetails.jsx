@@ -59,6 +59,214 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+// Add a new visual timeline component for trade status
+const StatusTimeline = ({ trade }) => {
+  // Define the trade flow steps in order
+  const steps = [
+    { status: 'awaiting_seller', label: 'Offer Sent' },
+    { status: 'accepted', label: 'Seller Accepted' },
+    { status: 'offer_sent', label: 'Steam Offer Sent' },
+    { status: 'awaiting_confirmation', label: 'Buyer Confirmation' },
+    { status: 'completed', label: 'Completed' }
+  ];
+  
+  // Find current step index
+  const currentIndex = steps.findIndex(step => step.status === trade.status);
+  const isCancelled = trade.status === 'cancelled' || trade.status === 'failed';
+  
+  if (isCancelled) {
+    return (
+      <div style={{
+        padding: '10px 16px',
+        backgroundColor: 'rgba(127, 29, 29, 0.2)',
+        color: '#f87171',
+        borderRadius: '8px',
+        fontWeight: '500',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        marginBottom: '24px'
+      }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="15" y1="9" x2="9" y2="15"></line>
+          <line x1="9" y1="9" x2="15" y2="15"></line>
+        </svg>
+        This trade has been {trade.status === 'cancelled' ? 'cancelled' : 'failed'}
+      </div>
+    );
+  }
+  
+  return (
+    <div style={{ marginBottom: '24px' }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        position: 'relative',
+        marginBottom: '6px'
+      }}>
+        {/* Timeline connector */}
+        <div style={{
+          position: 'absolute',
+          height: '2px',
+          backgroundColor: '#374151',
+          top: '50%',
+          left: '12px',
+          right: '12px',
+          transform: 'translateY(-50%)',
+          zIndex: 1
+        }} />
+        
+        {/* Timeline steps */}
+        {steps.map((step, index) => {
+          const isActive = index <= currentIndex;
+          const isCompleted = index < currentIndex;
+          
+          return (
+            <div key={step.status} style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              position: 'relative',
+              zIndex: 2
+            }}>
+              <div style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                backgroundColor: isActive ? '#4ade80' : '#374151',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: '8px',
+                transition: 'all 0.3s ease',
+                boxShadow: isActive ? '0 0 8px rgba(74, 222, 128, 0.6)' : 'none'
+              }}>
+                {isCompleted ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                ) : index === currentIndex ? (
+                  <div style={{ 
+                    width: '10px', 
+                    height: '10px', 
+                    borderRadius: '50%', 
+                    backgroundColor: 'white' 
+                  }} />
+                ) : null}
+              </div>
+              <div style={{
+                fontSize: '0.7rem',
+                color: isActive ? '#e5e7eb' : '#9ca3af',
+                textAlign: 'center',
+                width: '70px',
+                transition: 'all 0.3s ease'
+              }}>
+                {step.label}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// Improved Trade UI for item details section
+const TradeItemDetails = ({ item, trade, price }) => {
+  const rarity = item?.rarity || trade?.itemRarity || 'Unknown';
+  const wear = item?.wear || trade?.itemWear || 'Unknown';
+  const imageUrl = item?.imageUrl || trade?.itemImage || 'https://community.cloudflare.steamstatic.com/economy/image/fWFc82js0fmoRAP-qOIPu5THSWqfSmTELLqcUywGkijVjZULUrsm1j-9xgEGegouTxTgsSxQt5M1V_eNC-VZzY89ssYDjGIzw1B_Z7PlMmQzJVGaVaUJC_Q7-Q28UiRh7pQ7VoLj9ewDKw_us4PAN7coOopJTMDWXvSGMF_860g60agOe8ONpyK-i3vuaGgCUg25_ToQnOKE6bBunMsoYhg/360fx360f';
+  
+  return (
+    <div style={{
+      backgroundColor: 'rgba(17, 24, 39, 0.4)',
+      borderRadius: '16px',
+      overflow: 'hidden',
+      border: '1px solid rgba(55, 65, 81, 0.5)',
+      marginBottom: '24px'
+    }}>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '24px'
+      }}>
+        <div style={{
+          width: '200px',
+          height: '150px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginBottom: '16px',
+          backgroundColor: 'rgba(17, 24, 39, 0.5)',
+          borderRadius: '8px',
+          padding: '16px'
+        }}>
+          <img 
+            src={imageUrl}
+            alt={item.marketHashName}
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              objectFit: 'contain'
+            }}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = 'https://community.cloudflare.steamstatic.com/economy/image/IzMF03bi9WpSBq-S-ekoE33L-iLqGFHVaU25ZzQNQcXdEH9myp0erksICfTcePMQFc1nqWSMU5OD2NwOx3sIyShXOjLx2Sk5MbV5MsLD3k3xgfPYDG25bm-Wfw3vUsU9SLPWZ2yp-zWh5OqTE2nIQu4rFl9RKfEEpzdJbsiIaRpp3dUVu2u_0UZyDBl9JNNWfADjmyRCMLwnXeL51Cg/360fx360f';
+            }}
+          />
+        </div>
+        
+        <h2 style={{
+          color: '#f1f1f1',
+          margin: '0 0 8px 0',
+          fontSize: '1.25rem',
+          fontWeight: '600',
+          textAlign: 'center'
+        }}>
+          {item.marketHashName || 'Unknown Item'}
+        </h2>
+        
+        <div style={{
+          display: 'flex',
+          gap: '16px',
+          marginBottom: '16px'
+        }}>
+          <div style={{
+            backgroundColor: 'rgba(31, 41, 55, 0.5)',
+            padding: '4px 10px',
+            borderRadius: '4px',
+            fontSize: '0.8rem',
+            color: getRarityColor(rarity)
+          }}>
+            {rarity}
+          </div>
+          
+          <div style={{
+            backgroundColor: 'rgba(31, 41, 55, 0.5)',
+            padding: '4px 10px',
+            borderRadius: '4px',
+            fontSize: '0.8rem',
+            color: '#d1d5db'
+          }}>
+            {wear}
+          </div>
+        </div>
+        
+        <div style={{
+          fontSize: '1.5rem',
+          fontWeight: '600',
+          color: '#4ade80'
+        }}>
+          {formatCurrency(price)}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const TradeDetails = ({ tradeId }) => {
   const [trade, setTrade] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -603,526 +811,288 @@ const TradeDetails = ({ tradeId }) => {
       {/* Trade Details */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '20px',
-        marginBottom: '30px'
+        gridTemplateColumns: 'minmax(0, 1fr) 350px',
+        gap: '24px'
       }}>
-        {/* Left column: Item details */}
-        <div style={{
-          backgroundColor: '#111827',
-          borderRadius: '8px',
-          padding: '16px',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          <h3 style={{ color: '#f1f1f1', marginTop: '0' }}>Item</h3>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
-            <img
-              src={trade.item.imageUrl || 'https://via.placeholder.com/120'}
-              alt={trade.item.marketHashName}
-              style={{
-                width: '120px',
-                height: '90px',
-                objectFit: 'contain',
-                borderRadius: '4px',
-                marginRight: '16px'
-              }}
-            />
-            <div>
-              <h4 style={{ color: '#f1f1f1', margin: '0 0 8px 0' }}>{trade.item.marketHashName}</h4>
-              <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
-                {trade.item.wear && <span>{trade.item.wear} | </span>}
-                {trade.item.rarity && <span style={{ color: getRarityColor(trade.item.rarity) }}>{trade.item.rarity}</span>}
-              </div>
-              <div style={{ marginTop: '8px' }}>
-                <span style={{ color: '#4ade80', fontWeight: 'bold', fontSize: '1.125rem' }}>
-                  {formatCurrency(trade.price, trade.currency)}
-                </span>
-              </div>
-            </div>
-          </div>
+        {/* Main content */}
+        <div>
+          {/* Status timeline */}
+          <StatusTimeline trade={trade} />
           
-          <h4 style={{ color: '#f1f1f1', margin: '16px 0 8px 0' }}>Steam Trade Details</h4>
-          <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
-            {/* Asset ID row */}
-            <div className="detail-row">
-              <div className="detail-label">Asset ID:</div>
-              <div className="detail-value">
-                {assetId || trade?.assetId || "Loading..."}
-              </div>
-            </div>
+          {/* Trade information */}
+          <div style={{
+            backgroundColor: 'rgba(17, 24, 39, 0.4)',
+            borderRadius: '16px',
+            padding: '24px',
+            marginBottom: '24px',
+            border: '1px solid rgba(55, 65, 81, 0.5)'
+          }}>
+            <h3 style={{ 
+              color: '#f1f1f1', 
+              margin: '0 0 16px 0',
+              fontSize: '1.1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              Trade Information
+            </h3>
             
-            {/* Inventory check result message */}
-            {inventoryCheckResult && (
-              <div className="mt-3 mb-3">
-                <div className={`alert ${inventoryCheckResult.success ? 'alert-success' : 'alert-warning'}`}>
-                  <div className="d-flex align-items-center">
-                    <div className="me-2">
-                      {inventoryCheckResult.success ? (
-                        <i className="fas fa-check-circle"></i>
-                      ) : (
-                        <i className="fas fa-exclamation-triangle"></i>
-                      )}
-                    </div>
-                    <div>
-                      <strong>
-                        {inventoryCheckResult.success 
-                          ? '✓ Item has left the seller\'s inventory' 
-                          : `✗ Asset ID ${assetId || trade?.assetId || ''} is still in seller's inventory`}
-                      </strong>
-                      <p className="mb-0 small">{inventoryCheckResult.message}</p>
-                      <p className="mb-0 small">
-                        This check verifies if the specific item (Asset ID: {assetId || trade?.assetId || ''}) 
-                        {inventoryCheckResult.success 
-                          ? ' has left' 
-                          : ' is still in'} the seller's inventory. 
-                        {!inventoryCheckResult.success && ' Please check your Steam trade offers.'}
-                      </p>
-                      {inventoryCheckResult.tradeOffersLink && !inventoryCheckResult.success && (
-                        <a 
-                          href={inventoryCheckResult.tradeOffersLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-sm btn-outline-primary mt-2"
-                        >
-                          <i className="fas fa-external-link-alt me-1"></i>
-                          View Steam Trade Offers
-                        </a>
-                      )}
-                    </div>
-                  </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '16px'
+            }}>
+              <div>
+                <div style={{ color: '#9ca3af', fontSize: '0.85rem', marginBottom: '4px' }}>
+                  Seller
+                </div>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px',
+                  color: '#f1f1f1'
+                }}>
+                  <img 
+                    src={trade.seller?.avatar || 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg'} 
+                    alt={trade.seller?.displayName || 'Unknown'}
+                    style={{ width: '24px', height: '24px', borderRadius: '50%' }}
+                  />
+                  {trade.seller?.displayName || 'Unknown Seller'}
                 </div>
               </div>
-            )}
+              
+              <div>
+                <div style={{ color: '#9ca3af', fontSize: '0.85rem', marginBottom: '4px' }}>
+                  Buyer
+                </div>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px',
+                  color: '#f1f1f1'
+                }}>
+                  <img 
+                    src={trade.buyer?.avatar || 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg'} 
+                    alt={trade.buyer?.displayName || 'Unknown'}
+                    style={{ width: '24px', height: '24px', borderRadius: '50%' }}
+                  />
+                  {trade.buyer?.displayName || 'Unknown Buyer'}
+                </div>
+              </div>
+              
+              <div>
+                <div style={{ color: '#9ca3af', fontSize: '0.85rem', marginBottom: '4px' }}>
+                  Created
+                </div>
+                <div style={{ color: '#f1f1f1' }}>
+                  {new Date(trade.createdAt).toLocaleString()}
+                </div>
+              </div>
+              
+              <div>
+                <div style={{ color: '#9ca3af', fontSize: '0.85rem', marginBottom: '4px' }}>
+                  Trade ID
+                </div>
+                <div style={{ 
+                  color: '#f1f1f1',
+                  fontSize: '0.9rem',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {trade._id}
+                </div>
+              </div>
+              
+              {trade.steamTradeOfferId && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={{ color: '#9ca3af', fontSize: '0.85rem', marginBottom: '4px' }}>
+                    Steam Trade Offer
+                  </div>
+                  <div style={{ 
+                    color: '#f1f1f1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <a 
+                      href={`https://steamcommunity.com/tradeoffer/${trade.steamTradeOfferId}`} 
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ 
+                        color: '#3b82f6',
+                        textDecoration: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      View on Steam
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           
-          {steamStatus && (
+          {/* Trade status history */}
+          {trade.statusHistory && trade.statusHistory.length > 0 && (
             <div style={{
-              backgroundColor: '#0c4a6e',
-              color: '#bae6fd',
-              padding: '10px',
-              borderRadius: '4px',
-              marginTop: '16px',
-              fontSize: '0.875rem'
+              backgroundColor: 'rgba(17, 24, 39, 0.4)',
+              borderRadius: '16px',
+              padding: '24px',
+              border: '1px solid rgba(55, 65, 81, 0.5)',
+              marginBottom: '24px'
             }}>
-              <div>Steam Status: <strong>{steamStatus.status}</strong></div>
-              <div style={{ marginTop: '4px' }}>{steamStatus.message}</div>
+              <h3 style={{ 
+                color: '#f1f1f1', 
+                margin: '0 0 16px 0',
+                fontSize: '1.1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                Status History
+              </h3>
+              
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                {trade.statusHistory.map((entry, index) => (
+                  <div 
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                      padding: '12px',
+                      backgroundColor: 'rgba(31, 41, 55, 0.5)',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    <div style={{
+                      backgroundColor: getStatusBgColor(entry.status),
+                      color: getStatusColor(entry.status),
+                      width: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      borderRadius: '50%',
+                      flexShrink: 0
+                    }}>
+                      {getStatusIcon(entry.status)}
+                    </div>
+                    
+                    <div style={{ flex: 1 }}>
+                      <div style={{ 
+                        color: '#f1f1f1',
+                        marginBottom: '4px',
+                        fontWeight: '500'
+                      }}>
+                        {getStatusText(entry.status)}
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div style={{ color: '#9ca3af', fontSize: '0.85rem' }}>
+                          {entry.message || getDefaultStatusMessage(entry.status)}
+                        </div>
+                        <div style={{ color: '#9ca3af', fontSize: '0.85rem' }}>
+                          {new Date(entry.timestamp).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
+          
+          {/* Trade actions */}
+          {renderTradeActions()}
         </div>
         
-        {/* Right column: User details and actions */}
-        <div style={{
-          backgroundColor: '#111827',
-          borderRadius: '8px',
-          padding: '16px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <div>
-              <h3 style={{ color: '#f1f1f1', margin: '0 0 8px 0' }}>Seller</h3>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <img
-                  src={trade.seller.avatar || 'https://via.placeholder.com/40'}
-                  alt={trade.seller.displayName}
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    marginRight: '8px'
-                  }}
-                />
-                <div>
-                  <div style={{ color: '#f1f1f1' }}>{trade.seller.displayName}</div>
-                  <div style={{ color: '#9ca3af', fontSize: '0.75rem' }}>Steam ID: {trade.sellerSteamId}</div>
-                </div>
-              </div>
-            </div>
+        {/* Sidebar */}
+        <div>
+          {/* Item details */}
+          <TradeItemDetails 
+            item={trade.item} 
+            trade={trade} 
+            price={trade.price}
+          />
+          
+          {/* Help and info */}
+          <div style={{
+            backgroundColor: 'rgba(17, 24, 39, 0.4)',
+            borderRadius: '16px',
+            padding: '24px',
+            border: '1px solid rgba(55, 65, 81, 0.5)'
+          }}>
+            <h3 style={{ 
+              color: '#f1f1f1', 
+              margin: '0 0 16px 0',
+              fontSize: '1.1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              Trade Help
+            </h3>
             
-            <div>
-              <h3 style={{ color: '#f1f1f1', margin: '0 0 8px 0' }}>Buyer</h3>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <img
-                  src={trade.buyer.avatar || 'https://via.placeholder.com/40'}
-                  alt={trade.buyer.displayName}
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    marginRight: '8px'
-                  }}
-                />
-                <div>
-                  <div style={{ color: '#f1f1f1' }}>{trade.buyer.displayName}</div>
-                  <div style={{ color: '#9ca3af', fontSize: '0.75rem' }}>Steam ID: {trade.buyerSteamId}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div style={{ marginTop: '24px' }}>
-            <h3 style={{ color: '#f1f1f1', margin: '0 0 16px 0' }}>Trade Timeline</h3>
-            <div style={{ maxHeight: '150px', overflowY: 'auto', color: '#9ca3af', fontSize: '0.875rem' }}>
-              {trade.statusHistory && trade.statusHistory.map((history, index) => (
-                <div key={index} style={{
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              color: '#d1d5db',
+              fontSize: '0.9rem'
+            }}>
+              <p style={{ margin: 0 }}>
+                If you're experiencing issues with this trade, make sure to check your Steam trade offers directly.
+              </p>
+              
+              <a 
+                href="https://steamcommunity.com/my/tradeoffers" 
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ 
+                  color: '#3b82f6',
+                  textDecoration: 'none',
                   display: 'flex',
-                  marginBottom: '8px',
-                  padding: '8px',
-                  backgroundColor: index % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent',
-                  borderRadius: '4px'
-                }}>
-                  <div style={{ minWidth: '120px' }}>
-                    {new Date(history.timestamp).toLocaleString()}
-                  </div>
-                  <div style={{ flex: '1', marginLeft: '8px' }}>
-                    <StatusBadge status={history.status} /> 
-                    {history.note && <span style={{ marginLeft: '8px' }}>{history.note}</span>}
-                  </div>
-                </div>
-              ))}
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginTop: '8px'
+                }}
+              >
+                Open Steam Trade Offers
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+              </a>
             </div>
-          </div>
-          
-          {/* Action buttons based on user role and trade status */}
-          <div style={{ marginTop: '24px' }}>
-            <h3 style={{ color: '#f1f1f1', margin: '0 0 16px 0' }}>Actions</h3>
-
-            {/* Seller actions */}
-            {trade.isUserSeller && (
-              <div>
-                {trade.status === 'awaiting_seller' && (
-                  <div style={{ marginBottom: '16px' }}>
-                    <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
-                      A buyer wants to purchase your item. You need to send them a trade offer.
-                    </p>
-                    <button
-                      onClick={handleSellerApprove}
-                      disabled={approveLoading}
-                      style={{
-                        backgroundColor: '#3b82f6',
-                        color: '#f1f1f1',
-                        border: 'none',
-                        padding: '10px 16px',
-                        borderRadius: '4px',
-                        cursor: approveLoading ? 'not-allowed' : 'pointer',
-                        fontWeight: '500',
-                        width: '100%',
-                        opacity: approveLoading ? '0.7' : '1'
-                      }}
-                    >
-                      {approveLoading ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
-                          Processing...
-                        </>
-                      ) : 'Accept Purchase Offer'}
-                    </button>
-                  </div>
-                )}
-
-                {trade.status === 'accepted' && (
-                  <div style={{ marginBottom: '16px' }}>
-                    <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginBottom: '12px' }}>
-                      Please send a trade offer to the buyer using their trade link:
-                    </p>
-                    
-                    <div style={{
-                      backgroundColor: '#1f2937',
-                      padding: '10px',
-                      borderRadius: '4px',
-                      marginBottom: '12px',
-                      wordBreak: 'break-all',
-                      fontSize: '0.875rem',
-                      color: '#e5e7eb'
-                    }}>
-                      <a 
-                        href={trade.buyer.tradeUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        style={{ color: '#3b82f6', textDecoration: 'none' }}
-                      >
-                        {trade.buyer.tradeUrl}
-                      </a>
-                    </div>
-                    
-                    <div style={{ marginBottom: '16px' }}>
-                      <label style={{ color: '#f1f1f1', display: 'block', marginBottom: '8px' }}>
-                        Trade Offer ID/URL (optional):
-                      </label>
-                      <input
-                        type="text"
-                        value={steamOfferUrl}
-                        onChange={(e) => setSteamOfferUrl(e.target.value)}
-                        placeholder="Enter Steam trade offer ID or URL"
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          backgroundColor: '#1f2937',
-                          border: '1px solid #374151',
-                          borderRadius: '4px',
-                          color: '#f1f1f1',
-                          marginBottom: '8px'
-                        }}
-                      />
-                      <p style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: '0' }}>
-                        This helps us track the trade (the buyer will see this)
-                      </p>
-                    </div>
-                    
-                    <button
-                      onClick={handleSellerConfirmSent}
-                      disabled={sendingLoading || sellerWaitingForBuyer}
-                      style={{
-                        backgroundColor: sellerWaitingForBuyer ? '#10b981' : '#3b82f6',
-                        color: '#f1f1f1',
-                        border: 'none',
-                        padding: '10px 16px',
-                        borderRadius: '4px',
-                        cursor: sendingLoading || sellerWaitingForBuyer ? 'not-allowed' : 'pointer',
-                        fontWeight: '500',
-                        width: '100%',
-                        opacity: sendingLoading ? '0.7' : '1'
-                      }}
-                    >
-                      {sendingLoading ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
-                          Sending...
-                        </>
-                      ) : sellerWaitingForBuyer ? 'Waiting for buyer...' : 'I\'ve Sent the Trade Offer'}
-                    </button>
-                  </div>
-                )}
-
-                {(['awaiting_seller', 'accepted'].includes(trade.status)) && (
-                  <button
-                    onClick={() => {
-                      const modal = document.getElementById('cancelModal');
-                      if (modal) modal.style.display = 'block';
-                    }}
-                    style={{
-                      backgroundColor: '#7f1d1d',
-                      color: 'white',
-                      border: 'none',
-                      padding: '10px 16px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      width: '100%',
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    Cancel Trade
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Buyer actions */}
-            {trade.isUserBuyer && (
-              <div>
-                {trade.status === 'offer_sent' && trade.status !== 'completed' && (
-                  <div style={{ marginBottom: '16px' }}>
-                    <div style={{
-                      backgroundColor: '#1e40af',
-                      color: '#93c5fd',
-                      padding: '12px',
-                      borderRadius: '4px',
-                      marginBottom: '16px'
-                    }}>
-                      <p style={{ margin: '0 0 8px 0', fontWeight: '500' }}>
-                        Seller has sent you a trade offer
-                      </p>
-                      <p style={{ margin: '0', fontSize: '0.875rem' }}>
-                        Please check your Steam trade offers and accept the offer before confirming below.
-                      </p>
-                      {trade.tradeOfferId && (
-                        <a
-                          href={`https://steamcommunity.com/tradeoffer/${trade.tradeOfferId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            display: 'inline-block',
-                            marginTop: '8px',
-                            color: '#3b82f6',
-                            textDecoration: 'none',
-                            backgroundColor: '#1f2937',
-                            padding: '6px 12px',
-                            borderRadius: '4px',
-                            fontSize: '0.875rem'
-                          }}
-                        >
-                          View Trade Offer
-                        </a>
-                      )}
-                    </div>
-                    
-                    <div style={{ marginBottom: '16px' }}>
-                      <Button
-                        onClick={handleCheckInventory}
-                        disabled={isCheckingInventory}
-                        variant="info"
-                      >
-                        {isCheckingInventory ? (
-                          <>
-                            <Spinner
-                              as="span"
-                              animation="border"
-                              size="sm"
-                              role="status"
-                              aria-hidden="true"
-                              className="mr-2"
-                            />
-                            Checking...
-                          </>
-                        ) : (
-                          "Check If Item Received"
-                        )}
-                      </Button>
-                      
-                      {inventoryCheckResult && (
-                        <div style={{
-                          backgroundColor: inventoryCheckResult.canConfirmReceived ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                          color: inventoryCheckResult.canConfirmReceived ? '#10b981' : '#ef4444',
-                          padding: '12px',
-                          borderRadius: '4px',
-                          fontSize: '0.875rem',
-                          marginBottom: '12px'
-                        }}>
-                          <p style={{ margin: '0 0 8px 0', fontWeight: '500' }}>
-                            {inventoryCheckResult.message}
-                          </p>
-                          
-                          <div style={{ fontSize: '0.8rem', opacity: '0.9' }}>
-                            {inventoryCheckResult.itemRemovedFromSellerInventory && (
-                              <p style={{ margin: '2px 0', color: '#10b981' }}>
-                                ✓ Asset ID {inventoryCheckResult.assetId} has been withdrawn from seller's inventory
-                              </p>
-                            )}
-                            {!inventoryCheckResult.itemRemovedFromSellerInventory && !inventoryCheckResult.error && (
-                              <p style={{ margin: '2px 0', color: '#ef4444' }}>
-                                ✗ Asset ID {inventoryCheckResult.assetId} is still in seller's inventory
-                              </p>
-                            )}
-                            {inventoryCheckResult.error && (
-                              <p style={{ margin: '2px 0', color: '#f59e0b' }}>
-                                ! Could not verify seller's inventory: {inventoryCheckResult.error}
-                              </p>
-                            )}
-                          </div>
-                          
-                          {!inventoryCheckResult.canConfirmReceived && (
-                            <div style={{ marginTop: '8px', fontSize: '0.8rem' }}>
-                              <p style={{ margin: '0', color: '#64748b' }}>
-                                This check verifies if the specific item (Asset ID: {inventoryCheckResult.assetId}) 
-                                has left the seller's inventory. Please check your Steam trade offers.
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    
-                    {confirmForceOverride && (
-                      <div style={{ marginBottom: '12px' }}>
-                        <label style={{
-                          color: '#f1f1f1',
-                          display: 'flex',
-                          alignItems: 'center',
-                          cursor: 'pointer'
-                        }}>
-                          <input
-                            type="checkbox"
-                            checked={confirmForceOverride}
-                            onChange={(e) => setConfirmForceOverride(e.target.checked)}
-                            style={{ marginRight: '8px' }}
-                          />
-                          Force confirm (use this if verification fails but you received the item)
-                        </label>
-                      </div>
-                    )}
-                    
-                    <button
-                      onClick={handleBuyerConfirm}
-                      disabled={confirmLoading || !canConfirmReceived}
-                      style={{
-                        backgroundColor: canConfirmReceived ? '#10b981' : '#9ca3af',
-                        color: '#f1f1f1',
-                        border: 'none',
-                        padding: '10px 16px',
-                        borderRadius: '4px',
-                        cursor: confirmLoading || !canConfirmReceived ? 'not-allowed' : 'pointer',
-                        fontWeight: '500',
-                        width: '100%',
-                        opacity: confirmLoading ? '0.7' : '1'
-                      }}
-                    >
-                      {confirmLoading ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
-                          Processing...
-                        </>
-                      ) : 'Confirm Item Received'}
-                    </button>
-                  </div>
-                )}
-
-                {trade.status === 'awaiting_seller' && (
-                  <button
-                    onClick={() => {
-                      const modal = document.getElementById('cancelModal');
-                      if (modal) modal.style.display = 'block';
-                    }}
-                    style={{
-                      backgroundColor: '#7f1d1d',
-                      color: 'white',
-                      border: 'none',
-                      padding: '10px 16px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      width: '100%',
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    Cancel Trade
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Trade completed message */}
-            {trade.status === 'completed' && (
-              <div style={{
-                backgroundColor: '#064e3b',
-                color: '#a7f3d0',
-                padding: '12px',
-                borderRadius: '4px',
-                textAlign: 'center'
-              }}>
-                <p style={{ margin: '0', fontWeight: 'bold' }}>
-                  Trade completed successfully
-                </p>
-                <p style={{ margin: '8px 0 0 0', fontSize: '0.875rem' }}>
-                  Completed on {new Date(trade.completedAt).toLocaleString()}
-                </p>
-              </div>
-            )}
-
-            {/* Trade cancelled message */}
-            {trade.status === 'cancelled' && (
-              <div style={{
-                backgroundColor: '#7f1d1d',
-                color: '#fca5a5',
-                padding: '12px',
-                borderRadius: '4px',
-                textAlign: 'center'
-              }}>
-                <p style={{ margin: '0', fontWeight: 'bold' }}>
-                  Trade was cancelled
-                </p>
-                <p style={{ margin: '8px 0 0 0', fontSize: '0.875rem' }}>
-                  {trade.statusHistory.find(h => h.status === 'cancelled')?.note || 'No reason provided'}
-                </p>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -1315,6 +1285,84 @@ const getRarityColor = (rarity) => {
   };
   
   return rarityColors[rarity] || '#b0c3d9';
+};
+
+// Helper function to get status color, background and icon
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'completed':
+      return '#4ade80';
+    case 'awaiting_seller':
+      return '#93c5fd';
+    case 'offer_sent':
+      return '#fde047';
+    case 'awaiting_confirmation':
+      return '#fdba74';
+    case 'cancelled':
+    case 'failed':
+      return '#f87171';
+    default:
+      return '#e5e7eb';
+  }
+};
+
+const getStatusBgColor = (status) => {
+  switch (status) {
+    case 'completed':
+      return '#166534';
+    case 'awaiting_seller':
+      return '#1e40af';
+    case 'offer_sent':
+      return '#854d0e';
+    case 'awaiting_confirmation':
+      return '#9a3412';
+    case 'cancelled':
+    case 'failed':
+      return '#7f1d1d';
+    default:
+      return '#374151';
+  }
+};
+
+const getStatusIcon = (status) => {
+  const iconProps = { width: "16", height: "16", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" };
+  
+  switch (status) {
+    case 'completed':
+      return <svg {...iconProps} viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>;
+    case 'awaiting_seller':
+      return <svg {...iconProps} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
+    case 'offer_sent':
+      return <svg {...iconProps} viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>;
+    case 'awaiting_confirmation':
+      return <svg {...iconProps} viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>;
+    case 'cancelled':
+    case 'failed':
+      return <svg {...iconProps} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>;
+    default:
+      return <svg {...iconProps} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>;
+  }
+};
+
+const getDefaultStatusMessage = (status) => {
+  switch (status) {
+    case 'completed':
+      return 'Trade successfully completed';
+    case 'awaiting_seller':
+      return 'Waiting for seller to accept';
+    case 'accepted':
+      return 'Seller accepted the offer';
+    case 'offer_sent':
+      return 'Steam trade offer was sent';
+    case 'awaiting_confirmation':
+      return 'Waiting for buyer confirmation';
+    case 'cancelled':
+      return 'Trade was cancelled';
+    case 'failed':
+      return 'Trade failed to complete';
+    default:
+      return 'Status updated';
+  }
 };
 
 export default TradeDetails;
