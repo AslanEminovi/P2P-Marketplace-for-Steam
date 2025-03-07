@@ -58,9 +58,18 @@ function Navbar({ user, onLogout }) {
       <div className="container flex justify-between items-center" style={{ padding: 0 }}>
         {/* Logo */}
         <div className="flex items-center gap-md">
-          <Link to="/" className="site-logo">
-            <span className="gradient-text text-2xl font-bold">CS2 GEO</span>
-          </Link>
+          {/* CS2 Logo */}
+          <div style={{ marginRight: '1rem' }}>
+            <img 
+              src="/img/cs2-logo.png" 
+              alt="CS2 Marketplace" 
+              className="cs-logo" 
+              style={{ 
+                height: '40px', 
+                filter: 'drop-shadow(0 0 8px rgba(0, 0, 0, 0.3))' 
+              }} 
+            />
+          </div>
           
           {/* Desktop navigation */}
           <div className="nav-links hidden md:flex items-center gap-md">

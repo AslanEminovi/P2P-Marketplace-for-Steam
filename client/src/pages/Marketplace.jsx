@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import OfferModal from '../components/OfferModal';
 import UserListings from '../components/UserListings';
 import ItemDetails from '../components/ItemDetails';
-import TradePanel from '../components/TradePanel';
 import ItemCard3D from '../components/ItemCard3D';
 import TradeUrlPrompt from '../components/TradeUrlPrompt';
 import { API_URL } from '../config/constants';
@@ -26,113 +25,172 @@ function Marketplace({ user }) {
   const [itemView, setItemView] = useState('grid'); // 'grid' or 'list'
   const [showTradeUrlPrompt, setShowTradeUrlPrompt] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [priceRange, setPriceRange] = useState('all');
-  const [sortOrder, setSortOrder] = useState('newest');
   const { t } = useTranslation();
 
   const translateWear = (shortWear, marketHashName) => {
-    const wearTranslations = {
-      'fn': 'Factory New',
-      'mw': 'Minimal Wear',
-      'ft': 'Field-Tested',
-      'ww': 'Well-Worn',
-      'bs': 'Battle-Scarred'
-    };
-
-    // First try to extract wear from market hash name
-    if (marketHashName) {
-      const wearMatch = marketHashName.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i);
-      if (wearMatch) {
-        return wearMatch[0];
-      }
+    if (!shortWear && marketHashName) {
+      // Extract wear from market hash name if available
+      if (marketHashName.includes('Factory New')) return 'Factory New';
+      if (marketHashName.includes('Minimal Wear')) return 'Minimal Wear';
+      if (marketHashName.includes('Field-Tested')) return 'Field-Tested';
+      if (marketHashName.includes('Well-Worn')) return 'Well-Worn';
+      if (marketHashName.includes('Battle-Scarred')) return 'Battle-Scarred';
     }
-
-    // If no wear in market hash name, try to translate short wear
+    
+    // Return parsed wear if available
     if (shortWear) {
-      return wearTranslations[shortWear.toLowerCase()] || shortWear;
+      const wearValue = parseFloat(shortWear);
+      if (wearValue < 0.07) return 'Factory New';
+      if (wearValue < 0.15) return 'Minimal Wear';
+      if (wearValue < 0.38) return 'Field-Tested';
+      if (wearValue < 0.45) return 'Well-Worn';
+      return 'Battle-Scarred';
     }
-
-    return 'Not Specified';
+    
+    // Default return
+    return 'Not Applicable';
   };
 
   const getRarityColor = (rarity) => {
-    const rarityColors = {
-      'Consumer Grade': '#b0c3d9',      // white/gray
-      'Mil-Spec Grade': '#4b69ff',      // dark blue
-      'Restricted': '#8847ff',          // dark purple
-      'Classified': '#d32ce6',          // light purple
-      'Covert': '#eb4b4b',             // red
-      '★': '#e4ae39'                    // gold (for knives/gloves)
+    if (!rarity) return '#9AA0A6'; // Default gray
+    
+    const rarityMap = {
+      'Consumer Grade': '#b0c3d9',
+      'Industrial Grade': '#5e98d9',
+      'Mil-Spec Grade': '#4b69ff',
+      'Restricted': '#8847ff',
+      'Classified': '#d32ce6',
+      'Covert': '#eb4b4b',
+      'Contraband': '#ffd700',
     };
-    return rarityColors[rarity] || '#b0c3d9';
+    
+    return rarityMap[rarity] || '#9AA0A6';
   };
 
   const getWearColor = (wear) => {
-    const wearColors = {
-      'Factory New': '#4cd94c',
-      'Minimal Wear': '#87d937',
-      'Field-Tested': '#d9d937',
-      'Well-Worn': '#d98037',
-      'Battle-Scarred': '#d94040'
+    if (!wear) return '#9AA0A6';
+    
+    const wearMap = {
+      'Factory New': '#4ade80',
+      'Minimal Wear': '#22d3ee',
+      'Field-Tested': '#f59e0b',
+      'Well-Worn': '#f97316',
+      'Battle-Scarred': '#ef4444',
+      'Not Applicable': '#9AA0A6'
     };
-    return wearColors[wear] || '#b0c3d9';
+    
+    return wearMap[wear] || '#9AA0A6';
   };
 
   const fetchItems = async () => {
     try {
       setLoading(true);
-      console.log('Fetching marketplace items...');
-      const res = await axios.get(`${API_URL}/marketplace`, { withCredentials: true });
-      console.log('Marketplace API response:', res.data);
+      console.log("Fetching marketplace items...");
+      const response = await axios.get(`${API_URL}/marketplace`, { withCredentials: true });
+      console.log("Marketplace API response:", response.data);
       
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        console.log('First item structure:', res.data[0]);
+      if (response.data && Array.isArray(response.data)) {
+        const itemsWithDefaults = response.data.map(item => ({
+          ...item,
+          marketHashName: item.marketHashName || 'CS2 Item',
+          imageUrl: item.imageUrl || '/img/placeholder-item.svg',
+          rarity: item.rarity || 'Consumer Grade',
+          wear: item.wear || null,
+          price: item.price || 0
+        }));
+        
+        setItems(itemsWithDefaults);
+        if (itemsWithDefaults.length > 0) {
+          console.log("First item example:", itemsWithDefaults[0]);
+        } else {
+          console.log("No items returned from API");
+        }
+        setMessage('');
       } else {
-        console.log('Marketplace response is empty or not an array:', res.data);
+        console.log("Invalid data format received:", response.data);
+        setItems([]);
+        setMessage('No items available');
       }
-      
-      setItems(res.data);
-      setMessage('');
     } catch (err) {
-      console.error('Error fetching marketplace items:', err.response || err);
-      setMessage('Failed to load marketplace items.');
+      console.error('Error fetching marketplace items:', err);
+      setMessage('Failed to load items. Please try again later.');
     } finally {
       setLoading(false);
     }
   };
-  
+
   const fetchMyListings = async () => {
+    if (!user) return;
+    
     try {
-      setLoading(true);
-      const response = await axios.get(`${API_URL}/marketplace/my-listings`, {
-        withCredentials: true
-      });
-      setMyListings(response.data);
-      setMessage('');
+      const response = await axios.get(`${API_URL}/marketplace/my-listings`, { withCredentials: true });
+      console.log("My listings response:", response.data);
+      
+      if (response.data && Array.isArray(response.data)) {
+        const listingsWithDefaults = response.data.map(item => ({
+          ...item,
+          marketHashName: item.marketHashName || 'CS2 Item',
+          imageUrl: item.imageUrl || '/img/placeholder-item.svg',
+          rarity: item.rarity || 'Consumer Grade',
+          wear: item.wear || null,
+          price: item.price || 0
+        }));
+        
+        setMyListings(listingsWithDefaults);
+      }
     } catch (err) {
-      console.error('Error fetching listings:', err);
-      setMessage('Failed to load your listings');
-    } finally {
-      setLoading(false);
+      console.error('Error fetching my listings:', err);
     }
   };
 
   const buyItem = async (itemId) => {
+    if (!user) {
+      window.location.href = `${API_URL}/auth/steam`;
+      return;
+    }
+
     try {
-      const res = await axios.post(`${API_URL}/marketplace/buy/${itemId}`, {}, { withCredentials: true });
-      setMessage(res.data.message || 'Item purchased successfully!');
+      await axios.post(`${API_URL}/marketplace/buy/${itemId}`, {}, { withCredentials: true });
+      setMessage('Item purchased successfully!');
       fetchItems();
     } catch (err) {
-      console.error(err);
-      setMessage(err.response?.data?.error || 'Failed to buy item.');
+      console.error('Error buying item:', err);
+      setMessage('Failed to purchase item');
     }
   };
 
   const handleOfferSuccess = (data) => {
-    setMessage('Offer submitted successfully!');
-    // No need to refresh the marketplace as the item is still listed
+    setSelectedItem(null);
+    setTradePanelOpen(false);
+    if (window.showNotification) {
+      window.showNotification(
+        'Offer Submitted',
+        'Your trade offer has been submitted successfully.',
+        'SUCCESS'
+      );
+    }
+    fetchItems();
+  };
+
+  const fetchUserProfile = async () => {
+    if (!user) return;
+    
+    try {
+      const response = await axios.get(`${API_URL}/users/profile`, { withCredentials: true });
+      setUserProfile(response.data);
+      
+      // Check if trade URL is not set, prompt user
+      if (!response.data.tradeUrl) {
+        setShowTradeUrlPrompt(true);
+      }
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+    }
+  };
+
+  const handleTradeUrlSave = (tradeUrl) => {
+    setShowTradeUrlPrompt(false);
+    fetchUserProfile();
   };
 
   useEffect(() => {
@@ -144,425 +202,693 @@ function Marketplace({ user }) {
     }
   }, [user]);
 
-  const fetchUserProfile = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/user/profile`, {
-        withCredentials: true
-      });
-      
-      setUserProfile(response.data);
-      
-      // Check if trade URL is missing and show prompt
-      if (!response.data.tradeUrl) {
-        setShowTradeUrlPrompt(true);
-      }
-    } catch (err) {
-      console.error('Error fetching user profile:', err);
-    }
-  };
-
-  const handleTradeUrlSave = (tradeUrl) => {
-    // Update user profile with new trade URL
-    setUserProfile(prev => ({
-      ...prev,
-      tradeUrl
-    }));
-  };
-
-  // Filter and sort items
-  const getFilteredItems = () => {
-    // Return proper array based on active tab
-    const itemsToFilter = activeTab === 'all' ? items : myListings;
-    
-    return itemsToFilter.filter(item => {
-      // Filter by search term
-      if (searchTerm && !(item.marketHashName || '').toLowerCase().includes(searchTerm.toLowerCase())) {
-        return false;
-      }
-      
-      // Filter by category
-      if (categoryFilter !== 'all') {
-        const itemCategory = (item.type || '').toLowerCase();
-        const itemName = (item.marketHashName || '').toLowerCase();
-        
-        if (categoryFilter === 'knife' && !itemName.includes('knife') && !itemName.includes('karambit') && !itemName.includes('bayonet')) {
-          return false;
-        }
-        
-        if (categoryFilter === 'rifle' && !itemName.includes('rifle') && !itemName.includes('ak-47') && !itemName.includes('m4a')) {
-          return false;
-        }
-        
-        if (categoryFilter === 'pistol' && !itemName.includes('pistol') && !itemName.includes('deagle') && !itemName.includes('glock')) {
-          return false;
-        }
-        
-        if (categoryFilter === 'glove' && !itemName.includes('glove')) {
-          return false;
-        }
-        
-        if (categoryFilter === 'case' && !itemName.includes('case')) {
-          return false;
-        }
-      }
-      
-      // Filter by price range
-      if (priceRange !== 'all') {
-        const price = item.price || 0;
-        const [min, max] = priceRange.split('-');
-        
-        if (min && max) {
-          if (price < parseInt(min) || price > parseInt(max)) {
-            return false;
-          }
-        } else if (min === '500+' && price < 500) {
-          return false;
-        }
-      }
-      
-      return true;
-    }).sort((a, b) => {
-      // Sort items
-      switch (sortOrder) {
-        case 'newest':
-          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-        case 'oldest':
-          return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
-        case 'price_low':
-          return (a.price || 0) - (b.price || 0);
-        case 'price_high':
-          return (b.price || 0) - (a.price || 0);
-        default:
-          return 0;
-      }
-    });
-  };
-
   if (loading) {
     return (
-      <div className="page-container dark-theme">
-        {/* Background elements - controlled in CSS with limits */}
-        <div className="bg-elements" style={{ height: '400px' }}>
-          <div className="grid-pattern"></div>
-          <div className="noise-overlay"></div>
-          <div className="scan-lines"></div>
-        </div>
-        
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>Loading marketplace items...</p>
-        </div>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '80vh',
+        flexDirection: 'column',
+        gap: '1rem'
+      }}>
+        <div style={{
+          width: '50px',
+          height: '50px',
+          border: '5px solid #f3f3f3',
+          borderTop: '5px solid #3498db',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }} />
+        <p>Loading marketplace...</p>
       </div>
     );
   }
 
-  const filteredItems = getFilteredItems();
-
   return (
-    <div className="page-container dark-theme">
-      {/* Background elements - controlled in CSS with limits */}
-      <div className="bg-elements" style={{ height: '400px' }}>
-        <div className="grid-pattern"></div>
-        <div className="noise-overlay"></div>
-        <div className="scan-lines"></div>
-      </div>
-      
-      {/* Trade URL Prompt */}
-      <AnimatePresence>
-        {showTradeUrlPrompt && (
-          <TradeUrlPrompt 
-            onClose={() => setShowTradeUrlPrompt(false)}
-            onSave={handleTradeUrlSave}
-            initialValue={userProfile?.tradeUrl || ''}
-          />
-        )}
-      </AnimatePresence>
-      
+    <div>
       {/* Item Details Modal */}
       <ItemDetails 
-        open={itemDetailsOpen} 
-        onClose={() => setItemDetailsOpen(false)} 
         itemId={selectedItemId} 
-        onBuy={buyItem}
-        onMakeOffer={(item) => {
-          setSelectedItem(item);
-          setTradePanelOpen(true);
-          setTradeAction('makeOffer');
-        }}
-        user={user}
+        isOpen={itemDetailsOpen}
+        onClose={() => setItemDetailsOpen(false)}
+        onItemUpdated={fetchItems}
       />
       
-      {/* Trade Panel */}
-      <TradePanel 
-        open={tradePanelOpen} 
-        onClose={() => setTradePanelOpen(false)} 
-        item={selectedItem} 
-        action={tradeAction}
-        onSubmitOffer={(data) => handleOfferSuccess(data)}
-      />
+      {/* Offer Modal (legacy) */}
+      {selectedItem && (
+        <OfferModal 
+          item={selectedItem} 
+          onClose={() => setSelectedItem(null)}
+          onSuccess={handleOfferSuccess}
+        />
+      )}
       
-      <div className="marketplace-container">
-        <div className="marketplace-header">
-          <h1 className="marketplace-title">CS2 Marketplace</h1>
-          
-          <div className="marketplace-actions">
-            <button 
-              className={`btn ${activeTab === 'all' ? 'btn-primary' : 'btn-secondary'}`} 
-              onClick={() => setActiveTab('all')}
-            >
+      {/* User Listings Panel */}
+      <UserListings 
+        show={showListingsPanel}
+        onClose={() => setShowListingsPanel(false)}
+      />
+
+      <div style={{
+        maxWidth: '1400px',
+        margin: '0 auto',
+        marginBottom: '1.5rem'
+      }}>
+        {/* Tabs */}
+        <div style={{
+          display: 'flex',
+          marginBottom: '1.5rem',
+          backgroundColor: 'rgba(45, 27, 105, 0.5)',
+          borderRadius: '16px',
+          padding: '0.5rem',
+          overflow: 'hidden',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
+        }}>
+          <button 
+            onClick={() => setActiveTab('all')}
+            style={{
+              flex: 1,
+              padding: '0.75rem 1.5rem',
+              backgroundColor: activeTab === 'all' ? 'rgba(74, 222, 128, 0.2)' : 'transparent',
+              color: activeTab === 'all' ? '#4ade80' : '#e2e8f0',
+              border: 'none',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              fontWeight: '600',
+              transition: 'all 0.3s ease',
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+            onMouseEnter={(e) => {
+              if (activeTab !== 'all') {
+                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeTab !== 'all') {
+                e.target.style.backgroundColor = 'transparent';
+              }
+            }}
+          >
+            <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+              <svg 
+                style={{ width: '18px', height: '18px' }} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M4 6h16M4 10h16M4 14h16M4 18h16" 
+                />
+              </svg>
               All Listings
-            </button>
-            
-            {user && (
-              <button 
-                className={`btn ${activeTab === 'my' ? 'btn-primary' : 'btn-secondary'}`} 
-                onClick={() => setActiveTab('my')}
-              >
-                My Listings
-              </button>
+            </span>
+            {activeTab === 'all' && (
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '40%',
+                height: '3px',
+                backgroundColor: '#4ade80',
+                borderRadius: '8px 8px 0 0',
+                boxShadow: '0 0 10px rgba(74, 222, 128, 0.5)'
+              }} />
             )}
-            
-            <button 
-              className="btn btn-secondary" 
-              onClick={() => setItemView(itemView === 'grid' ? 'list' : 'grid')}
+          </button>
+          
+          <button 
+            onClick={() => setActiveTab('my')}
+            style={{
+              flex: 1,
+              padding: '0.75rem 1.5rem',
+              backgroundColor: activeTab === 'my' ? 'rgba(139, 92, 246, 0.2)' : 'transparent',
+              color: activeTab === 'my' ? '#8B5CF6' : '#e2e8f0',
+              border: 'none',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              fontWeight: '600',
+              transition: 'all 0.3s ease',
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+            onMouseEnter={(e) => {
+              if (activeTab !== 'my') {
+                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeTab !== 'my') {
+                e.target.style.backgroundColor = 'transparent';
+              }
+            }}
+          >
+            <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+              <svg 
+                style={{ width: '18px', height: '18px' }} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
+                />
+              </svg>
+              My Listings
+            </span>
+            {activeTab === 'my' && (
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '40%',
+                height: '3px',
+                backgroundColor: '#8B5CF6',
+                borderRadius: '8px 8px 0 0',
+                boxShadow: '0 0 10px rgba(139, 92, 246, 0.5)'
+              }} />
+            )}
+          </button>
+        </div>
+        
+        {/* Action Buttons */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          marginBottom: '1rem'
+        }}>
+          <button
+            onClick={activeTab === 'all' ? fetchItems : fetchMyListings}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: activeTab === 'all' ? '#4ade80' : '#8B5CF6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              fontWeight: '600',
+              transition: 'all 0.3s ease',
+              boxShadow: activeTab === 'all' 
+                ? '0 0 20px rgba(74, 222, 128, 0.2)' 
+                : '0 0 20px rgba(139, 92, 246, 0.2)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              position: 'relative',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = activeTab === 'all' ? '#22c55e' : '#7C3AED';
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = activeTab === 'all'
+                ? '0 0 30px rgba(74, 222, 128, 0.4)'
+                : '0 0 30px rgba(139, 92, 246, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = activeTab === 'all' ? '#4ade80' : '#8B5CF6';
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = activeTab === 'all'
+                ? '0 0 20px rgba(74, 222, 128, 0.2)'
+                : '0 0 20px rgba(139, 92, 246, 0.2)';
+            }}
+          >
+            <span style={{ position: 'relative', zIndex: 1 }}>Refresh</span>
+            <svg 
+              style={{ width: '20px', height: '20px', position: 'relative', zIndex: 1 }} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
             >
-              {itemView === 'grid' ? (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="8" y1="6" x2="21" y2="6"></line>
-                  <line x1="8" y1="12" x2="21" y2="12"></line>
-                  <line x1="8" y1="18" x2="21" y2="18"></line>
-                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                </svg>
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7"></rect>
-                  <rect x="14" y="3" width="7" height="7"></rect>
-                  <rect x="14" y="14" width="7" height="7"></rect>
-                  <rect x="3" y="14" width="7" height="7"></rect>
-                </svg>
-              )}
-            </button>
-          </div>
-        </div>
-        
-        <div className="marketplace-stats">
-          <div className="stat-card">
-            <div className="stat-label">Total Listings</div>
-            <div className="stat-value">{activeTab === 'all' ? items.length : myListings.length}</div>
-          </div>
-          
-          <div className="stat-card">
-            <div className="stat-label">Lowest Price</div>
-            <div className="stat-value">
-              ${Math.min(...(activeTab === 'all' ? items : myListings).map(item => item.price || Infinity), Infinity).toString() === "Infinity" ? "0.00" : Math.min(...(activeTab === 'all' ? items : myListings).map(item => item.price || Infinity)).toFixed(2)}
-            </div>
-          </div>
-          
-          <div className="stat-card">
-            <div className="stat-label">Highest Price</div>
-            <div className="stat-value">
-              ${Math.max(...(activeTab === 'all' ? items : myListings).map(item => item.price || 0), 0).toFixed(2)}
-            </div>
-          </div>
-        </div>
-        
-        <div className="filter-container">
-          <div className="filter-row">
-            <div className="search-bar">
-              <input
-                type="text"
-                placeholder="Search items..."
-                className="search-input"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && fetchItems()}
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
               />
-              <button className="search-button" onClick={fetchItems}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-              </button>
-            </div>
-          </div>
-          
-          <div className="filter-row">
-            <div className="filter-group">
-              <label className="filter-label">Category</label>
-              <select 
-                className="filter-select"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                <option value="all">All Categories</option>
-                <option value="rifle">Rifles</option>
-                <option value="smg">SMGs</option>
-                <option value="pistol">Pistols</option>
-                <option value="knife">Knives</option>
-                <option value="glove">Gloves</option>
-                <option value="case">Cases</option>
-              </select>
-            </div>
-            
-            <div className="filter-group">
-              <label className="filter-label">Sort By</label>
-              <select 
-                className="filter-select"
-                value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value)}
-              >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="price_low">Price: Low to High</option>
-                <option value="price_high">Price: High to Low</option>
-              </select>
-            </div>
-            
-            <div className="filter-group">
-              <label className="filter-label">Price Range</label>
-              <select 
-                className="filter-select"
-                value={priceRange}
-                onChange={(e) => setPriceRange(e.target.value)}
-              >
-                <option value="all">All Prices</option>
-                <option value="0-50">$0 - $50</option>
-                <option value="50-100">$50 - $100</option>
-                <option value="100-500">$100 - $500</option>
-                <option value="500+">$500+</option>
-              </select>
-            </div>
-          </div>
+            </svg>
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(45deg, transparent 0%, rgba(255,255,255,0.1) 100%)',
+              pointerEvents: 'none'
+            }} />
+          </button>
         </div>
+      </div>
+      {message && (
+        <p style={{ 
+          textAlign: 'center',
+          color: message.includes('Failed') ? '#ef4444' : '#4ade80',
+          margin: '1rem 0',
+          padding: '1rem',
+          borderRadius: '0.5rem',
+          backgroundColor: 'rgba(45, 27, 105, 0.5)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          maxWidth: '400px',
+          margin: '1rem auto'
+        }}>
+          {message}
+        </p>
+      )}
+      {/* View Controls */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        maxWidth: '1400px',
+        margin: '0 auto 1rem',
+        padding: '0 1rem'
+      }}>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          style={{
+            display: 'flex',
+            gap: '0.5rem',
+            backgroundColor: 'rgba(45, 27, 105, 0.5)',
+            borderRadius: '12px',
+            padding: '0.5rem',
+            border: '1px solid rgba(255, 255, 255, 0.1)'
+          }}
+        >
+          <motion.button
+            whileHover={{ backgroundColor: itemView === 'grid' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(255, 255, 255, 0.1)' }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setItemView('grid')}
+            style={{
+              backgroundColor: itemView === 'grid' ? 'rgba(74, 222, 128, 0.15)' : 'transparent',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.5rem',
+              color: itemView === 'grid' ? '#4ade80' : '#e2e8f0',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+            </svg>
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ backgroundColor: itemView === 'list' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.1)' }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setItemView('list')}
+            style={{
+              backgroundColor: itemView === 'list' ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.5rem',
+              color: itemView === 'list' ? '#38bdf8' : '#e2e8f0',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+          </motion.button>
+        </motion.div>
+      </div>
         
-        {message && (
-          <div className="alert alert-info">{message}</div>
-        )}
-        
-        {filteredItems.length > 0 ? (
-          <div className="items-grid">
-            {filteredItems.map(item => (
-              <div 
+      {/* Items grid or list */}
+      <AnimatePresence mode="wait">
+        {itemView === 'grid' ? (
+          <motion.div
+            key="grid-view"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ 
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+              gap: '1.5rem',
+              padding: '1rem',
+              maxWidth: '1400px',
+              margin: '0 auto'
+            }}
+          >
+            {(activeTab === 'all' ? items : myListings).map((item, index) => (
+              <ItemCard3D
+                key={item._id}
+                item={item}
+                onClick={() => {
+                  setSelectedItemId(item._id);
+                  setItemDetailsOpen(true);
+                }}
+                featured={false}
+                highlight={false}
+                showActions={activeTab === 'all'}
+              />
+            ))}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="list-view"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ 
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem',
+              padding: '1rem',
+              maxWidth: '1400px',
+              margin: '0 auto'
+            }}
+          >
+            {(activeTab === 'all' ? items : myListings).map((item, index) => (
+              <motion.div
                 key={item._id} 
-                className="item-card"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05, duration: 0.3 }}
+                onClick={() => {
+                  setSelectedItemId(item._id);
+                  setItemDetailsOpen(true);
+                }}
+                whileHover={{ 
+                  y: -5, 
+                  boxShadow: '0 15px 30px rgba(0, 0, 0, 0.3)',
+                  backgroundColor: 'rgba(45, 27, 105, 0.8)' 
+                }}
                 style={{ 
-                  borderColor: getRarityColor(item.rarity) + '40' 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '1.5rem',
+                  padding: '1rem',
+                  backgroundColor: 'rgba(45, 27, 105, 0.6)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.2)',
+                  backdropFilter: 'blur(10px)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
                 }}
               >
-                <div className="item-image-wrapper">
+                {/* Item image with rarity border */}
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  style={{ 
+                    position: 'relative',
+                    width: '100px',
+                    height: '100px',
+                    flexShrink: 0
+                  }}
+                >
                   <img 
-                    src={item.imageUrl || `/img/placeholder-item.svg`} 
-                    alt={item.marketHashName || 'CS2 Item'} 
-                    className="item-image"
+                    src={item.imageUrl}
+                    alt={item.marketHashName}
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      objectFit: 'contain',
+                      borderRadius: '12px',
+                      border: `2px solid ${getRarityColor(item.rarity)}`,
+                      boxShadow: `0 0 20px ${getRarityColor(item.rarity)}33`
+                    }}
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.src = '/img/placeholder-item.svg';
                     }}
                   />
-                </div>
+                </motion.div>
                 
-                <div className="item-details">
-                  <h3 className="item-name">{item.marketHashName || 'CS2 Item'}</h3>
+                {/* Item details - middle section */}
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ 
+                    margin: '0 0 0.5rem 0',
+                    color: '#f1f1f1',
+                    fontSize: '1.1rem',
+                    fontWeight: '600'
+                  }}>
+                    {item.marketHashName.replace(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i, '').trim() || 'CS2 Item'}
+                  </h3>
                   
-                  <div className="item-info">
-                    {item.wear && (
-                      <span 
-                        className="item-wear"
-                        style={{ 
-                          backgroundColor: getWearColor(translateWear(item.wear)) + '30', 
-                          color: getWearColor(translateWear(item.wear)) 
-                        }}
-                      >
-                        {translateWear(item.wear)}
-                      </span>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '1rem',
+                    marginBottom: '0.5rem'
+                  }}>
+                    {/* Wear badge */}
+                    {(item.wear || item.marketHashName.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i)) && (
+                      <div style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '8px'
+                      }}>
+                        <span style={{ 
+                          width: '8px', 
+                          height: '8px', 
+                          borderRadius: '50%', 
+                          backgroundColor: getWearColor(translateWear(item.wear, item.marketHashName)),
+                          boxShadow: `0 0 8px ${getWearColor(translateWear(item.wear, item.marketHashName))}66`
+                        }}></span>
+                        <span style={{ 
+                          color: '#d1d5db',
+                          fontSize: '0.8rem',
+                          fontWeight: '500'
+                        }}>
+                          {translateWear(item.wear, item.marketHashName)}
+                        </span>
+                      </div>
                     )}
                     
-                    {item.rarity && (
-                      <span 
-                        className="item-rarity"
-                        style={{ 
-                          backgroundColor: getRarityColor(item.rarity) + '30', 
-                          color: getRarityColor(item.rarity) 
-                        }}
-                      >
+                    {/* Rarity badge */}
+                    <div style={{ 
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '8px'
+                    }}>
+                      <span style={{ 
+                        width: '8px', 
+                        height: '8px', 
+                        borderRadius: '50%', 
+                        backgroundColor: getRarityColor(item.rarity),
+                        boxShadow: `0 0 8px ${getRarityColor(item.rarity)}66`
+                      }}></span>
+                      <span style={{ 
+                        color: getRarityColor(item.rarity),
+                        fontSize: '0.8rem',
+                        fontWeight: '500'
+                      }}>
                         {item.rarity}
                       </span>
-                    )}
+                    </div>
                   </div>
                   
-                  <div className="item-price">
-                    ${(item.price || 0).toFixed(2)}
+                  {/* Seller info */}
+                  {item.seller && (
+                    <div style={{ 
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      color: '#94a3b8',
+                      fontSize: '0.85rem'
+                    }}>
+                      <span>Seller:</span>
+                      <div style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem'
+                      }}>
+                        {item.sellerName || 'Unknown'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Price and actions - right section */}
+                <div style={{ 
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-end',
+                  gap: '0.75rem',
+                  minWidth: '180px'
+                }}>
+                  <div style={{ 
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end'
+                  }}>
+                    <span style={{ 
+                      color: '#4ade80',
+                      fontWeight: 'bold',
+                      fontSize: '1.25rem'
+                    }}>
+                      ${(item.price || 0).toFixed(2)}
+                    </span>
                     {item.priceGEL && (
-                      <span className="price-gel">₾{item.priceGEL}</span>
+                      <span style={{ 
+                        color: '#94a3b8',
+                        fontSize: '0.9rem'
+                      }}>
+                        ₾{parseFloat(item.priceGEL).toFixed(2)} GEL
+                      </span>
                     )}
                   </div>
                   
-                  <div className="item-seller">
-                    Seller: {item.sellerName || 'Unknown'}
-                  </div>
-                  
-                  <div className="item-actions">
-                    {user && user._id !== item.seller && (
-                      <button 
-                        className="btn-buy"
-                        onClick={() => buyItem(item._id)}
-                      >
-                        Buy Now
-                      </button>
-                    )}
-                    
-                    {user && user._id !== item.seller && (
-                      <button 
-                        className="btn-offer"
-                        onClick={() => {
-                          setSelectedItem(item);
-                          setTradePanelOpen(true);
-                          setTradeAction('makeOffer');
+                  {/* Buttons */}
+                  <div style={{ 
+                    display: 'flex',
+                    gap: '0.5rem'
+                  }}>
+                    {activeTab === 'all' ? (
+                      <>
+                        <motion.button
+                          whileHover={{ scale: 1.05, backgroundColor: '#22c55e' }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            buyItem(item._id);
+                          }}
+                          style={{
+                            padding: '0.65rem 1rem',
+                            backgroundColor: '#4ade80',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            boxShadow: '0 4px 12px rgba(74, 222, 128, 0.2)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem'
+                          }}
+                        >
+                          {t('marketplace.actions.buy')}
+                        </motion.button>
+                        
+                        <motion.button
+                          whileHover={{ scale: 1.05, backgroundColor: '#7C3AED' }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedItem(item);
+                          }}
+                          style={{
+                            padding: '0.65rem 1rem',
+                            backgroundColor: '#8B5CF6',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            boxShadow: '0 4px 12px rgba(139, 92, 246, 0.2)'
+                          }}
+                        >
+                          {t('marketplace.actions.offer')}
+                        </motion.button>
+                      </>
+                    ) : (
+                      <motion.button
+                        whileHover={{ scale: 1.05, backgroundColor: '#dc2626' }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const cancelListing = async () => {
+                            try {
+                              await axios.put(`${API_URL}/marketplace/cancel/${item._id}`, {}, {
+                                withCredentials: true
+                              });
+                              // Update listings after cancellation
+                              fetchMyListings();
+                              setMessage('Listing cancelled successfully!');
+                              
+                              // Show notification
+                              if (window.showNotification) {
+                                window.showNotification(
+                                  'Listing Cancelled',
+                                  'Your listing has been cancelled successfully.',
+                                  'SUCCESS'
+                                );
+                              }
+                            } catch (err) {
+                              console.error('Error cancelling listing:', err);
+                              setMessage('Failed to cancel listing');
+                              
+                              // Show error notification
+                              if (window.showNotification) {
+                                window.showNotification(
+                                  'Error',
+                                  'Failed to cancel listing',
+                                  'ERROR'
+                                );
+                              }
+                            }
+                          };
+                          cancelListing();
+                        }}
+                        style={{
+                          padding: '0.65rem 1rem',
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                          fontWeight: '600',
+                          boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem'
                         }}
                       >
-                        Make Offer
-                      </button>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        {t('marketplace.actions.cancelListing')}
+                      </motion.button>
                     )}
-                    
-                    <button 
-                      className="btn-detail"
-                      onClick={() => {
-                        setSelectedItemId(item._id);
-                        setItemDetailsOpen(true);
-                      }}
-                    >
-                      Details
-                    </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="8" y1="12" x2="16" y2="12"></line>
-            </svg>
-            <h3>No Items Found</h3>
-            <p>
-              {activeTab === 'all' 
-                ? "No items are currently listed on the marketplace. Check back later or try different filters." 
-                : "You don't have any active listings. List items from your inventory to start selling."}
-            </p>
-            {activeTab === 'my' && (
-              <button 
-                className="btn btn-primary"
-                onClick={() => window.location.href = '/inventory'}
-              >
-                Go to Inventory
-              </button>
-            )}
-          </div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </div>
   );
 }
