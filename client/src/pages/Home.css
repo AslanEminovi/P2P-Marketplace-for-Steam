@@ -59,10 +59,11 @@
   z-index: 10;
   border-top: 1px solid rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-  background-image: url('/images/cs2-knife.png'), url('/images/cs2-weapon.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  /* Removed background images to fix build error */
+  /* background-image: url('/images/cs2-knife.png'), url('/images/cs2-weapon.png'); */
+  /* background-size: cover; */
+  /* background-position: center; */
+  /* background-repeat: no-repeat; */
 }
 
 .featured-section-container {
