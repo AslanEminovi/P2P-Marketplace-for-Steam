@@ -29,22 +29,37 @@ const ItemDetails = ({
       const response = await axios.get(`${API_URL}/marketplace/item/${itemId}`, {
         withCredentials: true
       });
+      
+      // Make sure we have a valid item
+      if (!response.data) {
+        throw new Error('No item data returned from server');
+      }
+      
       setItem(response.data);
       
       // Check if the current user is the owner
-      const userResponse = await axios.get(`${API_URL}/user/profile`, {
-        withCredentials: true
-      });
-      
-      if (response.data.owner && userResponse.data && 
-          response.data.owner._id === userResponse.data._id) {
-        setIsUserOwner(true);
-      } else {
+      try {
+        const userResponse = await axios.get(`${API_URL}/user/profile`, {
+          withCredentials: true
+        });
+        
+        if (response.data.owner && userResponse.data && 
+            response.data.owner._id === userResponse.data._id) {
+          setIsUserOwner(true);
+        } else {
+          setIsUserOwner(false);
+        }
+      } catch (userErr) {
+        console.error('Error fetching user profile:', userErr);
         setIsUserOwner(false);
       }
     } catch (err) {
       console.error('Error fetching item details:', err);
       setError(err.response?.data?.error || 'Failed to load item details');
+      // If error is 404 (Not Found), show specific message
+      if (err.response?.status === 404) {
+        setError('Item not found. It may have been removed or sold.');
+      }
     } finally {
       setLoading(false);
     }

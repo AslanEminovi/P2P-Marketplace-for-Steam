@@ -593,8 +593,8 @@ const TradeDetails = ({ tradeId }) => {
           <h3 style={{ color: '#f1f1f1', marginTop: '0' }}>Item</h3>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
             <img
-              src={trade.item.imageUrl || 'https://via.placeholder.com/120'}
-              alt={trade.item.marketHashName}
+              src={trade.item?.imageUrl || 'https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFSv_J2Rg/360fx360f'}
+              alt={trade.item?.marketHashName || 'CS2 Item'}
               style={{
                 width: '120px',
                 height: '90px',
@@ -604,10 +604,13 @@ const TradeDetails = ({ tradeId }) => {
               }}
             />
             <div>
-              <h4 style={{ color: '#f1f1f1', margin: '0 0 8px 0' }}>{trade.item.marketHashName}</h4>
+              <h4 style={{ color: '#f1f1f1', margin: '0 0 8px 0' }}>
+                {trade.item?.marketHashName || `CS2 Item (${trade.assetId || 'Unknown'})`}
+              </h4>
               <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
-                {trade.item.wear && <span>{trade.item.wear} | </span>}
-                {trade.item.rarity && <span style={{ color: getRarityColor(trade.item.rarity) }}>{trade.item.rarity}</span>}
+                {trade.item?.wear && <span>{trade.item.wear} | </span>}
+                {trade.item?.rarity && <span style={{ color: getRarityColor(trade.item.rarity) }}>{trade.item.rarity}</span>}
+                {!trade.item?.wear && !trade.item?.rarity && <span>Asset ID: {trade.assetId || 'Unknown'}</span>}
               </div>
               <div style={{ marginTop: '8px' }}>
                 <span style={{ color: '#4ade80', fontWeight: 'bold', fontSize: '1.125rem' }}>

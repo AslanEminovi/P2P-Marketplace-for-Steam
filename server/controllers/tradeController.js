@@ -13,10 +13,9 @@ exports.getTradeHistory = async (req, res) => {
     const userId = req.user._id;
 
     // Look up trades where the user is either buyer or seller
-    // EXCLUDE cancelled and failed trades completely
+    // Include all trade statuses including cancelled and failed trades
     const trades = await Trade.find({
       $or: [{ buyer: userId }, { seller: userId }],
-      status: { $nin: ["cancelled", "failed"] }, // Exclude cancelled and failed trades
     })
       .populate("item")
       .populate("buyer", "displayName avatar steamId")
@@ -28,6 +27,20 @@ exports.getTradeHistory = async (req, res) => {
       const tradeObj = trade.toObject();
       tradeObj.isUserBuyer = trade.buyer._id.toString() === userId.toString();
       tradeObj.isUserSeller = trade.seller._id.toString() === userId.toString();
+
+      // Ensure item data is preserved even if the item is missing
+      if (!tradeObj.item) {
+        // Create a placeholder item with available data
+        tradeObj.item = {
+          marketHashName: trade.assetId
+            ? `CS2 Item (${trade.assetId})`
+            : "CS2 Item",
+          imageUrl:
+            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFSv_J2Rg/360fx360f",
+          assetId: trade.assetId,
+        };
+      }
+
       return tradeObj;
     });
 
