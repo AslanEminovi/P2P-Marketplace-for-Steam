@@ -49,7 +49,6 @@ const itemSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
-  ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   steamItemId: String,
   assetId: String,
   isListed: Boolean,
@@ -93,7 +92,7 @@ async function cleanupStuckListings(userId = null) {
     // Create query for finding listed items
     const query = { isListed: true };
     if (userId) {
-      query.$or = [{ owner: userId }, { ownerId: userId }];
+      query.owner = userId;
       console.log(`Targeting cleanup for user: ${userId}`);
     }
 
@@ -110,16 +109,6 @@ async function cleanupStuckListings(userId = null) {
     const tradeUpdateResult = await Trade.updateMany(
       {
         status: { $nin: ["completed", "cancelled"] },
-        ...(userId
-          ? {
-              $or: [
-                { seller: userId },
-                { sellerId: userId },
-                { buyer: userId },
-                { buyerId: userId },
-              ],
-            }
-          : {}),
       },
       { $set: { status: "cancelled" } }
     );
