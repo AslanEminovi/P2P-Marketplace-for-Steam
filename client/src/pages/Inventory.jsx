@@ -3,7 +3,6 @@ import axios from 'axios';
 import { API_URL } from '../config/constants';
 import SellModal from '../components/SellModal';
 import socketService from '../services/socketService';
-import './Inventory.css';
 
 function Inventory() {
   const [items, setItems] = useState([]);
@@ -12,14 +11,6 @@ function Inventory() {
   const [user, setUser] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showSellModal, setShowSellModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [sortOrder, setSortOrder] = useState('name_asc');
-  const [stats, setStats] = useState({
-    totalItems: 0,
-    totalValue: 0,
-    rareItems: 0
-  });
 
   const translateWear = (shortWear) => {
     const wearTranslations = {
@@ -56,57 +47,34 @@ function Inventory() {
     return wearColors[wear] || '#b0c3d9';
   };
 
-  // Check authentication status directly from App props
-  useEffect(() => {
-    // If user is already passed in from App component, use it
-    if (user) {
-      fetchInventory(true);
-    } else {
-      // Fallback to API check if not passed from props
-      checkAuthStatus();
-    }
-  }, []);
-
   const checkAuthStatus = async () => {
     try {
       const res = await axios.get(`${API_URL}/auth/user`, { withCredentials: true });
       if (res.data.authenticated) {
         setUser(res.data.user);
-        fetchInventory(true);
         return true;
       }
       setMessage('Please sign in through Steam to view your inventory.');
-      setLoading(false);
       return false;
     } catch (err) {
       console.error('Auth check error:', err);
       setMessage('Failed to verify authentication status.');
-      setLoading(false);
       return false;
     }
   };
 
-  const fetchInventory = async (force = false) => {
+  const fetchInventory = async () => {
     try {
       setLoading(true);
+      const isAuthenticated = await checkAuthStatus();
       
-      // Skip auth check if we already have user or force is true
-      if (!force && !user) {
-        const isAuthenticated = await checkAuthStatus();
-        if (!isAuthenticated) {
-          return;
-        }
+      if (!isAuthenticated) {
+        setLoading(false);
+        return;
       }
 
       const res = await axios.get(`${API_URL}/inventory/my`, { withCredentials: true });
       console.log('Inventory response:', res.data);
-      
-      // Debug the item structure to see what properties are available
-      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-        console.log('First item structure:', res.data[0]);
-        console.log('Item types:', [...new Set(res.data.map(item => item.type).filter(Boolean))]);
-        console.log('Market hash names sample:', res.data.slice(0, 5).map(item => item.marketHashName));
-      }
       
       if (res.data && Array.isArray(res.data)) {
         setItems(res.data);
@@ -125,19 +93,7 @@ function Inventory() {
   };
 
   const handleSellClick = (item) => {
-    console.log('Preparing to sell item:', item);
-    
-    // Prepare the item with all necessary fields
-    const preparedItem = {
-      ...item,
-      name: item.marketHashName || item.name || 'CS2 Item',
-      wear: item.wear || (item.marketHashName?.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i)?.[0]),
-      assetId: item.assetId || item.id || item._id,
-      suggestedPrice: item.suggestedPrice || item.price || item.pricelatest || item.pricereal || 0,
-      imageUrl: item.imageUrl || item.image || (item.iconUrl ? `https://steamcommunity-a.akamaihd.net/economy/image/${item.iconUrl}` : '/img/placeholder-item.svg')
-    };
-    
-    setSelectedItem(preparedItem);
+    setSelectedItem(item);
     setShowSellModal(true);
   };
 
@@ -146,41 +102,37 @@ function Inventory() {
     setSelectedItem(null);
   };
 
-  const listItemForSale = async (listingData) => {
+  const listItemForSale = async (itemData) => {
     try {
-      console.log('Creating listing with data:', listingData);
-      console.log('Selected item:', selectedItem);
-      
-      // Use the selectedItem data with the pricing from listingData
-      const itemToList = {
-        steamItemId: selectedItem.classid || selectedItem.steamItemId || '',
-        assetId: listingData.assetId || selectedItem.assetId || selectedItem.assetid || selectedItem.asset_id,
-        marketHashName: selectedItem.marketHashName || selectedItem.markethashname || selectedItem.name,
-        price: listingData.price,
-        imageUrl: selectedItem.imageUrl || selectedItem.image,
-        wear: selectedItem.wear,
-        rarity: selectedItem.rarity,
-        priceGEL: listingData.priceGEL
-      };
-      
-      console.log('Submitting listing to backend:', itemToList);
-      
-      const response = await axios.post(
-        `${API_URL}/marketplace/list`, 
-        itemToList, 
-        { withCredentials: true }
-      );
-      
-      console.log('Listing response:', response.data);
+      // Extract wear from marketHashName if not provided
+      let itemWear = itemData.wear;
+      if (!itemWear && itemData.markethashname) {
+        const wearMatch = itemData.markethashname.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i);
+        if (wearMatch) {
+          itemWear = wearMatch[0];
+        }
+      }
+
+      // Calculate price in USD based on selected currency rate
+      const priceUSD = itemData.pricelatest || itemData.pricereal || 1;
+
+      await axios.post(`${API_URL}/marketplace/list`, {
+        steamItemId: itemData.classid,
+        assetId: itemData.assetid || itemData.asset_id,
+        marketHashName: itemData.markethashname,
+        price: priceUSD,
+        imageUrl: itemData.image,
+        wear: itemWear,
+        currencyRate: itemData.currencyRate || 1.8,
+        priceGEL: itemData.priceGEL || (priceUSD * 1.8).toFixed(2)
+      }, { withCredentials: true });
       
       setMessage('Item listed for sale successfully!');
       setShowSellModal(false);
       setSelectedItem(null);
-      
-      // Refresh inventory after listing
-      fetchInventory(true); 
+      fetchInventory(); // Refresh inventory after listing
     } catch (err) {
-      console.error('List item error:', err.response || err);
+      console.error('List item error:', err);
       setMessage(err.response?.data?.error || 'Failed to list item for sale.');
     }
   };
@@ -223,17 +175,24 @@ function Inventory() {
 
   if (loading) {
     return (
-      <div className="page-container dark-theme">
-        {/* Background elements */}
-        <div className="bg-elements">
-          <div className="grid-pattern"></div>
-          <div className="noise-overlay"></div>
-          <div className="scan-lines"></div>
-        </div>
-        
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>Loading your inventory...</p>
+      <div style={{ 
+        color: '#e2e8f0',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '60vh',
+        fontSize: '1.25rem',
+        background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)'
+      }}>
+        <div style={{
+          padding: '2rem',
+          borderRadius: '1rem',
+          backgroundColor: 'rgba(45, 27, 105, 0.5)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+        }}>
+          Loading inventory...
         </div>
       </div>
     );
@@ -268,275 +227,265 @@ function Inventory() {
     );
   }
 
-  // Modified filtering to be more lenient
-  const filteredItems = items.filter(item => {
-    // Debug item properties for filtering
-    console.log('Filtering item:', item.marketHashName, 'Type:', item.type, 'Category:', filterCategory);
-    
-    // If all categories selected, show everything
-    if (filterCategory === 'all') return true;
-    
-    // If item has no type, check marketHashName for category keywords
-    if (!item.type) {
-      const name = (item.marketHashName || '').toLowerCase();
-      if (filterCategory === 'knife' && (name.includes('knife') || name.includes('karambit') || name.includes('bayonet'))) return true;
-      if (filterCategory === 'glove' && name.includes('glove')) return true;
-      if (filterCategory === 'rifle' && (name.includes('rifle') || name.includes('ak-47') || name.includes('m4a'))) return true; 
-      if (filterCategory === 'pistol' && (name.includes('pistol') || name.includes('deagle') || name.includes('glock'))) return true;
-      if (filterCategory === 'case' && name.includes('case')) return true;
-      // Default case for items without type but not matching keywords
-      return false;
-    }
-    
-    // Normal type checking - case insensitive
-    const itemType = item.type.toLowerCase();
-    if (filterCategory === 'knife' && (itemType.includes('knife') || itemType.includes('karambit') || itemType.includes('bayonet'))) return true;
-    if (filterCategory === 'glove' && itemType.includes('glove')) return true;
-    if (filterCategory === 'rifle' && (itemType.includes('rifle') || itemType.includes('ak-47') || itemType.includes('m4a'))) return true; 
-    if (filterCategory === 'pistol' && (itemType.includes('pistol') || itemType.includes('deagle') || itemType.includes('glock'))) return true;
-    if (filterCategory === 'case' && itemType.includes('case')) return true;
-    
-    return itemType === filterCategory;
-  }).filter(item => {
-    // Search term filtering - skip if no search term
-    if (!searchTerm) return true;
-    // Case insensitive search in market hash name
-    return (item.marketHashName || '').toLowerCase().includes(searchTerm.toLowerCase());
-  });
-
-  // Sort items
-  const sortedItems = [...filteredItems].sort((a, b) => {
-    if (sortOrder === 'name_asc') return a.marketHashName?.localeCompare(b.marketHashName);
-    if (sortOrder === 'name_desc') return b.marketHashName?.localeCompare(a.marketHashName);
-    if (sortOrder === 'price_asc') return (a.suggestedPrice || 0) - (b.suggestedPrice || 0);
-    if (sortOrder === 'price_desc') return (b.suggestedPrice || 0) - (a.suggestedPrice || 0);
-    if (sortOrder === 'rarity') {
-      const rarityOrder = {
-        'Consumer Grade': 1,
-        'Industrial Grade': 2,
-        'Mil-Spec Grade': 3,
-        'Restricted': 4,
-        'Classified': 5,
-        'Covert': 6,
-        '★': 7
-      };
-      return (rarityOrder[b.rarity] || 0) - (rarityOrder[a.rarity] || 0);
-    }
-    return 0;
-  });
-
   return (
-    <div className="page-container dark-theme">
-      {/* Background elements */}
-      <div className="bg-elements">
-        <div className="grid-pattern"></div>
-        <div className="noise-overlay"></div>
-        <div className="scan-lines"></div>
-      </div>
-      
-      <div className="inventory-container">
-        <div className="inventory-header">
-          <h1 className="inventory-title">My Inventory</h1>
-          
-          <div className="inventory-actions">
-            <button 
-              className="btn btn-primary"
-              onClick={() => fetchInventory(true)}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="1 4 1 10 7 10"></polyline>
-                <polyline points="23 20 23 14 17 14"></polyline>
-                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-              </svg>
-              Sync with Steam
-            </button>
-          </div>
-        </div>
-        
-        <div className="inventory-stats">
-          <div className="stat-card">
-            <div className="stat-label">Total Items</div>
-            <div className="stat-value">{items.length}</div>
-          </div>
-          
-          <div className="stat-card">
-            <div className="stat-label">Estimated Value</div>
-            <div className="stat-value">
-              ${items.reduce((sum, item) => {
-                const price = item.suggestedPrice || 
-                             item.price || 
-                             item.pricelatest || 
-                             item.pricereal || 0;
-                return sum + parseFloat(price);
-              }, 0).toFixed(2)}
-            </div>
-          </div>
-          
-          <div className="stat-card">
-            <div className="stat-label">Rare Items</div>
-            <div className="stat-value">
-              {items.filter(item => 
-                item.rarity === 'Covert' || 
-                item.rarity === '★' || 
-                item.rarity === 'Classified' ||
-                (item.marketHashName || '').toLowerCase().includes('knife') ||
-                (item.marketHashName || '').toLowerCase().includes('glove')
-              ).length}
-            </div>
-          </div>
-        </div>
-        
-        <div className="inventory-filter">
-          <div className="filter-group">
-            <label className="filter-label">Search Items</label>
-            <input 
-              type="text"
-              className="search-input"
-              placeholder="Search by name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          
-          <div className="filter-group">
-            <label className="filter-label">Category</label>
-            <select 
-              className="filter-select"
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-            >
-              <option value="all">All Items</option>
-              <option value="rifle">Rifles</option>
-              <option value="smg">SMGs</option>
-              <option value="pistol">Pistols</option>
-              <option value="knife">Knives</option>
-              <option value="glove">Gloves</option>
-              <option value="case">Cases</option>
-            </select>
-          </div>
-          
-          <div className="filter-group">
-            <label className="filter-label">Sort By</label>
-            <select 
-              className="filter-select"
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)}
-            >
-              <option value="name_asc">Name (A-Z)</option>
-              <option value="name_desc">Name (Z-A)</option>
-              <option value="price_asc">Price (Low to High)</option>
-              <option value="price_desc">Price (High to Low)</option>
-              <option value="rarity">Rarity</option>
-            </select>
-          </div>
-        </div>
-        
-        {sortedItems.length > 0 ? (
-          <div className="inventory-grid">
-            {sortedItems.map((item, index) => (
-              <div 
-                key={item.assetId || item._id || index} 
-                className="item-card"
-                style={{ 
-                  borderColor: getRarityColor(item.rarity) + '40' 
-                }}
-              >
-                <div className="item-image-wrapper">
-                  <img 
-                    src={item.imageUrl || item.image || (item.iconUrl ? `https://steamcommunity-a.akamaihd.net/economy/image/${item.iconUrl}` : '/img/placeholder-item.svg')} 
-                    alt={item.marketHashName || item.name || 'CS2 Item'} 
-                    className="item-image"
-                    onError={(e) => {
-                      e.target.onerror = null; 
-                      e.target.src = '/img/placeholder-item.svg';
-                    }}
-                  />
-                </div>
-                
-                <div className="item-details">
-                  <h3 className="item-name">{item.marketHashName || item.name || 'CS2 Item'}</h3>
-                  
-                  <div className="item-info">
-                    {(item.wear || (item.marketHashName && item.marketHashName.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i))) && (
-                      <span 
-                        className="item-wear"
-                        style={{ 
-                          backgroundColor: getWearColor(translateWear(item.wear)) + '30', 
-                          color: getWearColor(translateWear(item.wear))
-                        }}
-                      >
-                        {translateWear(item.wear) || item.marketHashName?.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i)?.[0] || 'N/A'}
-                      </span>
-                    )}
-                    
-                    {item.rarity && (
-                      <span 
-                        className="item-rarity"
-                        style={{ 
-                          backgroundColor: getRarityColor(item.rarity) + '30', 
-                          color: getRarityColor(item.rarity) 
-                        }}
-                      >
-                        {item.rarity}
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className="item-price">
-                    ${(item.suggestedPrice || item.price || item.pricelatest || item.pricereal || 0).toFixed(2)}
-                  </div>
-                  
-                  <div className="item-actions">
-                    <button 
-                      className="btn-sell"
-                      onClick={() => handleSellClick(item)}
-                    >
-                      Sell Item
-                    </button>
-                    
-                    <button 
-                      className="btn-detail"
-                      onClick={() => window.open(`https://steamcommunity.com/market/listings/730/${encodeURIComponent(item.marketHashName || item.name || '')}`, '_blank')}
-                    >
-                      Details
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-inventory">
-            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-            </svg>
-            <h3>No Items Found</h3>
-            <p>
-              {items.length === 0 
-                ? "Your Steam inventory appears to be empty or not synchronized. Try using the 'Sync with Steam' button to import your items." 
-                : "No items match your current search filters. Try adjusting your search criteria."}
-            </p>
-            {items.length === 0 && (
-              <button 
-                className="btn btn-primary"
-                onClick={() => fetchInventory(true)}
-              >
-                Sync with Steam
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-      
-      {/* Sell Modal */}
-      {showSellModal && (
-        <SellModal
-          item={selectedItem}
-          onClose={handleCloseSellModal}
-          onSell={listItemForSale}
+    <div style={{ 
+      background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
+      minHeight: '100vh',
+      padding: '2rem'
+    }}>
+      {showSellModal && selectedItem && (
+        <SellModal 
+          item={selectedItem} 
+          onClose={handleCloseSellModal} 
+          onConfirm={listItemForSale} 
         />
       )}
+
+      <div style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        maxWidth: '1400px',
+        margin: '0 auto',
+        marginBottom: '1.5rem'
+      }}>
+        <button
+          onClick={fetchInventory}
+          style={{
+            padding: '0.75rem 1.5rem',
+            backgroundColor: '#4ade80',
+            color: 'white',
+            border: 'none',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            fontSize: '0.9rem',
+            fontWeight: '600',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 0 20px rgba(74, 222, 128, 0.2)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            position: 'relative',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.backgroundColor = '#22c55e';
+            e.target.style.transform = 'translateY(-2px)';
+            e.target.style.boxShadow = '0 0 30px rgba(74, 222, 128, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.backgroundColor = '#4ade80';
+            e.target.style.transform = 'translateY(0)';
+            e.target.style.boxShadow = '0 0 20px rgba(74, 222, 128, 0.2)';
+          }}
+        >
+          <span style={{ position: 'relative', zIndex: 1 }}>Refresh Inventory</span>
+          <svg 
+            style={{ width: '20px', height: '20px', position: 'relative', zIndex: 1 }} 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+            />
+          </svg>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(45deg, transparent 0%, rgba(255,255,255,0.1) 100%)',
+            pointerEvents: 'none'
+          }} />
+        </button>
+      </div>
+      {message && (
+        <p style={{ 
+          textAlign: 'center',
+          color: message.includes('success') ? '#4ade80' : '#ef4444',
+          margin: '1rem 0',
+          padding: '1rem',
+          borderRadius: '0.5rem',
+          backgroundColor: 'rgba(45, 27, 105, 0.5)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          maxWidth: '400px',
+          margin: '1rem auto'
+        }}>
+          {message}
+        </p>
+      )}
+      <div style={{ 
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+        gap: '1.5rem',
+        padding: '1rem',
+        maxWidth: '1400px',
+        margin: '0 auto'
+      }}>
+        {items.map((item, idx) => (
+          <div key={idx} style={{ 
+            position: 'relative',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '16px',
+            padding: '1rem',
+            backgroundColor: 'rgba(45, 27, 105, 0.7)',
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            overflow: 'hidden'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-8px)';
+            e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.3)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.2)';
+          }}>
+            <div style={{ 
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: `radial-gradient(circle at top right, ${getRarityColor(item.rarity)}22, transparent 70%)`,
+              pointerEvents: 'none'
+            }} />
+            <div style={{ position: 'relative' }}>
+              {item.image && (
+                <img 
+                  src={item.image}
+                  alt={item.marketname || item.markethashname}
+                  style={{ 
+                    width: '100%', 
+                    height: 'auto', 
+                    borderRadius: '12px',
+                    border: `2px solid ${getRarityColor(item.rarity)}`,
+                    boxShadow: `0 0 20px ${getRarityColor(item.rarity)}33`
+                  }}
+                />
+              )}
+            </div>
+            <div style={{ flex: 1, position: 'relative', zIndex: 1 }}>
+              <p style={{ 
+                fontSize: '0.9rem', 
+                fontWeight: 'bold', 
+                color: '#e2e8f0',
+                marginBottom: '0.5rem',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }}>
+                {item.marketname || item.markethashname}
+              </p>
+              <div style={{ 
+                fontSize: '0.8rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.4rem',
+                background: 'rgba(0,0,0,0.2)',
+                padding: '0.5rem',
+                borderRadius: '8px'
+              }}>
+                <p style={{ 
+                  color: getRarityColor(item.rarity),
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  textShadow: `0 0 10px ${getRarityColor(item.rarity)}66`
+                }}>
+                  <span style={{ 
+                    width: '8px', 
+                    height: '8px', 
+                    borderRadius: '50%', 
+                    backgroundColor: getRarityColor(item.rarity),
+                    boxShadow: `0 0 10px ${getRarityColor(item.rarity)}66`,
+                    display: 'inline-block'
+                  }}></span>
+                  {item.rarity}
+                </p>
+                {(item.wear || (item.marketname || item.markethashname)?.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i)) && (
+                  <p style={{ 
+                    color: getWearColor(translateWear(item.wear)),
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    textShadow: `0 0 10px ${getWearColor(translateWear(item.wear))}66`
+                  }}>
+                    <span style={{ 
+                      width: '8px', 
+                      height: '8px', 
+                      borderRadius: '50%', 
+                      backgroundColor: getWearColor(translateWear(item.wear)),
+                      boxShadow: `0 0 10px ${getWearColor(translateWear(item.wear))}66`,
+                      display: 'inline-block'
+                    }}></span>
+                    {translateWear(item.wear)}
+                  </p>
+                )}
+                <p style={{ 
+                  color: '#4ade80',
+                  fontWeight: 'bold',
+                  textShadow: '0 0 10px rgba(74, 222, 128, 0.3)'
+                }}>
+                  ${(item.pricelatest || item.pricereal || '0.00').toFixed(2)}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => handleSellClick(item)}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                backgroundColor: '#4ade80',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 0 20px rgba(74, 222, 128, 0.2)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#22c55e';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 0 30px rgba(74, 222, 128, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#4ade80';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 0 20px rgba(74, 222, 128, 0.2)';
+              }}
+            >
+              <span style={{ position: 'relative', zIndex: 1 }}>Sell Now</span>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'linear-gradient(45deg, transparent 0%, rgba(255,255,255,0.1) 100%)',
+                pointerEvents: 'none'
+              }} />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

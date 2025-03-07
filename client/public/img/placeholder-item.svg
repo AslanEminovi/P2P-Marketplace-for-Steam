@@ -1,6 +1,0 @@
-<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="200" height="200" fill="#1A1A2E"/>
-  <path d="M130 70L160 100L130 130M70 70L40 100L70 130M110 50L90 150" stroke="#0ee6b7" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="40" y="40" width="120" height="120" rx="10" stroke="#0ee6b7" stroke-width="2" stroke-dasharray="4 4"/>
-  <text x="100" y="180" text-anchor="middle" fill="#0ee6b7" font-family="Arial" font-size="14">CS2 ITEM</text>
-</svg> 

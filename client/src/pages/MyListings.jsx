@@ -126,137 +126,142 @@ function MyListings() {
     '★': '#e4ae39'
   };
 
-  return (
-    <div className="page-container dark-theme">
-      {/* Background elements */}
-      <div className="bg-elements">
-        <div className="grid-pattern"></div>
-        <div className="noise-overlay"></div>
-        <div className="scan-lines"></div>
-      </div>
-      
+  if (loading) {
+    return (
       <div className="my-listings-container">
         <div className="my-listings-header">
           <h1>My Listings</h1>
-          <p>Manage your active listings on the marketplace</p>
         </div>
-        
-        {error && <div className="alert alert-error">{error}</div>}
-        {successMessage && <div className="alert alert-success">{successMessage}</div>}
-        
-        {loading ? (
-          <div className="loading-container">
-            <div className="loading-spinner"></div>
-            <p>Loading your listings...</p>
-          </div>
-        ) : listings.length === 0 ? (
-          <div className="no-listings glass-card">
-            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-            </svg>
-            <p>You don't have any active listings</p>
-            <button onClick={() => navigate('/marketplace')} className="btn btn-primary">
-              <span>Go to Marketplace</span>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
-            </button>
-          </div>
-        ) : (
-          <div className="listings-grid">
-            {listings.map(item => (
-              <div 
-                key={item._id} 
-                className="listing-card"
-                style={{
-                  borderColor: item.rarity && rarityColors[item.rarity] ? rarityColors[item.rarity] + '44' : 'rgba(255,255,255,0.1)'
-                }}
-              >
-                <div className="listing-image">
-                  <img src={item.imageUrl} alt={item.marketHashName} />
-                  <div className="listing-gradient" style={{
-                    background: `radial-gradient(circle at top right, ${rarityColors[item.rarity] || '#b0c3d9'}22, transparent 70%)`
-                  }}></div>
-                </div>
-                <div className="listing-details">
-                  <h3>{item.marketHashName}</h3>
-                  <div className="listing-wear">{item.wear || 'Unknown Wear'}</div>
-                  
-                  {editingItem === item._id ? (
-                    <div className="edit-price-form">
-                      <div className="price-input-group">
-                        <label>
-                          USD Price:
-                          <input 
-                            type="number" 
-                            value={newPrice} 
-                            onChange={handleNewPriceChange} 
-                            min="0.01" 
-                            step="0.01"
-                            placeholder="USD Price" 
-                          />
-                        </label>
-                      </div>
-                      <div className="price-input-group">
-                        <label>
-                          GEL Price:
-                          <input 
-                            type="number" 
-                            value={newPriceGEL} 
-                            onChange={(e) => setNewPriceGEL(e.target.value)} 
-                            min="0.01" 
-                            step="0.01"
-                            placeholder="GEL Price (Optional)" 
-                          />
-                        </label>
-                      </div>
-                      <div className="edit-actions">
-                        <button 
-                          className="btn btn-save" 
-                          onClick={() => updatePrice(item._id)}
-                        >
-                          Save
-                        </button>
-                        <button 
-                          className="btn btn-cancel" 
-                          onClick={cancelEditing}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="listing-prices">
-                      <div className="price price-usd">${item.price.toFixed(2)}</div>
-                      {item.priceGEL && (
-                        <div className="price price-gel">₾{parseFloat(item.priceGEL).toFixed(2)}</div>
-                      )}
-                    </div>
-                  )}
-                  
-                  {!editingItem && (
-                    <div className="listing-actions">
-                      <button 
-                        className="btn btn-edit" 
-                        onClick={() => startEditing(item)}
-                      >
-                        Change Price
-                      </button>
-                      <button 
-                        className="btn btn-cancel-listing" 
-                        onClick={() => handleCancelListing(item._id)}
-                      >
-                        Remove Listing
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="loading-container">
+          <div className="spinner"></div>
+          <p>Loading your listings...</p>
+        </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="my-listings-container">
+      <div className="my-listings-header">
+        <h1>My Listings</h1>
+        <p>Manage your items currently listed on the marketplace</p>
+      </div>
+
+      {error && (
+        <div className="alert alert-error">
+          <p>{error}</p>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="alert alert-success">
+          <p>{successMessage}</p>
+        </div>
+      )}
+
+      {listings.length > 0 ? (
+        <div className="listings-grid">
+          {listings.map(item => (
+            <div 
+              key={item._id} 
+              className="listing-card"
+              style={{
+                borderColor: item.rarity && rarityColors[item.rarity] ? rarityColors[item.rarity] + '44' : 'rgba(255,255,255,0.1)'
+              }}
+            >
+              <div className="listing-image">
+                <img src={item.imageUrl} alt={item.marketHashName} />
+                <div className="listing-gradient" style={{
+                  background: `radial-gradient(circle at top right, ${rarityColors[item.rarity] || '#b0c3d9'}22, transparent 70%)`
+                }}></div>
+              </div>
+              <div className="listing-details">
+                <h3>{item.marketHashName}</h3>
+                <div className="listing-wear">{item.wear || 'Unknown Wear'}</div>
+                
+                {editingItem === item._id ? (
+                  <div className="edit-price-form">
+                    <div className="price-input-group">
+                      <label>
+                        USD Price:
+                        <input 
+                          type="number" 
+                          value={newPrice} 
+                          onChange={handleNewPriceChange} 
+                          min="0.01" 
+                          step="0.01"
+                          placeholder="USD Price" 
+                        />
+                      </label>
+                    </div>
+                    <div className="price-input-group">
+                      <label>
+                        GEL Price:
+                        <input 
+                          type="number" 
+                          value={newPriceGEL} 
+                          onChange={(e) => setNewPriceGEL(e.target.value)} 
+                          min="0.01" 
+                          step="0.01"
+                          placeholder="GEL Price (Optional)" 
+                        />
+                      </label>
+                    </div>
+                    <div className="edit-actions">
+                      <button 
+                        className="btn btn-save" 
+                        onClick={() => updatePrice(item._id)}
+                      >
+                        Save
+                      </button>
+                      <button 
+                        className="btn btn-cancel" 
+                        onClick={cancelEditing}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="listing-prices">
+                    <div className="price price-usd">${item.price.toFixed(2)}</div>
+                    {item.priceGEL && (
+                      <div className="price price-gel">₾{parseFloat(item.priceGEL).toFixed(2)}</div>
+                    )}
+                  </div>
+                )}
+                
+                {!editingItem && (
+                  <div className="listing-actions">
+                    <button 
+                      className="btn btn-edit" 
+                      onClick={() => startEditing(item)}
+                    >
+                      Change Price
+                    </button>
+                    <button 
+                      className="btn btn-cancel-listing" 
+                      onClick={() => handleCancelListing(item._id)}
+                    >
+                      Remove Listing
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="no-listings">
+          <p>You don't have any active listings</p>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => navigate('/inventory')}
+          >
+            List Items from Inventory
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,18 +1,8 @@
-/* MyListings styles */
-.page-container {
-  background: var(--color-bg-primary);
-  min-height: 100vh;
-  color: var(--color-text-primary);
-  position: relative;
-}
-
 .my-listings-container {
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
   min-height: calc(100vh - 80px);
-  position: relative;
-  z-index: 10;
 }
 
 .my-listings-header {
@@ -23,14 +13,15 @@
 .my-listings-header h1 {
   font-size: 2.5rem;
   margin-bottom: 0.5rem;
-  background: var(--gradient-primary);
+  background: linear-gradient(135deg, #4ade80 0%, #22d3ee 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   font-weight: bold;
 }
 
 .my-listings-header p {
-  color: var(--color-text-secondary);
+  color: #e2e8f0;
+  opacity: 0.8;
   font-size: 1.1rem;
 }
 
@@ -42,12 +33,12 @@
   height: 300px;
 }
 
-.loading-spinner {
+.spinner {
   width: 50px;
   height: 50px;
-  border: 3px solid rgba(14, 230, 183, 0.1);
+  border: 3px solid rgba(255, 255, 255, 0.1);
   border-radius: 50%;
-  border-top-color: var(--color-accent-primary);
+  border-top-color: #4ade80;
   animation: spin 1s ease-in-out infinite;
   margin-bottom: 1rem;
 }
@@ -66,15 +57,15 @@
 }
 
 .alert-error {
-  background-color: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  color: var(--color-danger);
+  background-color: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #fecaca;
 }
 
 .alert-success {
-  background-color: rgba(74, 222, 128, 0.1);
-  border: 1px solid rgba(74, 222, 128, 0.2);
-  color: var(--color-success);
+  background-color: rgba(74, 222, 128, 0.2);
+  border: 1px solid rgba(74, 222, 128, 0.5);
+  color: #bbf7d0;
 }
 
 .listings-grid {
@@ -84,37 +75,31 @@
 }
 
 .listing-card {
-  background: rgba(15, 15, 23, 0.6);
+  background-color: rgba(45, 27, 105, 0.7);
   backdrop-filter: blur(10px);
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid var(--color-border);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.3s ease;
   height: 100%;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 .listing-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3), 0 0 15px rgba(14, 230, 183, 0.2);
-  border-color: var(--color-accent-primary);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
 }
 
 .listing-image {
   position: relative;
   height: 180px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .listing-image img {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   object-position: center;
   transition: transform 0.3s ease;
@@ -147,13 +132,13 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--color-text-primary);
+  color: white;
   font-weight: 600;
 }
 
 .listing-wear {
   font-size: 0.85rem;
-  color: var(--color-text-secondary);
+  color: #94a3b8;
   margin-bottom: 1rem;
 }
 
@@ -170,12 +155,12 @@
 
 .price-usd {
   font-size: 1.25rem;
-  color: var(--color-accent-primary);
+  color: #4ade80;
 }
 
 .price-gel {
   font-size: 0.9rem;
-  color: var(--color-text-secondary);
+  color: #94a3b8;
 }
 
 .listing-actions {
@@ -186,117 +171,73 @@
 }
 
 .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 0.75rem 1.25rem;
+  padding: 0.75rem 1rem;
   border-radius: 8px;
   border: none;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all 0.3s ease;
   text-align: center;
   font-size: 0.9rem;
-  position: relative;
-  overflow: hidden;
-}
-
-.btn svg {
-  width: 16px;
-  height: 16px;
 }
 
 .btn-edit {
-  background-color: rgba(14, 165, 233, 0.1);
-  color: var(--color-info);
-  border: 1px solid rgba(14, 165, 233, 0.2);
+  background-color: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
 }
 
 .btn-edit:hover {
-  background-color: rgba(14, 165, 233, 0.15);
+  background-color: rgba(56, 189, 248, 0.3);
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(14, 165, 233, 0.15);
 }
 
 .btn-cancel-listing {
-  background-color: rgba(239, 68, 68, 0.1);
-  color: var(--color-danger);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .btn-cancel-listing:hover {
-  background-color: rgba(239, 68, 68, 0.15);
+  background-color: rgba(239, 68, 68, 0.3);
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(239, 68, 68, 0.15);
 }
 
 .btn-primary {
-  background: var(--gradient-primary);
-  color: var(--color-text-on-accent);
-  padding: 0.875rem 1.5rem;
+  background: linear-gradient(90deg, #4ade80 0%, #38bdf8 100%);
+  color: white;
+  padding: 1rem 2rem;
   font-size: 1rem;
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(14, 230, 183, 0.25);
-}
-
-.btn-primary:before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
-  transition: 0.5s;
-}
-
-.btn-primary:hover:before {
-  left: 100%;
-}
-
-.glass-card {
-  background: rgba(15, 15, 23, 0.6);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(74, 222, 128, 0.3);
 }
 
 .no-listings {
   text-align: center;
   padding: 4rem 2rem;
+  background-color: rgba(45, 27, 105, 0.3);
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
 }
 
-.no-listings svg {
-  opacity: 0.7;
-  margin-bottom: 1rem;
-}
-
 .no-listings p {
   font-size: 1.2rem;
-  color: var(--color-text-secondary);
-  margin-bottom: 1.5rem;
+  color: #94a3b8;
+  margin-bottom: 1rem;
 }
 
 .edit-price-form {
   margin-top: 1rem;
-  border: 1px solid var(--color-border);
-  padding: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem;
   border-radius: 8px;
-  background-color: rgba(15, 15, 23, 0.8);
+  background-color: rgba(45, 27, 105, 0.5);
 }
 
 .price-input-group {
@@ -308,59 +249,56 @@
   flex-direction: column;
   gap: 0.5rem;
   font-size: 0.9rem;
-  color: var(--color-text-secondary);
+  color: #e2e8f0;
 }
 
 .price-input-group input {
   padding: 0.75rem;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background-color: rgba(15, 15, 23, 0.6);
-  color: var(--color-text-primary);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
   font-size: 1rem;
-  transition: all 0.2s ease;
 }
 
 .price-input-group input:focus {
   outline: none;
-  border-color: var(--color-accent-primary);
-  box-shadow: 0 0 0 2px rgba(14, 230, 183, 0.2);
+  border-color: #4ade80;
 }
 
 .edit-actions {
   display: flex;
   gap: 0.75rem;
-  margin-top: 1.25rem;
+  margin-top: 1rem;
 }
 
 .btn-save {
-  background-color: rgba(74, 222, 128, 0.1);
-  color: var(--color-success);
-  border: 1px solid rgba(74, 222, 128, 0.2);
+  background-color: rgba(74, 222, 128, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.3);
   flex: 1;
 }
 
 .btn-save:hover {
-  background-color: rgba(74, 222, 128, 0.15);
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(74, 222, 128, 0.15);
+  background-color: rgba(74, 222, 128, 0.3);
 }
 
 .btn-cancel {
-  background-color: rgba(148, 163, 184, 0.1);
-  color: var(--color-text-secondary);
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  background-color: rgba(148, 163, 184, 0.2);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.3);
   flex: 1;
 }
 
 .btn-cancel:hover {
-  background-color: rgba(148, 163, 184, 0.15);
-  transform: translateY(-2px);
+  background-color: rgba(148, 163, 184, 0.3);
 }
 
+/* Responsive */
 @media (max-width: 768px) {
   .listings-grid {
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
   }
   
   .my-listings-header h1 {
@@ -378,6 +316,6 @@
   }
   
   .my-listings-container {
-    padding: 1.25rem;
+    padding: 1.5rem 1rem;
   }
 }

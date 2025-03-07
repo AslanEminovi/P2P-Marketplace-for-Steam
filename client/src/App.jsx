@@ -75,9 +75,8 @@ function App() {
       
       // If token exists, include it in query params
       if (token) {
-        console.log("Including auth token in request:", config.url);
         // Include token in URL if it's to our API
-        if (config.url && config.url.startsWith(API_URL)) {
+        if (config.url.startsWith(API_URL)) {
           // Initialize params object if not exists
           config.params = config.params || {};
           // Add token to params
@@ -86,9 +85,6 @@ function App() {
       }
       
       return config;
-    }, error => {
-      console.error("Axios request interceptor error:", error);
-      return Promise.reject(error);
     });
 
     // Remove interceptor on cleanup
@@ -102,44 +98,86 @@ function App() {
       setLoading(true);
       console.log("Checking auth status, API URL:", API_URL);
       
-      // First try with localStorage token
+      // Check for auth token in URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const authToken = urlParams.get('auth_token');
+      
+      if (authToken) {
+        console.log("Found auth token in URL, verifying...");
+        // Remove token from URL to prevent bookmarking with token
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Verify token with backend
+        const verifyResponse = await axios.post(`${API_URL}/auth/verify-token`, { token: authToken }, { withCredentials: true });
+        
+        if (verifyResponse.data.authenticated) {
+          console.log("Token verified, user authenticated:", verifyResponse.data.user);
+          setUser(verifyResponse.data.user);
+          
+          // Store token in localStorage for future use
+          localStorage.setItem('auth_token', authToken);
+          
+          // Show success notification
+          if (window.showNotification) {
+            window.showNotification(
+              t('common.signIn'),
+              t('common.success'),
+              'SUCCESS'
+            );
+          }
+          
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // Check if we have a token in localStorage
       const storedToken = localStorage.getItem('auth_token');
       if (storedToken) {
         console.log("Found stored token, verifying...");
         
         try {
-          const verifyResponse = await axios.post(`${API_URL}/auth/verify-token`, 
-            { token: storedToken }, 
-            { withCredentials: true }
-          );
+          const verifyResponse = await axios.post(`${API_URL}/auth/verify-token`, { token: storedToken }, { withCredentials: true });
           
-          if (verifyResponse?.data?.authenticated) {
+          if (verifyResponse.data.authenticated) {
             console.log("Stored token verified, user authenticated:", verifyResponse.data.user);
             setUser(verifyResponse.data.user);
             setLoading(false);
             return;
           } else {
-            console.log("Stored token is invalid, removing it");
+            // Token is invalid, remove it
             localStorage.removeItem('auth_token');
           }
         } catch (error) {
           console.error("Stored token verification failed:", error);
           localStorage.removeItem('auth_token');
         }
-      } else {
-        console.log("No auth token found in localStorage");
       }
       
-      // If we reach here, try session-based auth
+      // If we reach here, try the regular session-based auth as fallback
       try {
-        console.log("Trying session-based authentication");
-        const res = await axios.get(`${API_URL}/auth/user`, { withCredentials: true });
+        const res = await axios.get(`${API_URL}/auth/user`, { 
+          withCredentials: true 
+        })
+        .then(response => {
+          console.log("Auth response:", response.data);
+          return response;
+        })
+        .catch(error => {
+          console.error("Auth request failed:", error.message);
+          if (error.response) {
+            console.error("Response data:", error.response.data);
+            console.error("Response status:", error.response.status);
+            console.error("Response headers:", error.response.headers);
+          }
+          throw error;
+        });
         
-        if (res?.data?.authenticated) {
+        if (res.data.authenticated) {
           console.log("User authenticated via session:", res.data.user);
           setUser(res.data.user);
         } else {
-          console.log("User not authenticated via session");
+          console.log("User not authenticated");
         }
       } catch (err) {
         console.error("Session auth check failed:", err);
@@ -150,37 +188,6 @@ function App() {
       setLoading(false);
     }
   };
-
-  // Updated to specifically handle auth_token in URL more robustly
-  useEffect(() => {
-    const handleAuthToken = async () => {
-      console.log("Checking for auth token in URL on initial load");
-      const urlParams = new URLSearchParams(window.location.search);
-      const authToken = urlParams.get('auth_token');
-      
-      if (authToken) {
-        console.log("Found auth token in URL, storing it");
-        // Store token in localStorage
-        localStorage.setItem('auth_token', authToken);
-        
-        // Clean up the URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-        
-        // Immediately check auth status
-        await checkAuthStatus();
-      }
-    };
-    
-    handleAuthToken();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  
-  // Separate effect for general auth status check
-  useEffect(() => {
-    console.log("App component mounted, checking auth status");
-    checkAuthStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const handleLogout = async () => {
     try {
@@ -204,6 +211,10 @@ function App() {
       console.error('Logout error:', err);
     }
   };
+
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
 
   // Get wallet balance from API
   const refreshWalletBalance = async () => {
@@ -330,20 +341,222 @@ function App() {
   }, [user]);
 
   return (
-    <div className="app-container">
-      {/* Background effects - moved to individual pages for better control */}
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/marketplace" element={<Marketplace user={user} />} />
-        <Route path="/inventory" element={<Inventory />} />
-        <Route path="/trades" element={<TradeHistory />} />
-        <Route path="/trade-history" element={<TradeHistory />} />
-        <Route path="/settings" element={<SteamSettingsPage />} />
-        <Route path="/admin" element={<AdminTools />} />
-        {/* ... other routes ... */}
-      </Routes>
-      <Toaster />
+    <div style={{ 
+      minHeight: '100vh', 
+      background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      <Navbar user={user} onLogout={handleLogout} />
+      
+      {/* Toast notifications */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          success: {
+            duration: 3000,
+            style: {
+              background: '#166534',
+              color: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            style: {
+              background: '#991b1b',
+              color: '#fff',
+            },
+          },
+          warning: {
+            duration: 4000,
+            style: {
+              background: '#854d0e',
+              color: '#fff',
+            },
+          },
+        }}
+      />
+      
+      {/* WebSocket connection indicator */}
+      {user && (
+        <div 
+          style={{
+            position: 'fixed',
+            bottom: '10px',
+            right: '10px',
+            width: '10px',
+            height: '10px',
+            borderRadius: '50%',
+            backgroundColor: socketConnected ? '#4ade80' : '#ef4444',
+            boxShadow: `0 0 10px ${socketConnected ? 'rgba(74, 222, 128, 0.6)' : 'rgba(239, 68, 68, 0.6)'}`,
+            zIndex: 1000,
+            transition: 'all 0.3s ease'
+          }}
+          title={socketConnected ? 'Real-time connection active' : 'Real-time connection inactive'}
+        />
+      )}
+      
+      {/* Background patterns */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundImage: 'radial-gradient(circle at 15% 50%, rgba(74, 222, 128, 0.05) 0%, transparent 60%), radial-gradient(circle at 85% 30%, rgba(56, 189, 248, 0.05) 0%, transparent 60%)',
+        pointerEvents: 'none',
+        zIndex: 0
+      }} />
+      
+      {/* CSS for spinner animation */}
+      <style>
+        {`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+          .spinner {
+            animation: spin 1s linear infinite;
+          }
+        `}
+      </style>
+      
+      {/* These UI controls will be moved to the Navbar */}
+      
+      <Suspense fallback={
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center',
+          height: '80vh'
+        }}>
+          <div 
+            className="spinner"
+            style={{
+              width: '60px',
+              height: '60px',
+              border: '4px solid rgba(255,255,255,0.1)',
+              borderRadius: '50%',
+              borderTopColor: '#4ade80',
+              animation: 'spin 1s linear infinite'
+            }}
+          />
+        </div>
+      }>
+        {loading ? (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center',
+            height: '80vh',
+            flexDirection: 'column',
+            gap: '20px'
+          }}>
+            <div 
+              className="spinner"
+              style={{
+                width: '80px',
+                height: '80px',
+                border: '4px solid rgba(255,255,255,0.1)',
+                borderRadius: '50%',
+                borderTopColor: '#4ade80',
+                borderRightColor: 'rgba(56, 189, 248, 0.5)',
+                animation: 'spin 1s linear infinite'
+              }}
+            />
+            <p
+              style={{ 
+                color: '#e2e8f0', 
+                fontSize: '1.2rem',
+                fontWeight: '500',
+                textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
+              }}
+            >
+              {t('common.loading')}
+            </p>
+          </div>
+        ) : (
+          <Routes>
+            <Route path="/" element={
+              <PageWrapper key="home">
+                <Home user={user} />
+              </PageWrapper>
+            } />
+            
+            <Route path="/inventory" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper key="inventory">
+                  <Inventory />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/marketplace" element={
+              <PageWrapper key="marketplace">
+                <Marketplace user={user} />
+              </PageWrapper>
+            } />
+            
+            <Route path="/my-listings" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper key="my-listings">
+                  <MyListings />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/settings/steam" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper key="steam-settings">
+                  <SteamSettings />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/trades" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper key="trades">
+                  <TradeHistory />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/trades/:tradeId" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper key="trade-detail">
+                  <TradeDetailPage />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/profile" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper key="profile">
+                  <Profile user={user} onBalanceUpdate={refreshWalletBalance} />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/steam-settings" element={
+              <ProtectedRoute>
+                <SteamSettingsPage />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/tools" element={
+              <AdminRoute user={user}>
+                <PageWrapper key="admin-tools">
+                  <AdminTools />
+                </PageWrapper>
+              </AdminRoute>
+            } />
+            
+            {/* Catch-all route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        )}
+      </Suspense>
+      
+      {/* Audio elements will be added later */}
     </div>
   );
 }

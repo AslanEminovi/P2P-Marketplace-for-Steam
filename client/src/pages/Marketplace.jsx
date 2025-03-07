@@ -5,10 +5,10 @@ import { useTranslation } from 'react-i18next';
 import OfferModal from '../components/OfferModal';
 import UserListings from '../components/UserListings';
 import ItemDetails from '../components/ItemDetails';
+import TradePanel from '../components/TradePanel';
 import ItemCard3D from '../components/ItemCard3D';
 import TradeUrlPrompt from '../components/TradeUrlPrompt';
 import { API_URL } from '../config/constants';
-import './Marketplace.css';
 
 function Marketplace({ user }) {
   const [items, setItems] = useState([]);
@@ -28,166 +28,123 @@ function Marketplace({ user }) {
   const { t } = useTranslation();
 
   const translateWear = (shortWear, marketHashName) => {
-    if (!shortWear && marketHashName) {
-      // Extract wear from market hash name if available
-      if (marketHashName.includes('Factory New')) return 'Factory New';
-      if (marketHashName.includes('Minimal Wear')) return 'Minimal Wear';
-      if (marketHashName.includes('Field-Tested')) return 'Field-Tested';
-      if (marketHashName.includes('Well-Worn')) return 'Well-Worn';
-      if (marketHashName.includes('Battle-Scarred')) return 'Battle-Scarred';
+    const wearTranslations = {
+      'fn': 'Factory New',
+      'mw': 'Minimal Wear',
+      'ft': 'Field-Tested',
+      'ww': 'Well-Worn',
+      'bs': 'Battle-Scarred'
+    };
+
+    // First try to extract wear from market hash name
+    if (marketHashName) {
+      const wearMatch = marketHashName.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i);
+      if (wearMatch) {
+        return wearMatch[0];
+      }
     }
-    
-    // Return parsed wear if available
+
+    // If no wear in market hash name, try to translate short wear
     if (shortWear) {
-      const wearValue = parseFloat(shortWear);
-      if (wearValue < 0.07) return 'Factory New';
-      if (wearValue < 0.15) return 'Minimal Wear';
-      if (wearValue < 0.38) return 'Field-Tested';
-      if (wearValue < 0.45) return 'Well-Worn';
-      return 'Battle-Scarred';
+      return wearTranslations[shortWear.toLowerCase()] || shortWear;
     }
-    
-    // Default return
-    return 'Not Applicable';
+
+    return 'Not Specified';
   };
 
   const getRarityColor = (rarity) => {
-    if (!rarity) return '#9AA0A6'; // Default gray
-    
-    const rarityMap = {
-      'Consumer Grade': '#b0c3d9',
-      'Industrial Grade': '#5e98d9',
-      'Mil-Spec Grade': '#4b69ff',
-      'Restricted': '#8847ff',
-      'Classified': '#d32ce6',
-      'Covert': '#eb4b4b',
-      'Contraband': '#ffd700',
+    const rarityColors = {
+      'Consumer Grade': '#b0c3d9',      // white/gray
+      'Mil-Spec Grade': '#4b69ff',      // dark blue
+      'Restricted': '#8847ff',          // dark purple
+      'Classified': '#d32ce6',          // light purple
+      'Covert': '#eb4b4b',             // red
+      '★': '#e4ae39'                    // gold (for knives/gloves)
     };
-    
-    return rarityMap[rarity] || '#9AA0A6';
+    return rarityColors[rarity] || '#b0c3d9';
   };
 
   const getWearColor = (wear) => {
-    if (!wear) return '#9AA0A6';
-    
-    const wearMap = {
-      'Factory New': '#4ade80',
-      'Minimal Wear': '#22d3ee',
-      'Field-Tested': '#f59e0b',
-      'Well-Worn': '#f97316',
-      'Battle-Scarred': '#ef4444',
-      'Not Applicable': '#9AA0A6'
+    const wearColors = {
+      'Factory New': '#4cd94c',
+      'Minimal Wear': '#87d937',
+      'Field-Tested': '#d9d937',
+      'Well-Worn': '#d98037',
+      'Battle-Scarred': '#d94040'
     };
-    
-    return wearMap[wear] || '#9AA0A6';
+    return wearColors[wear] || '#b0c3d9';
   };
 
   const fetchItems = async () => {
     try {
       setLoading(true);
-      console.log("Fetching marketplace items...");
-      const response = await axios.get(`${API_URL}/marketplace`, { withCredentials: true });
-      console.log("Marketplace API response:", response.data);
-      
-      if (response.data && Array.isArray(response.data)) {
-        const itemsWithDefaults = response.data.map(item => ({
-          ...item,
-          marketHashName: item.marketHashName || 'CS2 Item',
-          imageUrl: item.imageUrl || '/img/placeholder-item.svg',
-          rarity: item.rarity || 'Consumer Grade',
-          wear: item.wear || null,
-          price: item.price || 0
-        }));
-        
-        setItems(itemsWithDefaults);
-        if (itemsWithDefaults.length > 0) {
-          console.log("First item example:", itemsWithDefaults[0]);
-        } else {
-          console.log("No items returned from API");
-        }
-        setMessage('');
-      } else {
-        console.log("Invalid data format received:", response.data);
-        setItems([]);
-        setMessage('No items available');
-      }
+      const res = await axios.get(`${API_URL}/marketplace`, { withCredentials: true });
+      setItems(res.data);
+      setMessage('');
     } catch (err) {
-      console.error('Error fetching marketplace items:', err);
-      setMessage('Failed to load items. Please try again later.');
+      console.error(err);
+      setMessage('Failed to load marketplace items.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const fetchMyListings = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/marketplace/my-listings`, {
+        withCredentials: true
+      });
+      setMyListings(response.data);
+      setMessage('');
+    } catch (err) {
+      console.error('Error fetching listings:', err);
+      setMessage('Failed to load your listings');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchMyListings = async () => {
-    if (!user) return;
-    
-    try {
-      const response = await axios.get(`${API_URL}/marketplace/my-listings`, { withCredentials: true });
-      console.log("My listings response:", response.data);
-      
-      if (response.data && Array.isArray(response.data)) {
-        const listingsWithDefaults = response.data.map(item => ({
-          ...item,
-          marketHashName: item.marketHashName || 'CS2 Item',
-          imageUrl: item.imageUrl || '/img/placeholder-item.svg',
-          rarity: item.rarity || 'Consumer Grade',
-          wear: item.wear || null,
-          price: item.price || 0
-        }));
-        
-        setMyListings(listingsWithDefaults);
-      }
-    } catch (err) {
-      console.error('Error fetching my listings:', err);
-    }
-  };
-
   const buyItem = async (itemId) => {
-    if (!user) {
-      window.location.href = `${API_URL}/auth/steam`;
-      return;
-    }
-
     try {
-      const response = await axios.post(`${API_URL}/marketplace/buy/${itemId}`, {}, { withCredentials: true });
-      setMessage('Item purchased successfully!');
-      // Only refresh if the purchase was successful
-      if (response && response.data && response.data.success) {
-        console.log("Purchase successful, refreshing items");
-        fetchItems();
-      }
+      const res = await axios.post(`${API_URL}/marketplace/buy/${itemId}`, {}, { withCredentials: true });
+      setMessage(res.data.message || 'Item purchased successfully!');
+      fetchItems();
     } catch (err) {
-      console.error('Error buying item:', err);
-      setMessage('Failed to purchase item');
+      console.error(err);
+      setMessage(err.response?.data?.error || 'Failed to buy item.');
     }
   };
 
   const handleOfferSuccess = (data) => {
-    setSelectedItem(null);
-    setTradePanelOpen(false);
-    if (window.showNotification) {
-      window.showNotification(
-        'Offer Submitted',
-        'Your trade offer has been submitted successfully.',
-        'SUCCESS'
-      );
-    }
-    // Only fetch items when necessary - don't refresh unless an item status has changed
-    if (data && data.success) {
-      console.log("Offer successful, refreshing items");
-      fetchItems();
-    }
+    setMessage('Offer submitted successfully!');
+    // No need to refresh the marketplace as the item is still listed
   };
 
+  useEffect(() => {
+    if (activeTab === 'all') {
+      fetchItems();
+    } else if (activeTab === 'my') {
+      fetchMyListings();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    // If user is logged in, fetch their profile to check for trade URL
+    if (user) {
+      fetchUserProfile();
+    }
+  }, [user]);
+
   const fetchUserProfile = async () => {
-    if (!user) return;
-    
     try {
-      const response = await axios.get(`${API_URL}/users/profile`, { withCredentials: true });
+      const response = await axios.get(`${API_URL}/user/profile`, {
+        withCredentials: true
+      });
+      
       setUserProfile(response.data);
       
-      // Check if trade URL is not set, prompt user
+      // Check if trade URL is missing and show prompt
       if (!response.data.tradeUrl) {
         setShowTradeUrlPrompt(true);
       }
@@ -197,52 +154,57 @@ function Marketplace({ user }) {
   };
 
   const handleTradeUrlSave = (tradeUrl) => {
-    setShowTradeUrlPrompt(false);
-    fetchUserProfile();
+    // Update user profile with new trade URL
+    setUserProfile(prev => ({
+      ...prev,
+      tradeUrl
+    }));
   };
-
-  useEffect(() => {
-    // Initial fetch on component mount
-    fetchItems();
-    
-    // Only fetch user-related data when user changes
-    if (user) {
-      fetchMyListings();
-      fetchUserProfile();
-    }
-    
-    // Don't re-run this effect based on the fetchItems function 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
 
   if (loading) {
     return (
-      <div style={{
+      <div style={{ 
+        color: '#e2e8f0',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        height: '80vh',
-        flexDirection: 'column',
-        gap: '1rem'
+        minHeight: '60vh',
+        fontSize: '1.25rem',
+        background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)'
       }}>
         <div style={{
-          width: '50px',
-          height: '50px',
-          border: '5px solid #f3f3f3',
-          borderTop: '5px solid #3498db',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }} />
-        <p>Loading marketplace...</p>
+          padding: '2rem',
+          borderRadius: '1rem',
+          backgroundColor: 'rgba(45, 27, 105, 0.5)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+        }}>
+          Loading marketplace items...
+        </div>
       </div>
     );
   }
 
   return (
-    <div>
+    <div style={{ 
+      background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
+      minHeight: '100vh',
+      padding: '2rem'
+    }}>
+      {/* Trade URL Prompt */}
+      <AnimatePresence>
+        {showTradeUrlPrompt && (
+          <TradeUrlPrompt 
+            onClose={() => setShowTradeUrlPrompt(false)}
+            onSave={handleTradeUrlSave}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Item Details Modal */}
       <ItemDetails 
-        itemId={selectedItemId} 
+        itemId={selectedItemId}
         isOpen={itemDetailsOpen}
         onClose={() => setItemDetailsOpen(false)}
         onItemUpdated={fetchItems}
@@ -280,7 +242,7 @@ function Marketplace({ user }) {
           border: '1px solid rgba(255, 255, 255, 0.1)',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
         }}>
-          <button 
+          <button
             onClick={() => setActiveTab('all')}
             style={{
               flex: 1,
@@ -338,7 +300,7 @@ function Marketplace({ user }) {
             )}
           </button>
           
-          <button 
+          <button
             onClick={() => setActiveTab('my')}
             style={{
               flex: 1,
@@ -404,14 +366,7 @@ function Marketplace({ user }) {
           marginBottom: '1rem'
         }}>
           <button
-            onClick={() => {
-              console.log("Manual refresh triggered");
-              if (activeTab === 'all') {
-                fetchItems(); 
-              } else {
-                fetchMyListings();
-              }
-            }}
+            onClick={activeTab === 'all' ? fetchItems : fetchMyListings}
             style={{
               padding: '0.75rem 1.5rem',
               backgroundColor: activeTab === 'all' ? '#4ade80' : '#8B5CF6',
@@ -562,7 +517,7 @@ function Marketplace({ user }) {
           </motion.button>
         </motion.div>
       </div>
-        
+      
       {/* Items grid or list */}
       <AnimatePresence mode="wait">
         {itemView === 'grid' ? (
@@ -611,7 +566,7 @@ function Marketplace({ user }) {
           >
             {(activeTab === 'all' ? items : myListings).map((item, index) => (
               <motion.div
-                key={item._id} 
+                key={item._id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05, duration: 0.3 }}
@@ -624,7 +579,7 @@ function Marketplace({ user }) {
                   boxShadow: '0 15px 30px rgba(0, 0, 0, 0.3)',
                   backgroundColor: 'rgba(45, 27, 105, 0.8)' 
                 }}
-                style={{ 
+                style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '1.5rem',
@@ -659,10 +614,6 @@ function Marketplace({ user }) {
                       border: `2px solid ${getRarityColor(item.rarity)}`,
                       boxShadow: `0 0 20px ${getRarityColor(item.rarity)}33`
                     }}
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = '/img/placeholder-item.svg';
-                    }}
                   />
                 </motion.div>
                 
@@ -674,7 +625,7 @@ function Marketplace({ user }) {
                     fontSize: '1.1rem',
                     fontWeight: '600'
                   }}>
-                    {item.marketHashName.replace(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i, '').trim() || 'CS2 Item'}
+                    {item.marketHashName.replace(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i, '').trim()}
                   </h3>
                   
                   <div style={{ 
@@ -737,7 +688,7 @@ function Marketplace({ user }) {
                   </div>
                   
                   {/* Seller info */}
-                  {item.seller && (
+                  {item.owner && (
                     <div style={{ 
                       display: 'flex',
                       alignItems: 'center',
@@ -751,7 +702,36 @@ function Marketplace({ user }) {
                         alignItems: 'center',
                         gap: '0.25rem'
                       }}>
-                        {item.sellerName || 'Unknown'}
+                        <div style={{ 
+                          width: '18px',
+                          height: '18px',
+                          borderRadius: '50%',
+                          overflow: 'hidden',
+                          backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                        }}>
+                          {item.owner.avatar ? (
+                            <img 
+                              src={item.owner.avatar}
+                              alt={item.owner.displayName}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <div style={{ 
+                              width: '100%',
+                              height: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              backgroundColor: '#4ade80',
+                              color: 'white',
+                              fontSize: '0.7rem',
+                              fontWeight: 'bold'
+                            }}>
+                              {item.owner.displayName?.[0] || '?'}
+                            </div>
+                          )}
+                        </div>
+                        <span>{item.owner.displayName}</span>
                       </div>
                     </div>
                   )}
@@ -775,7 +755,7 @@ function Marketplace({ user }) {
                       fontWeight: 'bold',
                       fontSize: '1.25rem'
                     }}>
-                      ${(item.price || 0).toFixed(2)}
+                      ${item.price.toFixed(2)}
                     </span>
                     {item.priceGEL && (
                       <span style={{ 
