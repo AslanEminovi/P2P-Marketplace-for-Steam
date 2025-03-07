@@ -125,27 +125,11 @@ const TradeDetails = ({ tradeId }) => {
         throw new Error('Received invalid trade data from server');
       }
       
-      // Process and normalize the trade data to handle missing item references
-      const tradeData = response.data;
-      
-      // Ensure we have valid item data even if item reference is missing
-      if (!tradeData.item) {
-        // Create placeholder item with available metadata
-        tradeData.item = {
-          marketHashName: tradeData.itemName || (tradeData.assetId ? `Item #${tradeData.assetId}` : 'Unknown Item'),
-          imageUrl: tradeData.itemImage || 'https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFSv_J2Rg/360fx360f',
-          wear: tradeData.itemWear || '',
-          rarity: tradeData.itemRarity || '',
-          assetId: tradeData.assetId || ''
-        };
-      }
-      
-      // Store the normalized data
-      setTrade(tradeData);
-      console.log('Trade details loaded:', tradeData);
+      setTrade(response.data);
+      console.log('Trade details loaded:', response.data);
       
       // Set UI states based on trade status
-      if (tradeData.status === 'offer_sent') {
+      if (response.data.status === 'offer_sent') {
         setSellerWaitingForBuyer(true);
       }
       
@@ -156,17 +140,17 @@ const TradeDetails = ({ tradeId }) => {
         });
         
         const userId = currentUser.data._id;
-        setIsBuyer(userId === tradeData.buyer._id);
-        setIsSeller(userId === tradeData.seller._id);
+        setIsBuyer(userId === response.data.buyer._id);
+        setIsSeller(userId === response.data.seller._id);
       } catch (profileError) {
         console.error('Error loading user profile:', profileError);
         // Continue even if this part fails - we can still show trade details
       }
       
       // Reset loading states based on status
-      if (tradeData.status === 'completed' || 
-          tradeData.status === 'cancelled' || 
-          tradeData.status === 'failed') {
+      if (response.data.status === 'completed' || 
+          response.data.status === 'cancelled' || 
+          response.data.status === 'failed') {
         setCanConfirmReceived(false);
         setConfirmLoading(false);
         setSendingLoading(false);
@@ -609,8 +593,8 @@ const TradeDetails = ({ tradeId }) => {
           <h3 style={{ color: '#f1f1f1', marginTop: '0' }}>Item</h3>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
             <img
-              src={trade.item?.imageUrl || 'https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFSv_J2Rg/360fx360f'}
-              alt={trade.item?.marketHashName || 'CS2 Item'}
+              src={trade.item.imageUrl || 'https://via.placeholder.com/120'}
+              alt={trade.item.marketHashName}
               style={{
                 width: '120px',
                 height: '90px',
@@ -620,13 +604,10 @@ const TradeDetails = ({ tradeId }) => {
               }}
             />
             <div>
-              <h4 style={{ color: '#f1f1f1', margin: '0 0 8px 0' }}>
-                {trade.item?.marketHashName || `CS2 Item (${trade.assetId || 'Unknown'})`}
-              </h4>
+              <h4 style={{ color: '#f1f1f1', margin: '0 0 8px 0' }}>{trade.item.marketHashName}</h4>
               <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
-                {trade.item?.wear && <span>{trade.item.wear} | </span>}
-                {trade.item?.rarity && <span style={{ color: getRarityColor(trade.item.rarity) }}>{trade.item.rarity}</span>}
-                {!trade.item?.wear && !trade.item?.rarity && <span>Asset ID: {trade.assetId || 'Unknown'}</span>}
+                {trade.item.wear && <span>{trade.item.wear} | </span>}
+                {trade.item.rarity && <span style={{ color: getRarityColor(trade.item.rarity) }}>{trade.item.rarity}</span>}
               </div>
               <div style={{ marginTop: '8px' }}>
                 <span style={{ color: '#4ade80', fontWeight: 'bold', fontSize: '1.125rem' }}>

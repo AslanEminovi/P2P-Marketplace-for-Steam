@@ -184,10 +184,8 @@ function AdminTools() {
       setLoading(true);
       setMessage(null);
       
-      console.log('Calling API to cleanup all listings');
       const response = await axios.post(`${API_URL}/admin/cleanup-listings`, {}, { withCredentials: true });
       
-      console.log('Cleanup response:', response.data);
       setCleanupResults(response.data);
       setMessage({
         type: 'success',
@@ -195,20 +193,9 @@ function AdminTools() {
       });
     } catch (error) {
       console.error('Error cleaning up listings:', error);
-      // Show more detailed error information
-      let errorMessage = 'Error cleaning up listings';
-      if (error.response) {
-        console.error('Error response:', error.response.data);
-        errorMessage += `: ${error.response.data.details || error.response.data.error || error.message}`;
-      } else if (error.request) {
-        errorMessage += ': No response from server. Please check your connection.';
-      } else {
-        errorMessage += `: ${error.message}`;
-      }
-      
       setMessage({
         type: 'danger',
-        text: errorMessage
+        text: `Error cleaning up listings: ${error.response?.data?.error || error.message}`
       });
     } finally {
       setLoading(false);
@@ -229,10 +216,8 @@ function AdminTools() {
       setLoading(true);
       setMessage(null);
       
-      console.log(`Calling API to cleanup listings for user: ${userId}`);
       const response = await axios.post(`${API_URL}/admin/cleanup-listings/${userId}`, {}, { withCredentials: true });
       
-      console.log('User cleanup response:', response.data);
       setCleanupResults(response.data);
       setMessage({
         type: 'success',
@@ -240,20 +225,9 @@ function AdminTools() {
       });
     } catch (error) {
       console.error('Error cleaning up user listings:', error);
-      // Show more detailed error information
-      let errorMessage = 'Error cleaning up user listings';
-      if (error.response) {
-        console.error('Error response:', error.response.data);
-        errorMessage += `: ${error.response.data.details || error.response.data.error || error.message}`;
-      } else if (error.request) {
-        errorMessage += ': No response from server. Please check your connection.';
-      } else {
-        errorMessage += `: ${error.message}`;
-      }
-      
       setMessage({
         type: 'danger',
-        text: errorMessage
+        text: `Error cleaning up user listings: ${error.response?.data?.error || error.message}`
       });
     } finally {
       setLoading(false);
@@ -327,17 +301,13 @@ function AdminTools() {
     return <Pagination>{items}</Pagination>;
   };
 
-  // Function to remove a specific item listing
+  // First, add a function to remove a listing
   const removeItemListing = async (itemId) => {
     try {
       setItemsLoading(true);
-      console.log(`Calling API to remove listing for item: ${itemId}`);
-      
       const response = await axios.post(`${API_URL}/admin/items/${itemId}/remove-listing`, {}, { 
         withCredentials: true 
       });
-      
-      console.log('Remove listing response:', response.data);
       
       // Update the items list to reflect the change
       setItems(items.map(item => 
@@ -346,36 +316,13 @@ function AdminTools() {
       
       setMessage({
         type: 'success',
-        text: response.data.message
+        text: 'Item listing removed successfully'
       });
     } catch (error) {
       console.error('Error removing item listing:', error);
-      
-      // Check if this is a duplicate key error
-      if (error.response?.data?.errorCode === 'E11000' && error.response?.data?.assetId) {
-        const assetId = error.response.data.assetId;
-        
-        setMessage({
-          type: 'warning',
-          text: `${error.response.data.details} The item with Asset ID: ${assetId} cannot be properly unlisted due to a database conflict.`
-        });
-        return;
-      }
-      
-      // Show more detailed error information
-      let errorMessage = 'Error removing listing';
-      if (error.response) {
-        console.error('Error response:', error.response.data);
-        errorMessage += `: ${error.response.data.details || error.response.data.error || error.message}`;
-      } else if (error.request) {
-        errorMessage += ': No response from server. Please check your connection.';
-      } else {
-        errorMessage += `: ${error.message}`;
-      }
-      
       setMessage({
         type: 'danger',
-        text: errorMessage
+        text: `Error removing listing: ${error.response?.data?.error || error.message}`
       });
     } finally {
       setItemsLoading(false);
@@ -389,21 +336,6 @@ function AdminTools() {
       {message && (
         <Alert variant={message.type} className="mb-4" dismissible onClose={() => setMessage(null)}>
           {message.text}
-          
-          {message.action && (
-            <div className="mt-2">
-              <Button 
-                variant={message.type === 'danger' ? 'outline-light' : message.type === 'warning' ? 'warning' : 'primary'} 
-                size="sm"
-                onClick={() => {
-                  message.action.handler();
-                  setMessage(null);
-                }}
-              >
-                {message.action.text}
-              </Button>
-            </div>
-          )}
         </Alert>
       )}
       
@@ -454,7 +386,6 @@ function AdminTools() {
             handleItemSearch={handleItemSearch}
             fetchItems={fetchItems}
             renderPagination={renderPagination}
-            removeItemListing={removeItemListing}
           />
         </Tab>
       </Tabs>
@@ -697,52 +628,52 @@ function DashboardTab({ stats, loading, refreshStats }) {
 }
 
 // Cleanup Tab Component
-function CleanupTab({ 
-  userId, setUserId, 
-  loading, results, 
-  cleanupAllListings, cleanupUserListings
-}) {
+function CleanupTab({ userId, setUserId, loading, results, cleanupAllListings, cleanupUserListings }) {
   return (
     <Row>
-      <Col md={12} className="mb-4">
-        <Card className="bg-dark text-white">
+      <Col md={6} className="mb-4">
+        <Card className="h-100 bg-dark text-white">
           <Card.Body>
             <Card.Title>Cleanup All Listings</Card.Title>
             <Card.Text>
-              This will cleanup all listings in the system, removing any that are no longer valid.
+              This will find all items marked as listed and update them to not listed.
+              It will also cancel any trades that are stuck in a non-terminal state.
             </Card.Text>
             <Button 
               variant="danger" 
-              onClick={cleanupAllListings}
+              onClick={cleanupAllListings} 
               disabled={loading}
             >
-              {loading ? 'Processing...' : 'Cleanup All Listings'}
+              {loading ? 'Processing...' : 'Run Full Cleanup'}
             </Button>
           </Card.Body>
         </Card>
       </Col>
       
-      <Col md={12} className="mb-4">
-        <Card className="bg-dark text-white">
+      <Col md={6} className="mb-4">
+        <Card className="h-100 bg-dark text-white">
           <Card.Body>
             <Card.Title>Cleanup User Listings</Card.Title>
             <Card.Text>
-              This will cleanup all listings for a specific user.
+              This will find all items marked as listed for a specific user and update them to not listed.
             </Card.Text>
             <Form onSubmit={cleanupUserListings}>
               <Form.Group className="mb-3">
                 <Form.Label>User ID</Form.Label>
                 <Form.Control 
                   type="text" 
-                  placeholder="Enter User ID" 
+                  placeholder="Enter MongoDB User ID" 
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
                   disabled={loading}
                 />
+                <Form.Text className="text-muted">
+                  Enter the MongoDB ObjectId of the user
+                </Form.Text>
               </Form.Group>
               <Button 
                 variant="warning" 
-                type="submit"
+                type="submit" 
                 disabled={loading}
               >
                 {loading ? 'Processing...' : 'Cleanup User Listings'}
@@ -858,8 +789,7 @@ function UsersTab({
 // Items Tab Component
 function ItemsTab({ 
   items, loading, pagination, itemSearch, setItemSearch, 
-  itemFilter, handleItemFilter, handleItemSearch, fetchItems, renderPagination,
-  removeItemListing
+  itemFilter, handleItemFilter, handleItemSearch, fetchItems, renderPagination
 }) {
   return (
     <>

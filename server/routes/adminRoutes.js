@@ -15,32 +15,11 @@ router.use(requireAdmin);
  */
 router.post("/cleanup-listings", async (req, res) => {
   try {
-    console.log("Admin route: Starting cleanup for all listings");
     const results = await cleanupStuckListings();
-    console.log("Cleanup results:", results);
     res.json(results);
   } catch (error) {
     console.error("Error in cleanup-listings route:", error);
-
-    // Check for duplicate key error
-    if (error.message && error.message.includes("E11000 duplicate key error")) {
-      console.log(
-        "Duplicate key error detected, will provide specific guidance"
-      );
-      return res.status(500).json({
-        error: "Duplicate item detected in database",
-        details:
-          "There is a duplicate item in your database. The script has been updated to handle this. Please try again.",
-        errorCode: "E11000",
-      });
-    }
-
-    // Send more detailed error information
-    res.status(500).json({
-      error: "Failed to cleanup listings",
-      details: error.message,
-      stack: process.env.NODE_ENV === "production" ? null : error.stack,
-    });
+    res.status(500).json({ error: "Failed to cleanup listings" });
   }
 });
 
@@ -52,32 +31,11 @@ router.post("/cleanup-listings", async (req, res) => {
 router.post("/cleanup-listings/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
-    console.log(`Admin route: Starting cleanup for user ID: ${userId}`);
     const results = await cleanupStuckListings(userId);
-    console.log("User cleanup results:", results);
     res.json(results);
   } catch (error) {
     console.error("Error in cleanup-listings/:userId route:", error);
-
-    // Check for duplicate key error
-    if (error.message && error.message.includes("E11000 duplicate key error")) {
-      console.log(
-        "Duplicate key error detected, will provide specific guidance"
-      );
-      return res.status(500).json({
-        error: "Duplicate item detected in database",
-        details:
-          "There is a duplicate item in your database. The script has been updated to handle this. Please try again.",
-        errorCode: "E11000",
-      });
-    }
-
-    // Send more detailed error information
-    res.status(500).json({
-      error: "Failed to cleanup user listings",
-      details: error.message,
-      stack: process.env.NODE_ENV === "production" ? null : error.stack,
-    });
+    res.status(500).json({ error: "Failed to cleanup user listings" });
   }
 });
 
@@ -329,87 +287,26 @@ router.get("/items", async (req, res) => {
 router.post("/items/:itemId/remove-listing", async (req, res) => {
   try {
     const { itemId } = req.params;
-    console.log(`Admin route: Removing listing for item ID: ${itemId}`);
-
     const Item = mongoose.model("Item");
-
-    // Validate the item ID
-    if (!mongoose.Types.ObjectId.isValid(itemId)) {
-      console.error(`Invalid item ID format: ${itemId}`);
-      return res.status(400).json({ error: "Invalid item ID format" });
-    }
 
     const item = await Item.findById(itemId);
 
     if (!item) {
-      console.error(`Item not found with ID: ${itemId}`);
       return res.status(404).json({ error: "Item not found" });
     }
 
-    console.log(
-      `Found item: ${item.marketHashName || "Unknown"}, Listed: ${
-        item.isListed
-      }, AssetId: ${item.assetId}`
-    );
-
-    // Check if there's already an unlisted duplicate of this item
-    const duplicateExists = await Item.findOne({
-      _id: { $ne: item._id }, // Not this item
-      $or: [{ owner: item.owner }, { ownerId: item.ownerId }],
-      assetId: item.assetId,
-      isListed: false,
-    });
-
-    if (duplicateExists) {
-      console.log(
-        `Found duplicate for item ${item._id} with assetId ${item.assetId} - will delete this one instead of unlisting`
-      );
-      // If a duplicate already exists unlisted, delete this one instead
-      await Item.deleteOne({ _id: item._id });
-
-      return res.json({
-        success: true,
-        message: "Duplicate item detected and removed successfully",
-        method: "delete",
-        item: duplicateExists,
-      });
-    }
-
-    // No duplicate, safe to update
+    // Update the item to not listed
     item.isListed = false;
     await item.save();
-    console.log(`Successfully removed listing for item: ${item._id}`);
 
     res.json({
       success: true,
       message: "Item listing removed successfully",
-      method: "update",
       item,
     });
   } catch (error) {
     console.error("Error removing item listing:", error);
-
-    // Check for duplicate key error
-    if (error.message && error.message.includes("E11000 duplicate key error")) {
-      console.log("Duplicate key error detected, providing specific guidance");
-      // Parse the error message to extract the asset ID
-      const assetIdMatch = error.message.match(/assetId: "([^"]+)"/);
-      const assetId = assetIdMatch ? assetIdMatch[1] : "unknown";
-
-      return res.status(500).json({
-        error: "Duplicate item detected",
-        details: `There is already an unlisted version of this item with Asset ID: ${assetId}`,
-        errorCode: "E11000",
-        assetId,
-      });
-    }
-
-    // Send more detailed error information
-    res.status(500).json({
-      error: "Failed to remove item listing",
-      details: error.message,
-      stack: process.env.NODE_ENV === "production" ? null : error.stack,
-    });
+    res.status(500).json({ error: "Failed to remove item listing" });
   }
 });
 

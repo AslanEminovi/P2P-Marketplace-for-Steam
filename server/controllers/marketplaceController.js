@@ -217,11 +217,6 @@ exports.buyItem = async (req, res) => {
         currency: useCurrency,
         feeAmount: price * 0.025, // 2.5% platform fee
         status: "awaiting_seller",
-        // Store item details directly in the trade for data preservation
-        itemName: item.marketHashName,
-        itemImage: item.imageUrl,
-        itemWear: item.wear,
-        itemRarity: item.rarity,
       });
 
       // Save it to get an ID

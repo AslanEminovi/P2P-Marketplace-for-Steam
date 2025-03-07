@@ -11,43 +11,17 @@ const notificationService = require("../services/notificationService");
 exports.getTradeHistory = async (req, res) => {
   try {
     const userId = req.user._id;
-
+    
     // Look up trades where the user is either buyer or seller
-    // Include all trade statuses including cancelled and failed trades
     const trades = await Trade.find({
       $or: [{ buyer: userId }, { seller: userId }],
     })
       .populate("item")
       .populate("buyer", "displayName avatar steamId")
       .populate("seller", "displayName avatar steamId")
-      .sort({ createdAt: -1 });
-
-    // Add flags to indicate if user is buyer or seller
-    const tradesWithFlags = trades.map((trade) => {
-      const tradeObj = trade.toObject();
-      tradeObj.isUserBuyer = trade.buyer._id.toString() === userId.toString();
-      tradeObj.isUserSeller = trade.seller._id.toString() === userId.toString();
-
-      // Ensure item data is preserved even if the item is missing
-      if (!tradeObj.item) {
-        // Create a placeholder item with the stored item details
-        tradeObj.item = {
-          marketHashName:
-            tradeObj.itemName ||
-            (tradeObj.assetId ? `CS2 Item (${tradeObj.assetId})` : "CS2 Item"),
-          imageUrl:
-            tradeObj.itemImage ||
-            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFSv_J2Rg/360fx360f",
-          wear: tradeObj.itemWear || "",
-          rarity: tradeObj.itemRarity || "",
-          assetId: tradeObj.assetId,
-        };
-      }
-
-      return tradeObj;
-    });
-
-    return res.json(tradesWithFlags);
+    .sort({ createdAt: -1 });
+    
+    return res.json(trades);
   } catch (err) {
     console.error("Get trade history error:", err);
     return res.status(500).json({ error: "Failed to retrieve trade history" });
@@ -59,17 +33,17 @@ exports.getTradeDetails = async (req, res) => {
   try {
     const { tradeId } = req.params;
     const userId = req.user._id;
-
+    
     // Find the trade and populate related data
     const trade = await Trade.findById(tradeId)
       .populate("item")
       .populate("buyer", "displayName avatar steamId tradeUrl")
       .populate("seller", "displayName avatar steamId tradeUrl");
-
+    
     if (!trade) {
       return res.status(404).json({ error: "Trade not found" });
     }
-
+    
     // Verify the user is part of this trade
     if (
       trade.buyer._id.toString() !== userId.toString() &&
@@ -79,12 +53,12 @@ exports.getTradeDetails = async (req, res) => {
         .status(403)
         .json({ error: "You don't have permission to view this trade" });
     }
-
+    
     // Add flag to indicate if user is buyer or seller
     const result = trade.toObject();
     result.isUserBuyer = trade.buyer._id.toString() === userId.toString();
     result.isUserSeller = trade.seller._id.toString() === userId.toString();
-
+    
     return res.json(result);
   } catch (err) {
     console.error("Get trade details error:", err);
@@ -97,26 +71,26 @@ exports.sellerApproveTrade = async (req, res) => {
   try {
     const { tradeId } = req.params;
     const userId = req.user._id;
-
+    
     // Find the trade
     const trade = await Trade.findById(tradeId)
       .populate("buyer", "username email tradeUrl")
       .populate("item");
-
+    
     if (!trade) {
       return res.status(404).json({ error: "Trade not found" });
     }
-
+    
     // Check if the user is the seller
     if (trade.seller.toString() !== userId.toString()) {
       return res
         .status(403)
         .json({ error: "Only the seller can approve this trade" });
     }
-
+    
     // Check if the trade status is correct
     if (trade.status !== "awaiting_seller") {
-      return res.status(400).json({
+      return res.status(400).json({ 
         error: `Cannot approve a trade that is already in ${trade.status} state`,
       });
     }
@@ -125,14 +99,14 @@ exports.sellerApproveTrade = async (req, res) => {
     // This is more accurate since the seller approved but hasn't sent a Steam offer yet
     trade.addStatusHistory("accepted", "Seller accepted purchase offer");
     await trade.save();
-
+    
     // Notify the buyer that the seller has approved the offer
     await notificationService.createNotification(
       trade.buyer._id,
       trade.seller.toString(),
       { status: "accepted", item: trade.item, timeUpdated: new Date() }
     );
-
+    
     return res.json({
       success: true,
       message: "Trade approved successfully. The buyer has been notified.",
@@ -150,34 +124,34 @@ exports.sellerSentItem = async (req, res) => {
     const { tradeId } = req.params;
     const userId = req.user._id;
     const { steamOfferUrl } = req.body;
-
+    
     // Find the trade
     const trade = await Trade.findById(tradeId).populate(
       "buyer",
       "username email"
     );
-
+    
     if (!trade) {
       return res.status(404).json({ error: "Trade not found" });
     }
-
+    
     // Verify the user is the seller
     if (trade.seller.toString() !== userId.toString()) {
       return res
         .status(403)
         .json({ error: "Only the seller can mark an item as sent" });
     }
-
+    
     // Check current trade status
     if (trade.status !== "accepted") {
-      return res.status(400).json({
+      return res.status(400).json({ 
         error: `Trade cannot be marked as sent because it is in ${trade.status} state. It needs to be in 'accepted' state.`,
       });
     }
-
+    
     // Validate Steam offer URL - accept either trade URLs or offer IDs
     let tradeOfferId;
-
+    
     if (
       steamOfferUrl &&
       steamOfferUrl.includes("steamcommunity.com/tradeoffer/")
@@ -195,12 +169,12 @@ exports.sellerSentItem = async (req, res) => {
         .status(400)
         .json({ error: "Please enter a valid Steam trade offer ID or URL" });
     }
-
+    
     // Update trade with offer ID and status
     trade.tradeOfferId = tradeOfferId;
     trade.addStatusHistory("offer_sent", "Seller sent Steam trade offer");
     await trade.save();
-
+    
     // Notify the buyer that a trade offer has been sent
     await notificationService.createNotification(
       trade.buyer._id,
@@ -208,10 +182,10 @@ exports.sellerSentItem = async (req, res) => {
       {
         status: "offer_sent",
         message: `The seller has sent you a Steam trade offer. Please check your Steam trade offers.`,
-        tradeOfferId: tradeOfferId,
+      tradeOfferId: tradeOfferId,
       }
     );
-
+    
     return res.json({
       success: true,
       message: "Trade marked as sent. The buyer has been notified.",
@@ -227,7 +201,7 @@ exports.buyerConfirmReceipt = async (req, res) => {
   try {
     const tradeId = req.params.tradeId;
     const userId = req.user._id;
-
+    
     console.log(
       `Buyer ${userId} attempting to confirm receipt for trade ${tradeId}`
     );
@@ -236,11 +210,11 @@ exports.buyerConfirmReceipt = async (req, res) => {
     const trade = await Trade.findById(tradeId)
       .populate("seller", "steamId username")
       .populate("item");
-
+    
     if (!trade) {
       return res.status(404).json({ error: "Trade not found" });
     }
-
+    
     if (trade.buyer.toString() !== userId.toString()) {
       return res
         .status(403)
@@ -248,7 +222,7 @@ exports.buyerConfirmReceipt = async (req, res) => {
     }
 
     if (trade.status !== "pending" && trade.status !== "offer_sent") {
-      return res.status(400).json({
+      return res.status(400).json({ 
         error: `Cannot confirm receipt for a trade in '${trade.status}' status`,
       });
     }
@@ -340,10 +314,10 @@ exports.buyerConfirmReceipt = async (req, res) => {
       if (item) {
         item.owner = userId;
         item.status = "owned";
-        item.isListed = false;
+      item.isListed = false;
         item.tradeStatus = "none";
         item.tradeOfferId = null;
-        await item.save();
+      await item.save();
       }
 
       // Notify the seller that the trade has been completed
@@ -351,7 +325,7 @@ exports.buyerConfirmReceipt = async (req, res) => {
         tradeId: trade._id,
         message: `Buyer confirmed receipt of item: ${trade.item.name}`,
       });
-
+      
       return res.json({
         success: true,
         message: "Trade completed successfully. The item is now yours!",
@@ -376,37 +350,37 @@ exports.cancelTrade = async (req, res) => {
     const { tradeId } = req.params;
     const userId = req.user._id;
     const { reason } = req.body;
-
+    
     // Find the trade
     const trade = await Trade.findById(tradeId);
-
+    
     if (!trade) {
       return res.status(404).json({ error: "Trade not found" });
     }
-
+    
     // Verify the user is part of this trade
     const isBuyer = trade.buyer.toString() === userId.toString();
     const isSeller = trade.seller.toString() === userId.toString();
-
+    
     if (!isBuyer && !isSeller) {
       return res
         .status(403)
         .json({ error: "You don't have permission to cancel this trade" });
     }
-
+    
     // Check current trade status
     const allowedStatuses = ["awaiting_seller", "offer_sent"];
     if (!allowedStatuses.includes(trade.status)) {
-      return res.status(400).json({
+      return res.status(400).json({ 
         error: `Trade cannot be cancelled because it is in ${trade.status} state`,
       });
     }
-
+    
     // If the trade has a Steam offer ID and the user is the seller, try to cancel on Steam
     if (trade.tradeOfferId && isSeller) {
       try {
         const seller = await User.findById(userId).select("+steamLoginSecure");
-
+        
         if (seller.steamLoginSecure) {
           await steamApiService.cancelTradeOffer(
             seller.steamLoginSecure,
@@ -418,24 +392,24 @@ exports.cancelTrade = async (req, res) => {
         // Continue with cancellation even if Steam API call fails
       }
     }
-
+    
     // Update trade status
     const cancelledBy = isBuyer ? "buyer" : "seller";
     const cancelReason = reason || `Cancelled by ${cancelledBy}`;
     trade.addStatusHistory("cancelled", cancelReason);
     await trade.save();
-
+    
     // Update the item status
     await Item.findByIdAndUpdate(trade.item, {
       isListed: true, // Re-list the item
       tradeStatus: null,
       tradeOfferId: null,
     });
-
+    
     // Add notifications
     const otherUserId = isBuyer ? trade.seller : trade.buyer;
     const item = await Item.findById(trade.item);
-
+    
     // Notify the other party
     await User.findByIdAndUpdate(otherUserId, {
       $push: {
@@ -449,7 +423,7 @@ exports.cancelTrade = async (req, res) => {
         },
       },
     });
-
+    
     return res.json({
       success: true,
       message: "Trade cancelled successfully.",
@@ -465,24 +439,24 @@ exports.checkSteamTradeStatus = async (req, res) => {
   try {
     const { tradeId } = req.params;
     const userId = req.user._id;
-
+    
     // Find the trade
     const trade = await Trade.findById(tradeId);
-
+    
     if (!trade) {
       return res.status(404).json({ error: "Trade not found" });
     }
-
+    
     // Verify the user is part of this trade
     const isBuyer = trade.buyer.toString() === userId.toString();
     const isSeller = trade.seller.toString() === userId.toString();
-
+    
     if (!isBuyer && !isSeller) {
       return res
         .status(403)
         .json({ error: "You don't have permission to check this trade" });
     }
-
+    
     // If trade doesn't have a Steam offer ID yet
     if (!trade.tradeOfferId) {
       return res.json({
@@ -851,8 +825,8 @@ exports.sellerSentManual = async (req, res) => {
       linkTo: `/trades/${trade._id}`,
       trade: trade,
     });
-
-    return res.json({
+      
+      return res.json({
       success: true,
       message: "Trade marked as sent successfully",
     });
