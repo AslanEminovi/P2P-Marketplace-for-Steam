@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import ItemCard3D from '../components/ItemCard3D';
 import './Home.css';
 import { API_URL } from '../config/constants';
+import cyberGridBg from './cyber-grid.png'; // Import the image directly
 
 function Home({ user }) {
   const [featuredItems, setFeaturedItems] = useState([]);
@@ -14,6 +15,17 @@ function Home({ user }) {
   const [animationActive, setAnimationActive] = useState(false);
   const heroRef = useRef(null);
   const { t } = useTranslation();
+
+  // Add a custom style to apply the cyber grid background
+  const cyberGridStyle = {
+    backgroundImage: `url(${cyberGridBg})`,
+    backgroundRepeat: 'repeat',
+    opacity: 0.05,
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+    zIndex: 1
+  };
 
   const fetchFeaturedItems = async () => {
     try {
@@ -85,7 +97,7 @@ function Home({ user }) {
     <div className="home-container">
       {/* Animated background elements */}
       <div className="bg-elements">
-        <div className="cyber-grid"></div>
+        <div style={cyberGridStyle}></div>
         <div className="cs-logo-watermark"></div>
         <div className="glow-orb orb1"></div>
         <div className="glow-orb orb2"></div>
