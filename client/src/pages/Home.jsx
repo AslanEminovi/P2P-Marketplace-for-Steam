@@ -21,11 +21,15 @@ function Home({ user }) {
   const cyberGridStyle = {
     backgroundImage: `url(${cyberGridBg})`,
     backgroundRepeat: 'repeat',
-    opacity: 0.05,
+    backgroundSize: '200px 200px',
+    opacity: 0.03,
     width: '100%',
     height: '100%',
-    position: 'absolute',
-    zIndex: 1
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    zIndex: 1,
+    pointerEvents: 'none'
   };
 
   // Style object for CS logo watermark
@@ -34,14 +38,15 @@ function Home({ user }) {
     backgroundRepeat: 'no-repeat',
     backgroundPosition: 'center',
     backgroundSize: 'contain',
-    opacity: 0.03,
+    opacity: 0.02,
     width: '80%',
     height: '80%',
-    position: 'absolute',
+    position: 'fixed',
     top: '50%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
-    zIndex: 1
+    zIndex: 1,
+    pointerEvents: 'none'
   };
 
   const fetchFeaturedItems = async () => {
@@ -354,27 +359,93 @@ function Home({ user }) {
         
         <div className="features-grid">
           <div className="feature-card">
-            <div className="feature-icon secure-icon"></div>
+            <div className="feature-icon secure-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
             <h3>Secure Trading</h3>
             <p>Direct integration with Steam's trading system ensures your items remain secure throughout the entire process.</p>
           </div>
           
           <div className="feature-card">
-            <div className="feature-icon gel-icon"></div>
+            <div className="feature-icon gel-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
+                <line x1="12" y1="6" x2="12" y2="18"></line>
+              </svg>
+            </div>
             <h3>GEL Pricing</h3>
             <p>Sell your items in Georgian Lari with custom currency rates specifically for the local market.</p>
           </div>
           
           <div className="feature-card">
-            <div className="feature-icon offer-icon"></div>
+            <div className="feature-icon offer-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+              </svg>
+            </div>
             <h3>Make Offers</h3>
             <p>Negotiate better deals by making custom offers to sellers in both USD and GEL currencies.</p>
           </div>
           
           <div className="feature-card">
-            <div className="feature-icon fast-icon"></div>
+            <div className="feature-icon fast-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+            </div>
             <h3>Fast Transactions</h3>
             <p>Complete trades quickly with our streamlined process from purchase to delivery.</p>
+          </div>
+          
+          <div className="feature-card">
+            <div className="feature-icon community-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </div>
+            <h3>Growing Community</h3>
+            <p>Join our active community of CS2 traders, collectors, and players from Georgia and around the world.</p>
+          </div>
+          
+          <div className="feature-card">
+            <div className="feature-icon stats-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+                <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+              </svg>
+            </div>
+            <h3>Market Analytics</h3>
+            <p>Access real-time data on market trends, price fluctuations, and the most popular items in the CS2 marketplace.</p>
+          </div>
+          
+          <div className="feature-card">
+            <div className="feature-icon mobile-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                <line x1="12" y1="18" x2="12" y2="18"></line>
+              </svg>
+            </div>
+            <h3>Mobile Friendly</h3>
+            <p>Access our marketplace on the go with a fully responsive design optimized for all devices and screen sizes.</p>
+          </div>
+          
+          <div className="feature-card">
+            <div className="feature-icon support-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12" y2="17"></line>
+              </svg>
+            </div>
+            <h3>24/7 Support</h3>
+            <p>Get help whenever you need it with our dedicated support team and comprehensive documentation.</p>
           </div>
         </div>
       </section>

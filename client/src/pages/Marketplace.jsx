@@ -9,6 +9,7 @@ import TradePanel from '../components/TradePanel';
 import ItemCard3D from '../components/ItemCard3D';
 import TradeUrlPrompt from '../components/TradeUrlPrompt';
 import { API_URL } from '../config/constants';
+import './Marketplace.css';
 
 function Marketplace({ user }) {
   const [items, setItems] = useState([]);
@@ -163,45 +164,42 @@ function Marketplace({ user }) {
 
   if (loading) {
     return (
-      <div style={{ 
-        color: '#e2e8f0',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '60vh',
-        fontSize: '1.25rem',
-        background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)'
-      }}>
-        <div style={{
-          padding: '2rem',
-          borderRadius: '1rem',
-          backgroundColor: 'rgba(45, 27, 105, 0.5)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
-        }}>
-          Loading marketplace items...
+      <div className="page-container dark-theme">
+        {/* Background elements */}
+        <div className="bg-elements">
+          <div className="grid-pattern"></div>
+          <div className="noise-overlay"></div>
+          <div className="scan-lines"></div>
+        </div>
+        
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading marketplace items...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ 
-      background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
-      minHeight: '100vh',
-      padding: '2rem'
-    }}>
+    <div className="page-container dark-theme">
+      {/* Background elements */}
+      <div className="bg-elements">
+        <div className="grid-pattern"></div>
+        <div className="noise-overlay"></div>
+        <div className="scan-lines"></div>
+      </div>
+      
       {/* Trade URL Prompt */}
       <AnimatePresence>
         {showTradeUrlPrompt && (
           <TradeUrlPrompt 
             onClose={() => setShowTradeUrlPrompt(false)}
             onSave={handleTradeUrlSave}
+            initialValue={userProfile?.tradeUrl || ''}
           />
         )}
       </AnimatePresence>
-
+      
       {/* Item Details Modal */}
       <ItemDetails 
         itemId={selectedItemId}

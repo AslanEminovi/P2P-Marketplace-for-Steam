@@ -184,4 +184,81 @@ nav a {
 .text-center {
   text-align: center;
 }
+
+/* User dropdown menu styling */
+.user-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 220px;
+  background: rgba(15, 15, 23, 0.95);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  padding: 8px 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 20px rgba(14, 230, 183, 0.15);
+  z-index: 1000;
+  overflow: hidden;
+  transform-origin: top right;
+  animation: dropdownFadeIn 0.2s ease-out forwards;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  color: var(--color-text-primary);
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.dropdown-item:hover {
+  background: rgba(14, 230, 183, 0.1);
+  color: var(--color-accent-primary);
+}
+
+.dropdown-item svg {
+  color: var(--color-accent-primary);
+  opacity: 0.8;
+  transition: all 0.2s ease;
+}
+
+.dropdown-item:hover svg {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 6px 0;
+}
+
+.dropdown-item.logout {
+  color: var(--color-danger);
+}
+
+.dropdown-item.logout svg {
+  color: var(--color-danger);
+}
+
+.dropdown-item.admin {
+  color: var(--color-warning);
+}
+
+.dropdown-item.admin svg {
+  color: var(--color-warning);
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
   
