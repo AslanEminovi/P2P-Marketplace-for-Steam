@@ -146,37 +146,41 @@ function Inventory() {
     setSelectedItem(null);
   };
 
-  const listItemForSale = async (itemData) => {
+  const listItemForSale = async (listingData) => {
     try {
-      // Extract wear from marketHashName if not provided
-      let itemWear = itemData.wear;
-      if (!itemWear && itemData.markethashname) {
-        const wearMatch = itemData.markethashname.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i);
-        if (wearMatch) {
-          itemWear = wearMatch[0];
-        }
-      }
-
-      // Calculate price in USD based on selected currency rate
-      const priceUSD = itemData.pricelatest || itemData.pricereal || 1;
-
-      await axios.post(`${API_URL}/marketplace/list`, {
-        steamItemId: itemData.classid,
-        assetId: itemData.assetid || itemData.asset_id,
-        marketHashName: itemData.markethashname,
-        price: priceUSD,
-        imageUrl: itemData.image,
-        wear: itemWear,
-        currencyRate: itemData.currencyRate || 1.8,
-        priceGEL: itemData.priceGEL || (priceUSD * 1.8).toFixed(2)
-      }, { withCredentials: true });
+      console.log('Creating listing with data:', listingData);
+      console.log('Selected item:', selectedItem);
+      
+      // Use the selectedItem data with the pricing from listingData
+      const itemToList = {
+        steamItemId: selectedItem.classid || selectedItem.steamItemId || '',
+        assetId: listingData.assetId || selectedItem.assetId || selectedItem.assetid || selectedItem.asset_id,
+        marketHashName: selectedItem.marketHashName || selectedItem.markethashname || selectedItem.name,
+        price: listingData.price,
+        imageUrl: selectedItem.imageUrl || selectedItem.image,
+        wear: selectedItem.wear,
+        rarity: selectedItem.rarity,
+        priceGEL: listingData.priceGEL
+      };
+      
+      console.log('Submitting listing to backend:', itemToList);
+      
+      const response = await axios.post(
+        `${API_URL}/marketplace/list`, 
+        itemToList, 
+        { withCredentials: true }
+      );
+      
+      console.log('Listing response:', response.data);
       
       setMessage('Item listed for sale successfully!');
       setShowSellModal(false);
       setSelectedItem(null);
-      fetchInventory(); // Refresh inventory after listing
+      
+      // Refresh inventory after listing
+      fetchInventory(true); 
     } catch (err) {
-      console.error('List item error:', err);
+      console.error('List item error:', err.response || err);
       setMessage(err.response?.data?.error || 'Failed to list item for sale.');
     }
   };
