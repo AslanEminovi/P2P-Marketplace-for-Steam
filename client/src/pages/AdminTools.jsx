@@ -357,21 +357,7 @@ function AdminTools() {
         
         setMessage({
           type: 'warning',
-          text: `${error.response.data.details} Would you like to fix it now?`,
-          action: {
-            text: 'Fix Now',
-            handler: () => {
-              setAssetId(assetId);
-              setActiveTab('cleanup');
-              // Focus on the assetId input field (will happen on next render)
-              setTimeout(() => {
-                const assetIdInput = document.querySelector('input[placeholder*="Asset ID"]');
-                if (assetIdInput) {
-                  assetIdInput.focus();
-                }
-              }, 100);
-            }
-          }
+          text: `${error.response.data.details} The item with Asset ID: ${assetId} cannot be properly unlisted due to a database conflict.`
         });
         return;
       }
