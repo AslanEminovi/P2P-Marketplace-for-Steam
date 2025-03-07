@@ -108,15 +108,15 @@
 }
 
 .items-icon {
-  background: url('/path/to/items-icon.png') no-repeat center;
+  background: url('./icon-placeholder.svg') no-repeat center;
 }
 
 .users-icon {
-  background: url('/path/to/users-icon.png') no-repeat center;
+  background: url('./icon-placeholder.svg') no-repeat center;
 }
 
 .trades-icon {
-  background: url('/path/to/trades-icon.png') no-repeat center;
+  background: url('./icon-placeholder.svg') no-repeat center;
 }
 
 .stat-number {
@@ -393,23 +393,23 @@
 }
 
 .knife-icon {
-  background: url('/path/to/knife-icon.png') no-repeat center;
+  background: url('./icon-placeholder.svg') no-repeat center;
 }
 
 .glove-icon {
-  background: url('/path/to/glove-icon.png') no-repeat center;
+  background: url('./icon-placeholder.svg') no-repeat center;
 }
 
 .rifle-icon {
-  background: url('/path/to/rifle-icon.png') no-repeat center;
+  background: url('./icon-placeholder.svg') no-repeat center;
 }
 
 .pistol-icon {
-  background: url('/path/to/pistol-icon.png') no-repeat center;
+  background: url('./icon-placeholder.svg') no-repeat center;
 }
 
 .case-icon {
-  background: url('/path/to/case-icon.png') no-repeat center;
+  background: url('./icon-placeholder.svg') no-repeat center;
 }
 
 /* Featured Section */
@@ -645,19 +645,19 @@
 }
 
 .secure-icon {
-  background-image: url('/path/to/secure-icon.png');
+  background-image: url('./icon-placeholder.svg');
 }
 
 .gel-icon {
-  background-image: url('/path/to/gel-icon.png');
+  background-image: url('./icon-placeholder.svg');
 }
 
 .offer-icon {
-  background-image: url('/path/to/offer-icon.png');
+  background-image: url('./icon-placeholder.svg');
 }
 
 .fast-icon {
-  background-image: url('/path/to/fast-icon.png');
+  background-image: url('./icon-placeholder.svg');
 }
 
 /* How It Works Section */
