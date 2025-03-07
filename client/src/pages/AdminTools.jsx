@@ -718,49 +718,45 @@ function CleanupTab({
 }) {
   return (
     <Row>
-      <Col md={6} className="mb-4">
-        <Card className="h-100 bg-dark text-white">
+      <Col md={12} className="mb-4">
+        <Card className="bg-dark text-white">
           <Card.Body>
             <Card.Title>Cleanup All Listings</Card.Title>
             <Card.Text>
-              This will find all items marked as listed and update them to not listed.
-              It will also cancel any trades that are stuck in a non-terminal state.
+              This will cleanup all listings in the system, removing any that are no longer valid.
             </Card.Text>
             <Button 
               variant="danger" 
-              onClick={cleanupAllListings} 
+              onClick={cleanupAllListings}
               disabled={loading}
             >
-              {loading ? 'Processing...' : 'Run Full Cleanup'}
+              {loading ? 'Processing...' : 'Cleanup All Listings'}
             </Button>
           </Card.Body>
         </Card>
       </Col>
       
-      <Col md={6} className="mb-4">
-        <Card className="h-100 bg-dark text-white">
+      <Col md={12} className="mb-4">
+        <Card className="bg-dark text-white">
           <Card.Body>
             <Card.Title>Cleanup User Listings</Card.Title>
             <Card.Text>
-              This will find all items marked as listed for a specific user and update them to not listed.
+              This will cleanup all listings for a specific user.
             </Card.Text>
             <Form onSubmit={cleanupUserListings}>
               <Form.Group className="mb-3">
                 <Form.Label>User ID</Form.Label>
                 <Form.Control 
                   type="text" 
-                  placeholder="Enter MongoDB User ID" 
+                  placeholder="Enter User ID" 
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
                   disabled={loading}
                 />
-                <Form.Text className="text-muted">
-                  Enter the MongoDB ObjectId of the user
-                </Form.Text>
               </Form.Group>
               <Button 
                 variant="warning" 
-                type="submit" 
+                type="submit"
                 disabled={loading}
               >
                 {loading ? 'Processing...' : 'Cleanup User Listings'}
