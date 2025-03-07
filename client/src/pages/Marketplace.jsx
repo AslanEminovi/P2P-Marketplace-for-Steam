@@ -150,9 +150,13 @@ function Marketplace({ user }) {
     }
 
     try {
-      await axios.post(`${API_URL}/marketplace/buy/${itemId}`, {}, { withCredentials: true });
+      const response = await axios.post(`${API_URL}/marketplace/buy/${itemId}`, {}, { withCredentials: true });
       setMessage('Item purchased successfully!');
-      fetchItems();
+      // Only refresh if the purchase was successful
+      if (response && response.data && response.data.success) {
+        console.log("Purchase successful, refreshing items");
+        fetchItems();
+      }
     } catch (err) {
       console.error('Error buying item:', err);
       setMessage('Failed to purchase item');
@@ -169,7 +173,11 @@ function Marketplace({ user }) {
         'SUCCESS'
       );
     }
-    fetchItems();
+    // Only fetch items when necessary - don't refresh unless an item status has changed
+    if (data && data.success) {
+      console.log("Offer successful, refreshing items");
+      fetchItems();
+    }
   };
 
   const fetchUserProfile = async () => {
@@ -194,12 +202,17 @@ function Marketplace({ user }) {
   };
 
   useEffect(() => {
+    // Initial fetch on component mount
     fetchItems();
     
+    // Only fetch user-related data when user changes
     if (user) {
       fetchMyListings();
       fetchUserProfile();
     }
+    
+    // Don't re-run this effect based on the fetchItems function 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   if (loading) {
@@ -391,7 +404,14 @@ function Marketplace({ user }) {
           marginBottom: '1rem'
         }}>
           <button
-            onClick={activeTab === 'all' ? fetchItems : fetchMyListings}
+            onClick={() => {
+              console.log("Manual refresh triggered");
+              if (activeTab === 'all') {
+                fetchItems(); 
+              } else {
+                fetchMyListings();
+              }
+            }}
             style={{
               padding: '0.75rem 1.5rem',
               backgroundColor: activeTab === 'all' ? '#4ade80' : '#8B5CF6',

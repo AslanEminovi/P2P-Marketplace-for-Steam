@@ -350,8 +350,8 @@ function App() {
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/trades" element={<TradeHistory />} />
         <Route path="/trade-history" element={<TradeHistory />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/settings" element={<SteamSettingsPage />} />
+        <Route path="/admin" element={<AdminTools />} />
         {/* ... other routes ... */}
       </Routes>
       <Toaster />
