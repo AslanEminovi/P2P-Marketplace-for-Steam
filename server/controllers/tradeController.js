@@ -13,8 +13,10 @@ exports.getTradeHistory = async (req, res) => {
     const userId = req.user._id;
 
     // Look up trades where the user is either buyer or seller
+    // EXCLUDE cancelled trades - we don't want to store or show these
     const trades = await Trade.find({
       $or: [{ buyer: userId }, { seller: userId }],
+      status: { $ne: "cancelled" }, // Exclude cancelled trades
     })
       .populate("item")
       .populate("buyer", "displayName avatar steamId")
@@ -392,82 +394,110 @@ exports.cancelTrade = async (req, res) => {
     const userId = req.user._id;
     const { reason } = req.body;
 
-    // Find the trade
-    const trade = await Trade.findById(tradeId);
+    console.log(`Request to cancel trade ${tradeId}. Reason: ${reason}`);
+
+    // First, get the trade to check permissions and to get item info before deleting
+    const trade = await Trade.findById(tradeId)
+      .populate("item")
+      .populate("buyer", "walletBalance");
 
     if (!trade) {
       return res.status(404).json({ error: "Trade not found" });
     }
 
-    // Verify the user is part of this trade
+    // Only the relevant user can cancel (buyer, seller)
     const isBuyer = trade.buyer.toString() === userId.toString();
     const isSeller = trade.seller.toString() === userId.toString();
 
     if (!isBuyer && !isSeller) {
-      return res
-        .status(403)
-        .json({ error: "You don't have permission to cancel this trade" });
-    }
-
-    // Check current trade status
-    const allowedStatuses = ["awaiting_seller", "offer_sent"];
-    if (!allowedStatuses.includes(trade.status)) {
-      return res.status(400).json({
-        error: `Trade cannot be cancelled because it is in ${trade.status} state`,
+      return res.status(403).json({
+        error: "You don't have permission to cancel this trade",
       });
     }
 
-    // If the trade has a Steam offer ID and the user is the seller, try to cancel on Steam
-    if (trade.tradeOfferId && isSeller) {
-      try {
-        const seller = await User.findById(userId).select("+steamLoginSecure");
+    // Can't cancel completed trades
+    if (trade.status === "completed") {
+      return res.status(400).json({ error: "Cannot cancel a completed trade" });
+    }
 
-        if (seller.steamLoginSecure) {
-          await steamApiService.cancelTradeOffer(
-            seller.steamLoginSecure,
-            trade.tradeOfferId
-          );
-        }
-      } catch (steamError) {
-        console.warn("Failed to cancel Steam trade offer:", steamError);
-        // Continue with cancellation even if Steam API call fails
+    // Already cancelled
+    if (trade.status === "cancelled") {
+      return res.status(400).json({ error: "Trade is already cancelled" });
+    }
+
+    // Proceed with deletion
+    console.log(`Deleting cancelled trade ${tradeId}`);
+
+    // If there's an item, update it to not be in trade anymore
+    if (trade.item) {
+      const item = await Item.findById(trade.item._id);
+      if (item) {
+        item.isListed = false;
+        await item.save();
+        console.log(`Updated item ${item._id} to not be listed anymore`);
       }
     }
 
-    // Update trade status
-    const cancelledBy = isBuyer ? "buyer" : "seller";
-    const cancelReason = reason || `Cancelled by ${cancelledBy}`;
-    trade.addStatusHistory("cancelled", cancelReason);
-    await trade.save();
+    // If it was a purchase, refund the buyer
+    if (trade.status !== "failed" && trade.buyer && trade.price > 0) {
+      try {
+        const buyer = await User.findById(trade.buyer);
+        if (buyer) {
+          // Add the amount back to buyer's wallet
+          buyer.walletBalance += trade.price;
+          await buyer.save();
+          console.log(`Refunded ${trade.price} to buyer ${buyer._id}`);
 
-    // Update the item status
-    await Item.findByIdAndUpdate(trade.item, {
-      isListed: true, // Re-list the item
-      tradeStatus: null,
-      tradeOfferId: null,
-    });
+          // Create a notification for the buyer about the refund
+          await notificationService.createNotification({
+            user: buyer._id,
+            title: "Trade Cancelled - Funds Returned",
+            message: `Your trade for ${
+              trade.item?.marketHashName || "an item"
+            } was cancelled. ${trade.price} has been returned to your wallet.`,
+            type: "refund",
+            link: `/profile?tab=wallet`,
+          });
+        }
+      } catch (err) {
+        console.error("Error processing refund:", err);
+        // We'll continue with the deletion even if refund fails
+      }
+    }
 
-    // Add notifications
-    const otherUserId = isBuyer ? trade.seller : trade.buyer;
-    const item = await Item.findById(trade.item);
+    // Create notifications for both users about cancellation
+    try {
+      // For the canceller
+      await notificationService.createNotification({
+        user: userId,
+        title: "Trade Cancelled",
+        message: `You cancelled the trade for ${
+          trade.item?.marketHashName || "an item"
+        }.`,
+        type: "trade_cancelled",
+      });
 
-    // Notify the other party
-    await User.findByIdAndUpdate(otherUserId, {
-      $push: {
-        notifications: {
-          type: "trade",
-          title: "Trade Cancelled",
-          message: `The trade for ${item.marketHashName} has been cancelled by the ${cancelledBy}. Reason: ${cancelReason}`,
-          relatedItemId: trade.item,
-          read: false,
-          createdAt: new Date(),
-        },
-      },
-    });
+      // For the other party
+      const otherPartyId = isBuyer ? trade.seller : trade.buyer;
+      await notificationService.createNotification({
+        user: otherPartyId,
+        title: "Trade Cancelled by " + (isBuyer ? "Buyer" : "Seller"),
+        message: `The trade for ${
+          trade.item?.marketHashName || "an item"
+        } was cancelled by the ${isBuyer ? "buyer" : "seller"}.`,
+        type: "trade_cancelled",
+      });
+    } catch (err) {
+      console.error("Error creating cancellation notifications:", err);
+      // Continue with deletion even if notifications fail
+    }
+
+    // Finally, delete the trade
+    await Trade.findByIdAndDelete(tradeId);
 
     return res.json({
       success: true,
-      message: "Trade cancelled successfully.",
+      message: "Trade cancelled and deleted successfully",
     });
   } catch (err) {
     console.error("Cancel trade error:", err);

@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 // Removed motion imports to fix build issues
 import { formatCurrency, API_URL } from '../config/constants';
-import cacheManager from '../utils/cacheManager';
 import toast from 'react-hot-toast';
 
 const TradeHistory = () => {
@@ -51,15 +50,9 @@ const TradeHistory = () => {
     setLoading(true);
     setError(null);
     
-    // Clear local caches to ensure fresh data
-    cacheManager.clearAllCaches();
-    
     try {
-      // Add cache buster to prevent caching
-      const cacheBustedUrl = cacheManager.addCacheBuster(`${API_URL}/trades/history`);
-      console.log('Fetching trade history from:', cacheBustedUrl);
-      
-      const response = await axios.get(cacheBustedUrl, {
+      console.log('Fetching trade history from:', `${API_URL}/trades/history`);
+      const response = await axios.get(`${API_URL}/trades/history`, {
         withCredentials: true
       });
       
@@ -208,13 +201,6 @@ const TradeHistory = () => {
   };
 
   const filteredTrades = getFilteredTrades();
-
-  // Add a clearCache function and a button that uses it
-  const handleClearCache = () => {
-    cacheManager.clearAllCaches();
-    toast.success('Trade history cache has been cleared.');
-    fetchTrades();
-  };
 
   if (loading) {
     return (
@@ -561,37 +547,6 @@ const TradeHistory = () => {
               <option value="lowest">Lowest Price</option>
             </select>
           </div>
-        </div>
-
-        {/* Add this button near the filtering controls, in the filter container div */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          width: '100%',
-          marginTop: '16px'
-        }}>
-          <button
-            onClick={handleClearCache}
-            style={{
-              backgroundColor: 'rgba(17, 24, 39, 0.6)',
-              color: '#e5e7eb',
-              border: '1px solid rgba(55, 65, 81, 0.5)',
-              padding: '8px 12px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M23 4v6h-6"></path>
-              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-            </svg>
-            Refresh Data
-          </button>
         </div>
       </div>
 
