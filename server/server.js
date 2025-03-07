@@ -193,10 +193,6 @@ app.use("/trades", tradeRoutes);
 app.use("/wallet", walletRoutes);
 app.use("/user", userRoutes);
 
-// Admin Routes
-const adminRoutes = require("./routes/adminRoutes");
-app.use("/admin", adminRoutes);
-
 // Steam Web API webhook endpoint
 app.post("/api/webhooks/steam-trade", async (req, res) => {
   try {

@@ -381,7 +381,7 @@ function AdminTools() {
               <Row>
                 <Col md={3}>
                   <img 
-                    src={selectedUser.avatarUrl || 'https://via.placeholder.com/150'} 
+                    src={selectedUser.avatar || 'https://via.placeholder.com/150'} 
                     alt={selectedUser.displayName}
                     className="img-fluid rounded mb-3"
                   />
@@ -714,7 +714,7 @@ function UsersTab({
                   <td>
                     <div className="d-flex align-items-center">
                       <img 
-                        src={user.avatarUrl || 'https://via.placeholder.com/32'} 
+                        src={user.avatar || 'https://via.placeholder.com/32'} 
                         alt={user.displayName}
                         style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 10 }}
                       />
@@ -820,14 +820,14 @@ function ItemsTab({
                     <div className="d-flex align-items-center">
                       <img 
                         src={item.imageUrl || 'https://via.placeholder.com/32'} 
-                        alt={item.name}
+                        alt={item.marketHashName}
                         style={{ width: 32, height: 32, marginRight: 10, objectFit: 'contain' }}
                       />
-                      {item.name}
+                      {item.marketHashName}
                     </div>
                   </td>
-                  <td>{item.ownerId?.displayName || 'Unknown'}</td>
-                  <td>{item.type}</td>
+                  <td>{item.owner?.displayName || 'Unknown'}</td>
+                  <td>{item.rarity || 'Unknown'}</td>
                   <td>
                     {item.isListed ? (
                       <Badge bg="success">Listed</Badge>

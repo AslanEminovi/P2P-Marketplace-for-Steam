@@ -69,9 +69,7 @@ router.get("/users", async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .select(
-        "steamId displayName avatarUrl createdAt lastLogin isAdmin balance"
-      );
+      .select("steamId displayName avatar createdAt lastLogin isAdmin balance");
 
     // Get total count
     const total = await User.countDocuments(searchFilter);
@@ -250,7 +248,7 @@ router.get("/items", async (req, res) => {
     // Build filter
     const filter = {};
     if (search) {
-      filter.name = { $regex: search, $options: "i" };
+      filter.marketHashName = { $regex: search, $options: "i" };
     }
     if (req.query.isListed !== undefined) {
       filter.isListed = isListed;
@@ -261,7 +259,7 @@ router.get("/items", async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("ownerId", "displayName steamId");
+      .populate("owner", "displayName steamId");
 
     // Get total count
     const total = await Item.countDocuments(filter);

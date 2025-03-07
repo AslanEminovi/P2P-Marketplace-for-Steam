@@ -109,6 +109,38 @@ function Navbar({ user, onLogout }) {
             
             <NotificationCenter user={user} />
             
+            {/* Admin Button - Only visible for admin users */}
+            {user.isAdmin && (
+              <Link
+                to="/admin/tools"
+                style={{ 
+                  textDecoration: 'none',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '8px',
+                  fontWeight: 'bold',
+                  backgroundColor: '#b91c1c', // Red background
+                  color: 'white',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  border: '1px solid #f87171',
+                  boxShadow: '0 0 15px rgba(239, 68, 68, 0.6)', // Red glow
+                  transition: 'all 0.2s ease-in-out'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#dc2626';
+                  e.target.style.boxShadow = '0 0 20px rgba(239, 68, 68, 0.8)';
+                  e.target.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '#b91c1c';
+                  e.target.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.6)';
+                  e.target.style.transform = 'translateY(0)';
+                }}
+              >
+                Admin
+              </Link>
+            )}
+            
             <div 
               onClick={() => setDropdownOpen(!dropdownOpen)}
               style={{ 
