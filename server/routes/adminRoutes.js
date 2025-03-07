@@ -3,6 +3,7 @@ const router = express.Router();
 const { requireAuth, requireAdmin } = require("../middlewares/authMiddleware");
 const { cleanupStuckListings } = require("../cleanup_listings");
 const mongoose = require("mongoose");
+const axios = require("axios");
 
 // Middleware to ensure the user is authenticated and has admin privileges
 router.use(requireAuth);
@@ -276,6 +277,49 @@ router.get("/items", async (req, res) => {
   } catch (error) {
     console.error("Error getting items:", error);
     res.status(500).json({ error: "Failed to get items" });
+  }
+});
+
+/**
+ * @route   POST /admin/clear-sessions
+ * @desc    Clear all user sessions which might be caching trade data
+ * @access  Admin
+ */
+router.post("/clear-sessions", async (req, res) => {
+  try {
+    // Get the User model
+    const User = mongoose.model("User");
+
+    // Update all users to invalidate their sessions
+    const result = await User.updateMany(
+      {},
+      {
+        $set: {
+          refreshToken: null,
+          sessionVersion: { $add: [{ $ifNull: ["$sessionVersion", 0] }, 1] },
+        },
+      }
+    );
+
+    // Clear any session data in the trade system
+    const clearCacheResponse = await axios
+      .post(`${process.env.CLIENT_URL}/api/clear-cache`, {
+        secret: process.env.ADMIN_API_SECRET,
+      })
+      .catch((err) => {
+        console.log("Cache clearing API not available or error:", err.message);
+        return { status: "api-error", message: err.message };
+      });
+
+    res.json({
+      success: true,
+      message: `Sessions cleared for ${result.modifiedCount} users.`,
+      cacheCleared: clearCacheResponse?.status === "success",
+      details: result,
+    });
+  } catch (error) {
+    console.error("Error clearing sessions:", error);
+    res.status(500).json({ error: "Failed to clear user sessions" });
   }
 });
 
