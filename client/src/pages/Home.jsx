@@ -7,6 +7,7 @@ import ItemCard3D from '../components/ItemCard3D';
 import './Home.css';
 import { API_URL } from '../config/constants';
 import cyberGridBg from './cyber-grid.png'; // Import the image directly
+import csLogoBg from './cs-logo.png'; // Import CS logo image directly
 
 function Home({ user }) {
   const [featuredItems, setFeaturedItems] = useState([]);
@@ -24,6 +25,22 @@ function Home({ user }) {
     width: '100%',
     height: '100%',
     position: 'absolute',
+    zIndex: 1
+  };
+
+  // Style object for CS logo watermark
+  const csLogoStyle = {
+    backgroundImage: `url(${csLogoBg})`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'center',
+    backgroundSize: 'contain',
+    opacity: 0.03,
+    width: '80%',
+    height: '80%',
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
     zIndex: 1
   };
 
@@ -98,7 +115,7 @@ function Home({ user }) {
       {/* Animated background elements */}
       <div className="bg-elements">
         <div style={cyberGridStyle}></div>
-        <div className="cs-logo-watermark"></div>
+        <div style={csLogoStyle}></div>
         <div className="glow-orb orb1"></div>
         <div className="glow-orb orb2"></div>
       </div>
