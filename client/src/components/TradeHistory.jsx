@@ -49,6 +49,9 @@ const TradeHistory = () => {
           console.warn('Trade with missing or incomplete item data:', trade);
         }
 
+        // Keep original item data if it exists
+        const originalItem = trade.item || {};
+
         return {
           ...trade,
           // Ensure these fields exist to prevent rendering errors
@@ -56,16 +59,14 @@ const TradeHistory = () => {
           status: trade.status || 'unknown',
           isUserBuyer: !!trade.isUserBuyer,
           isUserSeller: !!trade.isUserSeller,
-          item: trade.item || {
-            marketHashName: 'Unknown Item',
-            imageUrl: null
-          },
-          // Ensure item has all needed properties
+          // Preserve as much item data as possible
           item: {
-            ...trade.item,
-            marketHashName: trade.item?.marketHashName || 'Unknown Item',
-            imageUrl: trade.item?.imageUrl || null,
-            wear: trade.item?.wear || ''
+            ...originalItem,
+            marketHashName: originalItem.marketHashName || trade.itemName || 'Item Unavailable',
+            imageUrl: originalItem.imageUrl || trade.itemImage || 'https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFSv_J2Rg/360fx360f',
+            wear: originalItem.wear || trade.itemWear || '',
+            rarity: originalItem.rarity || trade.itemRarity || '',
+            assetId: originalItem.assetId || trade.assetId || ''
           },
           seller: trade.seller || {
             displayName: 'Unknown Seller',
