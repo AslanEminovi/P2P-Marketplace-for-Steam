@@ -30,14 +30,17 @@ exports.getTradeHistory = async (req, res) => {
 
       // Ensure item data is preserved even if the item is missing
       if (!tradeObj.item) {
-        // Create a placeholder item with available data
+        // Create a placeholder item with the stored item details
         tradeObj.item = {
-          marketHashName: trade.assetId
-            ? `CS2 Item (${trade.assetId})`
-            : "CS2 Item",
+          marketHashName:
+            tradeObj.itemName ||
+            (tradeObj.assetId ? `CS2 Item (${tradeObj.assetId})` : "CS2 Item"),
           imageUrl:
+            tradeObj.itemImage ||
             "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFSv_J2Rg/360fx360f",
-          assetId: trade.assetId,
+          wear: tradeObj.itemWear || "",
+          rarity: tradeObj.itemRarity || "",
+          assetId: tradeObj.assetId,
         };
       }
 
