@@ -43,15 +43,25 @@
 
 /* Hero Section */
 .hero-section {
+  position: relative;
+  padding: 6rem 2rem;
+  min-height: 100vh;
   display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 2;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 5;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  padding: 4rem 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-  min-height: 80vh;
-  position: relative;
-  z-index: 3;
+  gap: 3rem;
 }
 
 .hero-title {
@@ -308,7 +318,7 @@
   padding: 2rem 0;
   background: var(--color-bg-secondary);
   position: relative;
-  z-index: 3;
+  z-index: 2;
 }
 
 .search-container {
@@ -417,7 +427,7 @@
   padding: 4rem 2rem;
   background: var(--color-bg-primary);
   position: relative;
-  z-index: 3;
+  z-index: 2;
 }
 
 .section-header {
@@ -612,7 +622,7 @@
   padding: 4rem 2rem;
   background: var(--color-bg-secondary);
   position: relative;
-  z-index: 3;
+  z-index: 2;
 }
 
 .features-grid {
@@ -772,7 +782,7 @@
   padding: 4rem 2rem;
   background: var(--color-bg-primary);
   position: relative;
-  z-index: 3;
+  z-index: 2;
 }
 
 .steps-container {
@@ -826,7 +836,7 @@
   padding: 4rem 2rem;
   background: var(--color-bg-secondary);
   position: relative;
-  z-index: 3;
+  z-index: 2;
 }
 
 .cta-container {
@@ -865,7 +875,7 @@
   padding: 4rem 2rem;
   background: var(--color-bg-primary);
   position: relative;
-  z-index: 3;
+  z-index: 2;
 }
 
 .footer-container {

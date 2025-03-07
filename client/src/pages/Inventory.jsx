@@ -56,31 +56,46 @@ function Inventory() {
     return wearColors[wear] || '#b0c3d9';
   };
 
+  // Check authentication status directly from App props
+  useEffect(() => {
+    // If user is already passed in from App component, use it
+    if (user) {
+      fetchInventory(true);
+    } else {
+      // Fallback to API check if not passed from props
+      checkAuthStatus();
+    }
+  }, []);
+
   const checkAuthStatus = async () => {
     try {
       const res = await axios.get(`${API_URL}/auth/user`, { withCredentials: true });
       if (res.data.authenticated) {
         setUser(res.data.user);
+        fetchInventory(true);
         return true;
       }
       setMessage('Please sign in through Steam to view your inventory.');
+      setLoading(false);
       return false;
     } catch (err) {
       console.error('Auth check error:', err);
       setMessage('Failed to verify authentication status.');
+      setLoading(false);
       return false;
     }
   };
 
   const fetchInventory = async (force = false) => {
     try {
-      if (!force && !user) return;
       setLoading(true);
-      const isAuthenticated = await checkAuthStatus();
       
-      if (!isAuthenticated) {
-        setLoading(false);
-        return;
+      // Skip auth check if we already have user or force is true
+      if (!force && !user) {
+        const isAuthenticated = await checkAuthStatus();
+        if (!isAuthenticated) {
+          return;
+        }
       }
 
       const res = await axios.get(`${API_URL}/inventory/my`, { withCredentials: true });

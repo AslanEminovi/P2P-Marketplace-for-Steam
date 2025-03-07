@@ -24,11 +24,11 @@ function Home({ user }) {
     backgroundSize: '200px 200px',
     opacity: 0.5, // 50% visibility as requested
     width: '100%',
-    height: '100vh', // Limit height to viewport height to cover until search section
-    position: 'absolute', // Changed from fixed to absolute
+    height: '100%',
+    position: 'fixed', // Changed to fixed to stay in place when scrolling
     top: 0,
     left: 0,
-    zIndex: 1,
+    zIndex: 0,
     pointerEvents: 'none'
   };
 
@@ -41,11 +41,11 @@ function Home({ user }) {
     opacity: 0.75, // 75% visibility as requested
     width: '50%',
     height: '50%',
-    position: 'absolute', // Changed from fixed to absolute
+    position: 'fixed', // Changed to fixed to stay in place when scrolling
     top: '30%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
-    zIndex: 1,
+    zIndex: 0,
     pointerEvents: 'none'
   };
 
@@ -117,7 +117,7 @@ function Home({ user }) {
   
   return (
     <div className="home-container">
-      {/* Animated background elements */}
+      {/* Background Elements - placed at the beginning but with lower z-index */}
       <div className="bg-elements">
         <div style={cyberGridStyle}></div>
         <div style={csLogoStyle}></div>
@@ -125,7 +125,7 @@ function Home({ user }) {
         <div className="glow-orb orb2"></div>
       </div>
       
-      {/* Hero Section */}
+      {/* Hero Section - content with higher z-index */}
       <section className="hero-section" ref={heroRef}>
         <div className="hero-content">
           <motion.h1 

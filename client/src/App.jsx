@@ -486,7 +486,7 @@ function App() {
             <Route path="/inventory" element={
               <ProtectedRoute user={user}>
                 <PageWrapper key="inventory">
-                  <Inventory />
+                  <Inventory user={user} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
@@ -500,7 +500,7 @@ function App() {
             <Route path="/my-listings" element={
               <ProtectedRoute user={user}>
                 <PageWrapper key="my-listings">
-                  <MyListings />
+                  <MyListings user={user} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
@@ -508,7 +508,7 @@ function App() {
             <Route path="/settings/steam" element={
               <ProtectedRoute user={user}>
                 <PageWrapper key="steam-settings">
-                  <SteamSettings />
+                  <SteamSettings user={user} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
@@ -516,7 +516,7 @@ function App() {
             <Route path="/trades" element={
               <ProtectedRoute user={user}>
                 <PageWrapper key="trades">
-                  <TradeHistory />
+                  <TradeHistory user={user} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
@@ -524,7 +524,7 @@ function App() {
             <Route path="/trades/:tradeId" element={
               <ProtectedRoute user={user}>
                 <PageWrapper key="trade-detail">
-                  <TradeDetailPage />
+                  <TradeDetailPage user={user} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
@@ -540,7 +540,7 @@ function App() {
             <Route path="/steam-settings" element={
               <ProtectedRoute user={user}>
                 <PageWrapper key="steam-settings">
-                  <SteamSettingsPage />
+                  <SteamSettingsPage user={user} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
