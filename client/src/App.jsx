@@ -75,8 +75,9 @@ function App() {
       
       // If token exists, include it in query params
       if (token) {
+        console.log("Including auth token in request:", config.url);
         // Include token in URL if it's to our API
-        if (config.url.startsWith(API_URL)) {
+        if (config.url && config.url.startsWith(API_URL)) {
           // Initialize params object if not exists
           config.params = config.params || {};
           // Add token to params
@@ -85,6 +86,9 @@ function App() {
       }
       
       return config;
+    }, error => {
+      console.error("Axios request interceptor error:", error);
+      return Promise.reject(error);
     });
 
     // Remove interceptor on cleanup
@@ -98,86 +102,44 @@ function App() {
       setLoading(true);
       console.log("Checking auth status, API URL:", API_URL);
       
-      // Check for auth token in URL
-      const urlParams = new URLSearchParams(window.location.search);
-      const authToken = urlParams.get('auth_token');
-      
-      if (authToken) {
-        console.log("Found auth token in URL, verifying...");
-        // Remove token from URL to prevent bookmarking with token
-        window.history.replaceState({}, document.title, window.location.pathname);
-        
-        // Verify token with backend
-        const verifyResponse = await axios.post(`${API_URL}/auth/verify-token`, { token: authToken }, { withCredentials: true });
-        
-        if (verifyResponse.data.authenticated) {
-          console.log("Token verified, user authenticated:", verifyResponse.data.user);
-          setUser(verifyResponse.data.user);
-          
-          // Store token in localStorage for future use
-          localStorage.setItem('auth_token', authToken);
-          
-          // Show success notification
-          if (window.showNotification) {
-            window.showNotification(
-              t('common.signIn'),
-              t('common.success'),
-              'SUCCESS'
-            );
-          }
-          
-          setLoading(false);
-          return;
-        }
-      }
-      
-      // Check if we have a token in localStorage
+      // First try with localStorage token
       const storedToken = localStorage.getItem('auth_token');
       if (storedToken) {
         console.log("Found stored token, verifying...");
         
         try {
-          const verifyResponse = await axios.post(`${API_URL}/auth/verify-token`, { token: storedToken }, { withCredentials: true });
+          const verifyResponse = await axios.post(`${API_URL}/auth/verify-token`, 
+            { token: storedToken }, 
+            { withCredentials: true }
+          );
           
-          if (verifyResponse.data.authenticated) {
+          if (verifyResponse?.data?.authenticated) {
             console.log("Stored token verified, user authenticated:", verifyResponse.data.user);
             setUser(verifyResponse.data.user);
             setLoading(false);
             return;
           } else {
-            // Token is invalid, remove it
+            console.log("Stored token is invalid, removing it");
             localStorage.removeItem('auth_token');
           }
         } catch (error) {
           console.error("Stored token verification failed:", error);
           localStorage.removeItem('auth_token');
         }
+      } else {
+        console.log("No auth token found in localStorage");
       }
       
-      // If we reach here, try the regular session-based auth as fallback
+      // If we reach here, try session-based auth
       try {
-        const res = await axios.get(`${API_URL}/auth/user`, { 
-          withCredentials: true 
-        })
-        .then(response => {
-          console.log("Auth response:", response.data);
-          return response;
-        })
-        .catch(error => {
-          console.error("Auth request failed:", error.message);
-          if (error.response) {
-            console.error("Response data:", error.response.data);
-            console.error("Response status:", error.response.status);
-            console.error("Response headers:", error.response.headers);
-          }
-          throw error;
-        });
+        console.log("Trying session-based authentication");
+        const res = await axios.get(`${API_URL}/auth/user`, { withCredentials: true });
         
-        if (res.data.authenticated) {
+        if (res?.data?.authenticated) {
           console.log("User authenticated via session:", res.data.user);
           setUser(res.data.user);
         } else {
-          console.log("User not authenticated");
+          console.log("User not authenticated via session");
         }
       } catch (err) {
         console.error("Session auth check failed:", err);
@@ -188,6 +150,37 @@ function App() {
       setLoading(false);
     }
   };
+
+  // Updated to specifically handle auth_token in URL more robustly
+  useEffect(() => {
+    const handleAuthToken = async () => {
+      console.log("Checking for auth token in URL on initial load");
+      const urlParams = new URLSearchParams(window.location.search);
+      const authToken = urlParams.get('auth_token');
+      
+      if (authToken) {
+        console.log("Found auth token in URL, storing it");
+        // Store token in localStorage
+        localStorage.setItem('auth_token', authToken);
+        
+        // Clean up the URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Immediately check auth status
+        await checkAuthStatus();
+      }
+    };
+    
+    handleAuthToken();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
+  // Separate effect for general auth status check
+  useEffect(() => {
+    console.log("App component mounted, checking auth status");
+    checkAuthStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -211,10 +204,6 @@ function App() {
       console.error('Logout error:', err);
     }
   };
-
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
 
   // Get wallet balance from API
   const refreshWalletBalance = async () => {
