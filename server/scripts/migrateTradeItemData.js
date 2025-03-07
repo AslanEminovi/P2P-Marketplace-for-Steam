@@ -4,8 +4,13 @@
  * This script updates all trade records to include item name, image, etc.
  * directly in the trade record for better data preservation.
  *
- * Usage:
- * node scripts/migrateTradeItemData.js
+ * Usage on the server:
+ * 1. SSH into the server
+ * 2. Navigate to the project directory
+ * 3. Run: NODE_ENV=production node server/scripts/migrateTradeItemData.js
+ *
+ * Note: This script requires access to the MongoDB database and should be run
+ * on the server where the environment variables are properly set up.
  */
 
 require("dotenv").config();
@@ -14,8 +19,17 @@ const Trade = require("../models/Trade");
 const Item = require("../models/Item");
 
 // MongoDB connection
+console.log("Attempting to connect to MongoDB...");
+console.log(
+  `MongoDB URI: ${process.env.MONGODB_URI ? "[CONFIGURED]" : "[MISSING]"}`
+);
+
+// Default to local development MongoDB if environment variable is not set
+const mongoUri =
+  process.env.MONGODB_URI || "mongodb://localhost:27017/cs2marketplace";
+
 mongoose
-  .connect(process.env.MONGODB_URI, {
+  .connect(mongoUri, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })

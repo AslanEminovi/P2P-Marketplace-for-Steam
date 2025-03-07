@@ -125,11 +125,27 @@ const TradeDetails = ({ tradeId }) => {
         throw new Error('Received invalid trade data from server');
       }
       
-      setTrade(response.data);
-      console.log('Trade details loaded:', response.data);
+      // Process and normalize the trade data to handle missing item references
+      const tradeData = response.data;
+      
+      // Ensure we have valid item data even if item reference is missing
+      if (!tradeData.item) {
+        // Create placeholder item with available metadata
+        tradeData.item = {
+          marketHashName: tradeData.itemName || (tradeData.assetId ? `Item #${tradeData.assetId}` : 'Unknown Item'),
+          imageUrl: tradeData.itemImage || 'https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFSv_J2Rg/360fx360f',
+          wear: tradeData.itemWear || '',
+          rarity: tradeData.itemRarity || '',
+          assetId: tradeData.assetId || ''
+        };
+      }
+      
+      // Store the normalized data
+      setTrade(tradeData);
+      console.log('Trade details loaded:', tradeData);
       
       // Set UI states based on trade status
-      if (response.data.status === 'offer_sent') {
+      if (tradeData.status === 'offer_sent') {
         setSellerWaitingForBuyer(true);
       }
       
@@ -140,17 +156,17 @@ const TradeDetails = ({ tradeId }) => {
         });
         
         const userId = currentUser.data._id;
-        setIsBuyer(userId === response.data.buyer._id);
-        setIsSeller(userId === response.data.seller._id);
+        setIsBuyer(userId === tradeData.buyer._id);
+        setIsSeller(userId === tradeData.seller._id);
       } catch (profileError) {
         console.error('Error loading user profile:', profileError);
         // Continue even if this part fails - we can still show trade details
       }
       
       // Reset loading states based on status
-      if (response.data.status === 'completed' || 
-          response.data.status === 'cancelled' || 
-          response.data.status === 'failed') {
+      if (tradeData.status === 'completed' || 
+          tradeData.status === 'cancelled' || 
+          tradeData.status === 'failed') {
         setCanConfirmReceived(false);
         setConfirmLoading(false);
         setSendingLoading(false);

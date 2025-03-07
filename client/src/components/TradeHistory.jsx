@@ -44,13 +44,27 @@ const TradeHistory = () => {
 
       // Add safety defaults for missing fields that might cause rendering errors
       const safeData = response.data.map(trade => {
-        // Log any trades with missing item data
-        if (!trade.item || !trade.item.marketHashName) {
-          console.warn('Trade with missing or incomplete item data:', trade);
-        }
-
         // Keep original item data if it exists
         const originalItem = trade.item || {};
+
+        // Create properly formatted item name when metadata is available
+        let itemName = 'Unknown Item';
+        if (originalItem.marketHashName) {
+          itemName = originalItem.marketHashName;
+        } else if (trade.itemName) {
+          itemName = trade.itemName;
+        } else if (trade.assetId) {
+          // Better formatting for asset ID display
+          itemName = `Item #${trade.assetId}`;
+        }
+
+        // Create properly formatted item image
+        let itemImage = 'https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFSv_J2Rg/360fx360f';
+        if (originalItem.imageUrl) {
+          itemImage = originalItem.imageUrl;
+        } else if (trade.itemImage) {
+          itemImage = trade.itemImage;
+        }
 
         return {
           ...trade,
@@ -62,8 +76,8 @@ const TradeHistory = () => {
           // Preserve as much item data as possible
           item: {
             ...originalItem,
-            marketHashName: originalItem.marketHashName || trade.itemName || 'Item Unavailable',
-            imageUrl: originalItem.imageUrl || trade.itemImage || 'https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFSv_J2Rg/360fx360f',
+            marketHashName: itemName,
+            imageUrl: itemImage,
             wear: originalItem.wear || trade.itemWear || '',
             rarity: originalItem.rarity || trade.itemRarity || '',
             assetId: originalItem.assetId || trade.assetId || ''
@@ -200,7 +214,12 @@ const TradeHistory = () => {
                   {trade.item?.marketHashName || 'Unknown Item'}
                 </div>
                 <div style={{ color: '#9ca3af', fontSize: '0.75rem' }}>
-                  {trade.item?.wear} {trade.assetId && `| ${trade.assetId.substring(0, 8)}...`}
+                  {trade.item?.wear} 
+                  {trade.item?.assetId && 
+                    <span style={{ marginLeft: '4px', color: '#93c5fd' }}>
+                      | ID: {trade.item.assetId}
+                    </span>
+                  }
                 </div>
               </div>
             </div>
