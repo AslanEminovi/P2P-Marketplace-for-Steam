@@ -101,6 +101,13 @@ function Inventory() {
       const res = await axios.get(`${API_URL}/inventory/my`, { withCredentials: true });
       console.log('Inventory response:', res.data);
       
+      // Debug the item structure to see what properties are available
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+        console.log('First item structure:', res.data[0]);
+        console.log('Item types:', [...new Set(res.data.map(item => item.type).filter(Boolean))]);
+        console.log('Market hash names sample:', res.data.slice(0, 5).map(item => item.marketHashName));
+      }
+      
       if (res.data && Array.isArray(res.data)) {
         setItems(res.data);
         setMessage('');
@@ -118,7 +125,19 @@ function Inventory() {
   };
 
   const handleSellClick = (item) => {
-    setSelectedItem(item);
+    console.log('Preparing to sell item:', item);
+    
+    // Prepare the item with all necessary fields
+    const preparedItem = {
+      ...item,
+      name: item.marketHashName || item.name || 'CS2 Item',
+      wear: item.wear || (item.marketHashName?.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i)?.[0]),
+      assetId: item.assetId || item.id || item._id,
+      suggestedPrice: item.suggestedPrice || item.price || item.pricelatest || item.pricereal || 0,
+      imageUrl: item.imageUrl || item.image || (item.iconUrl ? `https://steamcommunity-a.akamaihd.net/economy/image/${item.iconUrl}` : '/img/placeholder-item.svg')
+    };
+    
+    setSelectedItem(preparedItem);
     setShowSellModal(true);
   };
 
@@ -245,14 +264,40 @@ function Inventory() {
     );
   }
 
-  // Filter and sort items
+  // Modified filtering to be more lenient
   const filteredItems = items.filter(item => {
+    // Debug item properties for filtering
+    console.log('Filtering item:', item.marketHashName, 'Type:', item.type, 'Category:', filterCategory);
+    
+    // If all categories selected, show everything
     if (filterCategory === 'all') return true;
-    if (filterCategory === 'knife') return item.type?.toLowerCase().includes('knife');
-    if (filterCategory === 'glove') return item.type?.toLowerCase().includes('glove');
-    return item.type?.toLowerCase() === filterCategory;
+    
+    // If item has no type, check marketHashName for category keywords
+    if (!item.type) {
+      const name = (item.marketHashName || '').toLowerCase();
+      if (filterCategory === 'knife' && (name.includes('knife') || name.includes('karambit') || name.includes('bayonet'))) return true;
+      if (filterCategory === 'glove' && name.includes('glove')) return true;
+      if (filterCategory === 'rifle' && (name.includes('rifle') || name.includes('ak-47') || name.includes('m4a'))) return true; 
+      if (filterCategory === 'pistol' && (name.includes('pistol') || name.includes('deagle') || name.includes('glock'))) return true;
+      if (filterCategory === 'case' && name.includes('case')) return true;
+      // Default case for items without type but not matching keywords
+      return false;
+    }
+    
+    // Normal type checking - case insensitive
+    const itemType = item.type.toLowerCase();
+    if (filterCategory === 'knife' && (itemType.includes('knife') || itemType.includes('karambit') || itemType.includes('bayonet'))) return true;
+    if (filterCategory === 'glove' && itemType.includes('glove')) return true;
+    if (filterCategory === 'rifle' && (itemType.includes('rifle') || itemType.includes('ak-47') || itemType.includes('m4a'))) return true; 
+    if (filterCategory === 'pistol' && (itemType.includes('pistol') || itemType.includes('deagle') || itemType.includes('glock'))) return true;
+    if (filterCategory === 'case' && itemType.includes('case')) return true;
+    
+    return itemType === filterCategory;
   }).filter(item => {
-    return item.marketHashName?.toLowerCase().includes(searchTerm.toLowerCase());
+    // Search term filtering - skip if no search term
+    if (!searchTerm) return true;
+    // Case insensitive search in market hash name
+    return (item.marketHashName || '').toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   // Sort items
@@ -312,12 +357,28 @@ function Inventory() {
           
           <div className="stat-card">
             <div className="stat-label">Estimated Value</div>
-            <div className="stat-value">${items.reduce((sum, item) => sum + (item.suggestedPrice || 0), 0).toFixed(2)}</div>
+            <div className="stat-value">
+              ${items.reduce((sum, item) => {
+                const price = item.suggestedPrice || 
+                             item.price || 
+                             item.pricelatest || 
+                             item.pricereal || 0;
+                return sum + parseFloat(price);
+              }, 0).toFixed(2)}
+            </div>
           </div>
           
           <div className="stat-card">
             <div className="stat-label">Rare Items</div>
-            <div className="stat-value">{items.filter(item => item.rarity === 'Covert' || item.rarity === '★').length}</div>
+            <div className="stat-value">
+              {items.filter(item => 
+                item.rarity === 'Covert' || 
+                item.rarity === '★' || 
+                item.rarity === 'Classified' ||
+                (item.marketHashName || '').toLowerCase().includes('knife') ||
+                (item.marketHashName || '').toLowerCase().includes('glove')
+              ).length}
+            </div>
           </div>
         </div>
         
@@ -368,9 +429,9 @@ function Inventory() {
         
         {sortedItems.length > 0 ? (
           <div className="inventory-grid">
-            {sortedItems.map(item => (
+            {sortedItems.map((item, index) => (
               <div 
-                key={item.assetId} 
+                key={item.assetId || item._id || index} 
                 className="item-card"
                 style={{ 
                   borderColor: getRarityColor(item.rarity) + '40' 
@@ -378,40 +439,48 @@ function Inventory() {
               >
                 <div className="item-image-wrapper">
                   <img 
-                    src={item.imageUrl} 
-                    alt={item.marketHashName} 
+                    src={item.imageUrl || item.image || (item.iconUrl ? `https://steamcommunity-a.akamaihd.net/economy/image/${item.iconUrl}` : '/img/placeholder-item.svg')} 
+                    alt={item.marketHashName || item.name || 'CS2 Item'} 
                     className="item-image"
+                    onError={(e) => {
+                      e.target.onerror = null; 
+                      e.target.src = '/img/placeholder-item.svg';
+                    }}
                   />
                 </div>
                 
                 <div className="item-details">
-                  <h3 className="item-name">{item.marketHashName}</h3>
+                  <h3 className="item-name">{item.marketHashName || item.name || 'CS2 Item'}</h3>
                   
                   <div className="item-info">
-                    {item.wear && (
+                    {(item.wear || (item.marketHashName && item.marketHashName.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i))) && (
                       <span 
                         className="item-wear"
-                        style={{ backgroundColor: getWearColor(translateWear(item.wear)) + '30', color: getWearColor(translateWear(item.wear)) }}
+                        style={{ 
+                          backgroundColor: getWearColor(translateWear(item.wear)) + '30', 
+                          color: getWearColor(translateWear(item.wear))
+                        }}
                       >
-                        {translateWear(item.wear)}
+                        {translateWear(item.wear) || item.marketHashName?.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i)?.[0] || 'N/A'}
                       </span>
                     )}
                     
                     {item.rarity && (
                       <span 
                         className="item-rarity"
-                        style={{ backgroundColor: getRarityColor(item.rarity) + '30', color: getRarityColor(item.rarity) }}
+                        style={{ 
+                          backgroundColor: getRarityColor(item.rarity) + '30', 
+                          color: getRarityColor(item.rarity) 
+                        }}
                       >
                         {item.rarity}
                       </span>
                     )}
                   </div>
                   
-                  {item.suggestedPrice && (
-                    <div className="item-price">
-                      ${item.suggestedPrice.toFixed(2)}
-                    </div>
-                  )}
+                  <div className="item-price">
+                    ${(item.suggestedPrice || item.price || item.pricelatest || item.pricereal || 0).toFixed(2)}
+                  </div>
                   
                   <div className="item-actions">
                     <button 
@@ -423,7 +492,7 @@ function Inventory() {
                     
                     <button 
                       className="btn-detail"
-                      onClick={() => window.open(`https://steamcommunity.com/market/listings/730/${encodeURIComponent(item.marketHashName)}`, '_blank')}
+                      onClick={() => window.open(`https://steamcommunity.com/market/listings/730/${encodeURIComponent(item.marketHashName || item.name || '')}`, '_blank')}
                     >
                       Details
                     </button>
