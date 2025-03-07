@@ -24,22 +24,24 @@ const StatusBadge = ({ status }) => {
     }
   };
 
-  const getStatusText = () => {
+  const getStatusText = (status) => {
     switch (status) {
       case 'awaiting_seller':
         return 'Purchase Offer Sent';
       case 'accepted':
-        return 'Seller Accepted - Waiting for Steam Trade Offer';
+        return 'Seller Accepted';
       case 'offer_sent':
-        return 'Steam Trade Offer Created';
+        return 'Steam Trade Offer Sent';
       case 'awaiting_confirmation':
-        return 'Awaiting Your Confirmation';
+        return 'Awaiting Buyer Confirmation';
       case 'completed':
-        return 'Completed';
+        return 'Trade Completed';
       case 'cancelled':
-        return 'Cancelled';
+        return 'Trade Cancelled';
+      case 'failed':
+        return 'Trade Failed';
       default:
-        return status?.replace(/_/g, ' ') || 'Unknown';
+        return status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown';
     }
   };
 
@@ -54,7 +56,7 @@ const StatusBadge = ({ status }) => {
       fontWeight: '500',
       textTransform: 'uppercase'
     }}>
-      {getStatusText()}
+      {getStatusText(status)}
     </span>
   );
 };
@@ -724,6 +726,414 @@ const TradeDetails = ({ tradeId }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const renderTradeActions = () => {
+    if (!trade || loading) return null;
+    
+    // Based on trade status and user role, show different action buttons
+    if (trade.status === 'completed' || trade.status === 'cancelled' || trade.status === 'failed') {
+      return null; // No actions for completed/cancelled/failed trades
+    }
+    
+    return (
+      <div style={{
+        backgroundColor: 'rgba(17, 24, 39, 0.4)',
+        borderRadius: '16px',
+        padding: '24px',
+        border: '1px solid rgba(55, 65, 81, 0.5)',
+        marginBottom: '24px'
+      }}>
+        <h3 style={{ 
+          color: '#f1f1f1', 
+          margin: '0 0 16px 0',
+          fontSize: '1.1rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+          </svg>
+          Trade Actions
+        </h3>
+
+        {/* Seller actions */}
+        {trade.isUserSeller && (
+          <div>
+            {trade.status === 'awaiting_seller' && (
+              <button
+                onClick={handleSellerApprove}
+                disabled={approveLoading}
+                style={{
+                  backgroundColor: '#3b82f6',
+                  color: '#f1f1f1',
+                  border: 'none',
+                  padding: '12px 20px',
+                  borderRadius: '8px',
+                  cursor: approveLoading ? 'not-allowed' : 'pointer',
+                  fontWeight: '500',
+                  width: '100%',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s ease',
+                  opacity: approveLoading ? '0.7' : '1'
+                }}
+              >
+                {approveLoading ? (
+                  <>
+                    <div className="spinner" style={{
+                      width: '20px',
+                      height: '20px',
+                      border: '2px solid rgba(255,255,255,0.2)',
+                      borderRadius: '50%',
+                      borderTopColor: 'white'
+                    }} />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    Accept Purchase Offer
+                  </>
+                )}
+              </button>
+            )}
+
+            {trade.status === 'accepted' && (
+              <div>
+                <div style={{
+                  backgroundColor: 'rgba(30, 64, 175, 0.2)',
+                  color: '#93c5fd',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  marginBottom: '16px'
+                }}>
+                  <p style={{ margin: '0 0 12px 0', fontWeight: '500' }}>
+                    Please send a Steam trade offer to the buyer
+                  </p>
+                  <a 
+                    href={trade.buyer?.tradeUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ 
+                      color: '#3b82f6',
+                      textDecoration: 'none',
+                      display: 'block',
+                      padding: '8px',
+                      backgroundColor: 'rgba(17, 24, 39, 0.5)',
+                      borderRadius: '4px',
+                      wordBreak: 'break-all',
+                      marginBottom: '12px'
+                    }}
+                  >
+                    {trade.buyer?.tradeUrl}
+                  </a>
+                  
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ 
+                      color: '#f1f1f1', 
+                      display: 'block', 
+                      marginBottom: '8px',
+                      fontSize: '0.9rem' 
+                    }}>
+                      Trade Offer ID/URL (optional):
+                    </label>
+                    <input
+                      type="text"
+                      value={steamOfferUrl}
+                      onChange={(e) => setSteamOfferUrl(e.target.value)}
+                      placeholder="Enter Steam trade offer ID or URL"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        backgroundColor: 'rgba(17, 24, 39, 0.5)',
+                        border: '1px solid rgba(55, 65, 81, 0.7)',
+                        borderRadius: '6px',
+                        color: '#f1f1f1',
+                        outline: 'none',
+                        fontSize: '0.9rem'
+                      }}
+                    />
+                  </div>
+                  
+                  <button
+                    onClick={handleSellerConfirmSent}
+                    disabled={sendingLoading || sellerWaitingForBuyer}
+                    style={{
+                      backgroundColor: sellerWaitingForBuyer ? '#10b981' : '#3b82f6',
+                      color: '#f1f1f1',
+                      border: 'none',
+                      padding: '12px 20px',
+                      borderRadius: '8px',
+                      cursor: sendingLoading || sellerWaitingForBuyer ? 'not-allowed' : 'pointer',
+                      fontWeight: '500',
+                      width: '100%',
+                      fontSize: '1rem',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s ease',
+                      opacity: sendingLoading ? '0.7' : '1'
+                    }}
+                  >
+                    {sendingLoading ? (
+                      <>
+                        <div className="spinner" style={{
+                          width: '20px',
+                          height: '20px',
+                          border: '2px solid rgba(255,255,255,0.2)',
+                          borderRadius: '50%',
+                          borderTopColor: 'white'
+                        }} />
+                        Sending...
+                      </>
+                    ) : sellerWaitingForBuyer ? (
+                      <>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        Waiting for buyer...
+                      </>
+                    ) : (
+                      <>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+                          <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+                        </svg>
+                        I've Sent the Trade Offer
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {(['awaiting_seller', 'accepted'].includes(trade.status)) && (
+              <button
+                onClick={() => {
+                  setCancelReason('');
+                  const modal = document.getElementById('cancelModal');
+                  if (modal) modal.style.display = 'block';
+                }}
+                style={{
+                  backgroundColor: 'rgba(127, 29, 29, 0.8)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 20px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  width: '100%',
+                  fontWeight: '500',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginTop: trade.status === 'accepted' ? '16px' : '0'
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="15" y1="9" x2="9" y2="15"></line>
+                  <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+                Cancel Trade
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Buyer actions */}
+        {trade.isUserBuyer && (
+          <div>
+            {trade.status === 'offer_sent' && (
+              <div>
+                <div style={{
+                  backgroundColor: 'rgba(30, 64, 175, 0.2)',
+                  color: '#93c5fd',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  marginBottom: '16px'
+                }}>
+                  <p style={{ margin: '0 0 12px 0', fontWeight: '500' }}>
+                    The seller has sent you a Steam trade offer
+                  </p>
+                  <p style={{ margin: '0 0 12px 0', fontSize: '0.9rem' }}>
+                    Please check your Steam trade offers and accept the offer before confirming receipt below.
+                  </p>
+                  
+                  {trade.steamTradeOfferId && (
+                    <a
+                      href={`https://steamcommunity.com/tradeoffer/${trade.steamTradeOfferId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ 
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        color: '#3b82f6',
+                        textDecoration: 'none',
+                        padding: '8px 12px',
+                        backgroundColor: 'rgba(17, 24, 39, 0.5)',
+                        borderRadius: '6px',
+                        fontSize: '0.9rem'
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                      </svg>
+                      View Steam Trade Offer
+                    </a>
+                  )}
+                </div>
+                
+                <div style={{ marginBottom: '16px' }}>
+                  <button
+                    onClick={handleCheckInventory}
+                    disabled={isCheckingInventory}
+                    style={{
+                      backgroundColor: 'rgba(31, 41, 55, 0.7)',
+                      color: '#e5e7eb',
+                      border: '1px solid rgba(55, 65, 81, 0.7)',
+                      padding: '10px 16px',
+                      borderRadius: '8px',
+                      cursor: isCheckingInventory ? 'not-allowed' : 'pointer',
+                      fontWeight: '500',
+                      width: '100%',
+                      fontSize: '0.9rem',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s ease',
+                      opacity: isCheckingInventory ? '0.7' : '1'
+                    }}
+                  >
+                    {isCheckingInventory ? (
+                      <>
+                        <div className="spinner" style={{
+                          width: '18px',
+                          height: '18px',
+                          border: '2px solid rgba(255,255,255,0.2)',
+                          borderRadius: '50%',
+                          borderTopColor: 'white'
+                        }} />
+                        Checking...
+                      </>
+                    ) : (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        Verify Item Received
+                      </>
+                    )}
+                  </button>
+                </div>
+                
+                {inventoryCheckResult && (
+                  <div style={{
+                    backgroundColor: inventoryCheckResult.canConfirmReceived ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                    color: inventoryCheckResult.canConfirmReceived ? '#10b981' : '#ef4444',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    marginBottom: '16px'
+                  }}>
+                    <p style={{ margin: '0 0 8px 0', fontWeight: '500' }}>
+                      {inventoryCheckResult.message}
+                    </p>
+                  </div>
+                )}
+                
+                <button
+                  onClick={handleBuyerConfirm}
+                  disabled={confirmLoading || !canConfirmReceived}
+                  style={{
+                    backgroundColor: canConfirmReceived ? '#10b981' : 'rgba(156, 163, 175, 0.5)',
+                    color: '#f1f1f1',
+                    border: 'none',
+                    padding: '12px 20px',
+                    borderRadius: '8px',
+                    cursor: confirmLoading || !canConfirmReceived ? 'not-allowed' : 'pointer',
+                    fontWeight: '500',
+                    width: '100%',
+                    fontSize: '1rem',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s ease',
+                    opacity: confirmLoading ? '0.7' : '1'
+                  }}
+                >
+                  {confirmLoading ? (
+                    <>
+                      <div className="spinner" style={{
+                        width: '20px',
+                        height: '20px',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        borderRadius: '50%',
+                        borderTopColor: 'white'
+                      }} />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                      </svg>
+                      Confirm Item Received
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+            
+            {trade.status === 'awaiting_seller' && (
+              <button
+                onClick={() => {
+                  setCancelReason('');
+                  const modal = document.getElementById('cancelModal');
+                  if (modal) modal.style.display = 'block';
+                }}
+                style={{
+                  backgroundColor: 'rgba(127, 29, 29, 0.8)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 20px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  width: '100%',
+                  fontWeight: '500',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="15" y1="9" x2="9" y2="15"></line>
+                  <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+                Cancel Trade
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (loading && !trade) {
