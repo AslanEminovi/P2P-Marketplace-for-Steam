@@ -15,7 +15,7 @@ const HeroSection = ({ user, stats, animationActive }) => {
     <section className="hero-section-container">
       <div className={`hero-section ${animationActive ? 'hero-active' : ''}`}>
         <div className="hero-content">
-          <h1 className="hero-title">
+          <h1 className="hero-title" data-text="CS2 Marketplace Georgia">
             <span className="gradient-text">CS2</span> Marketplace Georgia
           </h1>
           <p className="hero-subtitle">
@@ -41,6 +41,9 @@ const HeroSection = ({ user, stats, animationActive }) => {
             {user ? (
               <Link to="/marketplace" className="primary-button">
                 Browse Marketplace
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 5L16 12L9 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </Link>
             ) : (
               <a href={`${API_URL}/auth/steam`} className="primary-button">
@@ -55,12 +58,25 @@ const HeroSection = ({ user, stats, animationActive }) => {
         </div>
         
         <div className="hero-image-container">
+          <div className="cyber-corners"></div>
           <img 
             src="https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ5VeP-TLQDDX1D2e3RaofNt57tET-v1KyYUIP17mWJefDOXp2Vcq1wsWfm8IWxukVQ0jfKeSXod7I_nw4Dvlag3aT_0UZB4jZMojO_H9on02Va3_kFqamiiJoLAI1c_MwzQ_ACggb_n2VQ/360fx360f"
             alt="CS2 Marketplace"
             className="hero-image"
           />
+          <div className="image-glitch-effect"></div>
         </div>
+      </div>
+      
+      {/* Cyberpunk grid lines */}
+      <div className="cyber-grid-overlay"></div>
+      
+      {/* Floating elements */}
+      <div className="floating-elements">
+        <div className="floating-element" style={{ top: '20%', left: '5%' }}></div>
+        <div className="floating-element" style={{ top: '70%', right: '10%' }}></div>
+        <div className="floating-element" style={{ top: '30%', right: '5%' }}></div>
+        <div className="floating-element" style={{ top: '80%', left: '15%' }}></div>
       </div>
     </section>
   );
