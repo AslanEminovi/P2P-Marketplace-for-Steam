@@ -417,57 +417,155 @@ function App() {
           .spinner {
             animation: spin 1s linear infinite;
           }
+          @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: scale(0.98); }
+            50% { opacity: 1; transform: scale(1); }
+          }
+          @keyframes gradientFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+          }
+          .loading-text {
+            animation: pulse 2s ease-in-out infinite;
+          }
+          .loading-screen-background {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95)), 
+                      repeating-linear-gradient(45deg, rgba(99, 102, 241, 0.05) 0px, rgba(99, 102, 241, 0.05) 1px, transparent 1px, transparent 10px);
+          }
+          .loading-logo {
+            animation: pulse 2s ease-in-out infinite;
+          }
+          .gradient-border {
+            position: relative;
+          }
+          .gradient-border::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #C026D3 100%);
+            border-radius: 50%;
+            z-index: -1;
+            animation: gradientFlow 3s ease infinite;
+            background-size: 200% 200%;
+          }
         `}
       </style>
       
       {/* These UI controls will be moved to the Navbar */}
       
       <Suspense fallback={
-        <div style={{ 
+        <div className="loading-screen-background" style={{ 
           display: 'flex', 
           justifyContent: 'center', 
           alignItems: 'center',
-          height: '80vh'
+          height: '100vh',
+          width: '100%',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          zIndex: 9999
         }}>
-          <div 
-            className="spinner"
-            style={{
-              width: '60px',
-              height: '60px',
-              border: '4px solid rgba(255,255,255,0.1)',
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '30px'
+          }}>
+            <div className="gradient-border" style={{
+              width: '80px',
+              height: '80px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: '15px',
               borderRadius: '50%',
-              borderTopColor: '#4ade80',
-              animation: 'spin 1s linear infinite'
-            }}
-          />
+              background: '#0F172A'
+            }}>
+              <div 
+                className="spinner"
+                style={{
+                  width: '60px',
+                  height: '60px',
+                  border: '4px solid rgba(255,255,255,0.1)',
+                  borderRadius: '50%',
+                  borderTopColor: '#4ade80',
+                  borderRightColor: 'rgba(124, 58, 237, 0.7)',
+                  boxShadow: '0 0 15px rgba(124, 58, 237, 0.3)'
+                }}
+              />
+            </div>
+            <p className="loading-text" style={{ 
+              color: '#e2e8f0', 
+              fontSize: '1.2rem',
+              fontWeight: '600',
+              letterSpacing: '0.05em',
+              textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
+            }}>
+              {t('common.loading')}
+            </p>
+          </div>
         </div>
       }>
         {loading ? (
-          <div style={{ 
+          <div className="loading-screen-background" style={{ 
             display: 'flex', 
             justifyContent: 'center', 
             alignItems: 'center',
-            height: '80vh',
+            height: '100vh',
+            width: '100%',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            zIndex: 9999,
             flexDirection: 'column',
-            gap: '20px'
+            gap: '30px'
           }}>
-            <div 
-              className="spinner"
-              style={{
-                width: '80px',
-                height: '80px',
-                border: '4px solid rgba(255,255,255,0.1)',
-                borderRadius: '50%',
-                borderTopColor: '#4ade80',
-                borderRightColor: 'rgba(56, 189, 248, 0.5)',
-                animation: 'spin 1s linear infinite'
-              }}
-            />
-            <p
+            <div className="loading-logo" style={{
+              fontSize: '2.5rem',
+              fontWeight: '800',
+              marginBottom: '20px',
+              background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #C026D3 100%)',
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+              color: 'transparent',
+              textShadow: '0 0 20px rgba(124, 58, 237, 0.3)'
+            }}>
+              CS2 Marketplace
+            </div>
+            <div className="gradient-border" style={{
+              width: '90px',
+              height: '90px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: '15px',
+              borderRadius: '50%',
+              background: '#0F172A'
+            }}>
+              <div 
+                className="spinner"
+                style={{
+                  width: '70px',
+                  height: '70px',
+                  border: '4px solid rgba(255,255,255,0.1)',
+                  borderRadius: '50%',
+                  borderTopColor: '#4ade80',
+                  borderRightColor: 'rgba(124, 58, 237, 0.7)',
+                  borderBottomColor: 'rgba(6, 182, 212, 0.5)',
+                  boxShadow: '0 0 20px rgba(124, 58, 237, 0.3)'
+                }}
+              />
+            </div>
+            <p className="loading-text"
               style={{ 
                 color: '#e2e8f0', 
-                fontSize: '1.2rem',
-                fontWeight: '500',
+                fontSize: '1.5rem',
+                fontWeight: '600',
+                letterSpacing: '0.05em',
                 textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
               }}
             >
