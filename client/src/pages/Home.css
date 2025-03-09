@@ -54,14 +54,13 @@ html, body {
   --transition-slow: 0.5s ease;
 }
 
-/* Main container - ensure proper positioning and no overflow */
+/* Main container */
 .home-container {
   background-color: var(--surface-dark);
   color: var(--text-primary);
   position: relative;
   overflow-x: hidden;
   width: 100%;
-  min-height: 100vh;
 }
 
 .home-container::before {
@@ -78,20 +77,7 @@ html, body {
   z-index: 0;
 }
 
-/* Simplify section styling to prevent rendering issues */
-section {
-  position: relative;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  box-sizing: border-box;
-  z-index: 1;
-}
-
-/* Enhanced gradient text with better visibility and performance */
+/* Enhanced gradient text */
 .gradient-text {
   background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
   -webkit-background-clip: text;
@@ -99,10 +85,8 @@ section {
   -webkit-text-fill-color: transparent;
   display: inline-block;
   position: relative;
-  text-shadow: 0 0 2px rgba(142, 36, 170, 0.3);
 }
 
-/* Simplifying after-effect to prevent performance issues */
 .gradient-text::after {
   content: '';
   position: absolute;
@@ -112,11 +96,11 @@ section {
   height: 100%;
   background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
   filter: blur(15px);
-  opacity: 0.2; /* Reduced opacity */
+  opacity: 0.4;
   z-index: -1;
 }
 
-/* Hero image with better visibility and fallback */
+/* Hero image with better styling */
 .hero-image-container {
   position: relative;
   display: flex;
@@ -149,7 +133,14 @@ section {
   box-shadow: 0 0 40px var(--primary-glow);
 }
 
-/* Feature card with proper defaults for animation */
+/* Features section */
+.features-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
 .feature-card {
   background: var(--surface-medium);
   border-radius: 12px;
@@ -163,22 +154,41 @@ section {
   flex-direction: column;
   align-items: flex-start;
   box-shadow: var(--shadow-md);
-  opacity: 0.4; /* Start partially visible in case animation fails */
-  transform: translateY(20px);
-  animation-duration: 0.6s;
-  animation-fill-mode: forwards;
+  opacity: 0;
+  transform: translateY(30px);
+  animation: fadeInUp 0.6s forwards;
+  animation-play-state: paused;
 }
 
-/* Make animation optional - fallback to visible if JS fails */
 .feature-card.animated {
+  animation-play-state: running;
   opacity: 1;
   transform: translateY(0);
 }
 
-/* Add simple fade-in animation as fallback */
+/* Roadmap item styling */
+.roadmap-item {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 3rem;
+  position: relative;
+  z-index: 2;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.8s ease forwards;
+  animation-play-state: paused;
+}
+
+.roadmap-item.animated {
+  animation-play-state: running;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Add animation */
 @keyframes fadeInUp {
   from {
-    opacity: 0.4;
+    opacity: 0;
     transform: translateY(20px);
   }
   to {
@@ -187,49 +197,7 @@ section {
   }
 }
 
-/* Roadmap item styling with proper fallbacks */
-.roadmap-item {
-  display: flex;
-  gap: 2rem;
-  margin-bottom: 3rem;
-  position: relative;
-  z-index: 2;
-  opacity: 0.4; /* Start partially visible in case animation fails */
-  transform: translateY(20px);
-  animation-duration: 0.8s;
-  animation-fill-mode: forwards;
-}
-
-.roadmap-item.animated {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Ensure base visibility regardless of JS */
-.roadmap-line {
-  opacity: 1;
-}
-
-.roadmap-step {
-  opacity: 1;
-}
-
-/* Apply simple fade-in animation after a delay for roadmap items */
-.roadmap-item:nth-child(1) { animation-delay: 100ms; }
-.roadmap-item:nth-child(2) { animation-delay: 200ms; }
-.roadmap-item:nth-child(3) { animation-delay: 300ms; }
-.roadmap-item:nth-child(4) { animation-delay: 400ms; }
-.roadmap-item:nth-child(5) { animation-delay: 500ms; }
-
-/* Apply similar delay for feature cards */
-.feature-card:nth-child(1) { animation-delay: 100ms; }
-.feature-card:nth-child(2) { animation-delay: 200ms; }
-.feature-card:nth-child(3) { animation-delay: 300ms; }
-.feature-card:nth-child(4) { animation-delay: 400ms; }
-.feature-card:nth-child(5) { animation-delay: 500ms; }
-.feature-card:nth-child(6) { animation-delay: 600ms; }
-
-/* Ensure navbar visibility with fallbacks */
+/* Navbar styling */
 .navbar {
   position: fixed;
   top: 0;
@@ -237,7 +205,7 @@ section {
   right: 0;
   z-index: 1000;
   transition: var(--transition-medium);
-  background-color: rgba(18, 18, 18, 0.85); /* Darker default to ensure visibility */
+  background-color: rgba(18, 18, 18, 0.75);
   padding: 1rem 2rem;
 }
 
@@ -247,27 +215,17 @@ section {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
-/* Ensure animations don't interfere with page rendering */
-.home-container * {
-  animation-play-state: running !important;
-  will-change: auto;
-}
-
-/* Fix for position absolute elements that might cause layout issues */
-.home-container .section-container::before,
-.home-container .section-container::after {
-  content: none;
-}
-
-/* ===== SECTION CONTAINERS ===== */
-/* Each section has a unique style while maintaining cohesive design language */
-
-/* Base section styles that apply to all sections */
+/* Simplify section styling to prevent rendering issues */
 section {
   position: relative;
   width: 100%;
-  overflow: hidden;
-  border-bottom: 1px solid rgba(63, 169, 245, 0.07);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  box-sizing: border-box;
+  z-index: 1;
 }
 
 /* Hero Section */

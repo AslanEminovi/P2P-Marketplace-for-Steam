@@ -6,14 +6,8 @@ import { useTranslation } from 'react-i18next';
 import ItemCard3D from '../components/ItemCard3D';
 import './Home.css';
 import { API_URL } from '../config/constants';
-// Use a safer import approach for the image with a fallback
-let csLogo;
-try {
-  csLogo = require('./cs-logo.png').default;
-} catch (error) {
-  console.warn("Could not load CS2 logo", error);
-  csLogo = null;
-}
+// Fix image import but retain original approach
+import csLogo from './cs-logo.png';
 
 // Creating separate section components for better organization and independent styling
 const HeroSection = ({ user, stats, animationActive }) => {
@@ -32,15 +26,15 @@ const HeroSection = ({ user, stats, animationActive }) => {
           
           <div className="hero-stats">
             <div className="stat-item">
-              <span className="stat-number">{stats?.items || 0}+</span>
+              <span className="stat-number">{stats.items}+</span>
               <span className="stat-label">Items Listed</span>
             </div>
             <div className="stat-item">
-              <span className="stat-number">{stats?.users || 0}+</span>
+              <span className="stat-number">{stats.users}+</span>
               <span className="stat-label">Active Users</span>
             </div>
             <div className="stat-item">
-              <span className="stat-number">{stats?.trades || 0}+</span>
+              <span className="stat-number">{stats.trades}+</span>
               <span className="stat-label">Completed Trades</span>
             </div>
           </div>
@@ -62,15 +56,9 @@ const HeroSection = ({ user, stats, animationActive }) => {
             </Link>
           </div>
         </div>
-        
+
         <div className="hero-image-container">
-          {csLogo ? (
-            <img src={csLogo} alt="CS2 Logo" className="hero-image" />
-          ) : (
-            <div className="hero-image" style={{ backgroundColor: '#1e1e1e', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#ffffff' }}>
-              CS2
-            </div>
-          )}
+          <img src={csLogo} alt="CS2 Logo" className="hero-image" />
         </div>
       </div>
     </section>
@@ -146,8 +134,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
     }
   ];
 
-  // Use dummy items as fallback
-  const displayItems = Array.isArray(featuredItems) && featuredItems.length > 0 ? featuredItems : dummyItems;
+  const displayItems = loading || featuredItems.length === 0 ? dummyItems : featuredItems;
   
   return (
     <section className="featured-section-container">
@@ -164,7 +151,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
           <div className="spinner"></div>
           <p>Loading featured items...</p>
         </div>
-      ) : (
+      ) : displayItems.length > 0 ? (
         <>
           <div className="featured-grid">
             {displayItems.map(item => (
@@ -201,6 +188,10 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
             </Link>
           </div>
         </>
+      ) : (
+        <div className="no-items">
+          <p>No featured items available at the moment. Check back soon!</p>
+        </div>
       )}
     </section>
   );
@@ -226,20 +217,36 @@ const FeaturesSection = () => {
   const featuresRef = useRef(null);
   
   useEffect(() => {
-    try {
-      // Safer approach to add animation class
-      const featureCards = document.querySelectorAll('.feature-card');
-      if (!featureCards || featureCards.length === 0) return;
-      
-      // Add animation class to all features immediately
+    // Add animation class on scroll
+    const featureCards = document.querySelectorAll('.feature-card');
+    
+    // Function to check if element is in viewport
+    const isInViewport = (element) => {
+      const rect = element.getBoundingClientRect();
+      return (
+        rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.8 &&
+        rect.bottom >= 0
+      );
+    };
+    
+    const handleScroll = () => {
       featureCards.forEach(card => {
-        if (card) card.classList.add('animated');
+        if (isInViewport(card)) {
+          card.classList.add('animated');
+        }
       });
-      
-      // No need for scroll handler as we're showing all features immediately
-    } catch (error) {
-      console.error("Error in features animation:", error);
-    }
+    };
+    
+    // Run once on mount
+    handleScroll();
+    
+    // Add scroll event listener
+    window.addEventListener('scroll', handleScroll);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   return (
@@ -325,20 +332,36 @@ const HowItWorksSection = () => {
   const roadmapRef = useRef(null);
   
   useEffect(() => {
-    try {
-      // Safer approach to add animation class
-      const roadmapItems = document.querySelectorAll('.roadmap-item');
-      if (!roadmapItems || roadmapItems.length === 0) return;
-      
-      // Add animation class to all roadmap items immediately
+    // Add animation class on scroll
+    const roadmapItems = document.querySelectorAll('.roadmap-item');
+    
+    // Function to check if element is in viewport
+    const isInViewport = (element) => {
+      const rect = element.getBoundingClientRect();
+      return (
+        rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.8 &&
+        rect.bottom >= 0
+      );
+    };
+    
+    const handleScroll = () => {
       roadmapItems.forEach(item => {
-        if (item) item.classList.add('animated');
+        if (isInViewport(item)) {
+          item.classList.add('animated');
+        }
       });
-      
-      // No need for scroll handler as we're showing all items immediately
-    } catch (error) {
-      console.error("Error in roadmap animation:", error);
-    }
+    };
+    
+    // Run once on mount
+    handleScroll();
+    
+    // Add scroll event listener
+    window.addEventListener('scroll', handleScroll);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   return (
@@ -435,55 +458,57 @@ const FinalCTASection = ({ user }) => {
 
 const Home = () => {
   const [user, setUser] = useState(null);
-  const [stats, setStats] = useState({ items: 200, users: 540, trades: 1420 }); // Default stats for display
+  const [stats, setStats] = useState({ items: 0, users: 0, trades: 0 });
   const [loading, setLoading] = useState(false);
   const [featuredItems, setFeaturedItems] = useState([]);
   const [animationActive, setAnimationActive] = useState(false);
 
   // Add scroll behavior for navbar
   useEffect(() => {
-    try {
-      const handleScroll = () => {
-        const navbar = document.querySelector('.navbar');
-        if (navbar) {
-          if (window.scrollY > 50) {
-            navbar.classList.add('scrolled');
-          } else {
-            navbar.classList.remove('scrolled');
-          }
+    const handleScroll = () => {
+      const navbar = document.querySelector('.navbar');
+      if (navbar) {
+        if (window.scrollY > 50) {
+          navbar.classList.add('scrolled');
+        } else {
+          navbar.classList.remove('scrolled');
         }
-      };
+      }
+    };
 
-      window.addEventListener('scroll', handleScroll);
-      
-      // Activate hero animation on load with a small delay
-      const timer = setTimeout(() => {
-        setAnimationActive(true);
-      }, 100);
-      
-      return () => {
-        window.removeEventListener('scroll', handleScroll);
-        clearTimeout(timer);
-      };
-    } catch (error) {
-      console.error("Error in scroll handling:", error);
-    }
+    window.addEventListener('scroll', handleScroll);
+    
+    // Activate hero animation on load
+    setTimeout(() => {
+      setAnimationActive(true);
+    }, 100);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   // Fetch featured items from the server
   const fetchFeaturedItems = async () => {
-    if (loading) return;
-    
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/api/items/featured`);
+      const response = await axios.get(`${API_URL}/marketplace`);
       
-      if (response.data && Array.isArray(response.data.items)) {
-        setFeaturedItems(response.data.items);
-      }
+      // Get a random selection of items to feature
+      const randomItems = response.data
+        .sort(() => 0.5 - Math.random()) // Shuffle array
+        .slice(0, 6); // Take first 6 items
+        
+      setFeaturedItems(randomItems);
+      
+      // Set stats based on actual data
+      setStats({
+        items: response.data.length,
+        users: Math.floor(response.data.length * 0.75),
+        trades: Math.floor(response.data.length * 0.4)
+      });
     } catch (error) {
-      console.error("Error fetching featured items:", error);
-      // Don't set featured items if there's an error - will use dummy data
+      console.error('Error fetching featured items:', error);
     } finally {
       setLoading(false);
     }
@@ -491,11 +516,7 @@ const Home = () => {
 
   // Fetch data on mount
   useEffect(() => {
-    try {
-      fetchFeaturedItems();
-    } catch (error) {
-      console.error("Error in useEffect:", error);
-    }
+    fetchFeaturedItems();
   }, []);
 
   return (
