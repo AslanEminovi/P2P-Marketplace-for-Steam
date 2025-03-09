@@ -1,42 +1,43 @@
 /* CS2 Marketplace Design - Base Styles */
 :root {
-  /* Primary colors - dark purple theme */
-  --primary-color: #6a0dad;
-  --primary-dark: #4a0080;
-  --primary-light: #8e24aa;
-  --primary-glow: rgba(106, 13, 173, 0.6);
+  /* Primary colors - dark purple theme with better contrast */
+  --primary-color: #8e24aa;
+  --primary-dark: #5c007a;
+  --primary-light: #c158dc;
+  --primary-glow: rgba(142, 36, 170, 0.6);
   
-  /* Gradient colors */
-  --gradient-start: #9c27b0;
-  --gradient-mid: #673ab7;
-  --gradient-end: #3f51b5;
+  /* Gradient colors - more vivid */
+  --gradient-start: #c158dc;
+  --gradient-mid: #9c27b0;
+  --gradient-end: #7b1fa2;
   
-  /* Surface colors */
+  /* Surface colors - increased contrast */
   --surface-dark: #121212;
   --surface-medium: #1e1e1e;
   --surface-light: #2d2d2d;
   
-  /* Text colors */
+  /* Text colors - increased visibility */
   --text-primary: #ffffff;
-  --text-secondary: #b3b3b3;
+  --text-secondary: #d0d0d0;
   --text-highlight: #e0e0ff;
   
   /* Accent colors */
-  --accent-success: #00c853;
-  --accent-info: #00b0ff;
+  --accent-success: #00e676;
+  --accent-info: #40c4ff;
   --accent-warning: #ffab00;
   --accent-danger: #ff5252;
   
-  /* Grid and border colors */
-  --grid-color: rgba(138, 43, 226, 0.2);
-  --border-light: rgba(255, 255, 255, 0.1);
-  --border-medium: rgba(255, 255, 255, 0.15);
-  --border-glow: rgba(138, 43, 226, 0.4);
+  /* Grid and border colors - more visible */
+  --grid-color: rgba(142, 36, 170, 0.3);
+  --border-light: rgba(255, 255, 255, 0.15);
+  --border-medium: rgba(255, 255, 255, 0.25);
+  --border-glow: rgba(142, 36, 170, 0.6);
   
-  /* Shadows */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  /* Shadows - enhanced */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 15px rgba(142, 36, 170, 0.6);
   
   /* Animations */
   --transition-fast: 0.2s ease;
@@ -468,6 +469,7 @@ section:hover::after {
   opacity: 0.8;
 }
 
+/* Enhanced gradient text with better visibility */
 .gradient-text {
   background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
   -webkit-background-clip: text;
@@ -475,6 +477,7 @@ section:hover::after {
   -webkit-text-fill-color: transparent;
   display: inline-block;
   position: relative;
+  text-shadow: 0 0 2px rgba(142, 36, 170, 0.3);
 }
 
 .gradient-text::after {
@@ -485,8 +488,8 @@ section:hover::after {
   width: 100%;
   height: 100%;
   background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
-  filter: blur(10px);
-  opacity: 0.3;
+  filter: blur(15px);
+  opacity: 0.4;
   z-index: -1;
 }
 
@@ -561,52 +564,35 @@ section:hover::after {
   opacity: 0.5;
 }
 
+/* Hero image with better visibility */
 .hero-image-container {
-  flex: 1;
-  max-width: 500px;
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
-  position: relative;
-  transition: transform 0.3s ease;
-}
-
-/* Add a subtle floating animation */
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.hero-image-container {
   animation: float 6s ease-in-out infinite;
+  z-index: 2;
+  margin-left: 3rem;
 }
 
 .hero-image {
+  max-width: 300px;
   width: 100%;
-  max-width: 400px;
   height: auto;
-  border-radius: 10px;
-  border: 1px solid rgba(63, 169, 245, 0.2);
-  box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.8);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  position: relative;
-  z-index: 1;
+  border-radius: 12px;
+  box-shadow: 0 0 30px var(--primary-glow);
+  transition: transform var(--transition-medium), box-shadow var(--transition-medium);
+  border: 2px solid var(--border-medium);
+  background-size: cover;
+  background-position: center;
 }
 
 .hero-image:hover {
-  transform: scale(1.02);
-  box-shadow: var(--blue-glow), 0 25px 50px -20px rgba(0, 0, 0, 0.9);
+  transform: scale(1.05);
+  box-shadow: 0 0 40px var(--primary-glow);
 }
 
-.hero-cta {
-  margin-top: 2.5rem;
-  position: relative;
-}
-
+/* Updated primary button with better contrast */
 .primary-button {
   display: inline-flex;
   align-items: center;
@@ -617,15 +603,16 @@ section:hover::after {
   color: var(--text-primary);
   font-weight: 600;
   border-radius: 8px;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-medium);
   cursor: pointer;
   transition: var(--transition-fast);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(106, 13, 173, 0.3);
+  box-shadow: 0 4px 12px rgba(142, 36, 170, 0.4);
   text-decoration: none;
   z-index: 1;
   font-size: 1rem;
+  letter-spacing: 0.5px;
 }
 
 .primary-button::before {
@@ -643,7 +630,7 @@ section:hover::after {
 
 .primary-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(106, 13, 173, 0.4);
+  box-shadow: 0 6px 16px rgba(142, 36, 170, 0.5);
 }
 
 .primary-button:hover::before {
@@ -651,29 +638,35 @@ section:hover::after {
 }
 
 .primary-button svg {
-  margin-right: 8px;
+  stroke-width: 2.5px;
 }
 
+/* Secondary button with better contrast */
 .secondary-button {
   display: inline-flex;
   align-items: center;
-  padding: 1rem 2rem;
-  border-radius: 6px;
-  background: transparent;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background-color: transparent;
   color: var(--text-primary);
   font-weight: 600;
+  border-radius: 8px;
+  border: 2px solid var(--primary-color);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
   text-decoration: none;
-  transition: all 0.3s ease;
-  border: 1px solid rgba(63, 169, 245, 0.3);
-  margin-left: 1rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  font-size: 1rem;
+  letter-spacing: 0.5px;
 }
 
 .secondary-button:hover {
-  background: rgba(63, 169, 245, 0.1);
+  background-color: rgba(142, 36, 170, 0.15);
   transform: translateY(-2px);
-  box-shadow: var(--blue-glow), 0 7px 14px rgba(0, 0, 0, 0.1);
-  border-color: var(--accent-blue);
+  box-shadow: 0 0 10px rgba(142, 36, 170, 0.3);
+  border-color: var(--primary-light);
 }
 
 /* Search Section */
@@ -829,6 +822,8 @@ section:hover::after {
 
 .feature-card.animated {
   animation-play-state: running; /* Will run when .animated class is added */
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .feature-card:hover {
@@ -840,14 +835,22 @@ section:hover::after {
 .feature-icon {
   width: 60px;
   height: 60px;
+  background-color: var(--surface-dark);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(63, 169, 245, 0.1);
-  border-radius: 12px;
   margin-bottom: 1.5rem;
-  position: relative;
-  overflow: hidden;
+  color: var(--primary-light);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.feature-icon svg {
+  width: 30px;
+  height: 30px;
+  stroke: var(--primary-light);
+  stroke-width: 2px;
 }
 
 .feature-card h3 {
@@ -859,7 +862,6 @@ section:hover::after {
 
 .feature-card p {
   color: var(--text-secondary);
-  margin-bottom: 1.5rem;
   line-height: 1.6;
 }
 
@@ -902,6 +904,8 @@ section:hover::after {
 
 .roadmap-item.animated {
   animation-play-state: running; /* Will run when .animated class is added */
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .roadmap-item:last-child {
@@ -941,8 +945,9 @@ section:hover::after {
 }
 
 .roadmap-step {
-  width: 50px;
-  height: 50px;
+  width: 60px;
+  height: 60px;
+  min-width: 60px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary-light), var(--primary-dark));
   display: flex;
@@ -950,29 +955,54 @@ section:hover::after {
   justify-content: center;
   color: var(--text-primary);
   font-weight: bold;
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   position: relative;
   z-index: 3;
   box-shadow: 0 0 15px var(--primary-glow);
   transition: var(--transition-medium);
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
-/* Add delay to animation for scrolling effect */
-.roadmap-item:nth-child(1) { animation-delay: 0.1s; }
-.roadmap-item:nth-child(2) { animation-delay: 0.3s; }
-.roadmap-item:nth-child(3) { animation-delay: 0.5s; }
-.roadmap-item:nth-child(4) { animation-delay: 0.7s; }
-.roadmap-item:nth-child(5) { animation-delay: 0.9s; }
+.roadmap-content h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
 
-.feature-card:nth-child(1) { animation-delay: 0.1s; }
-.feature-card:nth-child(2) { animation-delay: 0.2s; }
-.feature-card:nth-child(3) { animation-delay: 0.3s; }
-.feature-card:nth-child(4) { animation-delay: 0.4s; }
-.feature-card:nth-child(5) { animation-delay: 0.5s; }
-.feature-card:nth-child(6) { animation-delay: 0.6s; }
+.roadmap-content p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
 
-/* Sticky navbar styling */
+/* View all button with better contrast */
+.view-all-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  background-color: rgba(142, 36, 170, 0.15);
+  color: var(--text-primary);
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(142, 36, 170, 0.3);
+  margin-top: 2rem;
+}
+
+.view-all-button:hover {
+  background-color: rgba(142, 36, 170, 0.25);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+  border-color: var(--primary-color);
+}
+
+.view-all-button svg {
+  margin-left: 0.5rem;
+  stroke-width: 2.5px;
+}
+
+/* Enhanced navbar styling */
 .navbar {
   position: fixed;
   top: 0;
@@ -987,7 +1017,44 @@ section:hover::after {
 .navbar.scrolled {
   background-color: rgba(18, 18, 18, 0.95);
   backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Section titles with better visibility */
+.section-title {
+  text-align: center;
+  margin-bottom: 3rem;
+  position: relative;
+}
+
+.section-title-content {
+  display: inline-block;
+  position: relative;
+}
+
+.section-title-content h2 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.5px;
+}
+
+.section-title-content p {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.title-decoration {
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  margin: 1.5rem auto 0;
+  border-radius: 2px;
+  box-shadow: 0 0 10px rgba(142, 36, 170, 0.4);
 }
 
 /* Media queries remain mostly the same but adjusted for new elements */
