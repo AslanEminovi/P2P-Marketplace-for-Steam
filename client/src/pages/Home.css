@@ -1,3 +1,12 @@
+/* Fix height and overflow issues that could cause page to disappear */
+html, body {
+  min-height: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
 /* CS2 Marketplace Design - Base Styles */
 :root {
   /* Primary colors - dark purple theme with better contrast */
@@ -45,17 +54,16 @@
   --transition-slow: 0.5s ease;
 }
 
-/* Main container */
+/* Main container - ensure proper positioning and no overflow */
 .home-container {
-  width: 100%;
   background-color: var(--surface-dark);
-  overflow-x: hidden;
   color: var(--text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   position: relative;
+  overflow-x: hidden;
+  width: 100%;
+  min-height: 100vh;
 }
 
-/* Add subtle pattern to the entire site */
 .home-container::before {
   content: '';
   position: absolute;
@@ -68,6 +76,187 @@
     radial-gradient(circle at bottom left, rgba(106, 13, 173, 0.1), transparent 50%);
   pointer-events: none;
   z-index: 0;
+}
+
+/* Simplify section styling to prevent rendering issues */
+section {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  box-sizing: border-box;
+  z-index: 1;
+}
+
+/* Enhanced gradient text with better visibility and performance */
+.gradient-text {
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+  position: relative;
+  text-shadow: 0 0 2px rgba(142, 36, 170, 0.3);
+}
+
+/* Simplifying after-effect to prevent performance issues */
+.gradient-text::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+  filter: blur(15px);
+  opacity: 0.2; /* Reduced opacity */
+  z-index: -1;
+}
+
+/* Hero image with better visibility and fallback */
+.hero-image-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: float 6s ease-in-out infinite;
+  z-index: 2;
+  margin-left: 3rem;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.hero-image {
+  max-width: 300px;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 0 30px var(--primary-glow);
+  transition: transform var(--transition-medium), box-shadow var(--transition-medium);
+  border: 2px solid var(--border-medium);
+  background-size: cover;
+  background-position: center;
+}
+
+.hero-image:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 40px var(--primary-glow);
+}
+
+/* Feature card with proper defaults for animation */
+.feature-card {
+  background: var(--surface-medium);
+  border-radius: 12px;
+  padding: 2rem;
+  transition: var(--transition-medium);
+  border: 1px solid var(--border-light);
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  box-shadow: var(--shadow-md);
+  opacity: 0.4; /* Start partially visible in case animation fails */
+  transform: translateY(20px);
+  animation-duration: 0.6s;
+  animation-fill-mode: forwards;
+}
+
+/* Make animation optional - fallback to visible if JS fails */
+.feature-card.animated {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Add simple fade-in animation as fallback */
+@keyframes fadeInUp {
+  from {
+    opacity: 0.4;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Roadmap item styling with proper fallbacks */
+.roadmap-item {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 3rem;
+  position: relative;
+  z-index: 2;
+  opacity: 0.4; /* Start partially visible in case animation fails */
+  transform: translateY(20px);
+  animation-duration: 0.8s;
+  animation-fill-mode: forwards;
+}
+
+.roadmap-item.animated {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Ensure base visibility regardless of JS */
+.roadmap-line {
+  opacity: 1;
+}
+
+.roadmap-step {
+  opacity: 1;
+}
+
+/* Apply simple fade-in animation after a delay for roadmap items */
+.roadmap-item:nth-child(1) { animation-delay: 100ms; }
+.roadmap-item:nth-child(2) { animation-delay: 200ms; }
+.roadmap-item:nth-child(3) { animation-delay: 300ms; }
+.roadmap-item:nth-child(4) { animation-delay: 400ms; }
+.roadmap-item:nth-child(5) { animation-delay: 500ms; }
+
+/* Apply similar delay for feature cards */
+.feature-card:nth-child(1) { animation-delay: 100ms; }
+.feature-card:nth-child(2) { animation-delay: 200ms; }
+.feature-card:nth-child(3) { animation-delay: 300ms; }
+.feature-card:nth-child(4) { animation-delay: 400ms; }
+.feature-card:nth-child(5) { animation-delay: 500ms; }
+.feature-card:nth-child(6) { animation-delay: 600ms; }
+
+/* Ensure navbar visibility with fallbacks */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  transition: var(--transition-medium);
+  background-color: rgba(18, 18, 18, 0.85); /* Darker default to ensure visibility */
+  padding: 1rem 2rem;
+}
+
+.navbar.scrolled {
+  background-color: rgba(18, 18, 18, 0.95);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Ensure animations don't interfere with page rendering */
+.home-container * {
+  animation-play-state: running !important;
+  will-change: auto;
+}
+
+/* Fix for position absolute elements that might cause layout issues */
+.home-container .section-container::before,
+.home-container .section-container::after {
+  content: none;
 }
 
 /* ===== SECTION CONTAINERS ===== */
@@ -814,14 +1003,13 @@ section:hover::after {
   flex-direction: column;
   align-items: flex-start;
   box-shadow: var(--shadow-md);
-  opacity: 0; /* Start invisible for scroll animation */
-  transform: translateY(30px); /* Start below for animation */
-  animation: fadeInUp 0.6s forwards;
-  animation-play-state: paused; /* Start paused */
+  opacity: 0.4; /* Start partially visible in case animation fails */
+  transform: translateY(20px);
+  animation-duration: 0.6s;
+  animation-fill-mode: forwards;
 }
 
 .feature-card.animated {
-  animation-play-state: running; /* Will run when .animated class is added */
   opacity: 1;
   transform: translateY(0);
 }
@@ -896,14 +1084,13 @@ section:hover::after {
   margin-bottom: 3rem;
   position: relative;
   z-index: 2;
-  opacity: 0; /* Start invisible */
-  transform: translateY(20px); /* Start below for animation */
-  animation: fadeInUp 0.8s ease forwards;
-  animation-play-state: paused; /* Start paused */
+  opacity: 0.4; /* Start partially visible in case animation fails */
+  transform: translateY(20px);
+  animation-duration: 0.8s;
+  animation-fill-mode: forwards;
 }
 
 .roadmap-item.animated {
-  animation-play-state: running; /* Will run when .animated class is added */
   opacity: 1;
   transform: translateY(0);
 }
@@ -1000,24 +1187,6 @@ section:hover::after {
 .view-all-button svg {
   margin-left: 0.5rem;
   stroke-width: 2.5px;
-}
-
-/* Enhanced navbar styling */
-.navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  transition: var(--transition-medium);
-  background-color: transparent;
-  padding: 1rem 2rem;
-}
-
-.navbar.scrolled {
-  background-color: rgba(18, 18, 18, 0.95);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 /* Section titles with better visibility */

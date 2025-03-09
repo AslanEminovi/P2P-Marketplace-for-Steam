@@ -6,7 +6,14 @@ import { useTranslation } from 'react-i18next';
 import ItemCard3D from '../components/ItemCard3D';
 import './Home.css';
 import { API_URL } from '../config/constants';
-import csLogo from './cs-logo.png'; // Import the logo correctly
+// Use a safer import approach for the image with a fallback
+let csLogo;
+try {
+  csLogo = require('./cs-logo.png').default;
+} catch (error) {
+  console.warn("Could not load CS2 logo", error);
+  csLogo = null;
+}
 
 // Creating separate section components for better organization and independent styling
 const HeroSection = ({ user, stats, animationActive }) => {
@@ -25,15 +32,15 @@ const HeroSection = ({ user, stats, animationActive }) => {
           
           <div className="hero-stats">
             <div className="stat-item">
-              <span className="stat-number">{stats.items}+</span>
+              <span className="stat-number">{stats?.items || 0}+</span>
               <span className="stat-label">Items Listed</span>
             </div>
             <div className="stat-item">
-              <span className="stat-number">{stats.users}+</span>
+              <span className="stat-number">{stats?.users || 0}+</span>
               <span className="stat-label">Active Users</span>
             </div>
             <div className="stat-item">
-              <span className="stat-number">{stats.trades}+</span>
+              <span className="stat-number">{stats?.trades || 0}+</span>
               <span className="stat-label">Completed Trades</span>
             </div>
           </div>
@@ -57,7 +64,13 @@ const HeroSection = ({ user, stats, animationActive }) => {
         </div>
         
         <div className="hero-image-container">
-          <img src={csLogo} alt="CS2 Logo" className="hero-image" />
+          {csLogo ? (
+            <img src={csLogo} alt="CS2 Logo" className="hero-image" />
+          ) : (
+            <div className="hero-image" style={{ backgroundColor: '#1e1e1e', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#ffffff' }}>
+              CS2
+            </div>
+          )}
         </div>
       </div>
     </section>
@@ -65,27 +78,29 @@ const HeroSection = ({ user, stats, animationActive }) => {
 };
 
 const SearchSection = () => {
+  const { t } = useTranslation();
+  
   return (
     <section className="search-section-container">
       <div className="search-section">
         <div className="search-container">
           <input 
             type="text" 
+            className="search-input" 
             placeholder="Search for skins, weapons, cases..." 
-            className="search-input"
           />
-          <Link to="/marketplace" className="search-button">
+          <button className="search-button">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-          </Link>
+          </button>
         </div>
         <div className="search-tags">
-          <Link to="/marketplace?category=knife" className="search-tag">Knives</Link>
-          <Link to="/marketplace?category=glove" className="search-tag">Gloves</Link>
           <Link to="/marketplace?category=rifle" className="search-tag">Rifles</Link>
-          <Link to="/marketplace?category=case" className="search-tag">Cases</Link>
+          <Link to="/marketplace?category=knife" className="search-tag">Knives</Link>
           <Link to="/marketplace?category=pistol" className="search-tag">Pistols</Link>
+          <Link to="/marketplace?category=glove" className="search-tag">Gloves</Link>
+          <Link to="/marketplace?category=case" className="search-tag">Cases</Link>
         </div>
       </div>
     </section>
@@ -131,7 +146,8 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
     }
   ];
 
-  const displayItems = loading || featuredItems.length === 0 ? dummyItems : featuredItems;
+  // Use dummy items as fallback
+  const displayItems = Array.isArray(featuredItems) && featuredItems.length > 0 ? featuredItems : dummyItems;
   
   return (
     <section className="featured-section-container">
@@ -148,7 +164,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
           <div className="spinner"></div>
           <p>Loading featured items...</p>
         </div>
-      ) : displayItems.length > 0 ? (
+      ) : (
         <>
           <div className="featured-grid">
             {displayItems.map(item => (
@@ -185,10 +201,6 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
             </Link>
           </div>
         </>
-      ) : (
-        <div className="no-items">
-          <p>No featured items available at the moment. Check back soon!</p>
-        </div>
       )}
     </section>
   );
@@ -196,7 +208,9 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
 
 // Helper function to get color for rarity
 const getColorForRarity = (rarity) => {
-  switch (rarity.toLowerCase()) {
+  if (!rarity) return 'rgba(138, 43, 226, 0.1)';
+  
+  switch (String(rarity).toLowerCase()) {
     case 'consumer grade': return 'rgba(176, 195, 217, 0.2)';
     case 'industrial grade': return 'rgba(94, 152, 217, 0.2)';
     case 'mil-spec': return 'rgba(75, 105, 255, 0.2)';
@@ -212,36 +226,20 @@ const FeaturesSection = () => {
   const featuresRef = useRef(null);
   
   useEffect(() => {
-    // Add animation class on component mount to ensure they're visible
-    const featureCards = document.querySelectorAll('.feature-card');
-    
-    // Function to check if element is in viewport
-    const isInViewport = (element) => {
-      const rect = element.getBoundingClientRect();
-      return (
-        rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.8 &&
-        rect.bottom >= 0
-      );
-    };
-    
-    const handleScroll = () => {
+    try {
+      // Safer approach to add animation class
+      const featureCards = document.querySelectorAll('.feature-card');
+      if (!featureCards || featureCards.length === 0) return;
+      
+      // Add animation class to all features immediately
       featureCards.forEach(card => {
-        if (isInViewport(card)) {
-          card.classList.add('animated');
-        }
+        if (card) card.classList.add('animated');
       });
-    };
-    
-    // Run once on mount
-    handleScroll();
-    
-    // Add scroll event listener
-    window.addEventListener('scroll', handleScroll);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
+      
+      // No need for scroll handler as we're showing all features immediately
+    } catch (error) {
+      console.error("Error in features animation:", error);
+    }
   }, []);
 
   return (
@@ -327,36 +325,20 @@ const HowItWorksSection = () => {
   const roadmapRef = useRef(null);
   
   useEffect(() => {
-    // Add animation class on component mount to ensure they're visible
-    const roadmapItems = document.querySelectorAll('.roadmap-item');
-    
-    // Function to check if element is in viewport
-    const isInViewport = (element) => {
-      const rect = element.getBoundingClientRect();
-      return (
-        rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.8 &&
-        rect.bottom >= 0
-      );
-    };
-    
-    const handleScroll = () => {
+    try {
+      // Safer approach to add animation class
+      const roadmapItems = document.querySelectorAll('.roadmap-item');
+      if (!roadmapItems || roadmapItems.length === 0) return;
+      
+      // Add animation class to all roadmap items immediately
       roadmapItems.forEach(item => {
-        if (isInViewport(item)) {
-          item.classList.add('animated');
-        }
+        if (item) item.classList.add('animated');
       });
-    };
-    
-    // Run once on mount
-    handleScroll();
-    
-    // Add scroll event listener
-    window.addEventListener('scroll', handleScroll);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
+      
+      // No need for scroll handler as we're showing all items immediately
+    } catch (error) {
+      console.error("Error in roadmap animation:", error);
+    }
   }, []);
 
   return (
@@ -421,26 +403,25 @@ const HowItWorksSection = () => {
 const FinalCTASection = ({ user }) => {
   return (
     <section className="final-cta-section-container">
-      <div className="final-cta-section">
-        <div className="section-title">
-          <div className="section-title-content">
-            <h2><span className="gradient-text">Ready to</span> Start Trading?</h2>
-            <p>Join the largest CS2 marketplace in Georgia today and start trading your favorite items</p>
-            <div className="title-decoration"></div>
-          </div>
+      <div className="section-title">
+        <div className="section-title-content">
+          <h2>Ready to <span className="gradient-text">Trade</span>?</h2>
+          <p>Join our community of CS2 traders and start buying and selling items today</p>
+          <div className="title-decoration"></div>
         </div>
+      </div>
+      
+      <div className="final-cta-section">
         <div className="cta-buttons">
           {user ? (
             <Link to="/inventory" className="primary-button">
-              View Your Inventory
+              View My Inventory
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </Link>
           ) : (
             <a href={`${API_URL}/auth/steam`} className="primary-button">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '8px' }}>
-                <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" stroke="white" strokeWidth="2"/>
-                <path d="M6 12L12 3L18 12L12 21L6 12Z" stroke="white" strokeWidth="2"/>
-              </svg>
               Sign in with Steam
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/></svg>
             </a>
           )}
           <Link to="/marketplace" className="secondary-button">
@@ -455,64 +436,68 @@ const FinalCTASection = ({ user }) => {
 const Home = () => {
   const [user, setUser] = useState(null);
   const [stats, setStats] = useState({ items: 200, users: 540, trades: 1420 }); // Default stats for display
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [featuredItems, setFeaturedItems] = useState([]);
   const [animationActive, setAnimationActive] = useState(false);
 
   // Add scroll behavior for navbar
   useEffect(() => {
-    const handleScroll = () => {
-      const navbar = document.querySelector('.navbar');
-      if (navbar) {
-        if (window.scrollY > 50) {
-          navbar.classList.add('scrolled');
-        } else {
-          navbar.classList.remove('scrolled');
+    try {
+      const handleScroll = () => {
+        const navbar = document.querySelector('.navbar');
+        if (navbar) {
+          if (window.scrollY > 50) {
+            navbar.classList.add('scrolled');
+          } else {
+            navbar.classList.remove('scrolled');
+          }
         }
-      }
-    };
+      };
 
-    window.addEventListener('scroll', handleScroll);
-    
-    // Activate hero animation on load
-    setTimeout(() => {
-      setAnimationActive(true);
-    }, 100);
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
+      window.addEventListener('scroll', handleScroll);
+      
+      // Activate hero animation on load with a small delay
+      const timer = setTimeout(() => {
+        setAnimationActive(true);
+      }, 100);
+      
+      return () => {
+        window.removeEventListener('scroll', handleScroll);
+        clearTimeout(timer);
+      };
+    } catch (error) {
+      console.error("Error in scroll handling:", error);
+    }
   }, []);
 
+  // Fetch featured items from the server
   const fetchFeaturedItems = async () => {
+    if (loading) return;
+    
     try {
       setLoading(true);
-      const res = await axios.get(`${API_URL}/marketplace`);
+      const response = await axios.get(`${API_URL}/api/items/featured`);
       
-      // Get a random selection of items to feature
-      const randomItems = res.data
-        .sort(() => 0.5 - Math.random()) // Shuffle array
-        .slice(0, 6); // Take first 6 items
-        
-      setFeaturedItems(randomItems);
-      
-      // Set some placeholder stats for the demo
-      setStats({
-        items: res.data.length,
-        users: Math.floor(res.data.length * 0.75),
-        trades: Math.floor(res.data.length * 0.4)
-      });
+      if (response.data && Array.isArray(response.data.items)) {
+        setFeaturedItems(response.data.items);
+      }
     } catch (error) {
-      console.error('Error fetching featured items:', error);
+      console.error("Error fetching featured items:", error);
+      // Don't set featured items if there's an error - will use dummy data
     } finally {
       setLoading(false);
     }
   };
 
+  // Fetch data on mount
   useEffect(() => {
-    fetchFeaturedItems();
+    try {
+      fetchFeaturedItems();
+    } catch (error) {
+      console.error("Error in useEffect:", error);
+    }
   }, []);
-  
+
   return (
     <div className="home-container">
       <HeroSection user={user} stats={stats} animationActive={animationActive} />
