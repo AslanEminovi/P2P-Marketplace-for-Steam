@@ -189,14 +189,9 @@ const FeaturesSection = () => {
   const featuresRef = useRef(null);
   
   useEffect(() => {
-    // Make all feature cards visible immediately to ensure they're seen
-    const featureCards = document.querySelectorAll('.feature-card');
-    featureCards.forEach(card => {
-      card.classList.add('animated');
-    });
-    
-    // Function to check if element is in viewport (only for fancy entrance animation)
+    // Function to check if element is in viewport
     const isInViewport = (element) => {
+      if (!element) return false;
       const rect = element.getBoundingClientRect();
       return (
         rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.8 &&
@@ -204,20 +199,21 @@ const FeaturesSection = () => {
       );
     };
     
-    // Improved scroll handler for additional animation effects only
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          featureCards.forEach(card => {
-            if (isInViewport(card)) {
-              card.classList.add('in-view');
-            }
-          });
-          ticking = false;
-        });
-        ticking = true;
+    // Initial check for already visible elements
+    const featureCards = document.querySelectorAll('.feature-card');
+    featureCards.forEach(card => {
+      if (isInViewport(card)) {
+        card.classList.add('animated');
       }
+    });
+    
+    // Scroll event listener for feature cards animation
+    const handleScroll = () => {
+      featureCards.forEach(card => {
+        if (isInViewport(card)) {
+          card.classList.add('animated');
+        }
+      });
     };
     
     // Add scroll event listener
@@ -308,37 +304,57 @@ const FeaturesSection = () => {
   );
 };
 
-// Completely redesigned How It Works section
 const HowItWorksSection = () => {
+  const howItWorksRef = useRef(null);
   const [activeStep, setActiveStep] = useState(1);
   
   useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('animated');
-        }
+    // Function to check if element is in viewport
+    const isInViewport = (element) => {
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      return (
+        rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.8 &&
+        rect.bottom >= 0
+      );
+    };
+    
+    // Initial check for already visible elements
+    const stepCards = document.querySelectorAll('.step-card');
+    if (isInViewport(howItWorksRef.current)) {
+      stepCards.forEach((card, index) => {
+        setTimeout(() => {
+          card.classList.add('animated');
+        }, index * 150);
       });
-    }, { threshold: 0.2 });
+    }
     
-    const steps = document.querySelectorAll('.step-card');
-    steps.forEach(step => observer.observe(step));
+    // Scroll event listener for step cards animation
+    const handleScroll = () => {
+      if (isInViewport(howItWorksRef.current)) {
+        stepCards.forEach((card, index) => {
+          setTimeout(() => {
+            card.classList.add('animated');
+          }, index * 150);
+        });
+      }
+    };
     
+    // Add scroll event listener
+    window.addEventListener('scroll', handleScroll);
+    
+    // Clean up
     return () => {
-      steps.forEach(step => observer.unobserve(step));
+      window.removeEventListener('scroll', handleScroll);
     };
   }, []);
-  
-  const handleStepHover = (stepNumber) => {
-    setActiveStep(stepNumber);
-  };
-  
+
   return (
-    <section className="how-it-works-section">
+    <section className="how-it-works-section" ref={howItWorksRef}>
       <div className="section-title">
         <div className="section-title-content">
           <h2>How It <span className="gradient-text">Works</span></h2>
-          <p>Simple, secure, and fast trading in a few easy steps</p>
+          <p>Get started with CS2 Marketplace in four simple steps</p>
           <div className="title-decoration"></div>
         </div>
       </div>
@@ -347,13 +363,12 @@ const HowItWorksSection = () => {
         <div className="step-cards">
           <div 
             className={`step-card ${activeStep === 1 ? 'active' : ''}`}
-            onMouseEnter={() => handleStepHover(1)}
-            onClick={() => handleStepHover(1)}
+            onClick={() => setActiveStep(1)}
           >
             <div className="step-number">1</div>
             <div className="step-content">
-              <h3>Sign in with Steam</h3>
-              <p>Connect your Steam account to get started. No registration required!</p>
+              <h3>Connect Your Steam Account</h3>
+              <p>Sign in with your Steam account to access your inventory and start trading</p>
               <div className="step-icon">
                 <i className="fab fa-steam"></i>
               </div>
@@ -362,13 +377,12 @@ const HowItWorksSection = () => {
           
           <div 
             className={`step-card ${activeStep === 2 ? 'active' : ''}`}
-            onMouseEnter={() => handleStepHover(2)}
-            onClick={() => handleStepHover(2)}
+            onClick={() => setActiveStep(2)}
           >
             <div className="step-number">2</div>
             <div className="step-content">
-              <h3>Browse Items</h3>
-              <p>Explore a wide variety of CS2 skins and items from Georgian sellers.</p>
+              <h3>Browse The Marketplace</h3>
+              <p>Explore available items or list your own items for trade</p>
               <div className="step-icon">
                 <i className="fas fa-search"></i>
               </div>
@@ -377,39 +391,37 @@ const HowItWorksSection = () => {
           
           <div 
             className={`step-card ${activeStep === 3 ? 'active' : ''}`}
-            onMouseEnter={() => handleStepHover(3)}
-            onClick={() => handleStepHover(3)}
+            onClick={() => setActiveStep(3)}
           >
             <div className="step-number">3</div>
             <div className="step-content">
-              <h3>Purchase with GEL</h3>
-              <p>Pay securely using local Georgian currency (GEL) via multiple payment methods.</p>
+              <h3>Make Secure Payments</h3>
+              <p>Pay securely using Georgian Lari (GEL) through our payment system</p>
               <div className="step-icon">
-                <i className="fas fa-money-bill-wave"></i>
+                <i className="fas fa-credit-card"></i>
               </div>
             </div>
           </div>
           
           <div 
             className={`step-card ${activeStep === 4 ? 'active' : ''}`}
-            onMouseEnter={() => handleStepHover(4)}
-            onClick={() => handleStepHover(4)}
+            onClick={() => setActiveStep(4)}
           >
             <div className="step-number">4</div>
             <div className="step-content">
-              <h3>Instant Delivery</h3>
-              <p>Receive your items directly in your Steam inventory after payment.</p>
+              <h3>Receive Items Instantly</h3>
+              <p>Items are delivered to your Steam inventory after payment is verified</p>
               <div className="step-icon">
-                <i className="fas fa-rocket"></i>
+                <i className="fas fa-box-open"></i>
               </div>
             </div>
           </div>
         </div>
         
         <div className="step-visualization">
-          <div className={`visualization-content step-${activeStep}`}>
-            {activeStep === 1 && (
-              <div className="animation-wrapper login-animation">
+          {activeStep === 1 && (
+            <div className="visualization-content">
+              <div className="animation-wrapper">
                 <div className="device-frame">
                   <div className="steam-login">
                     <div className="steam-logo"></div>
@@ -420,15 +432,19 @@ const HowItWorksSection = () => {
                     </div>
                   </div>
                 </div>
-                <div className="animation-caption">Secure authentication with Steam</div>
+                <div className="animation-caption">
+                  Sign in with your Steam account securely via OpenID
+                </div>
               </div>
-            )}
-            
-            {activeStep === 2 && (
-              <div className="animation-wrapper browse-animation">
+            </div>
+          )}
+          
+          {activeStep === 2 && (
+            <div className="visualization-content">
+              <div className="animation-wrapper">
                 <div className="marketplace-grid">
                   {[1, 2, 3, 4, 5, 6].map(item => (
-                    <div key={item} className="market-item">
+                    <div className="market-item" key={item}>
                       <div className="item-img"></div>
                       <div className="item-details">
                         <div className="item-name"></div>
@@ -437,81 +453,89 @@ const HowItWorksSection = () => {
                     </div>
                   ))}
                 </div>
-                <div className="animation-caption">Find the perfect items for your collection</div>
+                <div className="animation-caption">
+                  Browse thousands of CS2 items available for trade
+                </div>
               </div>
-            )}
-            
-            {activeStep === 3 && (
-              <div className="animation-wrapper payment-animation">
+            </div>
+          )}
+          
+          {activeStep === 3 && (
+            <div className="visualization-content">
+              <div className="animation-wrapper">
                 <div className="payment-methods">
                   <div className="payment-card"></div>
                   <div className="payment-card"></div>
                   <div className="payment-card"></div>
                 </div>
                 <div className="gel-symbol">₾</div>
-                <div className="animation-caption">Multiple secure payment options in GEL</div>
+                <div className="animation-caption">
+                  Pay using Georgian Lari (GEL) through our secure system
+                </div>
               </div>
-            )}
-            
-            {activeStep === 4 && (
-              <div className="animation-wrapper delivery-animation">
+            </div>
+          )}
+          
+          {activeStep === 4 && (
+            <div className="visualization-content">
+              <div className="animation-wrapper">
                 <div className="inventory-item">
                   <div className="item-glow"></div>
-                  <div className="delivery-complete">
-                    <i className="fas fa-check-circle"></i>
+                  <div className="delivery-complete">✓</div>
+                  <div className="delivery-particles">
+                    {[...Array(10)].map((_, i) => (
+                      <div 
+                        className="particle" 
+                        key={i}
+                        style={{
+                          left: `${Math.random() * 100}%`,
+                          top: `${Math.random() * 100}%`,
+                          '--x': `${(Math.random() - 0.5) * 100}px`,
+                          '--y': `${(Math.random() - 0.5) * 100}px`
+                        }}
+                      ></div>
+                    ))}
                   </div>
                 </div>
-                <div className="delivery-particles">
-                  {[...Array(12)].map((_, i) => (
-                    <div key={i} className="particle"></div>
-                  ))}
+                <div className="animation-caption">
+                  Items are delivered instantly to your Steam inventory
                 </div>
-                <div className="animation-caption">Your items delivered instantly and securely</div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
       
       <div className="steps-action">
-        <Link to="/how-it-works" className="learn-more-button">
-          <span>Learn More</span>
+        <a href="/marketplace" className="learn-more-button">
+          Start Trading Now
           <i className="fas fa-arrow-right"></i>
-        </Link>
+        </a>
       </div>
     </section>
   );
 };
 
 const FinalCTASection = ({ user }) => {
+  const { t } = useTranslation();
+  
   return (
     <section className="final-cta-section-container">
-      <div className="section-title">
-        <div className="section-title-content">
-          <h2>Ready to <span className="gradient-text">Trade</span>?</h2>
-          <p>Join our community of CS2 traders and start buying and selling items today</p>
-          <div className="title-decoration"></div>
-        </div>
-      </div>
-      
       <div className="final-cta-section">
-        <div className="cta-buttons">
-          {!user ? (
-            <Link to="/login" className="primary-button">
-              <i className="fab fa-steam"></i>
-              Sign in with Steam
-            </Link>
-          ) : (
-            <Link to="/marketplace" className="primary-button">
-              <i className="fas fa-shopping-cart"></i>
-              Start Trading Now
-            </Link>
-          )}
-          <Link to="/faq" className="secondary-button">
-            <i className="fas fa-question-circle"></i>
-            Learn More
+        <h2>Ready to <span className="gradient-text">Trade</span>?</h2>
+        <p>Join the CS2 Marketplace Georgia community and start trading today</p>
+        
+        {!user ? (
+          <Link to="/login" className="cta-button">
+            <i className="fab fa-steam"></i>
+            Sign in with Steam
           </Link>
-        </div>
+        ) : (
+          <Link to="/marketplace" className="cta-button">
+            <i className="fas fa-shopping-cart"></i>
+            Browse Marketplace
+          </Link>
+        )}
       </div>
     </section>
   );
@@ -857,3 +881,4 @@ const Home = () => {
 };
 
 export default Home;
+
