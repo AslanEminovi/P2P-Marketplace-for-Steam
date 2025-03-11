@@ -369,6 +369,27 @@ function Navbar({ user, onLogout }) {
                   My Listings
                 </Link>
 
+                <Link 
+                  to="/trades" 
+                  style={dropdownLinkStyles}
+                  onClick={() => setDropdownOpen(false)}
+                  onMouseEnter={(e) => {
+                    Object.assign(e.target.style, dropdownLinkHoverStyles);
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
+                    e.target.style.transform = 'translateX(0)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17.5 5H6.5C5.11929 5 4 6.11929 4 7.5V16.5C4 17.8807 5.11929 19 6.5 19H17.5C18.8807 19 20 17.8807 20 16.5V7.5C20 6.11929 18.8807 5 17.5 5Z" stroke="#c158dc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M8 9L16 15" stroke="#c158dc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M16 9L8 15" stroke="#c158dc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  My Trades
+                </Link>
+
                 <Link
                   to="/profile"
                   style={dropdownLinkStyles}

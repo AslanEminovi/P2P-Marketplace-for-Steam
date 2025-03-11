@@ -137,17 +137,16 @@ html, body {
   max-width: 300px;
   width: 100%;
   height: auto;
-  border-radius: 12px;
-  box-shadow: 0 0 30px var(--primary-glow);
-  transition: transform var(--transition-medium), box-shadow var(--transition-medium);
-  border: 2px solid var(--border-medium);
-  background-size: cover;
-  background-position: center;
+  border: none;
+  box-shadow: none;
+  transition: transform var(--transition-medium);
+  background: transparent;
+  filter: drop-shadow(0 0 15px var(--primary-glow));
 }
 
 .hero-image:hover {
   transform: scale(1.05);
-  box-shadow: 0 0 40px var(--primary-glow);
+  filter: drop-shadow(0 0 25px var(--primary-glow));
 }
 
 /* Features section */
@@ -303,13 +302,15 @@ html, body {
 /* Improved roadmap line */
 .roadmap-line {
   position: absolute;
-  left: 30px; /* Center of the step circles */
+  left: 30px;
   top: 0;
   bottom: 0;
   width: 4px;
-  background: linear-gradient(180deg, var(--primary-color), var(--primary-dark));
+  background: linear-gradient(180deg, var(--primary-color), transparent);
   z-index: 1;
+  opacity: 0.7;
   box-shadow: 0 0 10px var(--primary-glow);
+  height: 95%;
 }
 
 /* Featured items section improvements */
@@ -995,17 +996,16 @@ section:hover::after {
   max-width: 300px;
   width: 100%;
   height: auto;
-  border-radius: 12px;
-  box-shadow: 0 0 30px var(--primary-glow);
-  transition: transform var(--transition-medium), box-shadow var(--transition-medium);
-  border: 2px solid var(--border-medium);
-  background-size: cover;
-  background-position: center;
+  border: none;
+  box-shadow: none;
+  transition: transform var(--transition-medium);
+  background: transparent;
+  filter: drop-shadow(0 0 15px var(--primary-glow));
 }
 
 .hero-image:hover {
   transform: scale(1.05);
-  box-shadow: 0 0 40px var(--primary-glow);
+  filter: drop-shadow(0 0 25px var(--primary-glow));
 }
 
 /* Updated primary button with better contrast */
@@ -1633,127 +1633,6 @@ section:hover::after {
   }
 }
 
-/* News & Updates Section */
-.news-section-container {
-  background-color: var(--surface-dark);
-  position: relative;
-  padding: 5rem 2rem;
-}
-
-.news-section-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: 
-    radial-gradient(circle at top right, rgba(33, 150, 243, 0.1), transparent 60%),
-    radial-gradient(circle at bottom left, rgba(255, 152, 0, 0.1), transparent 60%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.news-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  position: relative;
-  z-index: 1;
-}
-
-.news-card {
-  background: var(--surface-medium);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: var(--shadow-md);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border: 1px solid var(--border-light);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.news-card:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--primary-color);
-}
-
-.news-image {
-  width: 100%;
-  height: 180px;
-  overflow: hidden;
-  background: var(--surface-dark);
-}
-
-.news-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
-}
-
-.news-card:hover .news-image img {
-  transform: scale(1.05);
-}
-
-.news-content {
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-}
-
-.news-date {
-  font-size: 0.9rem;
-  color: var(--accent-orange);
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-}
-
-.news-content h3 {
-  font-size: 1.3rem;
-  margin: 0 0 1rem;
-  color: var(--text-primary);
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.news-content p {
-  color: var(--text-secondary);
-  margin: 0 0 1.5rem;
-  line-height: 1.6;
-  flex-grow: 1;
-}
-
-.read-more-link {
-  display: flex;
-  align-items: center;
-  color: var(--primary-light);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: color 0.2s ease;
-  margin-top: auto;
-  width: fit-content;
-}
-
-.read-more-link svg {
-  margin-left: 0.5rem;
-  transition: transform 0.2s ease;
-}
-
-.read-more-link:hover {
-  color: var(--gradient-start);
-}
-
-.read-more-link:hover svg {
-  transform: translateX(4px);
-}
-
 /* Trading Stats Section */
 .trading-stats-section-container {
   background-color: var(--surface-dark);
@@ -1854,64 +1733,7 @@ section:hover::after {
 }
 
 .hero-3d-container {
-  position: relative;
-  width: 100%;
-  max-width: 400px;
-  height: 400px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Enhance the primary button */
-.primary-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem 2rem;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-  color: white;
-  text-decoration: none;
-  font-weight: 600;
-  border-radius: 30px;
-  transition: all 0.2s ease;
-  position: relative;
-  overflow: hidden;
-  border: none;
-  cursor: pointer;
-  font-size: 1rem;
-  letter-spacing: 0.5px;
-}
-
-.primary-button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
-  opacity: 0;
-  z-index: -1;
-  transition: opacity 0.2s ease;
-}
-
-.primary-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(142, 36, 170, 0.5);
-}
-
-.primary-button:hover::before {
-  opacity: 1;
-}
-
-.primary-button svg {
-  margin-left: 0.8rem;
-  transition: transform 0.2s ease;
-}
-
-.primary-button:hover svg {
-  transform: translateX(4px);
+  display: none;
 }
 
 /* Media queries for responsiveness */
