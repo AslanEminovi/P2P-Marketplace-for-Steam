@@ -145,7 +145,7 @@ html, body {
   background: var(--surface-medium);
   border-radius: 12px;
   padding: 2rem;
-  transition: var(--transition-medium);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   border: 1px solid var(--border-light);
   height: 100%;
   position: relative;
@@ -163,6 +163,69 @@ html, body {
   transform: translateY(0);
 }
 
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+  border-color: var(--border-medium);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+/* Enhanced hover effects for feature cards */
+.feature-card:hover .feature-icon {
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(142, 36, 170, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease; /* Even faster transition */
+}
+
+.feature-icon {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  color: white;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 5px 15px rgba(142, 36, 170, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease; /* Even faster transition */
+}
+
+.feature-icon::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  border-radius: 12px;
+  opacity: 0.7;
+  z-index: -1;
+  transition: var(--transition-medium);
+}
+
+.feature-icon svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 2px;
+}
+
+.feature-card h3 {
+  font-size: 1.4rem;
+  margin: 0 0 1rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.feature-card p {
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.6;
+}
+
 /* Roadmap item styling */
 .roadmap-item {
   display: flex;
@@ -170,9 +233,9 @@ html, body {
   margin-bottom: 3rem;
   position: relative;
   z-index: 2;
-  opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  opacity: 1;
+  transform: translateY(0);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .roadmap-item.animated {
@@ -210,8 +273,14 @@ html, body {
   flex-shrink: 0;
   position: relative;
   box-shadow: 0 0 20px var(--primary-glow);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   z-index: 2;
+}
+
+.roadmap-item:hover .roadmap-step {
+  transform: scale(1.1);
+  box-shadow: 0 0 25px var(--primary-glow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* Improved roadmap line */
@@ -1118,7 +1187,7 @@ section:hover::after {
   background: var(--surface-medium);
   border-radius: 12px;
   padding: 2rem;
-  transition: var(--transition-medium);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   border: 1px solid var(--border-light);
   height: 100%;
   position: relative;
@@ -1140,6 +1209,7 @@ section:hover::after {
   transform: translateY(-5px);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
   border-color: var(--border-medium);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .feature-icon {
@@ -1155,6 +1225,7 @@ section:hover::after {
   position: relative;
   z-index: 1;
   box-shadow: 0 5px 15px rgba(142, 36, 170, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease; /* Even faster transition */
 }
 
 .feature-icon::before {
@@ -1221,9 +1292,9 @@ section:hover::after {
   margin-bottom: 3rem;
   position: relative;
   z-index: 2;
-  opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  opacity: 1;
+  transform: translateY(0);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .roadmap-item.animated {
@@ -1247,24 +1318,26 @@ section:hover::after {
 
 .roadmap-item:hover .roadmap-step {
   transform: scale(1.1);
-  box-shadow: 0 0 20px var(--primary-glow);
+  box-shadow: 0 0 25px var(--primary-glow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .roadmap-content {
   flex: 1;
   background-color: var(--surface-medium);
   border-radius: 12px;
-  padding: 2rem;
-  border: 1px solid var(--border-light);
+  padding: 1.5rem;
+  flex-grow: 1;
   box-shadow: var(--shadow-md);
-  transition: var(--transition-medium);
+  border: 1px solid var(--border-light);
+  transition: transform 0.15s ease, box-shadow 0.15s ease; /* Faster transition */
   max-width: 400px;
 }
 
 .roadmap-content:hover {
-  border-color: var(--border-glow);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 0 15px var(--primary-glow);
   transform: translateY(-5px);
+  box-shadow: var(--shadow-lg), 0 0 15px var(--primary-glow);
+  transition: transform 0.15s ease, box-shadow 0.15s ease; /* Faster transition */
 }
 
 .roadmap-step {

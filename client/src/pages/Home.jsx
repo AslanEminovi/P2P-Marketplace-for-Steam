@@ -258,7 +258,7 @@ const FeaturesSection = () => {
             </svg>
           </div>
           <h3>GEL & USD Pricing</h3>
-          <p>Set your prices in Georgian Lari or USD with automatic currency conversion and real-time exchange rates.</p>
+          <p>Set your prices in Georgian Lari (₾) or USD ($) with automatic currency conversion and real-time exchange rates.</p>
         </div>
         
         <div className="feature-card animated">
@@ -312,7 +312,17 @@ const HowItWorksSection = () => {
   const roadmapRef = useRef(null);
   
   useEffect(() => {
-    // Function to check if element is in viewport
+    // Make all roadmap items visible immediately
+    const roadmapItems = document.querySelectorAll('.roadmap-item');
+    roadmapItems.forEach((item, index) => {
+      item.classList.add('animated');
+      // Add a small staggered delay for visual effect
+      setTimeout(() => {
+        item.style.opacity = '1';
+      }, index * 100);
+    });
+    
+    // Function to check if element is in viewport (for enhanced effects only)
     const isInViewport = (element) => {
       const rect = element.getBoundingClientRect();
       return (
@@ -321,17 +331,11 @@ const HowItWorksSection = () => {
       );
     };
     
-    // Get roadmap items
-    const roadmapItems = document.querySelectorAll('.roadmap-item');
-    
-    // Create sequential animation with delay between items
+    // Create sequential animation with delay between items (for enhanced effects)
     const animateSequentially = () => {
-      roadmapItems.forEach((item, index) => {
+      roadmapItems.forEach(item => {
         if (isInViewport(item)) {
-          // Add delay based on index for sequential appearance
-          setTimeout(() => {
-            item.classList.add('animated');
-          }, index * 150); // 150ms delay between each item
+          item.classList.add('in-view');
         }
       });
     };
@@ -374,7 +378,7 @@ const HowItWorksSection = () => {
         <div className="roadmap-container" ref={roadmapRef}>
           <div className="roadmap-line"></div>
           
-          <div className="roadmap-item">
+          <div className="roadmap-item animated">
             <div className="roadmap-step">1</div>
             <div className="roadmap-content">
               <h3>Connect Steam Account</h3>
@@ -382,7 +386,7 @@ const HowItWorksSection = () => {
             </div>
           </div>
           
-          <div className="roadmap-item">
+          <div className="roadmap-item animated">
             <div className="roadmap-step">2</div>
             <div className="roadmap-content">
               <h3>Browse or List Items</h3>
@@ -390,7 +394,7 @@ const HowItWorksSection = () => {
             </div>
           </div>
           
-          <div className="roadmap-item">
+          <div className="roadmap-item animated">
             <div className="roadmap-step">3</div>
             <div className="roadmap-content">
               <h3>Make or Accept Offers</h3>
@@ -398,7 +402,7 @@ const HowItWorksSection = () => {
             </div>
           </div>
           
-          <div className="roadmap-item">
+          <div className="roadmap-item animated">
             <div className="roadmap-step">4</div>
             <div className="roadmap-content">
               <h3>Complete Trades</h3>
@@ -406,7 +410,7 @@ const HowItWorksSection = () => {
             </div>
           </div>
           
-          <div className="roadmap-item">
+          <div className="roadmap-item animated">
             <div className="roadmap-step">5</div>
             <div className="roadmap-content">
               <h3>Track Your History</h3>
