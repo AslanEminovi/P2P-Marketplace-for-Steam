@@ -189,9 +189,14 @@ const FeaturesSection = () => {
   const featuresRef = useRef(null);
   
   useEffect(() => {
-    // Function to check if element is in viewport
+    // Make all feature cards visible immediately to ensure they're seen
+    const featureCards = document.querySelectorAll('.feature-card');
+    featureCards.forEach(card => {
+      card.classList.add('animated');
+    });
+    
+    // Function to check if element is in viewport (only for fancy entrance animation)
     const isInViewport = (element) => {
-      if (!element) return false;
       const rect = element.getBoundingClientRect();
       return (
         rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.8 &&
@@ -199,21 +204,20 @@ const FeaturesSection = () => {
       );
     };
     
-    // Initial check for already visible elements
-    const featureCards = document.querySelectorAll('.feature-card');
-    featureCards.forEach(card => {
-      if (isInViewport(card)) {
-        card.classList.add('animated');
-      }
-    });
-    
-    // Scroll event listener for feature cards animation
+    // Improved scroll handler for additional animation effects only
+    let ticking = false;
     const handleScroll = () => {
-      featureCards.forEach(card => {
-        if (isInViewport(card)) {
-          card.classList.add('animated');
-        }
-      });
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          featureCards.forEach(card => {
+            if (isInViewport(card)) {
+              card.classList.add('in-view');
+            }
+          });
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
     
     // Add scroll event listener
@@ -305,13 +309,21 @@ const FeaturesSection = () => {
 };
 
 const HowItWorksSection = () => {
-  const howItWorksRef = useRef(null);
-  const [activeStep, setActiveStep] = useState(1);
+  const roadmapRef = useRef(null);
   
   useEffect(() => {
-    // Function to check if element is in viewport
+    // Make all roadmap items visible immediately
+    const roadmapItems = document.querySelectorAll('.roadmap-item');
+    roadmapItems.forEach((item, index) => {
+      item.classList.add('animated');
+      // Add a small staggered delay for visual effect
+      setTimeout(() => {
+        item.style.opacity = '1';
+      }, index * 100);
+    });
+    
+    // Function to check if element is in viewport (for enhanced effects only)
     const isInViewport = (element) => {
-      if (!element) return false;
       const rect = element.getBoundingClientRect();
       return (
         rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.8 &&
@@ -319,26 +331,29 @@ const HowItWorksSection = () => {
       );
     };
     
-    // Initial check for already visible elements
-    const stepCards = document.querySelectorAll('.step-card');
-    if (isInViewport(howItWorksRef.current)) {
-      stepCards.forEach((card, index) => {
-        setTimeout(() => {
-          card.classList.add('animated');
-        }, index * 150);
+    // Create sequential animation with delay between items (for enhanced effects)
+    const animateSequentially = () => {
+      roadmapItems.forEach(item => {
+        if (isInViewport(item)) {
+          item.classList.add('in-view');
+        }
       });
-    }
+    };
     
-    // Scroll event listener for step cards animation
+    // Improved scroll handler with throttling for performance
+    let ticking = false;
     const handleScroll = () => {
-      if (isInViewport(howItWorksRef.current)) {
-        stepCards.forEach((card, index) => {
-          setTimeout(() => {
-            card.classList.add('animated');
-          }, index * 150);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          animateSequentially();
+          ticking = false;
         });
+        ticking = true;
       }
     };
+    
+    // Run once on mount
+    animateSequentially();
     
     // Add scroll event listener
     window.addEventListener('scroll', handleScroll);
@@ -350,192 +365,93 @@ const HowItWorksSection = () => {
   }, []);
 
   return (
-    <section className="how-it-works-section" ref={howItWorksRef}>
+    <section className="how-it-works-section-container">
       <div className="section-title">
         <div className="section-title-content">
           <h2>How It <span className="gradient-text">Works</span></h2>
-          <p>Get started with CS2 Marketplace in four simple steps</p>
+          <p>Follow these simple steps to start trading CS2 items on our platform</p>
           <div className="title-decoration"></div>
         </div>
       </div>
       
-      <div className="steps-container">
-        <div className="step-cards">
-          <div 
-            className={`step-card ${activeStep === 1 ? 'active' : ''}`}
-            onClick={() => setActiveStep(1)}
-          >
-            <div className="step-number">1</div>
-            <div className="step-content">
-              <h3>Connect Your Steam Account</h3>
-              <p>Sign in with your Steam account to access your inventory and start trading</p>
-              <div className="step-icon">
-                <i className="fab fa-steam"></i>
-              </div>
+      <div className="how-it-works-section">
+        <div className="roadmap-container" ref={roadmapRef}>
+          <div className="roadmap-line"></div>
+          
+          <div className="roadmap-item animated">
+            <div className="roadmap-step">1</div>
+            <div className="roadmap-content">
+              <h3>Connect Steam Account</h3>
+              <p>Sign in with your Steam account and allow access to your inventory. All connections are made securely through official Steam protocols.</p>
             </div>
           </div>
           
-          <div 
-            className={`step-card ${activeStep === 2 ? 'active' : ''}`}
-            onClick={() => setActiveStep(2)}
-          >
-            <div className="step-number">2</div>
-            <div className="step-content">
-              <h3>Browse The Marketplace</h3>
-              <p>Explore available items or list your own items for trade</p>
-              <div className="step-icon">
-                <i className="fas fa-search"></i>
-              </div>
+          <div className="roadmap-item animated">
+            <div className="roadmap-step">2</div>
+            <div className="roadmap-content">
+              <h3>Browse or List Items</h3>
+              <p>Browse items from other users or list your own items for sale from your Steam inventory. Set your prices in GEL or USD.</p>
             </div>
           </div>
           
-          <div 
-            className={`step-card ${activeStep === 3 ? 'active' : ''}`}
-            onClick={() => setActiveStep(3)}
-          >
-            <div className="step-number">3</div>
-            <div className="step-content">
-              <h3>Make Secure Payments</h3>
-              <p>Pay securely using Georgian Lari (GEL) through our payment system</p>
-              <div className="step-icon">
-                <i className="fas fa-credit-card"></i>
-              </div>
+          <div className="roadmap-item animated">
+            <div className="roadmap-step">3</div>
+            <div className="roadmap-content">
+              <h3>Make or Accept Offers</h3>
+              <p>Make offers on items you want or receive offers on your listed items. Negotiate prices and terms directly with other users.</p>
             </div>
           </div>
           
-          <div 
-            className={`step-card ${activeStep === 4 ? 'active' : ''}`}
-            onClick={() => setActiveStep(4)}
-          >
-            <div className="step-number">4</div>
-            <div className="step-content">
-              <h3>Receive Items Instantly</h3>
-              <p>Items are delivered to your Steam inventory after payment is verified</p>
-              <div className="step-icon">
-                <i className="fas fa-box-open"></i>
-              </div>
+          <div className="roadmap-item animated">
+            <div className="roadmap-step">4</div>
+            <div className="roadmap-content">
+              <h3>Complete Trades</h3>
+              <p>Once an offer is accepted, Steam trade offers are automatically generated. Complete the trade through the Steam trade system.</p>
+            </div>
+          </div>
+          
+          <div className="roadmap-item animated">
+            <div className="roadmap-step">5</div>
+            <div className="roadmap-content">
+              <h3>Track Your History</h3>
+              <p>Keep a comprehensive record of all your transactions, completed trades, and marketplace activity in your profile.</p>
             </div>
           </div>
         </div>
-        
-        <div className="step-visualization">
-          {activeStep === 1 && (
-            <div className="visualization-content">
-              <div className="animation-wrapper">
-                <div className="device-frame">
-                  <div className="steam-login">
-                    <div className="steam-logo"></div>
-                    <div className="login-form">
-                      <div className="form-field"></div>
-                      <div className="form-field"></div>
-                      <div className="login-button"></div>
-                    </div>
-                  </div>
-                </div>
-                <div className="animation-caption">
-                  Sign in with your Steam account securely via OpenID
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {activeStep === 2 && (
-            <div className="visualization-content">
-              <div className="animation-wrapper">
-                <div className="marketplace-grid">
-                  {[1, 2, 3, 4, 5, 6].map(item => (
-                    <div className="market-item" key={item}>
-                      <div className="item-img"></div>
-                      <div className="item-details">
-                        <div className="item-name"></div>
-                        <div className="item-price"></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="animation-caption">
-                  Browse thousands of CS2 items available for trade
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {activeStep === 3 && (
-            <div className="visualization-content">
-              <div className="animation-wrapper">
-                <div className="payment-methods">
-                  <div className="payment-card"></div>
-                  <div className="payment-card"></div>
-                  <div className="payment-card"></div>
-                </div>
-                <div className="gel-symbol">₾</div>
-                <div className="animation-caption">
-                  Pay using Georgian Lari (GEL) through our secure system
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {activeStep === 4 && (
-            <div className="visualization-content">
-              <div className="animation-wrapper">
-                <div className="inventory-item">
-                  <div className="item-glow"></div>
-                  <div className="delivery-complete">✓</div>
-                  <div className="delivery-particles">
-                    {[...Array(10)].map((_, i) => (
-                      <div 
-                        className="particle" 
-                        key={i}
-                        style={{
-                          left: `${Math.random() * 100}%`,
-                          top: `${Math.random() * 100}%`,
-                          '--x': `${(Math.random() - 0.5) * 100}px`,
-                          '--y': `${(Math.random() - 0.5) * 100}px`
-                        }}
-                      ></div>
-                    ))}
-                  </div>
-                </div>
-                <div className="animation-caption">
-                  Items are delivered instantly to your Steam inventory
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-      
-      <div className="steps-action">
-        <a href="/marketplace" className="learn-more-button">
-          Start Trading Now
-          <i className="fas fa-arrow-right"></i>
-        </a>
       </div>
     </section>
   );
 };
 
 const FinalCTASection = ({ user }) => {
-  const { t } = useTranslation();
-  
   return (
     <section className="final-cta-section-container">
+      <div className="section-title">
+        <div className="section-title-content">
+          <h2>Ready to <span className="gradient-text">Trade</span>?</h2>
+          <p>Join our community of CS2 traders and start buying and selling items today</p>
+          <div className="title-decoration"></div>
+        </div>
+      </div>
+      
       <div className="final-cta-section">
-        <h2>Ready to <span className="gradient-text">Trade</span>?</h2>
-        <p>Join the CS2 Marketplace Georgia community and start trading today</p>
-        
-        {!user ? (
-          <Link to="/login" className="cta-button">
-            <i className="fab fa-steam"></i>
-            Sign in with Steam
+        <div className="cta-buttons">
+          {!user ? (
+            <Link to="/login" className="primary-button">
+              <i className="fab fa-steam"></i>
+              Sign in with Steam
+            </Link>
+          ) : (
+            <Link to="/marketplace" className="primary-button">
+              <i className="fas fa-shopping-cart"></i>
+              Start Trading Now
+            </Link>
+          )}
+          <Link to="/faq" className="secondary-button">
+            <i className="fas fa-question-circle"></i>
+            Learn More
           </Link>
-        ) : (
-          <Link to="/marketplace" className="cta-button">
-            <i className="fas fa-shopping-cart"></i>
-            Browse Marketplace
-          </Link>
-        )}
+        </div>
       </div>
     </section>
   );
@@ -881,4 +797,3 @@ const Home = () => {
 };
 
 export default Home;
-
