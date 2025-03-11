@@ -17,6 +17,7 @@ const HeroSection = ({ user, stats, animationActive }) => {
     <section className="hero-section-container">
       <div className={`hero-section ${animationActive ? 'hero-active' : ''}`}>
         <div className="hero-content">
+          <img src={csLogo} alt="CS2 Logo" className="cs2-logo" />
           <h1 className="hero-title">
             <span className="gradient-text">CS2</span> Marketplace Georgia
           </h1>
@@ -56,9 +57,10 @@ const HeroSection = ({ user, stats, animationActive }) => {
             </Link>
           </div>
         </div>
-
         <div className="hero-image-container">
-          <img src={csLogo} alt="CS2 Logo" className="hero-image" />
+          <div className="hero-3d-container">
+            <ItemCard3D />
+          </div>
         </div>
       </div>
     </section>
@@ -456,12 +458,150 @@ const FinalCTASection = ({ user }) => {
   );
 };
 
+// Add a new CS2 News & Updates section
+const NewsAndUpdatesSection = () => {
+  const [news, setNews] = useState([
+    {
+      id: 1,
+      title: "New Case Released: Revolution Case",
+      date: "2023-06-15",
+      image: "https://steamcdn-a.akamaihd.net/apps/730/icons/econ/weapon_cases/crate_community_27.14f10e74e31a8a114ad2f8f23272795cd6ab6d9c.png",
+      content: "Valve releases new Revolution Case with 17 new community-created weapon finishes and the chance for special gloves."
+    },
+    {
+      id: 2,
+      title: "CS2 Tournament in Tbilisi",
+      date: "2023-07-21",
+      image: "https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ5VeP-TLQDDX1D2e3RaofNt57tET-v1KyYUIP17mWJefDOXp2Vcq1wsW_m_NOzlqAlnhPaafhJD_tWxgYO0m_7zO6-fk28C65V02rHCotiiilHh-xZlZW36co_Hclc2YQmG-QC9wOvohsC67sjMwWwj5HeB0PlEhg/360fx360f",
+      content: "Join us for Georgia's biggest CS2 tournament with over 10,000₾ in prize money. Registration now open."
+    },
+    {
+      id: 3,
+      title: "Market Update: AWP Prices Soaring",
+      date: "2023-08-05",
+      image: "https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ5VeP-TLQDDX1D2e3RaofNt57tET-v1KyYUIP17mWJefDOXp2Vcq1wsWPm4OvUYfwZm7OXBeG8X7Ny0wb-IksjyNuiIlD8HvcAhjr7HoNjw3VLkrxZsZW6hcIKcdwJtaAnQ-gO2xea918O4u5_I1zI97VYMfhXY/360fx360f",
+      content: "AWP skin prices increase by an average of 15% over the last month. Check out the trending designs."
+    }
+  ]);
+
+  return (
+    <section className="news-section-container">
+      <div className="section-title">
+        <div className="section-title-content">
+          <h2>CS2 <span className="gradient-text">News</span> & Updates</h2>
+          <p>Stay updated with the latest happenings in the CS2 community and trading scene</p>
+          <div className="title-decoration"></div>
+        </div>
+      </div>
+      
+      <div className="news-grid">
+        {news.map(item => (
+          <div key={item.id} className="news-card">
+            <div className="news-image">
+              <img src={item.image} alt={item.title} />
+            </div>
+            <div className="news-content">
+              <div className="news-date">{item.date}</div>
+              <h3>{item.title}</h3>
+              <p>{item.content}</p>
+              <a href="#" className="read-more-link">
+                Read More
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+// Add a Trading Statistics section
+const TradingStatsSection = () => {
+  return (
+    <section className="trading-stats-section-container">
+      <div className="section-title">
+        <div className="section-title-content">
+          <h2>Market <span className="gradient-text">Insights</span></h2>
+          <p>Check out the latest trading statistics and market trends</p>
+          <div className="title-decoration"></div>
+        </div>
+      </div>
+      
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'var(--gradient-purple)' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+              <polyline points="16 7 22 7 22 13"></polyline>
+            </svg>
+          </div>
+          <div className="stat-info">
+            <h3>Most Popular Item</h3>
+            <p className="stat-highlight">AWP | Asiimov</p>
+            <p className="stat-detail">Traded 127 times this month</p>
+          </div>
+        </div>
+        
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'var(--gradient-blue)' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+              <polyline points="17 6 23 6 23 12"></polyline>
+            </svg>
+          </div>
+          <div className="stat-info">
+            <h3>Highest Value Trade</h3>
+            <p className="stat-highlight">15,750 ₾</p>
+            <p className="stat-detail">Knife Collection (5 items)</p>
+          </div>
+        </div>
+        
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'var(--gradient-orange)' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+          <div className="stat-info">
+            <h3>Average Trade Time</h3>
+            <p className="stat-highlight">4.2 Hours</p>
+            <p className="stat-detail">From listing to completion</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const Home = () => {
   const [user, setUser] = useState(null);
   const [stats, setStats] = useState({ items: 0, users: 0, trades: 0 });
   const [loading, setLoading] = useState(true);
   const [featuredItems, setFeaturedItems] = useState([]);
   const [animationActive, setAnimationActive] = useState(false);
+  const [particles, setParticles] = useState([]);
+
+  // Add animated particles
+  useEffect(() => {
+    const particlesCount = 20;
+    const newParticles = [];
+    
+    for (let i = 0; i < particlesCount; i++) {
+      newParticles.push({
+        id: i,
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        size: Math.random() * 5 + 3
+      });
+    }
+    
+    setParticles(newParticles);
+  }, []);
 
   // Add scroll behavior for navbar
   useEffect(() => {
@@ -531,10 +671,29 @@ const Home = () => {
 
   return (
     <div className="home-container">
+      {/* Add animated particles */}
+      <div className="game-particles">
+        {particles.map(particle => (
+          <div 
+            key={particle.id} 
+            className="particle" 
+            style={{
+              left: `${particle.x}%`,
+              top: `${particle.y}%`,
+              width: `${particle.size}px`,
+              height: `${particle.size}px`,
+              animationDelay: `${particle.id * 0.5}s`
+            }}
+          ></div>
+        ))}
+      </div>
+      
       <HeroSection user={user} stats={stats} animationActive={animationActive} />
       <SearchSection />
       <FeaturedItemsSection loading={loading} featuredItems={featuredItems} />
+      <TradingStatsSection />
       <FeaturesSection />
+      <NewsAndUpdatesSection />
       <HowItWorksSection />
       <FinalCTASection user={user} />
     </div>
