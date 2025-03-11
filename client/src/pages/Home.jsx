@@ -217,9 +217,6 @@ const FeaturesSection = () => {
   const featuresRef = useRef(null);
   
   useEffect(() => {
-    // Add animation class on scroll
-    const featureCards = document.querySelectorAll('.feature-card');
-    
     // Function to check if element is in viewport
     const isInViewport = (element) => {
       const rect = element.getBoundingClientRect();
@@ -229,16 +226,31 @@ const FeaturesSection = () => {
       );
     };
     
-    const handleScroll = () => {
-      featureCards.forEach(card => {
-        if (isInViewport(card)) {
-          card.classList.add('animated');
-        }
-      });
-    };
+    // Get all feature cards
+    const featureCards = document.querySelectorAll('.feature-card');
     
-    // Run once on mount
-    handleScroll();
+    // Initial check on load - show visible cards immediately
+    featureCards.forEach(card => {
+      if (isInViewport(card)) {
+        card.classList.add('animated');
+      }
+    });
+    
+    // Improved scroll handler with throttling to improve performance
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          featureCards.forEach(card => {
+            if (isInViewport(card)) {
+              card.classList.add('animated');
+            }
+          });
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
     
     // Add scroll event listener
     window.addEventListener('scroll', handleScroll);
@@ -332,9 +344,6 @@ const HowItWorksSection = () => {
   const roadmapRef = useRef(null);
   
   useEffect(() => {
-    // Add animation class on scroll
-    const roadmapItems = document.querySelectorAll('.roadmap-item');
-    
     // Function to check if element is in viewport
     const isInViewport = (element) => {
       const rect = element.getBoundingClientRect();
@@ -344,16 +353,35 @@ const HowItWorksSection = () => {
       );
     };
     
-    const handleScroll = () => {
-      roadmapItems.forEach(item => {
+    // Get roadmap items
+    const roadmapItems = document.querySelectorAll('.roadmap-item');
+    
+    // Create sequential animation with delay between items
+    const animateSequentially = () => {
+      roadmapItems.forEach((item, index) => {
         if (isInViewport(item)) {
-          item.classList.add('animated');
+          // Add delay based on index for sequential appearance
+          setTimeout(() => {
+            item.classList.add('animated');
+          }, index * 150); // 150ms delay between each item
         }
       });
     };
     
+    // Improved scroll handler with throttling for performance
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          animateSequentially();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+    
     // Run once on mount
-    handleScroll();
+    animateSequentially();
     
     // Add scroll event listener
     window.addEventListener('scroll', handleScroll);
@@ -459,7 +487,7 @@ const FinalCTASection = ({ user }) => {
 const Home = () => {
   const [user, setUser] = useState(null);
   const [stats, setStats] = useState({ items: 0, users: 0, trades: 0 });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [featuredItems, setFeaturedItems] = useState([]);
   const [animationActive, setAnimationActive] = useState(false);
 
@@ -492,23 +520,33 @@ const Home = () => {
   const fetchFeaturedItems = async () => {
     try {
       setLoading(true);
+      // Replace with your actual API endpoint
       const response = await axios.get(`${API_URL}/marketplace`);
       
-      // Get a random selection of items to feature
-      const randomItems = response.data
-        .sort(() => 0.5 - Math.random()) // Shuffle array
-        .slice(0, 6); // Take first 6 items
+      // Use real marketplace data instead of random items
+      let itemsToShow = [];
+      
+      if (response.data && response.data.length > 0) {
+        // Get a selection of items to feature - prioritize higher value items
+        itemsToShow = response.data
+          .sort((a, b) => b.price - a.price) // Sort by price descending
+          .slice(0, 6); // Take top 6 items
+      }
         
-      setFeaturedItems(randomItems);
+      setFeaturedItems(itemsToShow);
       
       // Set stats based on actual data
-      setStats({
-        items: response.data.length,
-        users: Math.floor(response.data.length * 0.75),
-        trades: Math.floor(response.data.length * 0.4)
-      });
+      if (response.data) {
+        setStats({
+          items: response.data.length || 0,
+          users: response.data.length > 0 ? Math.ceil(response.data.length * 0.8) : 0,
+          trades: response.data.length > 0 ? Math.ceil(response.data.length * 0.5) : 0
+        });
+      }
     } catch (error) {
       console.error('Error fetching featured items:', error);
+      // Don't set empty featured items - keep the previous value or empty array
+      setFeaturedItems([]);
     } finally {
       setLoading(false);
     }

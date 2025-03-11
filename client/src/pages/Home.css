@@ -156,12 +156,10 @@ html, body {
   box-shadow: var(--shadow-md);
   opacity: 0;
   transform: translateY(30px);
-  animation: fadeInUp 0.6s forwards;
-  animation-play-state: paused;
+  transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
 .feature-card.animated {
-  animation-play-state: running;
   opacity: 1;
   transform: translateY(0);
 }
@@ -175,26 +173,195 @@ html, body {
   z-index: 2;
   opacity: 0;
   transform: translateY(20px);
-  animation: fadeInUp 0.8s ease forwards;
-  animation-play-state: paused;
+  transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
 .roadmap-item.animated {
-  animation-play-state: running;
   opacity: 1;
   transform: translateY(0);
 }
 
-/* Add animation */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* Add staggered animation for roadmap items */
+.roadmap-item:nth-child(1) { transition-delay: 0.1s; }
+.roadmap-item:nth-child(2) { transition-delay: 0.2s; }
+.roadmap-item:nth-child(3) { transition-delay: 0.3s; }
+.roadmap-item:nth-child(4) { transition-delay: 0.4s; }
+.roadmap-item:nth-child(5) { transition-delay: 0.5s; }
+
+/* Add staggered animation for feature cards */
+.feature-card:nth-child(1) { transition-delay: 0.1s; }
+.feature-card:nth-child(2) { transition-delay: 0.2s; }
+.feature-card:nth-child(3) { transition-delay: 0.3s; }
+.feature-card:nth-child(4) { transition-delay: 0.4s; }
+.feature-card:nth-child(5) { transition-delay: 0.5s; }
+.feature-card:nth-child(6) { transition-delay: 0.6s; }
+
+/* Improve the roadmap steps */
+.roadmap-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+  box-shadow: 0 0 20px var(--primary-glow);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  z-index: 2;
+}
+
+/* Improved roadmap line */
+.roadmap-line {
+  position: absolute;
+  left: 30px; /* Center of the step circles */
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--primary-color), var(--primary-dark));
+  z-index: 1;
+  box-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* Featured items section improvements */
+.featured-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2rem;
+  width: 100%;
+  max-width: 1200px;
+  margin: 2rem auto;
+}
+
+.item-card {
+  background: var(--surface-medium);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-light);
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.item-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
+}
+
+.item-card-image {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  position: relative;
+  background: var(--surface-dark);
+}
+
+.item-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+.item-card:hover .item-card-image img {
+  transform: scale(1.05);
+}
+
+.item-card-content {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.item-name {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: var(--text-primary);
+}
+
+.item-rarity {
+  display: inline-block;
+  padding: 0.3rem 0.8rem;
+  border-radius: 30px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.item-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
+
+.item-price {
+  display: flex;
+  flex-direction: column;
+}
+
+.price-tag-currency {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.price-tag-amount {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--primary-light);
+}
+
+.buy-now-button {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 30px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(142, 36, 170, 0.3);
+}
+
+.buy-now-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(142, 36, 170, 0.5);
+}
+
+/* Loading animation for featured items */
+.loading-items {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 0;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid rgba(142, 36, 170, 0.1);
+  border-top: 5px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* Navbar styling */
@@ -961,10 +1128,9 @@ section:hover::after {
   flex-direction: column;
   align-items: flex-start;
   box-shadow: var(--shadow-md);
-  opacity: 0.4; /* Start partially visible in case animation fails */
-  transform: translateY(20px);
-  animation-duration: 0.6s;
-  animation-fill-mode: forwards;
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
 .feature-card.animated {
@@ -1042,10 +1208,9 @@ section:hover::after {
   margin-bottom: 3rem;
   position: relative;
   z-index: 2;
-  opacity: 0.4; /* Start partially visible in case animation fails */
+  opacity: 0;
   transform: translateY(20px);
-  animation-duration: 0.8s;
-  animation-fill-mode: forwards;
+  transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
 .roadmap-item.animated {
