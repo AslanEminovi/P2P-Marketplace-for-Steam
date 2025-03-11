@@ -98,44 +98,8 @@ const SearchSection = () => {
 const FeaturedItemsSection = ({ loading, featuredItems }) => {
   const { t } = useTranslation();
   
-  // Example item data for when items are still loading or not available
-  const dummyItems = [
-    {
-      id: 'demo1',
-      name: 'AK-47 | Asiimov',
-      image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ5VeP-TLQDDX1D2e3RaofNt57tET-v1KyYUIP17mWJefDOXp2Vcq1wsWfm8IWxukVQ0jfKeSXod7I_nw4Dvlag3aT_0UZB4jZMojO_H9on02Va3_kFqamiiJoLAI1c_MwzQ_ACggb_n2VQ/360fx360f',
-      rarity: 'Covert',
-      price: 9500,
-      wear: 'Factory New'
-    },
-    {
-      id: 'demo2',
-      name: 'AWP | Neo-Noir',
-      image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ5VeP-TLQDDX1D2e3RaofNt57tET-v1KyYUIP17mWJefDOXp2Vcq1wsWfm8JmJkJV40jPOSTjFD_tuz2oLZlaX2MOrTwj4G7MUojLvFpNyk0Qbi-RI_N2v6LISdJARoMF6BrwO3kL3v15S5tJrXiSw0LV-FHg0/360fx360f',
-      rarity: 'Classified',
-      price: 7200,
-      wear: 'Minimal Wear'
-    },
-    {
-      id: 'demo3',
-      name: 'Butterfly Knife | Fade',
-      image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ5VeP-TLQDDX1D2e3RaofNt57tET-v1KyYUIP17mWJefDOXp2Vcq1wsWfm4OvUYfwZm7P_JYzpG09-6lZKJkrmyN-qIk29XuZQoj-qQp9n0iVDk-kFoMD31JISUJAA3YliCrAO8w-a7hZa1vJjB1zI97XxxIgCm/360fx360f',
-      rarity: 'Knife',
-      price: 45000,
-      wear: 'Factory New'
-    },
-    {
-      id: 'demo4',
-      name: 'M4A4 | The Emperor',
-      image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ5VeP-TLQDDX1D2e3RaofNt57tET-v1KyYUIP17mWJefDOXp2Vcq1wsWfm_Nbq1JghM7P_JYzpG09Cm5YmZm_LLPr7Vn35cppYnj7CVo46gihXj-UI-ZTr6J47AJwI9YwuD_FS7ye671pG9vsictD0xvyIG/360fx360f',
-      rarity: 'Covert',
-      price: 12800,
-      wear: 'Field-Tested'
-    }
-  ];
+  // No more dummy items - we'll use empty state messaging instead
 
-  const displayItems = loading || featuredItems.length === 0 ? dummyItems : featuredItems;
-  
   return (
     <section className="featured-section-container">
       <div className="section-title">
@@ -151,10 +115,10 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
           <div className="spinner"></div>
           <p>Loading featured items...</p>
         </div>
-      ) : displayItems.length > 0 ? (
+      ) : featuredItems.length > 0 ? (
         <>
           <div className="featured-grid">
-            {displayItems.map(item => (
+            {featuredItems.map(item => (
               <div key={item.id} className="item-card">
                 <div className="item-card-image">
                   <img src={item.image} alt={item.name} />
@@ -191,6 +155,14 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
       ) : (
         <div className="no-items">
           <p>No featured items available at the moment. Check back soon!</p>
+          <div className="featured-cta">
+            <Link to="/marketplace" className="view-all-button">
+              Browse Marketplace
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </Link>
+          </div>
         </div>
       )}
     </section>
@@ -217,7 +189,13 @@ const FeaturesSection = () => {
   const featuresRef = useRef(null);
   
   useEffect(() => {
-    // Function to check if element is in viewport
+    // Make all feature cards visible immediately to ensure they're seen
+    const featureCards = document.querySelectorAll('.feature-card');
+    featureCards.forEach(card => {
+      card.classList.add('animated');
+    });
+    
+    // Function to check if element is in viewport (only for fancy entrance animation)
     const isInViewport = (element) => {
       const rect = element.getBoundingClientRect();
       return (
@@ -226,24 +204,14 @@ const FeaturesSection = () => {
       );
     };
     
-    // Get all feature cards
-    const featureCards = document.querySelectorAll('.feature-card');
-    
-    // Initial check on load - show visible cards immediately
-    featureCards.forEach(card => {
-      if (isInViewport(card)) {
-        card.classList.add('animated');
-      }
-    });
-    
-    // Improved scroll handler with throttling to improve performance
+    // Improved scroll handler for additional animation effects only
     let ticking = false;
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           featureCards.forEach(card => {
             if (isInViewport(card)) {
-              card.classList.add('animated');
+              card.classList.add('in-view');
             }
           });
           ticking = false;
@@ -272,7 +240,7 @@ const FeaturesSection = () => {
       </div>
       
       <div className="features-section" ref={featuresRef}>
-        <div className="feature-card">
+        <div className="feature-card animated">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
@@ -282,7 +250,7 @@ const FeaturesSection = () => {
           <p>Connect your Steam account securely through official OpenID and Steam API protocols for direct inventory access.</p>
         </div>
         
-        <div className="feature-card">
+        <div className="feature-card animated">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -293,7 +261,7 @@ const FeaturesSection = () => {
           <p>Set your prices in Georgian Lari or USD with automatic currency conversion and real-time exchange rates.</p>
         </div>
         
-        <div className="feature-card">
+        <div className="feature-card animated">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -303,7 +271,7 @@ const FeaturesSection = () => {
           <p>Your Steam inventory automatically stays in sync with live updates and accurate item information.</p>
         </div>
         
-        <div className="feature-card">
+        <div className="feature-card animated">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -315,7 +283,7 @@ const FeaturesSection = () => {
           <p>Make and receive offers on items with our integrated notification system and trade manager.</p>
         </div>
         
-        <div className="feature-card">
+        <div className="feature-card animated">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
@@ -326,7 +294,7 @@ const FeaturesSection = () => {
           <p>Keep track of all your trades with detailed history logs and transaction records.</p>
         </div>
         
-        <div className="feature-card">
+        <div className="feature-card animated">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>

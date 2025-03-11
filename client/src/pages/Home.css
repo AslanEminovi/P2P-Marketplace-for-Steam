@@ -154,9 +154,8 @@ html, body {
   flex-direction: column;
   align-items: flex-start;
   box-shadow: var(--shadow-md);
-  opacity: 0;
-  transform: translateY(30px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .feature-card.animated {
@@ -1128,9 +1127,8 @@ section:hover::after {
   flex-direction: column;
   align-items: flex-start;
   box-shadow: var(--shadow-md);
-  opacity: 0;
-  transform: translateY(30px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .feature-card.animated {
@@ -1140,40 +1138,55 @@ section:hover::after {
 
 .feature-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 0 15px var(--primary-glow);
-  border-color: var(--border-glow);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+  border-color: var(--border-medium);
 }
 
 .feature-icon {
   width: 60px;
   height: 60px;
-  background-color: var(--surface-dark);
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 1.5rem;
-  color: var(--primary-light);
-  border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-sm);
+  color: white;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 5px 15px rgba(142, 36, 170, 0.3);
+}
+
+.feature-icon::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  border-radius: 12px;
+  opacity: 0.7;
+  z-index: -1;
+  transition: var(--transition-medium);
 }
 
 .feature-icon svg {
-  width: 30px;
-  height: 30px;
-  stroke: var(--primary-light);
+  width: 28px;
+  height: 28px;
   stroke-width: 2px;
 }
 
 .feature-card h3 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
+  font-size: 1.4rem;
+  margin: 0 0 1rem;
   color: var(--text-primary);
+  font-weight: 600;
 }
 
 .feature-card p {
   color: var(--text-secondary);
+  margin: 0;
   line-height: 1.6;
 }
 
@@ -1414,4 +1427,18 @@ section:hover::after {
   .navbar {
     padding: 0.75rem 1rem;
   }
+}
+
+/* Fix no items section */
+.no-items {
+  text-align: center;
+  padding: 3rem 1rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.no-items p {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
 }
