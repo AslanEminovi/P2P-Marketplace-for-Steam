@@ -134,14 +134,12 @@ html, body {
 }
 
 .hero-image {
-  max-width: 300px;
+  max-width: 380px;
   width: 100%;
   height: auto;
-  border: none;
-  box-shadow: none;
-  transition: transform var(--transition-medium);
-  background: transparent;
-  filter: drop-shadow(0 0 15px var(--primary-glow));
+  filter: drop-shadow(0 0 20px rgba(114, 47, 247, 0.5));
+  transition: transform 0.3s ease-in-out;
+  animation: float 3s ease-in-out infinite;
 }
 
 .hero-image:hover {
@@ -299,18 +297,9 @@ html, body {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Improved roadmap line */
+/* Completely remove the roadmap line */
 .roadmap-line {
-  position: absolute;
-  left: 30px;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: linear-gradient(180deg, var(--primary-color), transparent);
-  z-index: 1;
-  opacity: 0.7;
-  box-shadow: 0 0 10px var(--primary-glow);
-  height: 95%;
+  display: none;
 }
 
 /* Featured items section improvements */
@@ -993,14 +982,12 @@ section:hover::after {
 }
 
 .hero-image {
-  max-width: 300px;
+  max-width: 380px;
   width: 100%;
   height: auto;
-  border: none;
-  box-shadow: none;
-  transition: transform var(--transition-medium);
-  background: transparent;
-  filter: drop-shadow(0 0 15px var(--primary-glow));
+  filter: drop-shadow(0 0 20px rgba(114, 47, 247, 0.5));
+  transition: transform 0.3s ease-in-out;
+  animation: float 3s ease-in-out infinite;
 }
 
 .hero-image:hover {
@@ -1308,18 +1295,6 @@ section:hover::after {
   padding: 2rem 0;
 }
 
-.roadmap-line {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 4px;
-  background: linear-gradient(to bottom, var(--primary-light), var(--primary-dark));
-  transform: translateX(-50%);
-  z-index: 1;
-  box-shadow: 0 0 15px var(--primary-glow);
-}
-
 .roadmap-item {
   display: flex;
   gap: 2rem;
@@ -1516,10 +1491,6 @@ section:hover::after {
   .roadmap-item {
     flex-direction: row !important;
     text-align: left !important;
-  }
-  
-  .roadmap-line {
-    left: 25px;
   }
   
   .roadmap-step {
@@ -1766,5 +1737,168 @@ section:hover::after {
   
   .news-image {
     height: 140px;
+  }
+}
+
+/* Add a proper footer style */
+.footer {
+  background-color: #1a1527;
+  color: #f1f1f1;
+  padding: 60px 20px 30px;
+  margin-top: 50px;
+  border-top: 1px solid rgba(114, 47, 247, 0.3);
+}
+
+.footer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at top right, rgba(142, 36, 170, 0.08), transparent 60%),
+    radial-gradient(circle at bottom left, rgba(33, 150, 243, 0.08), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 40px;
+}
+
+.footer-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.footer-logo {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 15px;
+  background: linear-gradient(90deg, #8e2de2, #4a00e0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.footer-description {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #aaa;
+  margin-bottom: 20px;
+}
+
+.footer-social {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.social-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f1f1f1;
+  transition: all 0.3s ease;
+}
+
+.social-icon:hover {
+  background: rgba(114, 47, 247, 0.7);
+  transform: translateY(-3px);
+}
+
+.footer-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.footer-title::after {
+  content: '';
+  display: block;
+  width: 30px;
+  height: 3px;
+  background: linear-gradient(90deg, #8e2de2, #4a00e0);
+  margin-top: 8px;
+  border-radius: 2px;
+}
+
+.footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer-link {
+  color: #ccc;
+  font-size: 14px;
+  text-decoration: none;
+  transition: color 0.3s ease;
+  display: flex;
+  align-items: center;
+}
+
+.footer-link:hover {
+  color: #fff;
+  text-decoration: none;
+  transform: translateX(3px);
+}
+
+.footer-bottom {
+  max-width: 1200px;
+  margin: 40px auto 0;
+  padding-top: 30px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.footer-copyright {
+  font-size: 14px;
+  color: #888;
+}
+
+.footer-legal {
+  display: flex;
+  gap: 20px;
+}
+
+.legal-link {
+  color: #888;
+  font-size: 14px;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.legal-link:hover {
+  color: #fff;
+}
+
+/* Responsive Footer */
+@media (max-width: 768px) {
+  .footer-content {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 30px;
+  }
+  
+  .footer-bottom {
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+  }
+  
+  .footer-legal {
+    justify-content: center;
   }
 }

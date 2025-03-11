@@ -40,19 +40,20 @@ const HeroSection = ({ user, stats, animationActive }) => {
           </div>
           
           <div className="hero-cta">
-            {user ? (
-              <Link to="/inventory" className="primary-button">
-                View Your Inventory
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            {!user ? (
+              <Link to="/login" className="primary-button">
+                <i className="fab fa-steam"></i>
+                Sign in with Steam
               </Link>
             ) : (
-              <a href={`${API_URL}/auth/steam`} className="primary-button">
-                Sign in with Steam
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/></svg>
-              </a>
+              <Link to="/marketplace" className="primary-button">
+                <i className="fas fa-shopping-cart"></i>
+                Browse Marketplace
+              </Link>
             )}
-            <Link to="/marketplace" className="secondary-button">
-              Browse Marketplace
+            <Link to="/inventory" className="secondary-button">
+              <i className="fas fa-box-open"></i>
+              {user ? 'My Inventory' : 'How It Works'}
             </Link>
           </div>
         </div>
@@ -435,19 +436,20 @@ const FinalCTASection = ({ user }) => {
       
       <div className="final-cta-section">
         <div className="cta-buttons">
-          {user ? (
-            <Link to="/inventory" className="primary-button">
-              View My Inventory
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          {!user ? (
+            <Link to="/login" className="primary-button">
+              <i className="fab fa-steam"></i>
+              Sign in with Steam
             </Link>
           ) : (
-            <a href={`${API_URL}/auth/steam`} className="primary-button">
-              Sign in with Steam
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/></svg>
-            </a>
+            <Link to="/marketplace" className="primary-button">
+              <i className="fas fa-shopping-cart"></i>
+              Start Trading Now
+            </Link>
           )}
-          <Link to="/marketplace" className="secondary-button">
-            Browse Marketplace
+          <Link to="/faq" className="secondary-button">
+            <i className="fas fa-question-circle"></i>
+            Learn More
           </Link>
         </div>
       </div>
@@ -455,37 +457,53 @@ const FinalCTASection = ({ user }) => {
   );
 };
 
-// Update the TradingStatsSection to use dynamic data from actual trades
+// Update the TradingStatsSection to handle empty data
 const TradingStatsSection = () => {
   const [marketStats, setMarketStats] = useState({
-    popularItem: { name: "Calculating...", count: 0 },
-    highestTrade: { value: 0, description: "Calculating..." },
-    avgTradeTime: "5-10 minutes"
+    popularItem: null,
+    highestTrade: null,
+    avgTradeTime: null,
+    hasData: false
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // In a real implementation, this would fetch data from your API
-    // For now, we'll use placeholder data that simulates a real calculation
     const calculateMarketStats = async () => {
+      setLoading(true);
       try {
         // This would be an API call in production
         // const response = await axios.get(`${API_URL}/market/stats`);
         
-        // Simulate the stats based on your requirements
-        // In reality, this data would come from your backend
+        // For demo purposes - simulate no data available
         setMarketStats({
-          popularItem: {
-            name: "AWP | Neo-Noir",
-            count: 38
-          },
-          highestTrade: {
-            value: 12500,
-            description: "Karambit | Fade (Factory New)"
-          },
-          avgTradeTime: "5-10 minutes"
+          popularItem: null,
+          highestTrade: null,
+          avgTradeTime: null,
+          hasData: false
         });
+        
+        // When you have actual data, replace with this:
+        /*
+        if (response.data && response.data.trades && response.data.trades.length > 0) {
+          setMarketStats({
+            popularItem: {
+              name: response.data.popularItem.name,
+              count: response.data.popularItem.count
+            },
+            highestTrade: {
+              value: response.data.highestTrade.value,
+              description: response.data.highestTrade.description
+            },
+            avgTradeTime: response.data.avgTradeTime,
+            hasData: true
+          });
+        }
+        */
       } catch (error) {
         console.error("Failed to load market stats", error);
+      } finally {
+        setLoading(false);
       }
     };
     
@@ -502,51 +520,133 @@ const TradingStatsSection = () => {
         </div>
       </div>
       
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--gradient-purple)' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
-              <polyline points="16 7 22 7 22 13"></polyline>
-            </svg>
+      {loading ? (
+        <div className="loading-items">
+          <div className="spinner"></div>
+          <p>Loading market statistics...</p>
+        </div>
+      ) : !marketStats.hasData ? (
+        <div className="no-stats">
+          <p>No trading statistics are available yet. Be the first to complete a trade!</p>
+        </div>
+      ) : (
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon" style={{ background: 'var(--gradient-purple)' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+                <polyline points="16 7 22 7 22 13"></polyline>
+              </svg>
+            </div>
+            <div className="stat-info">
+              <h3>Most Popular Item</h3>
+              <p className="stat-highlight">{marketStats.popularItem.name}</p>
+              <p className="stat-detail">Traded {marketStats.popularItem.count} times this month</p>
+            </div>
           </div>
-          <div className="stat-info">
-            <h3>Most Popular Item</h3>
-            <p className="stat-highlight">{marketStats.popularItem.name}</p>
-            <p className="stat-detail">Traded {marketStats.popularItem.count} times this month</p>
+          
+          <div className="stat-card">
+            <div className="stat-icon" style={{ background: 'var(--gradient-blue)' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                <polyline points="17 6 23 6 23 12"></polyline>
+              </svg>
+            </div>
+            <div className="stat-info">
+              <h3>Highest Value Trade</h3>
+              <p className="stat-highlight">{marketStats.highestTrade.value.toLocaleString()} ₾</p>
+              <p className="stat-detail">{marketStats.highestTrade.description}</p>
+            </div>
+          </div>
+          
+          <div className="stat-card">
+            <div className="stat-icon" style={{ background: 'var(--gradient-orange)' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            </div>
+            <div className="stat-info">
+              <h3>Average Trade Time</h3>
+              <p className="stat-highlight">{marketStats.avgTradeTime}</p>
+              <p className="stat-detail">From listing to completion</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+};
+
+// Create a new Footer component
+const Footer = () => {
+  return (
+    <footer className="footer">
+      <div className="footer-content">
+        <div className="footer-column">
+          <div className="footer-logo">CS2 Marketplace Georgia</div>
+          <p className="footer-description">
+            The premier platform for trading CS2 items in Georgia with secure transactions and GEL pricing.
+          </p>
+          <div className="footer-social">
+            <a href="https://discord.gg/your-server" className="social-icon" target="_blank" rel="noopener noreferrer">
+              <i className="fab fa-discord"></i>
+            </a>
+            <a href="https://facebook.com/your-page" className="social-icon" target="_blank" rel="noopener noreferrer">
+              <i className="fab fa-facebook-f"></i>
+            </a>
+            <a href="https://twitter.com/your-handle" className="social-icon" target="_blank" rel="noopener noreferrer">
+              <i className="fab fa-twitter"></i>
+            </a>
+            <a href="https://instagram.com/your-profile" className="social-icon" target="_blank" rel="noopener noreferrer">
+              <i className="fab fa-instagram"></i>
+            </a>
           </div>
         </div>
         
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--gradient-blue)' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-              <polyline points="17 6 23 6 23 12"></polyline>
-            </svg>
-          </div>
-          <div className="stat-info">
-            <h3>Highest Value Trade</h3>
-            <p className="stat-highlight">{marketStats.highestTrade.value.toLocaleString()} ₾</p>
-            <p className="stat-detail">{marketStats.highestTrade.description}</p>
+        <div className="footer-column">
+          <h3 className="footer-title">Quick Links</h3>
+          <div className="footer-links">
+            <Link to="/" className="footer-link">Home</Link>
+            <Link to="/marketplace" className="footer-link">Marketplace</Link>
+            <Link to="/inventory" className="footer-link">Inventory</Link>
+            <Link to="/trades" className="footer-link">My Trades</Link>
           </div>
         </div>
         
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--gradient-orange)' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
+        <div className="footer-column">
+          <h3 className="footer-title">Help & Support</h3>
+          <div className="footer-links">
+            <Link to="/faq" className="footer-link">FAQ</Link>
+            <Link to="/support" className="footer-link">Contact Support</Link>
+            <Link to="/guides" className="footer-link">Trading Guides</Link>
+            <Link to="/fees" className="footer-link">Fees & Charges</Link>
           </div>
-          <div className="stat-info">
-            <h3>Average Trade Time</h3>
-            <p className="stat-highlight">{marketStats.avgTradeTime}</p>
-            <p className="stat-detail">From listing to completion</p>
+        </div>
+        
+        <div className="footer-column">
+          <h3 className="footer-title">Legal</h3>
+          <div className="footer-links">
+            <Link to="/terms" className="footer-link">Terms of Service</Link>
+            <Link to="/privacy" className="footer-link">Privacy Policy</Link>
+            <Link to="/refund" className="footer-link">Refund Policy</Link>
+            <Link to="/cookies" className="footer-link">Cookie Policy</Link>
           </div>
         </div>
       </div>
-    </section>
+      
+      <div className="footer-bottom">
+        <div className="footer-copyright">
+          © {new Date().getFullYear()} CS2 Marketplace Georgia. All rights reserved.
+        </div>
+        <div className="footer-legal">
+          <Link to="/terms" className="legal-link">Terms</Link>
+          <Link to="/privacy" className="legal-link">Privacy</Link>
+          <Link to="/cookies" className="legal-link">Cookies</Link>
+        </div>
+      </div>
+    </footer>
   );
 };
 
@@ -557,6 +657,30 @@ const Home = () => {
   const [featuredItems, setFeaturedItems] = useState([]);
   const [animationActive, setAnimationActive] = useState(false);
   const [particles, setParticles] = useState([]);
+
+  // Check if user is logged in
+  useEffect(() => {
+    // In a real implementation, this would check with your backend
+    const checkUserStatus = async () => {
+      try {
+        // This would be an API call in production
+        // const response = await axios.get(`${API_URL}/auth/status`);
+        // setUser(response.data.user);
+        
+        // For now, simulate a logged in user to test the UI
+        setUser({
+          id: 1,
+          displayName: "TestUser",
+          avatar: "https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg"
+        });
+      } catch (error) {
+        console.error('Error checking user status:', error);
+        setUser(null);
+      }
+    };
+    
+    checkUserStatus();
+  }, []);
 
   // Add animated particles
   useEffect(() => {
@@ -667,6 +791,7 @@ const Home = () => {
       <FeaturesSection />
       <HowItWorksSection />
       <FinalCTASection user={user} />
+      <Footer />
     </div>
   );
 };
