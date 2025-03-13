@@ -55,7 +55,7 @@ const TradeHistory = () => {
       const response = await axios.get(`${API_URL}/trades/history`, {
         withCredentials: true
       });
-      
+
       console.log('Trade history response:', response.data);
       
       // Check if response is valid
@@ -137,7 +137,7 @@ const TradeHistory = () => {
       console.error('Trades is not an array:', filtered);
       return [];
     }
-    
+
     // Apply search filter if searchTerm exists
     if (searchTerm.trim() !== '') {
       const term = searchTerm.toLowerCase();
@@ -150,12 +150,12 @@ const TradeHistory = () => {
     }
     
     // Apply role filter
-    if (roleFilter === 'sent') {
+      if (roleFilter === 'sent') {
       filtered = filtered.filter(trade => trade?.isUserBuyer);
-    } else if (roleFilter === 'received') {
+      } else if (roleFilter === 'received') {
       filtered = filtered.filter(trade => trade?.isUserSeller);
-    }
-    
+      }
+
     // Apply status filter
     if (filter !== 'all') {
       if (filter === 'active') {
@@ -185,7 +185,7 @@ const TradeHistory = () => {
       }
     });
     
-    return filtered;
+      return filtered;
   };
 
   // Safe access to potentially undefined objects
@@ -203,87 +203,87 @@ const TradeHistory = () => {
   const filteredTrades = getFilteredTrades();
 
   if (loading) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center',
-        padding: '60px 0',
-        flexDirection: 'column',
-        gap: '1.5rem'
-      }}>
-        <div 
-          className="spinner"
-          style={{
-            width: '60px',
-            height: '60px',
-            border: '4px solid rgba(255,255,255,0.1)',
-            borderRadius: '50%',
-            borderTopColor: '#4ade80',
-            borderRightColor: 'rgba(139, 92, 246, 0.5)',
-            animation: 'spin 1.5s linear infinite'
-          }}
-        />
-        <p
-          style={{ 
-            color: '#e2e8f0', 
-            fontSize: '1.2rem',
-            fontWeight: '500'
-          }}
-        >
-          Loading trade history...
-        </p>
-      </div>
+  return (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '60px 0',
+          flexDirection: 'column',
+          gap: '1.5rem'
+        }}>
+          <div
+            className="spinner"
+            style={{
+              width: '60px',
+              height: '60px',
+              border: '4px solid rgba(255,255,255,0.1)',
+              borderRadius: '50%',
+              borderTopColor: '#4ade80',
+              borderRightColor: 'rgba(139, 92, 246, 0.5)',
+              animation: 'spin 1.5s linear infinite'
+            }}
+          />
+          <p
+            style={{
+              color: '#e2e8f0',
+              fontSize: '1.2rem',
+              fontWeight: '500'
+            }}
+          >
+            Loading trade history...
+          </p>
+        </div>
     );
   }
 
   if (error) {
     return (
-      <div 
-        style={{
-          backgroundColor: 'rgba(220, 38, 38, 0.2)',
-          color: '#f87171',
-          padding: '20px',
-          borderRadius: '16px',
-          margin: '30px 0',
-          backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(220, 38, 38, 0.3)',
-          boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)'
-        }}
-      >
-        <div 
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center',
-            gap: '10px', 
-            marginBottom: '10px'
+        <div
+          style={{
+            backgroundColor: 'rgba(220, 38, 38, 0.2)',
+            color: '#f87171',
+            padding: '20px',
+            borderRadius: '16px',
+            margin: '30px 0',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(220, 38, 38, 0.3)',
+            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)'
           }}
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-          <h3 style={{ margin: 0, fontSize: '1.5rem' }}>Error Loading Trades</h3>
-        </div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              marginBottom: '10px'
+            }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <h3 style={{ margin: 0, fontSize: '1.5rem' }}>Error Loading Trades</h3>
+          </div>
         <p style={{ marginBottom: '10px' }}>
-          {error}
-        </p>
-        <button 
-          onClick={fetchTrades}
-          style={{
+            {error}
+          </p>
+          <button
+            onClick={fetchTrades}
+            style={{
             backgroundColor: '#991b1b',
             color: 'white',
             border: 'none',
-            padding: '8px 16px',
+              padding: '8px 16px',
             borderRadius: '4px',
             cursor: 'pointer',
             fontWeight: 'bold'
-          }}
-        >
-          Try Again
-        </button>
-      </div>
+            }}
+          >
+            Try Again
+          </button>
+        </div>
     );
   }
 
@@ -639,7 +639,7 @@ const TradeHistory = () => {
                 >
                   <div style={{ display: 'flex', flexDirection: 'row' }}>
                     {/* Item image */}
-                    <div style={{ 
+        <div style={{
                       width: '120px',
                       height: '100px',
                       overflow: 'hidden',
@@ -650,7 +650,7 @@ const TradeHistory = () => {
                         src={imageUrl}
                         alt={marketHashName}
                         style={{
-                          width: '100%',
+            width: '100%',
                           height: '100%',
                           objectFit: 'contain'
                         }}
@@ -690,7 +690,7 @@ const TradeHistory = () => {
                     {/* Trade details */}
                     <div style={{ 
                       flex: '1',
-                      padding: '12px 16px',
+                  padding: '12px 16px',
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'space-between'
@@ -718,7 +718,7 @@ const TradeHistory = () => {
                         <div style={{
                           display: 'flex',
                           gap: '16px',
-                          color: '#9ca3af',
+                  color: '#9ca3af',
                           fontSize: '0.875rem'
                         }}>
                           {trade.isUserBuyer ? (
@@ -758,7 +758,7 @@ const TradeHistory = () => {
                           {formatCurrency(price)}
                         </div>
                         <div style={{
-                          color: '#9ca3af',
+                  color: '#9ca3af',
                           fontSize: '0.875rem',
                           display: 'flex',
                           alignItems: 'center',
@@ -782,10 +782,10 @@ const TradeHistory = () => {
           })}
         </div>
       )}
-      
+
       <style>
         {`
-          @keyframes spin {
+        @keyframes spin {
             to { transform: rotate(360deg); }
           }
           .spinner {
@@ -797,7 +797,7 @@ const TradeHistory = () => {
           }
           .trade-card:hover .view-details {
             color: #3b82f6;
-          }
+        }
         `}
       </style>
     </div>

@@ -284,7 +284,7 @@ Implements the core business logic and application services:
 - **Business Logic Services**:
 
   - Trading system implementation
-  - Inventory management
+- Inventory management
   - Marketplace operations
   - User management
   - Security enforcement
