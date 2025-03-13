@@ -355,16 +355,38 @@ const Navbar = () => {
           
           <div className="navbar-links desktop-only">
             <NavLink to="/marketplace" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="9" cy="21" r="1"></circle>
+                <circle cx="20" cy="21" r="1"></circle>
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+              </svg>
               Marketplace
             </NavLink>
             {/* Change "Sell Items" to link to inventory */}
             <NavLink to="/inventory" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="8" x2="8" y2="8"></line>
+                <line x1="16" y1="12" x2="8" y2="12"></line>
+                <line x1="16" y1="16" x2="8" y2="16"></line>
+              </svg>
               Sell Items
             </NavLink>
             <NavLink to="/blog" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+                <path d="M2 2l7.586 7.586"></path>
+                <circle cx="11" cy="11" r="2"></circle>
+              </svg>
               Blog
             </NavLink>
             <NavLink to="/faq" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
               FAQ
             </NavLink>
           </div>
@@ -375,8 +397,8 @@ const Navbar = () => {
             <a href="https://discord.gg/" target="_blank" rel="noopener noreferrer" className="social-link">
               <i className="fab fa-discord"></i>
             </a>
-            <a href="https://twitter.com/" target="_blank" rel="noopener noreferrer" className="social-link">
-              <i className="fab fa-twitter"></i>
+            <a href="https://facebook.com/" target="_blank" rel="noopener noreferrer" className="social-link">
+              <i className="fab fa-facebook"></i>
             </a>
           </div>
           
@@ -589,8 +611,8 @@ const Navbar = () => {
           <a href="https://discord.gg/" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
             <i className="fab fa-discord"></i>
           </a>
-          <a href="https://twitter.com/" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
-            <i className="fab fa-twitter"></i>
+          <a href="https://facebook.com/" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
+            <i className="fab fa-facebook"></i>
           </a>
           <a href="https://reddit.com/" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
             <i className="fab fa-reddit"></i>

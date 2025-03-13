@@ -57,6 +57,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  margin-right: 1rem;
 }
 
 .logo-text {
@@ -95,7 +96,21 @@
 .navbar-links {
   display: flex;
   gap: 2rem;
-  margin-left: 2rem;
+  margin-left: 1.5rem;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 1;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
 }
 
 .navbar-link {
@@ -107,6 +122,9 @@
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .navbar-link::before {
@@ -119,6 +137,11 @@
   height: 2px;
   background: var(--gaming-gradient-blue);
   transition: width 0.3s ease;
+}
+
+.navbar-link svg {
+  width: 16px;
+  height: 16px;
 }
 
 .navbar-link:hover {
@@ -143,6 +166,7 @@
   display: flex;
   align-items: center;
   gap: 1.5rem;
+  justify-content: flex-end;
 }
 
 .balance-display {
@@ -155,6 +179,7 @@
   gap: 0.5rem;
   transition: all 0.3s ease;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  height: 42px;
 }
 
 .balance-display:hover {
@@ -499,6 +524,7 @@
   cursor: pointer;
   padding: 0;
   z-index: 1002;
+  margin-left: 1rem;
 }
 
 .hamburger-line {
@@ -693,6 +719,7 @@
 /* Profile Button */
 .profile-button {
   transition: background-color 0.2s ease;
+  height: 42px;
 }
 
 .profile-button:hover {
