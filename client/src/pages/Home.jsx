@@ -124,6 +124,8 @@ const SearchSection = () => {
 };
 
 const FeaturedItemsSection = ({ loading, featuredItems }) => {
+  console.log("Items being rendered:", featuredItems);
+  
   return (
     <section className="featured-section-container">
       <div className="section-title">
@@ -142,32 +144,42 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
       ) : featuredItems && featuredItems.length > 0 ? (
         <>
           <div className="featured-grid">
-            {featuredItems.map(item => (
-              <div key={item._id} className="item-card">
-                <div className="item-card-image">
-                  <img src={item.image} alt={item.name} />
-                </div>
-                <div className="item-card-content">
-                  <h3 className="item-name gradient-text">{item.name}</h3>
-                  <span className="item-rarity" style={{ 
-                    backgroundColor: getColorForRarity(item.rarity)
-                  }}>
-                    {item.rarity} {item.wear && `• ${item.wear}`}
-                  </span>
-                  <div className="item-meta">
-                    <div className="item-price">
-                      <span className="price-tag-currency gradient-text">GEL</span>
-                      <span className="price-tag-amount gradient-text">
-                        {(item.price/100).toFixed(2)}
-                      </span>
+            {featuredItems.map((item, index) => {
+              console.log(`Rendering item ${index}:`, item);
+              return (
+                <div key={item._id || `item-${index}`} className="item-card">
+                  <div className="item-card-image">
+                    {item.image ? (
+                      <img src={item.image} alt={item.name || 'CS2 Item'} />
+                    ) : (
+                      <div className="no-image-placeholder">No Image</div>
+                    )}
+                  </div>
+                  <div className="item-card-content">
+                    <h3 className="item-name gradient-text">{item.name || 'Unknown Item'}</h3>
+                    <span className="item-rarity" style={{ 
+                      backgroundColor: getColorForRarity(item.rarity || 'Common')
+                    }}>
+                      {item.rarity || 'Common'} {item.wear && `• ${item.wear}`}
+                    </span>
+                    <div className="item-meta">
+                      <div className="item-price">
+                        <span className="price-tag-currency gradient-text">GEL</span>
+                        <span className="price-tag-amount gradient-text">
+                          {item.price ? (item.price/100).toFixed(2) : '0.00'}
+                        </span>
+                      </div>
+                      <Link 
+                        to={`/marketplace/${item._id || index}`} 
+                        className="buy-now-button"
+                      >
+                        View Item
+                      </Link>
                     </div>
-                    <Link to={`/marketplace/${item._id}`} className="buy-now-button">
-                      View Item
-                    </Link>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="featured-cta">
             <Link to="/marketplace" className="view-all-button">
@@ -640,25 +652,25 @@ const Home = () => {
       const response = await axios.get(`${API_URL}/marketplace`);
       
       if (response.data && Array.isArray(response.data)) {
-        // Sort by price (highest first) and take top 6
-        const sortedItems = response.data
-          .sort((a, b) => b.price - a.price)
-          .slice(0, 6);
+        console.log("API Response data:", response.data);
         
-        setFeaturedItems(sortedItems);
+        // Show exactly what we got from the API
+        setFeaturedItems(response.data);
         
-        // Update stats based on API data
+        // Use actual data without minimums
         setStats({
           items: response.data.length,
-          users: Math.max(50, Math.ceil(response.data.length * 0.8)),
-          trades: Math.max(25, Math.ceil(response.data.length * 0.5))
+          users: Math.ceil(response.data.length * 0.8),
+          trades: Math.ceil(response.data.length * 0.5)
         });
       } else {
         setFeaturedItems([]);
+        setStats({ items: 0, users: 0, trades: 0 });
       }
     } catch (error) {
       console.error('Error fetching marketplace items:', error);
       setFeaturedItems([]);
+      setStats({ items: 0, users: 0, trades: 0 });
     } finally {
       setLoading(false);
     }
