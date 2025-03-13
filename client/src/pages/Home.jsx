@@ -124,8 +124,6 @@ const SearchSection = () => {
 };
 
 const FeaturedItemsSection = ({ loading, featuredItems }) => {
-  console.log("Items being rendered:", featuredItems);
-  
   return (
     <section className="featured-section-container">
       <div className="section-title">
@@ -144,42 +142,32 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
       ) : featuredItems && featuredItems.length > 0 ? (
         <>
           <div className="featured-grid">
-            {featuredItems.map((item, index) => {
-              console.log(`Rendering item ${index}:`, item);
-              return (
-                <div key={item._id || `item-${index}`} className="item-card">
-                  <div className="item-card-image">
-                    {item.image ? (
-                      <img src={item.image} alt={item.name || 'CS2 Item'} />
-                    ) : (
-                      <div className="no-image-placeholder">No Image</div>
-                    )}
-                  </div>
-                  <div className="item-card-content">
-                    <h3 className="item-name gradient-text">{item.name || 'Unknown Item'}</h3>
-                    <span className="item-rarity" style={{ 
-                      backgroundColor: getColorForRarity(item.rarity || 'Common')
-                    }}>
-                      {item.rarity || 'Common'} {item.wear && `• ${item.wear}`}
-                    </span>
-                    <div className="item-meta">
-                      <div className="item-price">
-                        <span className="price-tag-currency gradient-text">GEL</span>
-                        <span className="price-tag-amount gradient-text">
-                          {item.price ? (item.price/100).toFixed(2) : '0.00'}
-                        </span>
-                      </div>
-                      <Link 
-                        to={`/marketplace/${item._id || index}`} 
-                        className="buy-now-button"
-                      >
-                        View Item
-                      </Link>
+            {featuredItems.map(item => (
+              <div key={item._id} className="item-card">
+                <div className="item-card-image">
+                  <img src={item.image} alt={item.name} />
+                </div>
+                <div className="item-card-content">
+                  <h3 className="item-name gradient-text">{item.name}</h3>
+                  <span className="item-rarity" style={{ 
+                    backgroundColor: getColorForRarity(item.rarity)
+                  }}>
+                    {item.rarity} {item.wear && `• ${item.wear}`}
+                  </span>
+                  <div className="item-meta">
+                    <div className="item-price">
+                      <span className="price-tag-currency gradient-text">GEL</span>
+                      <span className="price-tag-amount gradient-text">
+                        {(item.price/100).toFixed(2)}
+                      </span>
                     </div>
+                    <Link to={`/marketplace/${item._id}`} className="buy-now-button">
+                      View Item
+                    </Link>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
           <div className="featured-cta">
             <Link to="/marketplace" className="view-all-button">
@@ -652,16 +640,14 @@ const Home = () => {
       const response = await axios.get(`${API_URL}/marketplace`);
       
       if (response.data && Array.isArray(response.data)) {
-        console.log("API Response data:", response.data);
-        
-        // Show exactly what we got from the API
+        // Set featured items directly from API
         setFeaturedItems(response.data);
         
-        // Use actual data without minimums
+        // Set fixed stats that don't change with item count
         setStats({
           items: response.data.length,
-          users: Math.ceil(response.data.length * 0.8),
-          trades: Math.ceil(response.data.length * 0.5)
+          users: 25, // Fixed number of users
+          trades: 12  // Fixed number of trades
         });
       } else {
         setFeaturedItems([]);
