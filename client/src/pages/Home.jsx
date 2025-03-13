@@ -697,22 +697,18 @@ const Home = () => {
   const fetchFeaturedItems = async () => {
     try {
       setLoading(true);
-      // Replace with your actual API endpoint
       const response = await axios.get(`${API_URL}/marketplace`);
       
-      // Use real marketplace data instead of random items
       let itemsToShow = [];
       
       if (response.data && response.data.length > 0) {
-        // Get a selection of items to feature - prioritize higher value items
         itemsToShow = response.data
-          .sort((a, b) => b.price - a.price) // Sort by price descending
-          .slice(0, 6); // Take top 6 items
+          .sort((a, b) => b.price - a.price)
+          .slice(0, 6);
       }
         
       setFeaturedItems(itemsToShow);
       
-      // Set stats based on actual data
       if (response.data) {
         setStats({
           items: response.data.length || 0,
@@ -722,7 +718,6 @@ const Home = () => {
       }
     } catch (error) {
       console.error('Error fetching featured items:', error);
-      // Don't set empty featured items - keep the previous value or empty array
       setFeaturedItems([]);
     } finally {
       setLoading(false);
