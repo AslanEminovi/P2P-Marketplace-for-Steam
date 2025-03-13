@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,7 @@ import './Home.css';
 import { API_URL } from '../config/constants';
 // Fix image import but retain original approach
 import csLogo from './cs-logo.png';
+import { useAuth } from '../contexts/AuthContext';
 
 // Creating separate section components for better organization and independent styling
 const HeroSection = ({ user, stats, animationActive }) => {
@@ -105,83 +106,85 @@ const SearchSection = () => {
 };
 
 // Update FeaturedItemsSection to only show actual marketplace items
-const FeaturedItemsSection = ({ loading, featuredItems }) => {
-  const { t } = useTranslation();
+const FeaturedItemsSection = () => {
+  const [featuredItems, setFeaturedItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchFeaturedItems = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/items/featured');
+        if (!response.ok) {
+          throw new Error('Failed to fetch featured items');
+        }
+        const data = await response.json();
+        setFeaturedItems(data);
+      } catch (err) {
+        console.error('Error fetching featured items:', err);
+        setError('Failed to load featured items');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFeaturedItems();
+  }, []);
+
+  const handleItemClick = (itemId) => {
+    navigate(`/marketplace/item/${itemId}`);
+  };
+
+  if (loading) {
+    return (
+      <div className="loading-items">
+        <div className="spinner"></div>
+        <p>Loading featured items...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="no-items">
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  if (!featuredItems.length) {
+    return (
+      <div className="no-items">
+        <p>No items available at the moment</p>
+      </div>
+    );
+  }
 
   return (
-    <section className="featured-section-container">
-      <div className="section-title">
-        <div className="section-title-content">
-          <h2>Featured <span className="gradient-text">Items</span></h2>
-          <p>Explore our selection of popular CS2 items available for trade</p>
-          <div className="title-decoration"></div>
-        </div>
-      </div>
-      
-      {loading ? (
-        <div className="loading-items">
-          <div className="spinner"></div>
-          <p>Loading featured items...</p>
-        </div>
-      ) : featuredItems.length > 0 ? (
-        <>
-          <div className="featured-grid">
-            {featuredItems.map(item => (
-              <div key={item.id} className="item-card">
-                <div className="item-card-image">
-                  <img 
-                    src={item.image} 
-                    alt={item.name} 
-                    onError={(e) => {
-                      // Fallback image if the item image fails to load
-                      e.target.src = 'https://community.cloudflare.steamstatic.com/economy/image/fWFc82js0fmoRAP-qOIPu5THSWqfSmTELLqcUywGkijVjZYMUrsm1j-9xgEObwgfEh_nvjlWhNzZCveCDfIBj98xqodQ2CZknz5rbbOKMyJYdhbDBPRhXfs08QL-Ghg-4cBrQOi69qkBLBLm4IqTM7ctMNtJTJLWCKKGNw2vu0Jsh6JfL8OIon7q3SjgaDoJCRXsrD4GhqbZ7daOgXZPFw/360fx360f'; // CS2 default item placeholder
-                      console.error(`Failed to load image for ${item.name}`);
-                    }}
-                  />
-                </div>
-                <div className="item-card-content">
-                  <h3 className="item-name">{item.name || "Unknown Item"}</h3>
-                  <span className="item-rarity" style={{ 
-                    backgroundColor: getColorForRarity(item.rarity) 
-                  }}>
-                    {item.rarity || "Common"} {item.wear && `• ${item.wear}`}
-                  </span>
-                  <div className="item-meta">
-                    <div className="item-price">
-                      <span className="price-tag-currency">GEL</span>
-                      <span className="price-tag-amount">{((item.price || 0) / 100).toFixed(2)}</span>
-                    </div>
-                    <Link to={`/item/${item.id}`} className="buy-now-button">
-                      View Item
-                    </Link>
-                  </div>
-                </div>
+    <div className="featured-grid">
+      {featuredItems.map((item) => (
+        <div key={item._id} className="item-card" onClick={() => handleItemClick(item._id)}>
+          <div className="item-card-image">
+            <img src={item.imageUrl} alt={item.name} />
+          </div>
+          <div className="item-card-content">
+            <h3 className="item-name">{item.name}</h3>
+            <span className={`item-rarity ${item.rarity.toLowerCase()}`}>
+              {item.rarity}
+            </span>
+            <div className="item-meta">
+              <div className="item-price">
+                <span className="price-tag-currency">USD</span>
+                <span className="price-tag-amount">${item.price.toFixed(2)}</span>
               </div>
-            ))}
-          </div>
-          <div className="featured-cta">
-            <Link to="/marketplace" className="view-all-button">
-              View All Items
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
-            </Link>
-          </div>
-        </>
-      ) : (
-        <div className="no-items">
-          <p>No marketplace items available at the moment. Check back soon!</p>
-          <div className="featured-cta">
-            <Link to="/marketplace" className="view-all-button">
-              Browse Marketplace
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
-            </Link>
+              <button className="buy-now-button">Buy Now</button>
+            </div>
           </div>
         </div>
-      )}
-    </section>
+      ))}
+    </div>
   );
 };
 
@@ -668,6 +671,7 @@ const Home = () => {
   const [featuredItems, setFeaturedItems] = useState([]);
   const [animationActive, setAnimationActive] = useState(false);
   const [particles, setParticles] = useState([]);
+  const navigate = useNavigate();
 
   // Check if user is logged in
   useEffect(() => {
@@ -739,31 +743,19 @@ const Home = () => {
   const fetchFeaturedItems = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/marketplace`);
-      
-      if (response.data && response.data.length > 0) {
-        // Get a selection of items to feature - prioritize higher value items
-        const itemsToShow = response.data
-          .sort((a, b) => b.price - a.price) // Sort by price descending
-          .slice(0, 6); // Take top 6 items
-          
-        setFeaturedItems(itemsToShow);
-        
-        // Set stats based on actual data
-        setStats({
-          items: response.data.length || 0,
-          users: response.data.length > 0 ? Math.ceil(response.data.length * 0.8) : 0,
-          trades: response.data.length > 0 ? Math.ceil(response.data.length * 0.5) : 0
-        });
-      } else {
-        // No items from API, show empty state
-        setFeaturedItems([]);
-        setStats({
-          items: 0,
-          users: 0,
-          trades: 0
-        });
+      const response = await fetch('/api/items/featured');
+      if (!response.ok) {
+        throw new Error('Failed to fetch featured items');
       }
+      const data = await response.json();
+      setFeaturedItems(data);
+      
+      // Set stats based on actual data
+      setStats({
+        items: data.length || 0,
+        users: data.length > 0 ? Math.ceil(data.length * 0.8) : 0,
+        trades: data.length > 0 ? Math.ceil(data.length * 0.5) : 0
+      });
     } catch (error) {
       console.error('Error fetching featured items:', error);
       // Keeps featured items empty rather than using fallbacks
@@ -804,7 +796,7 @@ const Home = () => {
       
       <HeroSection user={user} stats={stats} animationActive={animationActive} />
       <SearchSection />
-      <FeaturedItemsSection loading={loading} featuredItems={featuredItems} />
+      <FeaturedItemsSection />
       <TradingStatsSection />
       <FeaturesSection />
       <HowItWorksSection />

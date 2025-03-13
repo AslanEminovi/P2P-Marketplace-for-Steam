@@ -5,9 +5,16 @@ html, body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  overflow-y: auto; /* Make sure vertical scrolling is enabled */
   /* Ensure smooth momentum scrolling on all browsers, especially for trackpad users */
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+}
+
+/* Reset any potential scrolling restrictions */
+body {
+  overscroll-behavior: auto; /* Allow normal overscroll effects */
+  touch-action: pan-y; /* Enable vertical touch scrolling */
 }
 
 /* Improve scrolling performance by fixing layout shifts */
@@ -19,18 +26,37 @@ html, body {
 
 /* CS2 Marketplace Design - Base Styles */
 :root {
-  /* Primary colors - dark purple theme with better contrast */
-  --primary-color: #8e24aa;
-  --primary-dark: #5c007a;
-  --primary-light: #c158dc;
-  --primary-glow: rgba(142, 36, 170, 0.6);
+  /* Apple-inspired gradient angles */
+  --mx-chip-gradient-angle: 97deg;
+  --mx-ultra-gradient-stop-1: 0%;
+  --mx-ultra-gradient-stop-2: 20%;
+  --mx-ultra-gradient-stop-3: 40%;
+  --mx-ultra-gradient-stop-4: 60%;
+  --mx-ultra-gradient-stop-5: 80%;
+  --mx-ultra-gradient-stop-6: 100%;
   
-  /* Gradient colors - more vivid */
-  --gradient-start: #c158dc;
-  --gradient-mid: #9c27b0;
-  --gradient-end: #7b1fa2;
+  /* Apple color scheme */
+  --primary-gradient: linear-gradient(97deg, #0096FF, #BB64FF 42%, #F2416B 74%, #EB7500);
+  --ultra-gradient: linear-gradient(var(--mx-chip-gradient-angle), 
+                                  #FFF3E5 var(--mx-ultra-gradient-stop-1), 
+                                  #F6CFB4 var(--mx-ultra-gradient-stop-2), 
+                                  #EEA4BC var(--mx-ultra-gradient-stop-3), 
+                                  #A18CFF var(--mx-ultra-gradient-stop-4), 
+                                  #64A8FF var(--mx-ultra-gradient-stop-5), 
+                                  #C7F8FF var(--mx-ultra-gradient-stop-6));
   
-  /* Surface colors - increased contrast */
+  /* Primary colors based on Apple scheme */
+  --primary-color: #BB64FF;
+  --primary-dark: #8E24AA;
+  --primary-light: #C7F8FF;
+  --primary-glow: rgba(187, 100, 255, 0.6);
+  
+  /* Gradient colors - Apple inspired */
+  --gradient-start: #0096FF;
+  --gradient-mid: #BB64FF;
+  --gradient-end: #F2416B;
+  
+  /* Surface colors */
   --surface-dark: #121212;
   --surface-medium: #1e1e1e;
   --surface-light: #2d2d2d;
@@ -63,20 +89,21 @@ html, body {
   --transition-medium: 0.25s ease;
   --transition-slow: 0.4s ease;
 
-  /* Enhanced color scheme with more game-like colors */
-  --accent-blue: #2196f3;
-  --accent-orange: #ff9800;
-  --accent-green: #00e676;
-  --accent-red: #f44336;
+  /* Enhanced color scheme with Apple-inspired colors */
+  --accent-blue: #0096FF;
+  --accent-orange: #EB7500;
+  --accent-purple: #BB64FF;
+  --accent-red: #F2416B;
   
-  /* Gradients with more vibrant colors */
-  --gradient-blue: linear-gradient(135deg, #2196f3, #0d47a1);
-  --gradient-orange: linear-gradient(135deg, #ff9800, #e65100);
-  --gradient-purple: linear-gradient(135deg, #c158dc, #5c007a);
+  /* Gradients with Apple-inspired colors */
+  --gradient-blue: linear-gradient(135deg, #0096FF, #64A8FF);
+  --gradient-orange: linear-gradient(135deg, #EB7500, #F6CFB4);
+  --gradient-purple: linear-gradient(135deg, #BB64FF, #A18CFF);
   
   /* Glow effects */
-  --blue-glow: rgba(33, 150, 243, 0.6);
-  --orange-glow: rgba(255, 152, 0, 0.6);
+  --blue-glow: rgba(0, 150, 255, 0.6);
+  --orange-glow: rgba(235, 117, 0, 0.6);
+  --purple-glow: rgba(187, 100, 255, 0.6);
 
   /* Scroll animation offsets */
   --scroll-offset: 100px;
@@ -89,10 +116,12 @@ html, body {
   position: relative;
   overflow-x: hidden;
   width: 100%;
-  /* Prevent scroll jitter */
-  will-change: transform;
-  /* Hardware acceleration for smoother scrolling */
-  transform: translateZ(0);
+  /* Ensure content is scrollable */
+  height: auto;
+  min-height: 100vh;
+  /* Remove properties that might interfere with scrolling */
+  transform: none;
+  will-change: auto;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -117,12 +146,14 @@ html, body {
   z-index: 0;
 }
 
-/* Enhanced gradient text */
+/* Enhanced gradient text with Apple-inspired gradient */
 .gradient-text {
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+  background: var(--primary-gradient);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
   display: inline-block;
   position: relative;
 }
@@ -134,7 +165,7 @@ html, body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+  background: var(--primary-gradient);
   filter: blur(15px);
   opacity: 0.4;
   z-index: -1;
@@ -160,14 +191,14 @@ html, body {
   max-width: 380px;
   width: 100%;
   height: auto;
-  filter: drop-shadow(0 0 20px rgba(114, 47, 247, 0.5));
+  filter: drop-shadow(0 0 20px var(--purple-glow));
   transition: transform 0.3s ease-in-out;
   animation: float 3s ease-in-out infinite;
 }
 
 .hero-image:hover {
   transform: scale(1.05);
-  filter: drop-shadow(0 0 25px var(--primary-glow));
+  filter: drop-shadow(0 0 25px var(--purple-glow));
 }
 
 /* Features section */
@@ -217,7 +248,7 @@ html, body {
 .feature-icon {
   width: 60px;
   height: 60px;
-  background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+  background: var(--primary-gradient);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -226,8 +257,8 @@ html, body {
   color: white;
   position: relative;
   z-index: 1;
-  box-shadow: 0 5px 15px rgba(142, 36, 170, 0.3);
-  transition: transform 0.15s ease, box-shadow 0.15s ease; /* Even faster transition */
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .feature-icon::before {
@@ -237,7 +268,7 @@ html, body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  background: var(--primary-gradient);
   border-radius: 12px;
   opacity: 0.7;
   z-index: -1;
@@ -349,8 +380,7 @@ html, body {
   height: 100%;
   display: flex;
   flex-direction: column;
-  /* Hardware acceleration */
-  transform: translateZ(0);
+  transform: none; /* Remove transform to avoid scroll issues */
 }
 
 .item-card:hover {
@@ -364,8 +394,9 @@ html, body {
   overflow: hidden;
   position: relative;
   background: var(--surface-dark);
-  /* Prevent content paint during scroll */
-  contain: paint;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .item-card-image img {
@@ -425,8 +456,9 @@ html, body {
   color: var(--primary-light);
 }
 
+/* Buy now button with Apple-inspired gradient */
 .buy-now-button {
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  background: var(--primary-gradient);
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 30px;
@@ -437,12 +469,12 @@ html, body {
   border: none;
   cursor: pointer;
   text-align: center;
-  box-shadow: 0 2px 10px rgba(142, 36, 170, 0.3);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .buy-now-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(142, 36, 170, 0.5);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
 }
 
 /* Loading animation for featured items */
@@ -457,7 +489,7 @@ html, body {
 .spinner {
   width: 50px;
   height: 50px;
-  border: 5px solid rgba(142, 36, 170, 0.1);
+  border: 5px solid rgba(187, 100, 255, 0.1);
   border-top: 5px solid var(--primary-color);
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -477,14 +509,15 @@ html, body {
   right: 0;
   z-index: 1000;
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
-  background-color: rgba(18, 18, 18, 0.1); /* Much more transparent when at top */
+  background-color: rgba(18, 18, 18, 0.8); /* More visible even at top */
   padding: 1rem 2rem;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .navbar.scrolled {
   background-color: rgba(18, 18, 18, 0.95);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 /* CS2 Logo styles - bigger and without container */
@@ -859,7 +892,7 @@ section:hover::after {
 
 /* Add accent to CS2 text */
 .hero-title .gradient-text {
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+  background: var(--primary-gradient);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -907,10 +940,12 @@ section:hover::after {
 
 /* Enhanced gradient text with better visibility */
 .gradient-text {
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+  background: var(--primary-gradient);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
   display: inline-block;
   position: relative;
   text-shadow: 0 0 2px rgba(142, 36, 170, 0.3);
@@ -923,7 +958,7 @@ section:hover::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+  background: var(--primary-gradient);
   filter: blur(15px);
   opacity: 0.4;
   z-index: -1;
@@ -1015,14 +1050,14 @@ section:hover::after {
   max-width: 380px;
   width: 100%;
   height: auto;
-  filter: drop-shadow(0 0 20px rgba(114, 47, 247, 0.5));
+  filter: drop-shadow(0 0 20px var(--purple-glow));
   transition: transform 0.3s ease-in-out;
   animation: float 3s ease-in-out infinite;
 }
 
 .hero-image:hover {
   transform: scale(1.05);
-  filter: drop-shadow(0 0 25px var(--primary-glow));
+  filter: drop-shadow(0 0 25px var(--purple-glow));
 }
 
 /* Updated primary button with better contrast */
@@ -1031,21 +1066,18 @@ section:hover::after {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-  color: var(--text-primary);
+  padding: 0.8rem 1.5rem;
+  background: var(--primary-gradient);
+  color: white;
   font-weight: 600;
-  border-radius: 8px;
-  border: 1px solid var(--border-medium);
+  border-radius: 30px;
+  border: none;
   cursor: pointer;
-  transition: var(--transition-fast);
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(142, 36, 170, 0.4);
-  text-decoration: none;
   z-index: 1;
-  font-size: 1rem;
-  letter-spacing: 0.5px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .primary-button::before {
@@ -1055,7 +1087,7 @@ section:hover::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  background: var(--primary-gradient);
   opacity: 0;
   transition: opacity var(--transition-fast);
   z-index: -1;
@@ -1063,7 +1095,7 @@ section:hover::after {
 
 .primary-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(142, 36, 170, 0.5);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 
 .primary-button:hover::before {
@@ -1266,7 +1298,7 @@ section:hover::after {
 .feature-icon {
   width: 60px;
   height: 60px;
-  background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+  background: var(--primary-gradient);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -1275,8 +1307,8 @@ section:hover::after {
   color: white;
   position: relative;
   z-index: 1;
-  box-shadow: 0 5px 15px rgba(142, 36, 170, 0.3);
-  transition: transform 0.15s ease, box-shadow 0.15s ease; /* Even faster transition */
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .feature-icon::before {
@@ -1286,7 +1318,7 @@ section:hover::after {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  background: var(--primary-gradient);
   border-radius: 12px;
   opacity: 0.7;
   z-index: -1;
@@ -1611,7 +1643,7 @@ section:hover::after {
 }
 
 .particle:nth-child(4n) {
-  background: var(--accent-green);
+  background: var(--accent-purple);
   width: 3px;
   height: 3px;
   animation-duration: 20s;
@@ -1709,7 +1741,7 @@ section:hover::after {
 .stat-highlight {
   font-size: 1.8rem;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  background: var(--primary-gradient);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -1810,8 +1842,9 @@ section:hover::after {
   font-size: 22px;
   font-weight: 700;
   margin-bottom: 15px;
-  background: linear-gradient(90deg, #8e2de2, #4a00e0);
+  background: var(--primary-gradient);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -1964,14 +1997,14 @@ section:hover::after {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(142, 36, 170, 0.5);
+  background: rgba(187, 100, 255, 0.5);
   border-radius: 7px;
   border: 3px solid transparent;
   background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(142, 36, 170, 0.8);
+  background: rgba(187, 100, 255, 0.8);
   border: 3px solid transparent;
   background-clip: padding-box;
 }
