@@ -19,7 +19,8 @@
     "react-router-dom": "^6.8.2",
     "react-scripts": "5.0.1",
     "socket.io-client": "^4.8.1",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "yocto-queue": "^1.2.0"
   },
   "scripts": {
     "start": "react-scripts start",
