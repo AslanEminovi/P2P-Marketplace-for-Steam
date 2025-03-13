@@ -197,6 +197,10 @@
   padding: 0.4rem;
   border-radius: 8px;
   transition: all 0.2s ease;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
 }
 
 .user-profile:hover {
@@ -241,7 +245,7 @@
   transition: transform 0.2s ease;
 }
 
-.user-profile:hover .dropdown-arrow svg {
+.dropdown-arrow.active svg {
   transform: rotate(180deg);
 }
 
@@ -256,28 +260,29 @@
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-  animation: dropdownFadeIn 0.2s ease forwards;
-  z-index: 1001;
+  z-index: 1002;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+  pointer-events: none;
+}
+
+/* Important: This makes the dropdown visible when needed */
+.dropdown-menu.dropdown-visible {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
-  display: block;
-}
-
-/* Ensure the dropdown is clickable */
-.navbar .dropdown-menu {
   pointer-events: auto;
 }
 
-@keyframes dropdownFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* Additional selector to force visibility in case of CSS conflicts */
+.user-profile-wrapper.dropdown-active .dropdown-menu {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateY(0) !important;
+  pointer-events: auto !important;
+  display: block !important;
 }
 
 .dropdown-header {
