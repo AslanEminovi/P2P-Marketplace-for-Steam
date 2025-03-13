@@ -24,8 +24,25 @@ const Navbar = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await axios.get(`${API_URL}/auth/me`, { withCredentials: true });
+        // Get token from localStorage if available
+        const authToken = localStorage.getItem('auth_token');
+        const config = {
+          withCredentials: true,
+          params: {}
+        };
+        
+        // Include token in request if available
+        if (authToken) {
+          config.params.auth_token = authToken;
+          console.log("Including auth token in request:", authToken.substring(0, 4) + "...");
+        }
+        
+        // Make request with proper configuration
+        const response = await axios.get(`${API_URL}/auth/me`, config);
+        console.log("Auth response:", response.data);
+        
         if (response.data && response.data.user) {
+          console.log("Setting user data from /auth/me:", response.data.user);
           setUser(response.data.user);
         }
       } catch (error) {

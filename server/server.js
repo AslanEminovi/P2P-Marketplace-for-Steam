@@ -73,8 +73,15 @@ app.use(
     origin: config.CLIENT_URL,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+    ],
     exposedHeaders: ["set-cookie"],
+    maxAge: 86400, // 24 hours in seconds
   })
 );
 
@@ -95,12 +102,13 @@ const sessionMiddleware = session({
   resave: true, // Changed to true to ensure session is saved
   saveUninitialized: true, // Changed to true to create session for all users
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24, // 1 day
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     secure: process.env.NODE_ENV === "production", // Set true in production
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Needed for cross-site cookie in production
     httpOnly: true, // Prevents client-side JS from reading the cookie
     // Let the browser handle cookie domain
     domain: undefined,
+    path: "/",
   },
 });
 
@@ -115,6 +123,7 @@ console.log(
   process.env.NODE_ENV === "production" ? "none" : "lax"
 );
 console.log("- Cookie domain: undefined (browser will handle)");
+console.log("- Cookie path: /");
 console.log(
   "- Session secret length:",
   process.env.SESSION_SECRET ? process.env.SESSION_SECRET.length : "not set"
@@ -126,9 +135,12 @@ app.use(sessionMiddleware);
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Log the Frontend client URL for debugging
+console.log("Frontend client URL:", config.CLIENT_URL);
+
 // Create a simple token cache to reduce database lookups
 const tokenCache = new Map();
-const TOKEN_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+const TOKEN_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours for token cache
 
 // Middleware to check for token authentication
 app.use(async (req, res, next) => {
@@ -403,3 +415,13 @@ process.on("SIGTERM", () => {
     });
   });
 });
+
+// Log CORS settings
+console.log("Environment:", isProduction ? "production" : "development");
+console.log("CLIENT_URL:", config.CLIENT_URL);
+console.log("CORS origin:", config.CLIENT_URL);
+console.log("Cookie secure:", process.env.NODE_ENV === "production");
+console.log(
+  "Cookie sameSite:",
+  process.env.NODE_ENV === "production" ? "none" : "lax"
+);
