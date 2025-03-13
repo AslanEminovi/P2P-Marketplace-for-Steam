@@ -158,7 +158,7 @@ const Navbar = () => {
       <div className="navbar-container">
         <div className="navbar-left">
           <Link to="/" className="navbar-logo">
-            {/* Replace image with text-only logo */}
+            {/* Text-only logo on one line */}
             <span className="logo-text">CS2 Market</span>
           </Link>
           
