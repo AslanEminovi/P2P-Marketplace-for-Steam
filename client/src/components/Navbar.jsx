@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { API_URL } from '../config/constants';
@@ -15,6 +15,7 @@ const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   
   // Refs for click outside detection
   const dropdownRef = useRef(null);
@@ -116,24 +117,32 @@ const Navbar = () => {
     
     console.log("Rendering dropdown menu, visible:", dropdownOpen);
     
-    // Simplified click handler - just closes the dropdown
-    const handleItemClick = () => {
-      console.log("Menu item clicked, closing dropdown");
-      setDropdownOpen(false);
+    // Modified click handler - navigate programmatically
+    const handleItemClick = (e, path) => {
+      e.stopPropagation(); // Only stop propagation, don't prevent default
+      console.log("Menu item clicked, will navigate to:", path);
+      setTimeout(() => {
+        setDropdownOpen(false);
+        navigate(path);
+      }, 50);
     };
     
-    // Handle logout
-    const handleLogout = () => {
+    // Handle logout with stop propagation
+    const handleLogout = (e) => {
+      e.stopPropagation(); // Only stop propagation, don't prevent default
       console.log("Logout clicked");
-      setDropdownOpen(false);
-      // Redirect to logout URL
-      window.location.href = `${API_URL}/auth/logout`;
+      setTimeout(() => {
+        setDropdownOpen(false);
+        // Redirect to logout URL
+        window.location.href = `${API_URL}/auth/logout`;
+      }, 50);
     };
     
     return (
       <div 
         ref={dropdownRef}
         className="dropdown-container"
+        onClick={(e) => e.stopPropagation()} // Stop clicks inside dropdown from bubbling
         style={{
           position: 'absolute',
           top: 'calc(100% + 8px)',
@@ -170,9 +179,8 @@ const Navbar = () => {
         
         <div style={{ padding: '8px' }}>
           {/* Profile Link */}
-          <Link 
-            to="/profile" 
-            onClick={handleItemClick}
+          <button 
+            onClick={(e) => handleItemClick(e, '/profile')}
             className="dropdown-menu-link"
             style={{
               display: 'flex',
@@ -185,7 +193,12 @@ const Navbar = () => {
               transition: 'all 0.2s ease',
               fontSize: '14px',
               marginBottom: '4px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              background: 'none',
+              border: 'none',
+              width: '100%',
+              textAlign: 'left',
+              fontFamily: 'inherit'
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -193,12 +206,11 @@ const Navbar = () => {
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
             My Profile
-          </Link>
+          </button>
           
           {/* Inventory Link */}
-          <Link 
-            to="/inventory" 
-            onClick={handleItemClick}
+          <button 
+            onClick={(e) => handleItemClick(e, '/inventory')}
             className="dropdown-menu-link"
             style={{
               display: 'flex',
@@ -211,7 +223,12 @@ const Navbar = () => {
               transition: 'all 0.2s ease',
               fontSize: '14px',
               marginBottom: '4px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              background: 'none',
+              border: 'none',
+              width: '100%',
+              textAlign: 'left',
+              fontFamily: 'inherit'
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -221,12 +238,11 @@ const Navbar = () => {
               <line x1="16" y1="16" x2="8" y2="16"></line>
             </svg>
             My Inventory
-          </Link>
+          </button>
           
           {/* Trades Link */}
-          <Link 
-            to="/trades" 
-            onClick={handleItemClick}
+          <button 
+            onClick={(e) => handleItemClick(e, '/trades')}
             className="dropdown-menu-link"
             style={{
               display: 'flex',
@@ -239,7 +255,12 @@ const Navbar = () => {
               transition: 'all 0.2s ease',
               fontSize: '14px',
               marginBottom: '4px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              background: 'none',
+              border: 'none',
+              width: '100%',
+              textAlign: 'left',
+              fontFamily: 'inherit'
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -249,12 +270,11 @@ const Navbar = () => {
               <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
             </svg>
             My Trades
-          </Link>
+          </button>
           
           {/* Settings Link */}
-          <Link 
-            to="/settings" 
-            onClick={handleItemClick}
+          <button 
+            onClick={(e) => handleItemClick(e, '/settings')}
             className="dropdown-menu-link"
             style={{
               display: 'flex',
@@ -267,7 +287,12 @@ const Navbar = () => {
               transition: 'all 0.2s ease',
               fontSize: '14px',
               marginBottom: '4px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              background: 'none',
+              border: 'none',
+              width: '100%',
+              textAlign: 'left',
+              fontFamily: 'inherit'
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -275,7 +300,7 @@ const Navbar = () => {
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
             </svg>
             Settings
-          </Link>
+          </button>
           
           <div style={{
             height: '1px',
@@ -317,9 +342,9 @@ const Navbar = () => {
     );
   };
   
-  // NEW IMPLEMENTATION: Simplified dropdown toggle
+  // NEW IMPLEMENTATION: Improved dropdown toggle with stop propagation
   const toggleDropdown = (e) => {
-    e.stopPropagation(); // Prevent event bubbling
+    e.stopPropagation(); // Only stop propagation, don't prevent default
     console.log("BEFORE toggle - dropdown state:", dropdownOpen);
     setDropdownOpen(!dropdownOpen);
     console.log("AFTER toggle - dropdown state will be:", !dropdownOpen);
