@@ -72,30 +72,27 @@ const Navbar = () => {
     };
   }, []);
   
-  // NEW IMPLEMENTATION: Handle click outside of dropdown with improved event capture
+  // Handle dropdown visibility and outside clicks
   useEffect(() => {
     function handleClickOutside(event) {
-      // Check if dropdown is open before doing anything
+      // Only handle outside clicks if dropdown is open
       if (!dropdownOpen) return;
       
-      // Don't close if clicking the profile button
+      // Don't close if clicking the profile button itself
       if (profileBtnRef.current && profileBtnRef.current.contains(event.target)) {
-        console.log("Click on profile button - keeping dropdown open");
         return;
       }
       
-      // Don't close if clicking inside the dropdown
+      // Don't close if clicking inside the dropdown menu
       if (dropdownRef.current && dropdownRef.current.contains(event.target)) {
-        console.log("Click inside dropdown - keeping dropdown open");
         return;
       }
-      
-      // Only close if clicking outside both the dropdown and the profile button
-      console.log("Click detected outside dropdown - closing dropdown");
+
+      // Close dropdown for clicks outside both elements
       setDropdownOpen(false);
     }
     
-    // Use capture phase to ensure our handler runs before others
+    // Use capture phase for better handling
     document.addEventListener("mousedown", handleClickOutside, true);
     
     return () => {
@@ -117,240 +114,9 @@ const Navbar = () => {
     }
   }, [user]);
   
-  // NEW IMPLEMENTATION: Separate dropdown component with better event handling
-  const ProfileDropdown = () => {
-    const navigate = useNavigate();
-    
-    // Don't render if dropdown isn't open
-    if (!dropdownOpen) return null;
-    
-    console.log("Rendering dropdown menu, visible:", dropdownOpen);
-    
-    // Handler for navigation items - uses mouse events for better response
-    const handleNavigate = (e, path) => {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log("Menu item clicked, will navigate to:", path);
-      
-      // Close dropdown and navigate with a slight delay to ensure event processing
-      setTimeout(() => {
-        setDropdownOpen(false);
-        navigate(path);
-      }, 100);
-    };
-    
-    // Handle logout with better event handling
-    const handleLogout = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log("Logout clicked");
-      
-      // Close dropdown and redirect with a slight delay to ensure event processing
-      setTimeout(() => {
-        setDropdownOpen(false);
-        window.location.href = `${API_URL}/auth/logout`;
-      }, 100);
-    };
-    
-    return (
-      <div 
-        ref={dropdownRef}
-        className="dropdown-container"
-        // Capture and stop all events from bubbling
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-        onMouseUp={(e) => e.stopPropagation()}
-        style={{
-          position: 'absolute',
-          top: 'calc(100% + 8px)',
-          right: 0,
-          width: '280px',
-          backgroundColor: '#151C2B',
-          border: '1px solid #3373F2',
-          borderRadius: '8px',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
-          zIndex: 9999
-        }}
-      >
-        <div style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid rgba(51, 115, 242, 0.3)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '4px'
-        }}>
-          <span style={{
-            fontWeight: 600,
-            color: '#FFFFFF',
-            fontSize: '14px'
-          }}>
-            {user.displayName}
-          </span>
-          <span style={{
-            fontSize: '12px',
-            color: '#BBC7DB'
-          }}>
-            {user.email || 'No email provided'}
-          </span>
-        </div>
-        
-        <div style={{ padding: '8px' }}>
-          {/* Profile Link - Now a button with onClick handler */}
-          <a 
-            href="/profile"
-            onClick={(e) => handleNavigate(e, '/profile')}
-            className="dropdown-menu-link"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '10px 12px',
-              color: '#BBC7DB',
-              textDecoration: 'none',
-              borderRadius: '6px',
-              transition: 'all 0.2s ease',
-              fontSize: '14px',
-              marginBottom: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            My Profile
-          </a>
-          
-          {/* Inventory Link - Now a button with onClick handler */}
-          <a 
-            href="/inventory"
-            onClick={(e) => handleNavigate(e, '/inventory')}
-            className="dropdown-menu-link"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '10px 12px',
-              color: '#BBC7DB',
-              textDecoration: 'none',
-              borderRadius: '6px',
-              transition: 'all 0.2s ease',
-              fontSize: '14px',
-              marginBottom: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="8" x2="8" y2="8"></line>
-              <line x1="16" y1="12" x2="8" y2="12"></line>
-              <line x1="16" y1="16" x2="8" y2="16"></line>
-            </svg>
-            My Inventory
-          </a>
-          
-          {/* Trades Link - Now a button with onClick handler */}
-          <a 
-            href="/trades"
-            onClick={(e) => handleNavigate(e, '/trades')}
-            className="dropdown-menu-link"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '10px 12px',
-              color: '#BBC7DB',
-              textDecoration: 'none',
-              borderRadius: '6px',
-              transition: 'all 0.2s ease',
-              fontSize: '14px',
-              marginBottom: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="17 1 21 5 17 9"></polyline>
-              <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-              <polyline points="7 23 3 19 7 15"></polyline>
-              <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-            </svg>
-            My Trades
-          </a>
-          
-          {/* Settings Link - Now a button with onClick handler */}
-          <a 
-            href="/settings"
-            onClick={(e) => handleNavigate(e, '/settings')}
-            className="dropdown-menu-link"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '10px 12px',
-              color: '#BBC7DB',
-              textDecoration: 'none',
-              borderRadius: '6px',
-              transition: 'all 0.2s ease',
-              fontSize: '14px',
-              marginBottom: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-            Settings
-          </a>
-          
-          <div style={{
-            height: '1px',
-            background: 'rgba(51, 115, 242, 0.3)',
-            margin: '8px 0'
-          }}></div>
-          
-          {/* Logout Button - Now an anchor with onClick handler */}
-          <a 
-            href="#logout"
-            onClick={handleLogout}
-            className="dropdown-menu-link logout"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '10px 12px',
-              color: '#BBC7DB',
-              textDecoration: 'none',
-              borderRadius: '6px',
-              transition: 'all 0.2s ease',
-              fontSize: '14px',
-              width: '100%',
-              textAlign: 'left',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontFamily: 'inherit'
-            }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-              <polyline points="16 17 21 12 16 7"></polyline>
-              <line x1="21" y1="12" x2="9" y2="12"></line>
-            </svg>
-            Log Out
-          </a>
-        </div>
-      </div>
-    );
-  };
-  
-  // Improved toggle function with better event handling
-  const toggleDropdown = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log("BEFORE toggle - dropdown state:", dropdownOpen);
-    setDropdownOpen(!dropdownOpen);
-    console.log("AFTER toggle - dropdown state will be:", !dropdownOpen);
+  // Simple toggle function - no prevent default to avoid issues
+  const toggleDropdown = () => {
+    setDropdownOpen(prev => !prev);
   };
   
   // Get user initials for avatar placeholder
@@ -443,36 +209,13 @@ const Navbar = () => {
                 <Link to="/add-funds" className="balance-add">+</Link>
               </div>
               
-              <div style={{ position: 'relative' }}>
+              <div className="dropdown-wrapper">
                 <button 
                   ref={profileBtnRef}
                   onClick={toggleDropdown}
-                  onMouseDown={(e) => e.stopPropagation()}
                   className="profile-button"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: '6px 10px',
-                    borderRadius: '6px',
-                    color: '#FFFFFF'
-                  }}
                 >
-                  <div className="user-avatar-container" style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    backgroundColor: '#3373F2',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 600,
-                    color: '#0A0E17',
-                    overflow: 'hidden'
-                  }}>
+                  <div className="user-avatar-container">
                     {user && (user.avatar || user.avatarUrl || user.avatarfull) ? (
                       <>
                         <img 
@@ -491,10 +234,7 @@ const Navbar = () => {
                     )}
                   </div>
                   <span className="desktop-only">{user.displayName}</span>
-                  <div className={`dropdown-arrow ${dropdownOpen ? 'active' : ''}`} style={{
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}>
+                  <div className={`dropdown-arrow ${dropdownOpen ? 'active' : ''}`}>
                     <svg 
                       xmlns="http://www.w3.org/2000/svg" 
                       width="18" 
@@ -511,8 +251,70 @@ const Navbar = () => {
                   </div>
                 </button>
                 
-                {/* Render the dropdown if it's open */}
-                {dropdownOpen && <ProfileDropdown />}
+                {dropdownOpen && (
+                  <div 
+                    ref={dropdownRef}
+                    className="user-dropdown"
+                  >
+                    <div className="dropdown-header">
+                      <span className="dropdown-username">{user.displayName}</span>
+                      <span className="dropdown-email">{user.email || 'No email provided'}</span>
+                    </div>
+                    
+                    <div className="dropdown-menu-items">
+                      <NavLink to="/profile" className="dropdown-menu-item" onClick={() => setDropdownOpen(false)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                          <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        My Profile
+                      </NavLink>
+                      
+                      <NavLink to="/inventory" className="dropdown-menu-item" onClick={() => setDropdownOpen(false)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                          <line x1="16" y1="8" x2="8" y2="8"></line>
+                          <line x1="16" y1="12" x2="8" y2="12"></line>
+                          <line x1="16" y1="16" x2="8" y2="16"></line>
+                        </svg>
+                        My Inventory
+                      </NavLink>
+                      
+                      <NavLink to="/trades" className="dropdown-menu-item" onClick={() => setDropdownOpen(false)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="17 1 21 5 17 9"></polyline>
+                          <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                          <polyline points="7 23 3 19 7 15"></polyline>
+                          <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                        </svg>
+                        My Trades
+                      </NavLink>
+                      
+                      <NavLink to="/settings" className="dropdown-menu-item" onClick={() => setDropdownOpen(false)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="3"></circle>
+                          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                        Settings
+                      </NavLink>
+                      
+                      <div className="dropdown-divider"></div>
+                      
+                      <a 
+                        href={`${API_URL}/auth/logout`}
+                        className="dropdown-menu-item logout"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                          <polyline points="16 17 21 12 16 7"></polyline>
+                          <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                        Log Out
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (

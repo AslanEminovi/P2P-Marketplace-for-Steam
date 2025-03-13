@@ -47,6 +47,8 @@
   padding: 0 2.5rem;
   max-width: 1440px;
   margin: 0 auto;
+  z-index: 100;
+  position: relative;
 }
 
 /* NAVBAR LOGO */
@@ -111,6 +113,8 @@
   align-items: center;
   justify-content: flex-end;
   flex: 1;
+  z-index: 100;
+  position: relative;
 }
 
 .navbar-link {
@@ -167,6 +171,8 @@
   align-items: center;
   gap: 1.5rem;
   justify-content: flex-end;
+  z-index: 100;
+  position: relative;
 }
 
 .balance-display {
@@ -371,6 +377,7 @@
   display: flex;
   align-items: center;
   transition: transform 0.3s ease;
+  pointer-events: none;
 }
 
 .dropdown-arrow svg {
@@ -733,11 +740,19 @@
 
 /* Profile Button */
 .profile-button {
-  transition: background-color 0.2s ease;
-  height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
   cursor: pointer;
-  user-select: none; /* Prevent text selection */
-  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: #FFFFFF;
+  height: 42px;
+  transition: background-color 0.2s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .profile-button:hover {
@@ -750,13 +765,130 @@
 
 /* Improved dropdown arrow */
 .dropdown-arrow {
+  display: flex;
+  align-items: center;
   transition: transform 0.3s ease;
-  pointer-events: none; /* Let clicks pass through to button */
+  pointer-events: none;
 }
 
 .dropdown-arrow.active svg {
   transform: rotate(180deg);
 }
+
+/* Dropdown Wrapper */
+.dropdown-wrapper {
+  position: relative;
+}
+
+/* User Avatar */
+.user-avatar-container {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #3373F2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #0A0E17;
+  overflow: hidden;
+}
+
+/* User Dropdown Menu */
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  background-color: #151C2B;
+  border: 1px solid #3373F2;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+  z-index: 10000;
+  overflow: hidden;
+}
+
+.dropdown-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(51, 115, 242, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dropdown-username {
+  font-weight: 600;
+  color: #FFFFFF;
+  font-size: 14px;
+}
+
+.dropdown-email {
+  font-size: 12px;
+  color: #BBC7DB;
+}
+
+.dropdown-menu-items {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  color: #BBC7DB;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: transparent;
+  border: none;
+  text-align: left;
+  font-family: inherit;
+}
+
+.dropdown-menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+}
+
+.dropdown-menu-item:active {
+  background-color: rgba(255, 255, 255, 0.3);
+  transform: scale(0.98);
+}
+
+.dropdown-menu-item.logout:hover {
+  color: #FF4B6E;
+  background-color: rgba(255, 75, 110, 0.15);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: rgba(51, 115, 242, 0.3);
+  margin: 8px 0;
+}
+
+/* Fix z-index stacking */
+.navbar-container {
+  z-index: 100;
+  position: relative;
+}
+
+.navbar-right {
+  z-index: 100;
+  position: relative;
+}
+
+.user-section {
+  z-index: 100;
+  position: relative;
+}
+
+/* Removed redundant styles */
 
 /* Ensure dropdown container has correct behavior */
 div[style*="position: relative"] {
