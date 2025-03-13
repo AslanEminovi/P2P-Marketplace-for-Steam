@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/static/css/main.a6c33a60.css",
+    "main.js": "/static/js/main.747c8e92.js",
+    "static/media/cs-logo.png": "/static/media/cs-logo.a112796d6f3cb4bbaad9.png",
+    "static/media/cyber-grid.png": "/static/media/cyber-grid.ede9a28ab58aefbce5ef.png",
+    "index.html": "/index.html",
+    "main.a6c33a60.css.map": "/static/css/main.a6c33a60.css.map",
+    "main.747c8e92.js.map": "/static/js/main.747c8e92.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.a6c33a60.css",
+    "static/js/main.747c8e92.js"
+  ]
+}
