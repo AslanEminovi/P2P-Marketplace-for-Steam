@@ -53,12 +53,6 @@ function Navbar({ user, onLogout }) {
             <Link to="/marketplace" className={`navbar-link ${location.pathname === '/marketplace' ? 'active' : ''}`}>
               Marketplace
             </Link>
-            <Link to="/inventory" className={`navbar-link ${location.pathname === '/inventory' ? 'active' : ''}`}>
-              Inventory
-            </Link>
-            <Link to="/trades" className={`navbar-link ${location.pathname === '/trades' ? 'active' : ''}`}>
-              Trades
-            </Link>
           </div>
         </div>
         
@@ -82,7 +76,7 @@ function Navbar({ user, onLogout }) {
                     <circle cx="8" cy="12" r="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </span>
-                <span className="balance-amount">{formatCurrency(user.walletBalance)}</span>
+                <span className="balance-amount">{formatCurrency(user.walletBalance || 0)}</span>
                 <Link to="/wallet" className="balance-add">+</Link>
               </div>
               
@@ -93,7 +87,7 @@ function Navbar({ user, onLogout }) {
                 >
                   <div className="user-avatar">
                     {user.avatar ? (
-                      <img src={user.avatar} alt={user.name} />
+                      <img src={user.avatar} alt={user.name || 'User'} />
                     ) : (
                       <div className="avatar-placeholder">
                         {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
@@ -110,8 +104,8 @@ function Navbar({ user, onLogout }) {
                 {dropdownOpen && (
                   <div className="dropdown-menu">
                     <div className="dropdown-header">
-                      <span className="dropdown-username">{user.name}</span>
-                      <span className="dropdown-email">{user.email}</span>
+                      <span className="dropdown-username">{user.name || 'User'}</span>
+                      <span className="dropdown-email">{user.email || ''}</span>
                     </div>
                     
                     <div className="dropdown-links">
@@ -192,20 +186,20 @@ function Navbar({ user, onLogout }) {
           <Link to="/marketplace" className={`mobile-menu-link ${location.pathname === '/marketplace' ? 'active' : ''}`}>
             Marketplace
           </Link>
-          <Link to="/inventory" className={`mobile-menu-link ${location.pathname === '/inventory' ? 'active' : ''}`}>
-            Inventory
-          </Link>
-          <Link to="/trades" className={`mobile-menu-link ${location.pathname === '/trades' ? 'active' : ''}`}>
-            Trades
-          </Link>
           
           {user && (
             <>
               <Link to="/profile" className="mobile-menu-link">
                 My Profile
               </Link>
+              <Link to="/inventory" className="mobile-menu-link">
+                My Inventory
+              </Link>
+              <Link to="/trades" className="mobile-menu-link">
+                My Trades
+              </Link>
               <Link to="/wallet" className="mobile-menu-link">
-                My Wallet ({formatCurrency(user.walletBalance)})
+                My Wallet ({formatCurrency(user.walletBalance || 0)})
               </Link>
               <button className="mobile-menu-link logout-button" onClick={onLogout}>
                 Sign Out
