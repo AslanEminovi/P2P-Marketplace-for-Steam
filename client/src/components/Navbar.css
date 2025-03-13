@@ -379,7 +379,18 @@
 /* New dropdown menu link styles */
 .dropdown-menu-link {
   background-color: transparent;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  color: #BBC7DB;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  width: 100%;
 }
 
 .dropdown-menu-link:hover {
@@ -387,8 +398,22 @@
   color: #FFFFFF !important;
 }
 
+.dropdown-menu-link.logout {
+  color: #BBC7DB;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  background: none;
+}
+
 .dropdown-menu-link.logout:hover {
   color: #FF4B6E !important;
+}
+
+.dropdown-container {
+  overflow: hidden;
+  border: 1px solid #3373F2;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 /* SIGN IN BUTTON */
@@ -663,4 +688,21 @@
   .mobile-menu-link {
     padding: 0.875rem 1.25rem;
   }
+}
+
+/* Profile Button */
+.profile-button {
+  transition: background-color 0.2s ease;
+}
+
+.profile-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dropdown-arrow {
+  transition: transform 0.3s ease;
+}
+
+.dropdown-arrow.active svg {
+  transform: rotate(180deg);
 } 

@@ -116,41 +116,24 @@ const Navbar = () => {
     
     console.log("Rendering dropdown menu, visible:", dropdownOpen);
     
-    // Helper function for handling link clicks
-    const handleLinkClick = (e) => {
-      e.preventDefault(); // Prevent default behavior
-      e.stopPropagation(); // Prevent event bubbling
-      
-      // Extract the path from the target
-      const path = e.currentTarget.getAttribute('href');
-      console.log(`Link clicked: ${path}`);
-      
-      // Close dropdown first
+    // Simplified click handler - just closes the dropdown
+    const handleItemClick = () => {
+      console.log("Menu item clicked, closing dropdown");
       setDropdownOpen(false);
-      
-      // Navigate after a small delay to ensure dropdown is closed
-      setTimeout(() => {
-        window.location.href = path;
-      }, 10);
     };
     
     // Handle logout
-    const handleLogout = (e) => {
-      e.stopPropagation(); // Prevent event bubbling
+    const handleLogout = () => {
       console.log("Logout clicked");
       setDropdownOpen(false);
-      // Use a direct approach for logout
-      try {
-        window.location.href = `${API_URL}/auth/logout`;
-      } catch (error) {
-        console.error("Logout error:", error);
-      }
+      // Redirect to logout URL
+      window.location.href = `${API_URL}/auth/logout`;
     };
     
     return (
       <div 
         ref={dropdownRef}
-        onClick={(e) => e.stopPropagation()} // Prevent clicks inside dropdown from closing it
+        className="dropdown-container"
         style={{
           position: 'absolute',
           top: 'calc(100% + 8px)',
@@ -160,8 +143,7 @@ const Navbar = () => {
           border: '1px solid #3373F2',
           borderRadius: '8px',
           boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
-          zIndex: 9999,
-          overflow: 'hidden'
+          zIndex: 9999
         }}
       >
         <div style={{
@@ -188,9 +170,9 @@ const Navbar = () => {
         
         <div style={{ padding: '8px' }}>
           {/* Profile Link */}
-          <a 
-            href="/profile" 
-            onClick={handleLinkClick}
+          <Link 
+            to="/profile" 
+            onClick={handleItemClick}
             className="dropdown-menu-link"
             style={{
               display: 'flex',
@@ -211,12 +193,12 @@ const Navbar = () => {
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
             My Profile
-          </a>
+          </Link>
           
           {/* Inventory Link */}
-          <a 
-            href="/inventory" 
-            onClick={handleLinkClick}
+          <Link 
+            to="/inventory" 
+            onClick={handleItemClick}
             className="dropdown-menu-link"
             style={{
               display: 'flex',
@@ -239,12 +221,12 @@ const Navbar = () => {
               <line x1="16" y1="16" x2="8" y2="16"></line>
             </svg>
             My Inventory
-          </a>
+          </Link>
           
           {/* Trades Link */}
-          <a 
-            href="/trades" 
-            onClick={handleLinkClick}
+          <Link 
+            to="/trades" 
+            onClick={handleItemClick}
             className="dropdown-menu-link"
             style={{
               display: 'flex',
@@ -267,12 +249,12 @@ const Navbar = () => {
               <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
             </svg>
             My Trades
-          </a>
+          </Link>
           
           {/* Settings Link */}
-          <a 
-            href="/settings" 
-            onClick={handleLinkClick}
+          <Link 
+            to="/settings" 
+            onClick={handleItemClick}
             className="dropdown-menu-link"
             style={{
               display: 'flex',
@@ -293,7 +275,7 @@ const Navbar = () => {
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
             </svg>
             Settings
-          </a>
+          </Link>
           
           <div style={{
             height: '1px',
@@ -415,6 +397,7 @@ const Navbar = () => {
                 <button 
                   ref={profileBtnRef}
                   onClick={toggleDropdown}
+                  className="profile-button"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -424,17 +407,10 @@ const Navbar = () => {
                     cursor: 'pointer',
                     padding: '6px 10px',
                     borderRadius: '6px',
-                    transition: 'all 0.2s ease',
                     color: '#FFFFFF'
                   }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
                 >
-                  <div style={{
+                  <div className="user-avatar-container" style={{
                     width: '36px',
                     height: '36px',
                     borderRadius: '50%',
@@ -464,10 +440,9 @@ const Navbar = () => {
                     )}
                   </div>
                   <span className="desktop-only">{user.displayName}</span>
-                  <div style={{
+                  <div className={`dropdown-arrow ${dropdownOpen ? 'active' : ''}`} style={{
                     display: 'flex',
-                    alignItems: 'center',
-                    transition: 'transform 0.3s ease'
+                    alignItems: 'center'
                   }}>
                     <svg 
                       xmlns="http://www.w3.org/2000/svg" 
@@ -479,9 +454,6 @@ const Navbar = () => {
                       strokeWidth="2" 
                       strokeLinecap="round" 
                       strokeLinejoin="round"
-                      style={{
-                        transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
-                      }}
                     >
                       <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>
