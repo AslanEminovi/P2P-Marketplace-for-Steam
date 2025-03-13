@@ -228,10 +228,12 @@
 }
 
 .hero-stat-value {
-  font-size: 2.25rem;
+  font-size: 2.4rem;
   font-weight: 700;
   color: var(--gaming-text-bright);
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.15rem;
+  line-height: 1;
+  position: relative;
   background: var(--gaming-gradient-blue);
   -webkit-background-clip: text;
   background-clip: text;
@@ -1136,4 +1138,41 @@
   .final-cta-title {
     font-size: 2rem;
   }
+}
+
+/* Statistics Animation */
+.count-animation {
+  position: relative;
+  transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.count-animation:after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--gaming-gradient-blue);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.6s ease;
+}
+
+.count-animation.updating {
+  background: var(--gaming-accent-cyan);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transform: scale(1.1);
+}
+
+.count-animation.updating:after {
+  transform: scaleX(1);
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); color: var(--gaming-accent-cyan); }
+  100% { transform: scale(1); }
 }

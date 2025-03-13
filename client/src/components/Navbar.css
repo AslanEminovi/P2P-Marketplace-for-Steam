@@ -577,6 +577,7 @@
   overflow: hidden;
   letter-spacing: 0.5px;
   border: none;
+  white-space: nowrap; /* Ensure text stays on one line */
 }
 
 .sign-in-button::before {
