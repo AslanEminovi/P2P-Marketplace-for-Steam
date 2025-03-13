@@ -139,28 +139,18 @@ const Navbar = () => {
   };
   
   // Create a proper logout function that handles redirection
-  const handleLogout = async () => {
-    try {
-      // Close dropdown first
-      setDropdownOpen(false);
-      
-      // Make logout request
-      await axios.get(`${API_URL}/auth/logout`, { withCredentials: true });
-      
-      // Clear local storage
-      localStorage.removeItem('auth_token');
-      
-      // Update user state to null
-      setUser(null);
-      
-      // Redirect to homepage
-      navigate('/');
-      
-    } catch (error) {
-      console.error('Error during logout:', error);
-      // Redirect to homepage even if there's an error
-      navigate('/');
-    }
+  const handleLogout = () => {
+    // Close dropdown first
+    setDropdownOpen(false);
+    
+    // Clear local auth token
+    localStorage.removeItem('auth_token');
+    
+    // Update user state to null
+    setUser(null);
+    
+    // Navigate to homepage
+    window.location.href = '/';
   };
   
   return (
@@ -280,7 +270,6 @@ const Navbar = () => {
                   <div 
                     ref={dropdownRef}
                     className="user-dropdown"
-                    style={{ zIndex: 99999 }} // Ensure highest z-index possible for dropdown
                   >
                     <div className="dropdown-header">
                       <span className="dropdown-username">{user.displayName}</span>

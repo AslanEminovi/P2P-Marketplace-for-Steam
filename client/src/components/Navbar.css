@@ -804,7 +804,7 @@
   border: 1px solid #3373F2;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
-  z-index: 99999 !important; /* Make sure it's always on top */
+  z-index: 1001; /* Just slightly higher than navbar */
   overflow: hidden;
 }
 
@@ -850,7 +850,6 @@
   text-align: left;
   font-family: inherit;
   position: relative;
-  z-index: 99999 !important;
 }
 
 .dropdown-menu-item:hover {
@@ -874,51 +873,61 @@
   margin: 8px 0;
 }
 
-/* Fix z-index stacking */
-.navbar-container {
-  z-index: 100;
+/* Clean up redundant styles */
+.navbar-container, 
+.navbar-right, 
+.user-section,
+.dropdown-wrapper {
   position: relative;
 }
 
-.navbar-right {
-  z-index: 100;
+/* Reset any !important z-index values */
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  background-color: #151C2B;
+  border: 1px solid #3373F2;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+  z-index: 1001; /* Just slightly higher than navbar */
+  overflow: hidden;
+}
+
+/* Remove !important from menu items */
+.dropdown-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  color: #BBC7DB;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: transparent;
+  border: none;
+  text-align: left;
+  font-family: inherit;
   position: relative;
 }
 
-.user-section {
-  z-index: 100;
-  position: relative;
-}
-
-/* Removed redundant styles */
-
-/* Ensure dropdown container has correct behavior */
-div[style*="position: relative"] {
-  position: relative !important;
-  z-index: 1000;
-  pointer-events: auto !important;
-}
-
-/* Override any other z-index that might be interfering */
+/* Remove all the overriding z-index styles */
 .navbar,
 .navbar-container,
 .navbar-right,
 .user-section,
 .dropdown-wrapper {
-  z-index: 99990 !important; /* High z-index for nav elements */
-  position: relative;
+  z-index: auto; /* Let normal stacking context work */
 }
 
-/* Ensure inventory items don't overlap our dropdown */
+/* Remove the inventory item overrides */
 .inventory-item,
 .marketplace-item,
 .item-card,
 .featured-item {
-  z-index: 1 !important; /* Low z-index for inventory items */
-}
-
-/* Additional safety to make dropdown appear on top of everything */
-.dropdown-menu-item {
-  position: relative;
-  z-index: 99999 !important;
+  z-index: auto; /* Let normal stacking context work */
 } 
