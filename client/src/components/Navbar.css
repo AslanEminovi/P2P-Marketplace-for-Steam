@@ -376,6 +376,21 @@
   z-index: 100;
 }
 
+/* New dropdown menu link styles */
+.dropdown-menu-link {
+  background-color: transparent;
+  transition: all 0.2s ease;
+}
+
+.dropdown-menu-link:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #FFFFFF !important;
+}
+
+.dropdown-menu-link.logout:hover {
+  color: #FF4B6E !important;
+}
+
 /* SIGN IN BUTTON */
 .sign-in-button {
   display: flex;

@@ -74,10 +74,13 @@ const Navbar = () => {
   // NEW IMPLEMENTATION: Handle click outside of dropdown
   useEffect(() => {
     function handleClickOutside(event) {
-      if (dropdownRef.current && 
-          !dropdownRef.current.contains(event.target) && 
-          profileBtnRef.current && 
-          !profileBtnRef.current.contains(event.target)) {
+      // Don't close if clicking the profile button
+      if (profileBtnRef.current && profileBtnRef.current.contains(event.target)) {
+        return;
+      }
+      
+      // Close if clicking outside the dropdown
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         console.log("Click detected outside dropdown - closing dropdown");
         setDropdownOpen(false);
       }
@@ -107,42 +110,47 @@ const Navbar = () => {
     }
   }, [user]);
   
-  // NEW IMPLEMENTATION: Simplified dropdown toggle
-  const toggleDropdown = () => {
-    console.log("BEFORE toggle - dropdown state:", dropdownOpen);
-    setDropdownOpen(!dropdownOpen);
-    console.log("AFTER toggle - dropdown state will be:", !dropdownOpen);
-  };
-  
-  // Get user initials for avatar placeholder
-  const getUserInitials = () => {
-    if (!user || !user.displayName) return '?';
-    
-    const names = user.displayName.split(' ');
-    if (names.length >= 2) {
-      return `${names[0][0]}${names[1][0]}`.toUpperCase();
-    }
-    
-    return names[0][0].toUpperCase();
-  };
-  
-  // Format balance
-  const formatBalance = (balance) => {
-    if (!balance) return '0.00';
-    
-    return (balance / 100).toFixed(2);
-  };
-  
   // NEW IMPLEMENTATION: Separate dropdown component for better control
   const ProfileDropdown = () => {
     if (!dropdownOpen) return null;
     
     console.log("Rendering dropdown menu, visible:", dropdownOpen);
     
+    // Helper function for handling link clicks
+    const handleLinkClick = (e) => {
+      e.preventDefault(); // Prevent default behavior
+      e.stopPropagation(); // Prevent event bubbling
+      
+      // Extract the path from the target
+      const path = e.currentTarget.getAttribute('href');
+      console.log(`Link clicked: ${path}`);
+      
+      // Close dropdown first
+      setDropdownOpen(false);
+      
+      // Navigate after a small delay to ensure dropdown is closed
+      setTimeout(() => {
+        window.location.href = path;
+      }, 10);
+    };
+    
+    // Handle logout
+    const handleLogout = (e) => {
+      e.stopPropagation(); // Prevent event bubbling
+      console.log("Logout clicked");
+      setDropdownOpen(false);
+      // Use a direct approach for logout
+      try {
+        window.location.href = `${API_URL}/auth/logout`;
+      } catch (error) {
+        console.error("Logout error:", error);
+      }
+    };
+    
     return (
       <div 
         ref={dropdownRef}
-        className="dropdown-menu-container"
+        onClick={(e) => e.stopPropagation()} // Prevent clicks inside dropdown from closing it
         style={{
           position: 'absolute',
           top: 'calc(100% + 8px)',
@@ -179,9 +187,11 @@ const Navbar = () => {
         </div>
         
         <div style={{ padding: '8px' }}>
-          <Link 
-            to="/profile" 
-            onClick={() => setDropdownOpen(false)}
+          {/* Profile Link */}
+          <a 
+            href="/profile" 
+            onClick={handleLinkClick}
+            className="dropdown-menu-link"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -191,15 +201,9 @@ const Navbar = () => {
               textDecoration: 'none',
               borderRadius: '6px',
               transition: 'all 0.2s ease',
-              fontSize: '14px'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-              e.currentTarget.style.color = '#FFFFFF';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#BBC7DB';
+              fontSize: '14px',
+              marginBottom: '4px',
+              cursor: 'pointer'
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -207,11 +211,13 @@ const Navbar = () => {
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
             My Profile
-          </Link>
+          </a>
           
-          <Link 
-            to="/inventory" 
-            onClick={() => setDropdownOpen(false)}
+          {/* Inventory Link */}
+          <a 
+            href="/inventory" 
+            onClick={handleLinkClick}
+            className="dropdown-menu-link"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -221,15 +227,9 @@ const Navbar = () => {
               textDecoration: 'none',
               borderRadius: '6px',
               transition: 'all 0.2s ease',
-              fontSize: '14px'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-              e.currentTarget.style.color = '#FFFFFF';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#BBC7DB';
+              fontSize: '14px',
+              marginBottom: '4px',
+              cursor: 'pointer'
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -239,11 +239,13 @@ const Navbar = () => {
               <line x1="16" y1="16" x2="8" y2="16"></line>
             </svg>
             My Inventory
-          </Link>
+          </a>
           
-          <Link 
-            to="/trades" 
-            onClick={() => setDropdownOpen(false)}
+          {/* Trades Link */}
+          <a 
+            href="/trades" 
+            onClick={handleLinkClick}
+            className="dropdown-menu-link"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -253,15 +255,9 @@ const Navbar = () => {
               textDecoration: 'none',
               borderRadius: '6px',
               transition: 'all 0.2s ease',
-              fontSize: '14px'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-              e.currentTarget.style.color = '#FFFFFF';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#BBC7DB';
+              fontSize: '14px',
+              marginBottom: '4px',
+              cursor: 'pointer'
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -271,11 +267,13 @@ const Navbar = () => {
               <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
             </svg>
             My Trades
-          </Link>
+          </a>
           
-          <Link 
-            to="/settings" 
-            onClick={() => setDropdownOpen(false)}
+          {/* Settings Link */}
+          <a 
+            href="/settings" 
+            onClick={handleLinkClick}
+            className="dropdown-menu-link"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -285,15 +283,9 @@ const Navbar = () => {
               textDecoration: 'none',
               borderRadius: '6px',
               transition: 'all 0.2s ease',
-              fontSize: '14px'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-              e.currentTarget.style.color = '#FFFFFF';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#BBC7DB';
+              fontSize: '14px',
+              marginBottom: '4px',
+              cursor: 'pointer'
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -301,7 +293,7 @@ const Navbar = () => {
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
             </svg>
             Settings
-          </Link>
+          </a>
           
           <div style={{
             height: '1px',
@@ -309,11 +301,10 @@ const Navbar = () => {
             margin: '8px 0'
           }}></div>
           
+          {/* Logout Button */}
           <button 
-            onClick={() => {
-              setDropdownOpen(false);
-              window.location.href = `${API_URL}/auth/logout`;
-            }}
+            onClick={handleLogout}
+            className="dropdown-menu-link logout"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -331,14 +322,6 @@ const Navbar = () => {
               cursor: 'pointer',
               fontFamily: 'inherit'
             }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-              e.currentTarget.style.color = '#FF4B6E';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#BBC7DB';
-            }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -350,6 +333,33 @@ const Navbar = () => {
         </div>
       </div>
     );
+  };
+  
+  // NEW IMPLEMENTATION: Simplified dropdown toggle
+  const toggleDropdown = (e) => {
+    e.stopPropagation(); // Prevent event bubbling
+    console.log("BEFORE toggle - dropdown state:", dropdownOpen);
+    setDropdownOpen(!dropdownOpen);
+    console.log("AFTER toggle - dropdown state will be:", !dropdownOpen);
+  };
+  
+  // Get user initials for avatar placeholder
+  const getUserInitials = () => {
+    if (!user || !user.displayName) return '?';
+    
+    const names = user.displayName.split(' ');
+    if (names.length >= 2) {
+      return `${names[0][0]}${names[1][0]}`.toUpperCase();
+    }
+    
+    return names[0][0].toUpperCase();
+  };
+  
+  // Format balance
+  const formatBalance = (balance) => {
+    if (!balance) return '0.00';
+    
+    return (balance / 100).toFixed(2);
   };
   
   return (
