@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import socketService from './services/socketService';
 import { Toaster } from 'react-hot-toast';
 import AdminTools from './pages/AdminTools';
+import { AuthProvider } from './contexts/AuthContext';
 
 // Pages
 import Home from './pages/Home';
@@ -14,6 +15,8 @@ import MyListings from './pages/MyListings';
 import Profile from './pages/Profile';
 import TradeDetailPage from './pages/TradeDetailPage';
 import SteamSettingsPage from './pages/SteamSettings';
+import Login from './pages/Login';
+import Register from './pages/Register';
 
 // Components
 import Navbar from './components/Navbar';
@@ -341,176 +344,124 @@ function App() {
   }, [user]);
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
-      <Navbar user={user} onLogout={handleLogout} />
-      
-      {/* Toast notifications */}
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          success: {
-            duration: 3000,
-            style: {
-              background: '#166534',
-              color: '#fff',
+    <AuthProvider>
+      <div style={{ 
+        minHeight: '100vh', 
+        background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <Navbar user={user} onLogout={handleLogout} />
+        
+        {/* Toast notifications */}
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            success: {
+              duration: 3000,
+              style: {
+                background: '#166534',
+                color: '#fff',
+              },
             },
-          },
-          error: {
-            duration: 4000,
-            style: {
-              background: '#991b1b',
-              color: '#fff',
+            error: {
+              duration: 4000,
+              style: {
+                background: '#991b1b',
+                color: '#fff',
+              },
             },
-          },
-          warning: {
-            duration: 4000,
-            style: {
-              background: '#854d0e',
-              color: '#fff',
+            warning: {
+              duration: 4000,
+              style: {
+                background: '#854d0e',
+                color: '#fff',
+              },
             },
-          },
-        }}
-      />
-      
-      {/* WebSocket connection indicator */}
-      {user && (
-        <div 
-          style={{
-            position: 'fixed',
-            bottom: '10px',
-            right: '10px',
-            width: '10px',
-            height: '10px',
-            borderRadius: '50%',
-            backgroundColor: socketConnected ? '#4ade80' : '#ef4444',
-            boxShadow: `0 0 10px ${socketConnected ? 'rgba(74, 222, 128, 0.6)' : 'rgba(239, 68, 68, 0.6)'}`,
-            zIndex: 1000,
-            transition: 'all 0.3s ease'
           }}
-          title={socketConnected ? 'Real-time connection active' : 'Real-time connection inactive'}
         />
-      )}
-      
-      {/* Background patterns */}
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundImage: 'radial-gradient(circle at 15% 50%, rgba(74, 222, 128, 0.05) 0%, transparent 60%), radial-gradient(circle at 85% 30%, rgba(56, 189, 248, 0.05) 0%, transparent 60%)',
-        pointerEvents: 'none',
-        zIndex: 0
-      }} />
-      
-      {/* CSS for spinner animation */}
-      <style>
-        {`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-          .spinner {
-            animation: spin 1s linear infinite;
-          }
-          @keyframes pulse {
-            0%, 100% { opacity: 0.6; transform: scale(0.98); }
-            50% { opacity: 1; transform: scale(1); }
-          }
-          @keyframes gradientFlow {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-          }
-          .loading-text {
-            animation: pulse 2s ease-in-out infinite;
-          }
-          .loading-screen-background {
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95)), 
-                      repeating-linear-gradient(45deg, rgba(99, 102, 241, 0.05) 0px, rgba(99, 102, 241, 0.05) 1px, transparent 1px, transparent 10px);
-          }
-          .loading-logo {
-            animation: pulse 2s ease-in-out infinite;
-          }
-          .gradient-border {
-            position: relative;
-          }
-          .gradient-border::before {
-            content: '';
-            position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
-            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #C026D3 100%);
-            border-radius: 50%;
-            z-index: -1;
-            animation: gradientFlow 3s ease infinite;
-            background-size: 200% 200%;
-          }
-        `}
-      </style>
-      
-      {/* These UI controls will be moved to the Navbar */}
-      
-      <Suspense fallback={
-        <div className="loading-screen-background" style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center',
-          height: '100vh',
-          width: '100%',
+        
+        {/* WebSocket connection indicator */}
+        {user && (
+          <div 
+            style={{
+              position: 'fixed',
+              bottom: '10px',
+              right: '10px',
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              backgroundColor: socketConnected ? '#4ade80' : '#ef4444',
+              boxShadow: `0 0 10px ${socketConnected ? 'rgba(74, 222, 128, 0.6)' : 'rgba(239, 68, 68, 0.6)'}`,
+              zIndex: 1000,
+              transition: 'all 0.3s ease'
+            }}
+            title={socketConnected ? 'Real-time connection active' : 'Real-time connection inactive'}
+          />
+        )}
+        
+        {/* Background patterns */}
+        <div style={{
           position: 'fixed',
           top: 0,
           left: 0,
-          zIndex: 9999
-        }}>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '30px'
-          }}>
-            <div className="gradient-border" style={{
-              width: '80px',
-              height: '80px',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              padding: '15px',
-              borderRadius: '50%',
-              background: '#0F172A'
-            }}>
-              <div 
-                className="spinner"
-                style={{
-                  width: '60px',
-                  height: '60px',
-                  border: '4px solid rgba(255,255,255,0.1)',
-                  borderRadius: '50%',
-                  borderTopColor: '#4ade80',
-                  borderRightColor: 'rgba(124, 58, 237, 0.7)',
-                  boxShadow: '0 0 15px rgba(124, 58, 237, 0.3)'
-                }}
-              />
-            </div>
-            <p className="loading-text" style={{ 
-              color: '#e2e8f0', 
-              fontSize: '1.2rem',
-              fontWeight: '600',
-              letterSpacing: '0.05em',
-              textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
-            }}>
-              {t('common.loading')}
-            </p>
-          </div>
-        </div>
-      }>
-        {loading ? (
+          right: 0,
+          bottom: 0,
+          backgroundImage: 'radial-gradient(circle at 15% 50%, rgba(74, 222, 128, 0.05) 0%, transparent 60%), radial-gradient(circle at 85% 30%, rgba(56, 189, 248, 0.05) 0%, transparent 60%)',
+          pointerEvents: 'none',
+          zIndex: 0
+        }} />
+        
+        {/* CSS for spinner animation */}
+        <style>
+          {`
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+            .spinner {
+              animation: spin 1s linear infinite;
+            }
+            @keyframes pulse {
+              0%, 100% { opacity: 0.6; transform: scale(0.98); }
+              50% { opacity: 1; transform: scale(1); }
+            }
+            @keyframes gradientFlow {
+              0% { background-position: 0% 50%; }
+              50% { background-position: 100% 50%; }
+              100% { background-position: 0% 50%; }
+            }
+            .loading-text {
+              animation: pulse 2s ease-in-out infinite;
+            }
+            .loading-screen-background {
+              background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95)), 
+                        repeating-linear-gradient(45deg, rgba(99, 102, 241, 0.05) 0px, rgba(99, 102, 241, 0.05) 1px, transparent 1px, transparent 10px);
+            }
+            .loading-logo {
+              animation: pulse 2s ease-in-out infinite;
+            }
+            .gradient-border {
+              position: relative;
+            }
+            .gradient-border::before {
+              content: '';
+              position: absolute;
+              top: -2px;
+              left: -2px;
+              right: -2px;
+              bottom: -2px;
+              background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #C026D3 100%);
+              border-radius: 50%;
+              z-index: -1;
+              animation: gradientFlow 3s ease infinite;
+              background-size: 200% 200%;
+            }
+          `}
+        </style>
+        
+        {/* These UI controls will be moved to the Navbar */}
+        
+        <Suspense fallback={
           <div className="loading-screen-background" style={{ 
             display: 'flex', 
             justifyContent: 'center', 
@@ -520,142 +471,199 @@ function App() {
             position: 'fixed',
             top: 0,
             left: 0,
-            zIndex: 9999,
-            flexDirection: 'column',
-            gap: '30px'
+            zIndex: 9999
           }}>
-            <div className="loading-logo" style={{
-              fontSize: '2.5rem',
-              fontWeight: '800',
-              marginBottom: '20px',
-              background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #C026D3 100%)',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              color: 'transparent',
-              textShadow: '0 0 20px rgba(124, 58, 237, 0.3)'
-            }}>
-              CS2 Marketplace
-            </div>
-            <div className="gradient-border" style={{
-              width: '90px',
-              height: '90px',
+            <div style={{
               display: 'flex',
-              justifyContent: 'center',
+              flexDirection: 'column',
               alignItems: 'center',
-              padding: '15px',
-              borderRadius: '50%',
-              background: '#0F172A'
+              gap: '30px'
             }}>
-              <div 
-                className="spinner"
-                style={{
-                  width: '70px',
-                  height: '70px',
-                  border: '4px solid rgba(255,255,255,0.1)',
-                  borderRadius: '50%',
-                  borderTopColor: '#4ade80',
-                  borderRightColor: 'rgba(124, 58, 237, 0.7)',
-                  borderBottomColor: 'rgba(6, 182, 212, 0.5)',
-                  boxShadow: '0 0 20px rgba(124, 58, 237, 0.3)'
-                }}
-              />
-            </div>
-            <p className="loading-text"
-              style={{ 
+              <div className="gradient-border" style={{
+                width: '80px',
+                height: '80px',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: '15px',
+                borderRadius: '50%',
+                background: '#0F172A'
+              }}>
+                <div 
+                  className="spinner"
+                  style={{
+                    width: '60px',
+                    height: '60px',
+                    border: '4px solid rgba(255,255,255,0.1)',
+                    borderRadius: '50%',
+                    borderTopColor: '#4ade80',
+                    borderRightColor: 'rgba(124, 58, 237, 0.7)',
+                    boxShadow: '0 0 15px rgba(124, 58, 237, 0.3)'
+                  }}
+                />
+              </div>
+              <p className="loading-text" style={{ 
                 color: '#e2e8f0', 
-                fontSize: '1.5rem',
+                fontSize: '1.2rem',
                 fontWeight: '600',
                 letterSpacing: '0.05em',
                 textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
-              }}
-            >
-              {t('common.loading')}
-            </p>
+              }}>
+                {t('common.loading')}
+              </p>
+            </div>
           </div>
-        ) : (
-          <Routes>
-            <Route path="/" element={
-              <PageWrapper key="home">
-                <Home user={user} />
-              </PageWrapper>
-            } />
-            
-            <Route path="/inventory" element={
-              <ProtectedRoute user={user}>
-                <PageWrapper key="inventory">
-                  <Inventory />
+        }>
+          {loading ? (
+            <div className="loading-screen-background" style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              height: '100vh',
+              width: '100%',
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              zIndex: 9999,
+              flexDirection: 'column',
+              gap: '30px'
+            }}>
+              <div className="loading-logo" style={{
+                fontSize: '2.5rem',
+                fontWeight: '800',
+                marginBottom: '20px',
+                background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #C026D3 100%)',
+                WebkitBackgroundClip: 'text',
+                backgroundClip: 'text',
+                color: 'transparent',
+                textShadow: '0 0 20px rgba(124, 58, 237, 0.3)'
+              }}>
+                CS2 Marketplace
+              </div>
+              <div className="gradient-border" style={{
+                width: '90px',
+                height: '90px',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: '15px',
+                borderRadius: '50%',
+                background: '#0F172A'
+              }}>
+                <div 
+                  className="spinner"
+                  style={{
+                    width: '70px',
+                    height: '70px',
+                    border: '4px solid rgba(255,255,255,0.1)',
+                    borderRadius: '50%',
+                    borderTopColor: '#4ade80',
+                    borderRightColor: 'rgba(124, 58, 237, 0.7)',
+                    borderBottomColor: 'rgba(6, 182, 212, 0.5)',
+                    boxShadow: '0 0 20px rgba(124, 58, 237, 0.3)'
+                  }}
+                />
+              </div>
+              <p className="loading-text"
+                style={{ 
+                  color: '#e2e8f0', 
+                  fontSize: '1.5rem',
+                  fontWeight: '600',
+                  letterSpacing: '0.05em',
+                  textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
+                }}
+              >
+                {t('common.loading')}
+              </p>
+            </div>
+          ) : (
+            <Routes>
+              <Route path="/" element={
+                <PageWrapper key="home">
+                  <Home user={user} />
                 </PageWrapper>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/marketplace" element={
-              <PageWrapper key="marketplace">
-                <Marketplace user={user} />
-              </PageWrapper>
-            } />
-            
-            <Route path="/my-listings" element={
-              <ProtectedRoute user={user}>
-                <PageWrapper key="my-listings">
-                  <MyListings />
+              } />
+              
+              <Route path="/inventory" element={
+                <ProtectedRoute user={user}>
+                  <PageWrapper key="inventory">
+                    <Inventory />
+                  </PageWrapper>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/marketplace" element={
+                <PageWrapper key="marketplace">
+                  <Marketplace user={user} />
                 </PageWrapper>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/settings/steam" element={
-              <ProtectedRoute user={user}>
-                <PageWrapper key="steam-settings">
-                  <SteamSettings />
-                </PageWrapper>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/trades" element={
-              <ProtectedRoute user={user}>
-                <PageWrapper key="trades">
-                  <TradeHistory />
-                </PageWrapper>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/trades/:tradeId" element={
-              <ProtectedRoute user={user}>
-                <PageWrapper key="trade-detail">
-                  <TradeDetailPage />
-                </PageWrapper>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/profile" element={
-              <ProtectedRoute user={user}>
-                <PageWrapper key="profile">
-                  <Profile user={user} onBalanceUpdate={refreshWalletBalance} />
-                </PageWrapper>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/steam-settings" element={
-              <ProtectedRoute>
-                <SteamSettingsPage />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/admin/tools" element={
-              <AdminRoute user={user}>
-                <PageWrapper key="admin-tools">
-                  <AdminTools />
-                </PageWrapper>
-              </AdminRoute>
-            } />
-            
-            {/* Catch-all route */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        )}
-      </Suspense>
-      
-      {/* Audio elements will be added later */}
-    </div>
+              } />
+              
+              <Route path="/my-listings" element={
+                <ProtectedRoute user={user}>
+                  <PageWrapper key="my-listings">
+                    <MyListings />
+                  </PageWrapper>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/settings/steam" element={
+                <ProtectedRoute user={user}>
+                  <PageWrapper key="steam-settings">
+                    <SteamSettings />
+                  </PageWrapper>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/trades" element={
+                <ProtectedRoute user={user}>
+                  <PageWrapper key="trades">
+                    <TradeHistory />
+                  </PageWrapper>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/trades/:tradeId" element={
+                <ProtectedRoute user={user}>
+                  <PageWrapper key="trade-detail">
+                    <TradeDetailPage />
+                  </PageWrapper>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/profile" element={
+                <ProtectedRoute user={user}>
+                  <PageWrapper key="profile">
+                    <Profile user={user} onBalanceUpdate={refreshWalletBalance} />
+                  </PageWrapper>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/steam-settings" element={
+                <ProtectedRoute>
+                  <SteamSettingsPage />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/admin/tools" element={
+                <AdminRoute user={user}>
+                  <PageWrapper key="admin-tools">
+                    <AdminTools />
+                  </PageWrapper>
+                </AdminRoute>
+              } />
+              
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              
+              {/* Catch-all route */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          )}
+        </Suspense>
+        
+        {/* Audio elements will be added later */}
+      </div>
+    </AuthProvider>
   );
 }
 

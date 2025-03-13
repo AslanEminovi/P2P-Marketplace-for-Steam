@@ -2,7 +2,10 @@
  * Application constants
  */
 
-export const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
+// API URL configuration
+export const API_URL =
+  process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+
 // Add production settings
 export const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
@@ -81,3 +84,8 @@ export const formatCurrency = (amount, currency = "USD") => {
 
 // Default exchange rate
 export const DEFAULT_EXCHANGE_RATE = 1.8; // 1 USD = 1.8 GEL
+
+// Other constants can be added here
+export const APP_NAME = "CS2 Marketplace Georgia";
+export const APP_DESCRIPTION =
+  "The premier platform for trading CS2 items in Georgia";
