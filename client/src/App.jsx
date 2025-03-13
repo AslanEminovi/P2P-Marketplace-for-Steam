@@ -5,9 +5,6 @@ import { useTranslation } from 'react-i18next';
 import socketService from './services/socketService';
 import { Toaster } from 'react-hot-toast';
 import AdminTools from './pages/AdminTools';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import './App.css';
 
 // Pages
 import Home from './pages/Home';
@@ -24,8 +21,6 @@ import SteamSettings from './components/SteamSettings';
 import TradeHistory from './components/TradeHistory';
 import NotificationCenter from './components/NotificationCenter';
 import LanguageSwitcher from './components/LanguageSwitcher';
-import ItemDetails from './components/ItemDetails';
-import TradeDetails from './components/TradeDetails';
 
 // Import constants
 import { API_URL } from './config/constants';
@@ -65,7 +60,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(0);
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -233,7 +227,6 @@ function App() {
             walletBalance: response.data.balance.USD,
             walletBalanceGEL: response.data.balance.GEL
           });
-          setWalletBalance(response.data.balance.USD);
         }
       } catch (err) {
         console.error('Error fetching wallet balance:', err);
@@ -347,10 +340,6 @@ function App() {
     }
   }, [user]);
 
-  if (loading) {
-    return <div className="loading">Loading...</div>;
-  }
-
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -358,7 +347,7 @@ function App() {
       position: 'relative',
       overflow: 'hidden'
     }}>
-      <Navbar user={user} onLogout={handleLogout} walletBalance={walletBalance} />
+      <Navbar user={user} onLogout={handleLogout} />
       
       {/* Toast notifications */}
       <Toaster
@@ -659,16 +648,13 @@ function App() {
               </AdminRoute>
             } />
             
-            <Route path="/item/:id" element={<ItemDetails user={user} />} />
-            <Route path="/trade/:id" element={<TradeDetails user={user} />} />
-            
             {/* Catch-all route */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}
       </Suspense>
       
-      <ToastContainer position="bottom-right" />
+      {/* Audio elements will be added later */}
     </div>
   );
 }
