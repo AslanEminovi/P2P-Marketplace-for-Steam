@@ -1,12 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { formatCurrency } from '../config/constants';
 import NotificationCenter from './NotificationCenter';
 import LanguageSwitcher from './LanguageSwitcher';
 import { API_URL } from '../config/constants';
-import './Navbar.css';
 
-function Navbar({ user, onLogout, walletBalance }) {
+function Navbar({ user, onLogout }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const dropdownRef = useRef(null);
@@ -170,10 +169,6 @@ function Navbar({ user, onLogout, walletBalance }) {
     textShadow: '0 0 10px rgba(255, 255, 255, 0.5)'
   };
 
-  const toggleDropdown = () => {
-    setDropdownOpen(!dropdownOpen);
-  };
-
   return (
     <nav style={navbarStyles} className={`navbar ${scrolled ? 'scrolled' : ''}`}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
@@ -287,7 +282,7 @@ function Navbar({ user, onLogout, walletBalance }) {
             )}
             
             <div 
-              onClick={toggleDropdown}
+              onClick={() => setDropdownOpen(!dropdownOpen)}
               style={userProfileStyles}
               onMouseEnter={(e) => {
                 Object.assign(e.target.style, userProfileHoverStyles);

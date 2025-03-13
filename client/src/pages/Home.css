@@ -470,19 +470,19 @@ html, body {
 
 /* CS2 Logo styles - bigger and without container */
 .hero-section .cs2-logo {
-  max-width: 500px;
+  max-width: 400px;
   width: 100%;
   height: auto;
   border: none;
   background: transparent;
-  filter: drop-shadow(0 0 30px var(--primary-glow));
+  filter: drop-shadow(0 0 20px var(--primary-glow));
   transition: transform 0.3s ease;
   margin-top: -2rem;
 }
 
 .hero-section .cs2-logo:hover {
   transform: scale(1.05);
-  filter: drop-shadow(0 0 40px var(--primary-glow));
+  filter: drop-shadow(0 0 30px var(--primary-glow));
 }
 
 /* Simplify section styling to prevent rendering issues */
@@ -673,29 +673,33 @@ section {
   padding: 6rem 2rem;
   background: var(--surface-dark);
   z-index: 1;
-  min-height: 80vh;
+  min-height: 80vh; /* Ensure enough space for the roadmap */
 }
 
-/* Remove the blue line */
+/* Subtle background gradient */
+.how-it-works-section-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    linear-gradient(135deg, rgba(19, 26, 41, 0.9) 0%, rgba(30, 38, 63, 0.9) 100%);
+  z-index: -1;
+}
+
+/* Roadmap path in background */
 .how-it-works-section-container::after {
-  display: none;
-}
-
-/* No stats message */
-.no-stats {
-  text-align: center;
-  padding: 3rem 1rem;
-  max-width: 600px;
-  margin: 0 auto;
-  background: rgba(19, 26, 41, 0.6);
-  border-radius: 12px;
-  border: 1px solid rgba(63, 169, 245, 0.1);
-}
-
-.no-stats p {
-  font-size: 1.2rem;
-  color: var(--text-secondary);
-  margin: 0;
+  content: '';
+  position: absolute;
+  top: 100px;
+  left: 50%;
+  width: 4px;
+  height: calc(100% - 200px);
+  background: var(--accent-blue);
+  opacity: 0.3;
+  z-index: -1;
 }
 
 /* Final CTA Section */
@@ -1762,142 +1766,5 @@ section:hover::after {
   
   .news-image {
     height: 140px;
-  }
-}
-
-/* Footer Styles */
-.footer {
-  background: var(--surface-dark);
-  padding: 4rem 2rem 2rem;
-  color: var(--text-secondary);
-  position: relative;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.footer::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(10, 14, 23, 0.97) 0%, rgba(19, 26, 41, 0.97) 100%);
-  z-index: 0;
-}
-
-.footer-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 3rem;
-  position: relative;
-  z-index: 1;
-}
-
-.footer-section h3 {
-  color: var(--text-primary);
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  font-weight: 700;
-}
-
-.footer-section h4 {
-  color: var(--text-primary);
-  font-size: 1.1rem;
-  margin-bottom: 1rem;
-  font-weight: 600;
-}
-
-.footer-section p {
-  color: var(--text-secondary);
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
-}
-
-.footer-section ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.footer-section ul li {
-  margin-bottom: 0.75rem;
-}
-
-.footer-section ul li a {
-  color: var(--text-secondary);
-  text-decoration: none;
-  transition: all 0.2s ease;
-}
-
-.footer-section ul li a:hover {
-  color: var(--text-primary);
-  transform: translateX(5px);
-}
-
-.footer-social {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
-
-.footer-social a {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-}
-
-.footer-social a:hover {
-  transform: translateY(-3px);
-  background: var(--primary-color);
-}
-
-.footer-social i {
-  font-size: 1.2rem;
-  color: var(--text-primary);
-}
-
-.footer-bottom {
-  text-align: center;
-  padding-top: 2rem;
-  margin-top: 3rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  position: relative;
-  z-index: 1;
-}
-
-.footer-bottom p {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-}
-
-@media (max-width: 768px) {
-  .footer-content {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 2rem;
-  }
-  
-  .footer-section:first-child {
-    grid-column: 1 / -1;
-  }
-}
-
-@media (max-width: 480px) {
-  .footer-content {
-    grid-template-columns: 1fr;
-  }
-  
-  .footer {
-    padding: 3rem 1.5rem 1.5rem;
-  }
-  
-  .hero-section .cs2-logo {
-    max-width: 400px;
   }
 }
