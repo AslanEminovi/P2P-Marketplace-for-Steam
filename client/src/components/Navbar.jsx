@@ -72,28 +72,34 @@ const Navbar = () => {
     };
   }, []);
   
-  // NEW IMPLEMENTATION: Handle click outside of dropdown
+  // NEW IMPLEMENTATION: Handle click outside of dropdown with improved event capture
   useEffect(() => {
     function handleClickOutside(event) {
+      // Check if dropdown is open before doing anything
+      if (!dropdownOpen) return;
+      
       // Don't close if clicking the profile button
       if (profileBtnRef.current && profileBtnRef.current.contains(event.target)) {
+        console.log("Click on profile button - keeping dropdown open");
         return;
       }
       
-      // Close if clicking outside the dropdown
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        console.log("Click detected outside dropdown - closing dropdown");
-        setDropdownOpen(false);
+      // Don't close if clicking inside the dropdown
+      if (dropdownRef.current && dropdownRef.current.contains(event.target)) {
+        console.log("Click inside dropdown - keeping dropdown open");
+        return;
       }
+      
+      // Only close if clicking outside both the dropdown and the profile button
+      console.log("Click detected outside dropdown - closing dropdown");
+      setDropdownOpen(false);
     }
     
-    // Only add the event listener if the dropdown is open
-    if (dropdownOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
+    // Use capture phase to ensure our handler runs before others
+    document.addEventListener("mousedown", handleClickOutside, true);
     
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside, true);
     };
   }, [dropdownOpen]);
   
@@ -111,38 +117,49 @@ const Navbar = () => {
     }
   }, [user]);
   
-  // NEW IMPLEMENTATION: Separate dropdown component for better control
+  // NEW IMPLEMENTATION: Separate dropdown component with better event handling
   const ProfileDropdown = () => {
+    const navigate = useNavigate();
+    
+    // Don't render if dropdown isn't open
     if (!dropdownOpen) return null;
     
     console.log("Rendering dropdown menu, visible:", dropdownOpen);
     
-    // Modified click handler - navigate programmatically
-    const handleItemClick = (e, path) => {
-      e.stopPropagation(); // Only stop propagation, don't prevent default
+    // Handler for navigation items - uses mouse events for better response
+    const handleNavigate = (e, path) => {
+      e.preventDefault();
+      e.stopPropagation();
       console.log("Menu item clicked, will navigate to:", path);
+      
+      // Close dropdown and navigate with a slight delay to ensure event processing
       setTimeout(() => {
         setDropdownOpen(false);
         navigate(path);
-      }, 50);
+      }, 100);
     };
     
-    // Handle logout with stop propagation
+    // Handle logout with better event handling
     const handleLogout = (e) => {
-      e.stopPropagation(); // Only stop propagation, don't prevent default
+      e.preventDefault();
+      e.stopPropagation();
       console.log("Logout clicked");
+      
+      // Close dropdown and redirect with a slight delay to ensure event processing
       setTimeout(() => {
         setDropdownOpen(false);
-        // Redirect to logout URL
         window.location.href = `${API_URL}/auth/logout`;
-      }, 50);
+      }, 100);
     };
     
     return (
       <div 
         ref={dropdownRef}
         className="dropdown-container"
-        onClick={(e) => e.stopPropagation()} // Stop clicks inside dropdown from bubbling
+        // Capture and stop all events from bubbling
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onMouseUp={(e) => e.stopPropagation()}
         style={{
           position: 'absolute',
           top: 'calc(100% + 8px)',
@@ -178,9 +195,10 @@ const Navbar = () => {
         </div>
         
         <div style={{ padding: '8px' }}>
-          {/* Profile Link */}
-          <button 
-            onClick={(e) => handleItemClick(e, '/profile')}
+          {/* Profile Link - Now a button with onClick handler */}
+          <a 
+            href="/profile"
+            onClick={(e) => handleNavigate(e, '/profile')}
             className="dropdown-menu-link"
             style={{
               display: 'flex',
@@ -193,12 +211,7 @@ const Navbar = () => {
               transition: 'all 0.2s ease',
               fontSize: '14px',
               marginBottom: '4px',
-              cursor: 'pointer',
-              background: 'none',
-              border: 'none',
-              width: '100%',
-              textAlign: 'left',
-              fontFamily: 'inherit'
+              cursor: 'pointer'
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -206,11 +219,12 @@ const Navbar = () => {
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
             My Profile
-          </button>
+          </a>
           
-          {/* Inventory Link */}
-          <button 
-            onClick={(e) => handleItemClick(e, '/inventory')}
+          {/* Inventory Link - Now a button with onClick handler */}
+          <a 
+            href="/inventory"
+            onClick={(e) => handleNavigate(e, '/inventory')}
             className="dropdown-menu-link"
             style={{
               display: 'flex',
@@ -223,12 +237,7 @@ const Navbar = () => {
               transition: 'all 0.2s ease',
               fontSize: '14px',
               marginBottom: '4px',
-              cursor: 'pointer',
-              background: 'none',
-              border: 'none',
-              width: '100%',
-              textAlign: 'left',
-              fontFamily: 'inherit'
+              cursor: 'pointer'
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -238,11 +247,12 @@ const Navbar = () => {
               <line x1="16" y1="16" x2="8" y2="16"></line>
             </svg>
             My Inventory
-          </button>
+          </a>
           
-          {/* Trades Link */}
-          <button 
-            onClick={(e) => handleItemClick(e, '/trades')}
+          {/* Trades Link - Now a button with onClick handler */}
+          <a 
+            href="/trades"
+            onClick={(e) => handleNavigate(e, '/trades')}
             className="dropdown-menu-link"
             style={{
               display: 'flex',
@@ -255,12 +265,7 @@ const Navbar = () => {
               transition: 'all 0.2s ease',
               fontSize: '14px',
               marginBottom: '4px',
-              cursor: 'pointer',
-              background: 'none',
-              border: 'none',
-              width: '100%',
-              textAlign: 'left',
-              fontFamily: 'inherit'
+              cursor: 'pointer'
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -270,11 +275,12 @@ const Navbar = () => {
               <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
             </svg>
             My Trades
-          </button>
+          </a>
           
-          {/* Settings Link */}
-          <button 
-            onClick={(e) => handleItemClick(e, '/settings')}
+          {/* Settings Link - Now a button with onClick handler */}
+          <a 
+            href="/settings"
+            onClick={(e) => handleNavigate(e, '/settings')}
             className="dropdown-menu-link"
             style={{
               display: 'flex',
@@ -287,12 +293,7 @@ const Navbar = () => {
               transition: 'all 0.2s ease',
               fontSize: '14px',
               marginBottom: '4px',
-              cursor: 'pointer',
-              background: 'none',
-              border: 'none',
-              width: '100%',
-              textAlign: 'left',
-              fontFamily: 'inherit'
+              cursor: 'pointer'
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -300,7 +301,7 @@ const Navbar = () => {
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
             </svg>
             Settings
-          </button>
+          </a>
           
           <div style={{
             height: '1px',
@@ -308,8 +309,9 @@ const Navbar = () => {
             margin: '8px 0'
           }}></div>
           
-          {/* Logout Button */}
-          <button 
+          {/* Logout Button - Now an anchor with onClick handler */}
+          <a 
+            href="#logout"
             onClick={handleLogout}
             className="dropdown-menu-link logout"
             style={{
@@ -336,15 +338,16 @@ const Navbar = () => {
               <line x1="21" y1="12" x2="9" y2="12"></line>
             </svg>
             Log Out
-          </button>
+          </a>
         </div>
       </div>
     );
   };
   
-  // NEW IMPLEMENTATION: Improved dropdown toggle with stop propagation
+  // Improved toggle function with better event handling
   const toggleDropdown = (e) => {
-    e.stopPropagation(); // Only stop propagation, don't prevent default
+    e.preventDefault();
+    e.stopPropagation();
     console.log("BEFORE toggle - dropdown state:", dropdownOpen);
     setDropdownOpen(!dropdownOpen);
     console.log("AFTER toggle - dropdown state will be:", !dropdownOpen);
@@ -444,6 +447,7 @@ const Navbar = () => {
                 <button 
                   ref={profileBtnRef}
                   onClick={toggleDropdown}
+                  onMouseDown={(e) => e.stopPropagation()}
                   className="profile-button"
                   style={{
                     display: 'flex',

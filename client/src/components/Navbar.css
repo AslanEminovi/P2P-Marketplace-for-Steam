@@ -418,15 +418,18 @@
   width: 100%;
   position: relative;
   z-index: 1;
+  outline: none; /* Remove outline on focus */
+  user-select: none; /* Prevent text selection */
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
 }
 
 .dropdown-menu-link:hover {
-  background-color: rgba(255, 255, 255, 0.15) !important;
+  background-color: rgba(255, 255, 255, 0.2) !important;
   color: #FFFFFF !important;
 }
 
 .dropdown-menu-link:active {
-  background-color: rgba(255, 255, 255, 0.2) !important;
+  background-color: rgba(255, 255, 255, 0.3) !important;
   transform: scale(0.98);
 }
 
@@ -440,15 +443,17 @@
 
 .dropdown-menu-link.logout:hover {
   color: #FF4B6E !important;
-  background-color: rgba(255, 75, 110, 0.1) !important;
+  background-color: rgba(255, 75, 110, 0.15) !important;
 }
 
 .dropdown-container {
   overflow: hidden;
   border: 1px solid #3373F2;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
   position: absolute;
   z-index: 10000;
+  pointer-events: auto !important; /* Ensure clicks register */
+  user-select: none; /* Prevent text selection */
 }
 
 /* SIGN IN BUTTON */
@@ -730,16 +735,32 @@
 .profile-button {
   transition: background-color 0.2s ease;
   height: 42px;
+  cursor: pointer;
+  user-select: none; /* Prevent text selection */
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
 }
 
 .profile-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.15);
 }
 
+.profile-button:active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Improved dropdown arrow */
 .dropdown-arrow {
   transition: transform 0.3s ease;
+  pointer-events: none; /* Let clicks pass through to button */
 }
 
 .dropdown-arrow.active svg {
   transform: rotate(180deg);
+}
+
+/* Ensure dropdown container has correct behavior */
+div[style*="position: relative"] {
+  position: relative !important;
+  z-index: 1000;
+  pointer-events: auto !important;
 } 
