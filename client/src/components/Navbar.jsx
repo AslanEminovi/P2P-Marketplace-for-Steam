@@ -327,53 +327,54 @@ const Navbar = () => {
               My Profile
             </NavLink>
           </>
-        )}
+          )}
         
-        <NavLink to="/blog" className={({ isActive }) => 
-          isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
-        }>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
-            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
-            <path d="M2 2l7.586 7.586"></path>
-            <circle cx="11" cy="11" r="2"></circle>
-          </svg>
-          Blog
-        </NavLink>
-        
-        <NavLink to="/faq" className={({ isActive }) => 
-          isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
-        }>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-          </svg>
-          FAQ
-        </NavLink>
-        
-        {!user && (
-          <a href={`${API_URL}/auth/steam`} className="mobile-menu-link steam-login">
+          <NavLink to="/blog" className={({ isActive }) => 
+            isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
+          }>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
-              <polyline points="10 17 15 12 10 7"></polyline>
-              <line x1="15" y1="12" x2="3" y2="12"></line>
+              <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+              <path d="M2 2l7.586 7.586"></path>
+              <circle cx="11" cy="11" r="2"></circle>
             </svg>
-            Sign in with Steam
+            Blog
+          </NavLink>
+          
+          <NavLink to="/faq" className={({ isActive }) => 
+            isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
+          }>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            FAQ
+          </NavLink>
+          
+          {!user && (
+            <a href={`${API_URL}/auth/steam`} className="mobile-menu-link steam-login">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                <polyline points="10 17 15 12 10 7"></polyline>
+                <line x1="15" y1="12" x2="3" y2="12"></line>
+              </svg>
+              Sign in with Steam
+            </a>
+          )}
+        </div>
+        
+        <div className="mobile-menu-social">
+          <a href="https://discord.gg/" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
+            <i className="fab fa-discord"></i>
           </a>
-        )}
-      </div>
-      
-      <div className="mobile-menu-social">
-        <a href="https://discord.gg/" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
-          <i className="fab fa-discord"></i>
-        </a>
-        <a href="https://twitter.com/" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
-          <i className="fab fa-twitter"></i>
-        </a>
-        <a href="https://reddit.com/" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
-          <i className="fab fa-reddit"></i>
-        </a>
+          <a href="https://twitter.com/" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
+            <i className="fab fa-twitter"></i>
+          </a>
+          <a href="https://reddit.com/" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
+            <i className="fab fa-reddit"></i>
+          </a>
+        </div>
       </div>
     </nav>
   );

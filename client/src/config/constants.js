@@ -67,6 +67,10 @@ export const getRarityGradient = (rarity) => {
   );
 };
 
+export const getColorForRarity = (rarity) => {
+  return ITEM_RARITIES[rarity]?.color || "#b0c3d9";
+};
+
 export const formatCurrency = (amount, currency = "USD") => {
   if (typeof amount !== "number") return "";
 
