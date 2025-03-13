@@ -178,6 +178,38 @@ router.get("/refresh-profile", async (req, res) => {
   }
 });
 
+// @route GET /auth/me
+router.get("/me", (req, res) => {
+  console.log("Auth ME check - Session ID:", req.sessionID);
+  console.log("Auth ME check - Is authenticated:", req.isAuthenticated());
+  console.log("Auth ME check - User:", req.user ? req.user._id : "none");
+
+  if (req.user) {
+    try {
+      res.json({
+        authenticated: true,
+        user: {
+          id: req.user._id,
+          steamId: req.user.steamId,
+          displayName: req.user.displayName,
+          avatar: req.user.avatar,
+          tradeUrl: req.user.tradeUrl,
+          tradeUrlExpiry: req.user.tradeUrlExpiry,
+          walletBalance: req.user.walletBalance,
+          walletBalanceGEL: req.user.walletBalanceGEL,
+          lastProfileUpdate: req.user.lastProfileUpdate,
+          isAdmin: req.user.isAdmin || false,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      res.status(500).json({ error: "Failed to fetch user data" });
+    }
+  } else {
+    res.json({ authenticated: false });
+  }
+});
+
 // @route GET /auth/logout
 router.get("/logout", (req, res) => {
   req.logout((err) => {

@@ -80,6 +80,15 @@ const Navbar = () => {
     setMobileOpen(false);
   }, [location]);
   
+  // Debug: Log user data for inspection
+  useEffect(() => {
+    console.log("Navbar received user data:", user);
+    if (user) {
+      console.log("User avatar:", user.avatar);
+      console.log("User display name:", user.displayName);
+    }
+  }, [user]);
+  
   // Function to toggle dropdown
   const toggleDropdown = (e) => {
     e.stopPropagation(); // Prevent event bubbling
@@ -167,8 +176,21 @@ const Navbar = () => {
                   aria-haspopup="true"
                 >
                   <div className="user-avatar">
-                    {user.avatar ? (
-                      <img src={user.avatar} alt={user.displayName} />
+                    {console.log('Rendering avatar, user data:', user)}
+                    {user && (user.avatar || user.avatarUrl || user.avatarfull) ? (
+                      <>
+                        <img 
+                          src={user.avatar || user.avatarUrl || user.avatarfull} 
+                          alt={user.displayName || 'User'} 
+                          onError={(e) => {
+                            console.log("Avatar image failed to load:", e);
+                            e.target.style.display = 'none';
+                            e.target.parentNode.innerHTML = getUserInitials();
+                          }}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                        />
+                        {console.log('Avatar URL being used:', user.avatar || user.avatarUrl || user.avatarfull)}
+                      </>
                     ) : (
                       <div className="avatar-placeholder">{getUserInitials()}</div>
                     )}
