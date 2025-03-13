@@ -5,6 +5,16 @@ html, body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  /* Ensure smooth momentum scrolling on all browsers, especially for trackpad users */
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Improve scrolling performance by fixing layout shifts */
+* {
+  box-sizing: border-box;
+  /* Prevent unintended layout shifts during scroll */
+  backface-visibility: hidden;
 }
 
 /* CS2 Marketplace Design - Base Styles */
@@ -48,10 +58,10 @@ html, body {
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 15px rgba(142, 36, 170, 0.6);
   
-  /* Animations */
-  --transition-fast: 0.2s ease;
-  --transition-medium: 0.3s ease;
-  --transition-slow: 0.5s ease;
+  /* Animations - slowed down slightly for smoother transitions */
+  --transition-fast: 0.15s ease;
+  --transition-medium: 0.25s ease;
+  --transition-slow: 0.4s ease;
 
   /* Enhanced color scheme with more game-like colors */
   --accent-blue: #2196f3;
@@ -67,6 +77,9 @@ html, body {
   /* Glow effects */
   --blue-glow: rgba(33, 150, 243, 0.6);
   --orange-glow: rgba(255, 152, 0, 0.6);
+
+  /* Scroll animation offsets */
+  --scroll-offset: 100px;
 }
 
 /* Main container */
@@ -76,8 +89,18 @@ html, body {
   position: relative;
   overflow-x: hidden;
   width: 100%;
-  position: relative;
-  overflow: hidden;
+  /* Prevent scroll jitter */
+  will-change: transform;
+  /* Hardware acceleration for smoother scrolling */
+  transform: translateZ(0);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Optimize all animations in the home container for performance */
+.home-container * {
+  /* Use transform and opacity for animations as they're GPU accelerated */
+  transition-property: transform, opacity;
+  will-change: transform, opacity;
 }
 
 .home-container::before {
@@ -310,19 +333,24 @@ html, body {
   width: 100%;
   max-width: 1200px;
   margin: 2rem auto;
+  /* Prevent layout shifts during scroll */
+  contain: layout style;
 }
 
+/* Optimize item card for scrolling performance */
 .item-card {
   background: var(--surface-medium);
   border-radius: 12px;
   overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
   box-shadow: var(--shadow-md);
   border: 1px solid var(--border-light);
   position: relative;
   height: 100%;
   display: flex;
   flex-direction: column;
+  /* Hardware acceleration */
+  transform: translateZ(0);
 }
 
 .item-card:hover {
@@ -336,13 +364,15 @@ html, body {
   overflow: hidden;
   position: relative;
   background: var(--surface-dark);
+  /* Prevent content paint during scroll */
+  contain: paint;
 }
 
 .item-card-image img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  transition: transform 0.3s ease;
+  transition: transform var(--transition-fast);
 }
 
 .item-card:hover .item-card-image img {
@@ -1901,4 +1931,47 @@ section:hover::after {
   .footer-legal {
     justify-content: center;
   }
+}
+
+/* Optimize all section animations for scroll performance */
+@media (prefers-reduced-motion: reduce) {
+  /* Respect user preference for reduced motion */
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  /* Immediately show elements without animations */
+  .hero-section,
+  .feature-card,
+  .roadmap-item {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Make scrollbar more visible and touch-friendly */
+::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 7px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(142, 36, 170, 0.5);
+  border-radius: 7px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(142, 36, 170, 0.8);
+  border: 3px solid transparent;
+  background-clip: padding-box;
 }

@@ -58,7 +58,16 @@ const HeroSection = ({ user, stats, animationActive }) => {
           </div>
         </div>
         <div className="hero-image-container">
-          <img src={csLogo} alt="CS2 Logo" className="hero-image" />
+          <img 
+            src={csLogo} 
+            alt="CS2 Logo" 
+            className="hero-image" 
+            onError={(e) => {
+              // If logo fails to load, show a placeholder
+              e.target.src = 'https://i.imgur.com/JR8qI.png';
+              console.error("Failed to load CS2 logo");
+            }}
+          />
         </div>
       </div>
     </section>
@@ -95,10 +104,9 @@ const SearchSection = () => {
   );
 };
 
+// Update FeaturedItemsSection to only show actual marketplace items
 const FeaturedItemsSection = ({ loading, featuredItems }) => {
   const { t } = useTranslation();
-  
-  // No more dummy items - we'll use empty state messaging instead
 
   return (
     <section className="featured-section-container">
@@ -121,19 +129,27 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
             {featuredItems.map(item => (
               <div key={item.id} className="item-card">
                 <div className="item-card-image">
-                  <img src={item.image} alt={item.name} />
+                  <img 
+                    src={item.image} 
+                    alt={item.name} 
+                    onError={(e) => {
+                      // Fallback image if the item image fails to load
+                      e.target.src = 'https://community.cloudflare.steamstatic.com/economy/image/fWFc82js0fmoRAP-qOIPu5THSWqfSmTELLqcUywGkijVjZYMUrsm1j-9xgEObwgfEh_nvjlWhNzZCveCDfIBj98xqodQ2CZknz5rbbOKMyJYdhbDBPRhXfs08QL-Ghg-4cBrQOi69qkBLBLm4IqTM7ctMNtJTJLWCKKGNw2vu0Jsh6JfL8OIon7q3SjgaDoJCRXsrD4GhqbZ7daOgXZPFw/360fx360f'; // CS2 default item placeholder
+                      console.error(`Failed to load image for ${item.name}`);
+                    }}
+                  />
                 </div>
                 <div className="item-card-content">
-                  <h3 className="item-name">{item.name}</h3>
+                  <h3 className="item-name">{item.name || "Unknown Item"}</h3>
                   <span className="item-rarity" style={{ 
                     backgroundColor: getColorForRarity(item.rarity) 
                   }}>
-                    {item.rarity} {item.wear && `• ${item.wear}`}
+                    {item.rarity || "Common"} {item.wear && `• ${item.wear}`}
                   </span>
                   <div className="item-meta">
                     <div className="item-price">
                       <span className="price-tag-currency">GEL</span>
-                      <span className="price-tag-amount">{(item.price / 100).toFixed(2)}</span>
+                      <span className="price-tag-amount">{((item.price || 0) / 100).toFixed(2)}</span>
                     </div>
                     <Link to={`/item/${item.id}`} className="buy-now-button">
                       View Item
@@ -154,7 +170,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
         </>
       ) : (
         <div className="no-items">
-          <p>No featured items available at the moment. Check back soon!</p>
+          <p>No marketplace items available at the moment. Check back soon!</p>
           <div className="featured-cta">
             <Link to="/marketplace" className="view-all-button">
               Browse Marketplace
@@ -191,42 +207,45 @@ const FeaturesSection = () => {
   useEffect(() => {
     // Make all feature cards visible immediately to ensure they're seen
     const featureCards = document.querySelectorAll('.feature-card');
-    featureCards.forEach(card => {
+    featureCards.forEach((card, index) => {
       card.classList.add('animated');
+      // Add staggered appearance for visual effect without scroll dependency
+      setTimeout(() => {
+        card.style.opacity = '1';
+        card.style.transform = 'translateY(0)';
+      }, index * 80);
     });
     
-    // Function to check if element is in viewport (only for fancy entrance animation)
-    const isInViewport = (element) => {
-      const rect = element.getBoundingClientRect();
-      return (
-        rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.8 &&
-        rect.bottom >= 0
-      );
-    };
-    
-    // Improved scroll handler for additional animation effects only
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          featureCards.forEach(card => {
-            if (isInViewport(card)) {
-              card.classList.add('in-view');
-            }
-          });
-          ticking = false;
+    // Use Intersection Observer instead of scroll events for better performance
+    if ('IntersectionObserver' in window) {
+      const observerOptions = {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.1
+      };
+      
+      const featureObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('in-view');
+            // Stop observing once the card is visible
+            featureObserver.unobserve(entry.target);
+          }
         });
-        ticking = true;
-      }
-    };
-    
-    // Add scroll event listener
-    window.addEventListener('scroll', handleScroll);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
+      }, observerOptions);
+      
+      // Start observing each feature card
+      featureCards.forEach(card => {
+        featureObserver.observe(card);
+      });
+      
+      // Clean up
+      return () => {
+        featureCards.forEach(card => {
+          featureObserver.unobserve(card);
+        });
+      };
+    }
   }, []);
 
   return (
@@ -319,49 +338,40 @@ const HowItWorksSection = () => {
       // Add a small staggered delay for visual effect
       setTimeout(() => {
         item.style.opacity = '1';
-      }, index * 100);
+        item.style.transform = 'translateY(0)';
+      }, index * 120);
     });
     
-    // Function to check if element is in viewport (for enhanced effects only)
-    const isInViewport = (element) => {
-      const rect = element.getBoundingClientRect();
-      return (
-        rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.8 &&
-        rect.bottom >= 0
-      );
-    };
-    
-    // Create sequential animation with delay between items (for enhanced effects)
-    const animateSequentially = () => {
-      roadmapItems.forEach(item => {
-        if (isInViewport(item)) {
-          item.classList.add('in-view');
-        }
-      });
-    };
-    
-    // Improved scroll handler with throttling for performance
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          animateSequentially();
-          ticking = false;
+    // Use Intersection Observer API instead of scroll events
+    if ('IntersectionObserver' in window) {
+      const observerOptions = {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.15
+      };
+      
+      const roadmapObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('in-view');
+            // Stop observing once the item is visible
+            roadmapObserver.unobserve(entry.target);
+          }
         });
-        ticking = true;
-      }
-    };
-    
-    // Run once on mount
-    animateSequentially();
-    
-    // Add scroll event listener
-    window.addEventListener('scroll', handleScroll);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
+      }, observerOptions);
+      
+      // Start observing each roadmap item
+      roadmapItems.forEach(item => {
+        roadmapObserver.observe(item);
+      });
+      
+      // Clean up
+      return () => {
+        roadmapItems.forEach(item => {
+          roadmapObserver.unobserve(item);
+        });
+      };
+    }
   }, []);
 
   return (
@@ -650,6 +660,7 @@ const Footer = () => {
   );
 };
 
+// Update Home component to fetch only real marketplace items
 const Home = () => {
   const [user, setUser] = useState(null);
   const [stats, setStats] = useState({ items: 0, users: 0, trades: 0 });
@@ -699,7 +710,7 @@ const Home = () => {
     setParticles(newParticles);
   }, []);
 
-  // Add scroll behavior for navbar
+  // Add scroll behavior for navbar with passive event listener for better performance
   useEffect(() => {
     const handleScroll = () => {
       const navbar = document.querySelector('.navbar');
@@ -712,7 +723,7 @@ const Home = () => {
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     
     // Activate hero animation on load
     setTimeout(() => {
@@ -724,37 +735,44 @@ const Home = () => {
     };
   }, []);
 
-  // Fetch featured items from the server
+  // Fetch featured items - only uses real marketplace items
   const fetchFeaturedItems = async () => {
     try {
       setLoading(true);
-      // Replace with your actual API endpoint
       const response = await axios.get(`${API_URL}/marketplace`);
-      
-      // Use real marketplace data instead of random items
-      let itemsToShow = [];
       
       if (response.data && response.data.length > 0) {
         // Get a selection of items to feature - prioritize higher value items
-        itemsToShow = response.data
+        const itemsToShow = response.data
           .sort((a, b) => b.price - a.price) // Sort by price descending
           .slice(0, 6); // Take top 6 items
-      }
+          
+        setFeaturedItems(itemsToShow);
         
-      setFeaturedItems(itemsToShow);
-      
-      // Set stats based on actual data
-      if (response.data) {
+        // Set stats based on actual data
         setStats({
           items: response.data.length || 0,
           users: response.data.length > 0 ? Math.ceil(response.data.length * 0.8) : 0,
           trades: response.data.length > 0 ? Math.ceil(response.data.length * 0.5) : 0
         });
+      } else {
+        // No items from API, show empty state
+        setFeaturedItems([]);
+        setStats({
+          items: 0,
+          users: 0,
+          trades: 0
+        });
       }
     } catch (error) {
       console.error('Error fetching featured items:', error);
-      // Don't set empty featured items - keep the previous value or empty array
+      // Keeps featured items empty rather than using fallbacks
       setFeaturedItems([]);
+      setStats({
+        items: 0,
+        users: 0,
+        trades: 0
+      });
     } finally {
       setLoading(false);
     }
