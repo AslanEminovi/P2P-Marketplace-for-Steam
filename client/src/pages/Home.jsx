@@ -124,28 +124,6 @@ const SearchSection = () => {
 };
 
 const FeaturedItemsSection = ({ loading, featuredItems }) => {
-  const { t } = useTranslation();
-  
-  // Function to get fallback image if item image is missing
-  const getItemImage = (item) => {
-    // Return item image if available and valid, otherwise use fallback
-    if (item && item.image && item.image.trim() !== '') {
-      return item.image;
-    }
-    // Return a default placeholder based on item type if available
-    if (item && item.type) {
-      if (item.type.toLowerCase().includes('knife')) {
-        return '/images/placeholders/knife-placeholder.png';
-      } else if (item.type.toLowerCase().includes('rifle')) {
-        return '/images/placeholders/rifle-placeholder.png';
-      } else if (item.type.toLowerCase().includes('pistol')) {
-        return '/images/placeholders/pistol-placeholder.png';
-      }
-    }
-    // Generic fallback
-    return '/images/placeholders/item-placeholder.png';
-  };
-
   return (
     <section className="featured-section-container">
       <div className="section-title">
@@ -161,36 +139,29 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
           <div className="spinner"></div>
           <p>Loading featured items...</p>
         </div>
-      ) : featuredItems.length > 0 ? (
+      ) : featuredItems && featuredItems.length > 0 ? (
         <>
           <div className="featured-grid">
             {featuredItems.map(item => (
-              <div key={item.id || item._id} className="item-card">
+              <div key={item._id} className="item-card">
                 <div className="item-card-image">
-                  <img 
-                    src={getItemImage(item)} 
-                    alt={item.name || 'CS2 Item'} 
-                    onError={(e) => {
-                      e.target.onerror = null; 
-                      e.target.src = '/images/placeholders/item-placeholder.png';
-                    }}
-                  />
+                  <img src={item.image} alt={item.name} />
                 </div>
                 <div className="item-card-content">
-                  <h3 className="item-name gradient-text">{item.name || 'Unknown Item'}</h3>
+                  <h3 className="item-name gradient-text">{item.name}</h3>
                   <span className="item-rarity" style={{ 
-                    backgroundColor: getColorForRarity(item.rarity || 'Common') 
+                    backgroundColor: getColorForRarity(item.rarity)
                   }}>
-                    {item.rarity || 'Common'} {item.wear && `• ${item.wear}`}
+                    {item.rarity} {item.wear && `• ${item.wear}`}
                   </span>
                   <div className="item-meta">
                     <div className="item-price">
                       <span className="price-tag-currency gradient-text">GEL</span>
                       <span className="price-tag-amount gradient-text">
-                        {item.price ? (item.price / 100).toFixed(2) : '0.00'}
+                        {(item.price/100).toFixed(2)}
                       </span>
                     </div>
-                    <Link to={`/marketplace/${item.id || item._id}`} className="buy-now-button">
+                    <Link to={`/marketplace/${item._id}`} className="buy-now-button">
                       View Item
                     </Link>
                   </div>
@@ -664,32 +635,29 @@ const Home = () => {
   const fetchFeaturedItems = async () => {
     try {
       setLoading(true);
-      // Replace with your actual API endpoint
+      
+      // Direct API call to marketplace endpoint
       const response = await axios.get(`${API_URL}/marketplace`);
       
-      // Use real marketplace data instead of random items
-      let itemsToShow = [];
-      
-      if (response.data && response.data.length > 0) {
-        // Get a selection of items to feature - prioritize higher value items
-        itemsToShow = response.data
-          .sort((a, b) => b.price - a.price) // Sort by price descending
-          .slice(0, 6); // Take top 6 items
-      }
+      if (response.data && Array.isArray(response.data)) {
+        // Sort by price (highest first) and take top 6
+        const sortedItems = response.data
+          .sort((a, b) => b.price - a.price)
+          .slice(0, 6);
         
-      setFeaturedItems(itemsToShow);
-      
-      // Set stats based on actual data
-      if (response.data) {
+        setFeaturedItems(sortedItems);
+        
+        // Update stats based on API data
         setStats({
-          items: response.data.length || 0,
-          users: response.data.length > 0 ? Math.ceil(response.data.length * 0.8) : 0,
-          trades: response.data.length > 0 ? Math.ceil(response.data.length * 0.5) : 0
+          items: response.data.length,
+          users: Math.max(50, Math.ceil(response.data.length * 0.8)),
+          trades: Math.max(25, Math.ceil(response.data.length * 0.5))
         });
+      } else {
+        setFeaturedItems([]);
       }
     } catch (error) {
-      console.error('Error fetching featured items:', error);
-      // Don't set empty featured items - keep the previous value or empty array
+      console.error('Error fetching marketplace items:', error);
       setFeaturedItems([]);
     } finally {
       setLoading(false);
