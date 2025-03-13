@@ -40,20 +40,19 @@ const HeroSection = ({ user, stats, animationActive }) => {
           </div>
           
           <div className="hero-cta">
-            {!user ? (
-              <Link to="/login" className="primary-button">
-                <i className="fab fa-steam"></i>
-                Sign in with Steam
+            {user ? (
+              <Link to="/inventory" className="primary-button">
+                View Your Inventory
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </Link>
             ) : (
-              <Link to="/marketplace" className="primary-button">
-                <i className="fas fa-shopping-cart"></i>
-                Browse Marketplace
-              </Link>
+              <a href={`${API_URL}/auth/steam`} className="primary-button">
+                Sign in with Steam
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/></svg>
+              </a>
             )}
-            <Link to="/inventory" className="secondary-button">
-              <i className="fas fa-box-open"></i>
-              {user ? 'My Inventory' : 'How It Works'}
+            <Link to="/marketplace" className="secondary-button">
+              Browse Marketplace
             </Link>
           </div>
         </div>
@@ -424,32 +423,50 @@ const HowItWorksSection = () => {
 };
 
 const FinalCTASection = ({ user }) => {
+  if (!user) {
+    return (
+      <section className="final-cta-section-container">
+        <div className="section-title">
+          <div className="section-title-content">
+            <h2>Ready to <span className="gradient-text">Trade</span>?</h2>
+            <p>Join our community of CS2 traders and start buying and selling items today</p>
+            <div className="title-decoration"></div>
+          </div>
+        </div>
+        
+        <div className="final-cta-section">
+          <div className="cta-buttons">
+            <a href={`${API_URL}/auth/steam`} className="primary-button">
+              Sign in with Steam
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/></svg>
+            </a>
+            <Link to="/marketplace" className="secondary-button">
+              Browse Marketplace
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="final-cta-section-container">
       <div className="section-title">
         <div className="section-title-content">
-          <h2>Ready to <span className="gradient-text">Trade</span>?</h2>
-          <p>Join our community of CS2 traders and start buying and selling items today</p>
+          <h2>Start <span className="gradient-text">Trading</span></h2>
+          <p>Ready to trade your CS2 items? Check your inventory or browse the marketplace</p>
           <div className="title-decoration"></div>
         </div>
       </div>
       
       <div className="final-cta-section">
         <div className="cta-buttons">
-          {!user ? (
-            <Link to="/login" className="primary-button">
-              <i className="fab fa-steam"></i>
-              Sign in with Steam
-            </Link>
-          ) : (
-            <Link to="/marketplace" className="primary-button">
-              <i className="fas fa-shopping-cart"></i>
-              Start Trading Now
-            </Link>
-          )}
-          <Link to="/faq" className="secondary-button">
-            <i className="fas fa-question-circle"></i>
-            Learn More
+          <Link to="/inventory" className="primary-button">
+            View My Inventory
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </Link>
+          <Link to="/marketplace" className="secondary-button">
+            Browse Marketplace
           </Link>
         </div>
       </div>
@@ -457,58 +474,52 @@ const FinalCTASection = ({ user }) => {
   );
 };
 
-// Update the TradingStatsSection to handle empty data
 const TradingStatsSection = () => {
   const [marketStats, setMarketStats] = useState({
     popularItem: null,
     highestTrade: null,
-    avgTradeTime: null,
-    hasData: false
+    avgTradeTime: null
   });
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // In a real implementation, this would fetch data from your API
-    const calculateMarketStats = async () => {
-      setLoading(true);
+    const fetchMarketStats = async () => {
       try {
-        // This would be an API call in production
-        // const response = await axios.get(`${API_URL}/market/stats`);
-        
-        // For demo purposes - simulate no data available
+        const response = await axios.get(`${API_URL}/trades/stats`);
+        setMarketStats({
+          popularItem: response.data.popularItem,
+          highestTrade: response.data.highestTrade,
+          avgTradeTime: response.data.avgTradeTime
+        });
+      } catch (error) {
+        console.error('Failed to load market stats:', error);
         setMarketStats({
           popularItem: null,
           highestTrade: null,
-          avgTradeTime: null,
-          hasData: false
+          avgTradeTime: null
         });
-        
-        // When you have actual data, replace with this:
-        /*
-        if (response.data && response.data.trades && response.data.trades.length > 0) {
-          setMarketStats({
-            popularItem: {
-              name: response.data.popularItem.name,
-              count: response.data.popularItem.count
-            },
-            highestTrade: {
-              value: response.data.highestTrade.value,
-              description: response.data.highestTrade.description
-            },
-            avgTradeTime: response.data.avgTradeTime,
-            hasData: true
-          });
-        }
-        */
-      } catch (error) {
-        console.error("Failed to load market stats", error);
-      } finally {
-        setLoading(false);
       }
     };
     
-    calculateMarketStats();
+    fetchMarketStats();
   }, []);
+
+  if (!marketStats.popularItem && !marketStats.highestTrade && !marketStats.avgTradeTime) {
+    return (
+      <section className="trading-stats-section-container">
+        <div className="section-title">
+          <div className="section-title-content">
+            <h2>Market <span className="gradient-text">Insights</span></h2>
+            <p>Check out the latest trading statistics and market trends</p>
+            <div className="title-decoration"></div>
+          </div>
+        </div>
+        
+        <div className="no-stats">
+          <p>No trading statistics recorded yet. Start trading to see market insights!</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="trading-stats-section-container">
@@ -520,17 +531,8 @@ const TradingStatsSection = () => {
         </div>
       </div>
       
-      {loading ? (
-        <div className="loading-items">
-          <div className="spinner"></div>
-          <p>Loading market statistics...</p>
-        </div>
-      ) : !marketStats.hasData ? (
-        <div className="no-stats">
-          <p>No trading statistics are available yet. Be the first to complete a trade!</p>
-        </div>
-      ) : (
-        <div className="stats-grid">
+      <div className="stats-grid">
+        {marketStats.popularItem && (
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'var(--gradient-purple)' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -544,7 +546,9 @@ const TradingStatsSection = () => {
               <p className="stat-detail">Traded {marketStats.popularItem.count} times this month</p>
             </div>
           </div>
-          
+        )}
+        
+        {marketStats.highestTrade && (
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'var(--gradient-blue)' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -558,7 +562,9 @@ const TradingStatsSection = () => {
               <p className="stat-detail">{marketStats.highestTrade.description}</p>
             </div>
           </div>
-          
+        )}
+        
+        {marketStats.avgTradeTime && (
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'var(--gradient-orange)' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -573,78 +579,65 @@ const TradingStatsSection = () => {
               <p className="stat-detail">From listing to completion</p>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 };
 
-// Create a new Footer component
 const Footer = () => {
   return (
     <footer className="footer">
       <div className="footer-content">
-        <div className="footer-column">
-          <div className="footer-logo">CS2 Marketplace Georgia</div>
-          <p className="footer-description">
-            The premier platform for trading CS2 items in Georgia with secure transactions and GEL pricing.
-          </p>
+        <div className="footer-section">
+          <h3>CS2 Marketplace</h3>
+          <p>The ultimate platform for trading CS2 items in Georgia. Safe, secure, and easy to use.</p>
           <div className="footer-social">
-            <a href="https://discord.gg/your-server" className="social-icon" target="_blank" rel="noopener noreferrer">
+            <a href="https://discord.gg/your-discord" target="_blank" rel="noopener noreferrer">
               <i className="fab fa-discord"></i>
             </a>
-            <a href="https://facebook.com/your-page" className="social-icon" target="_blank" rel="noopener noreferrer">
-              <i className="fab fa-facebook-f"></i>
+            <a href="https://facebook.com/your-facebook" target="_blank" rel="noopener noreferrer">
+              <i className="fab fa-facebook"></i>
             </a>
-            <a href="https://twitter.com/your-handle" className="social-icon" target="_blank" rel="noopener noreferrer">
+            <a href="https://twitter.com/your-twitter" target="_blank" rel="noopener noreferrer">
               <i className="fab fa-twitter"></i>
             </a>
-            <a href="https://instagram.com/your-profile" className="social-icon" target="_blank" rel="noopener noreferrer">
-              <i className="fab fa-instagram"></i>
-            </a>
           </div>
         </div>
         
-        <div className="footer-column">
-          <h3 className="footer-title">Quick Links</h3>
-          <div className="footer-links">
-            <Link to="/" className="footer-link">Home</Link>
-            <Link to="/marketplace" className="footer-link">Marketplace</Link>
-            <Link to="/inventory" className="footer-link">Inventory</Link>
-            <Link to="/trades" className="footer-link">My Trades</Link>
-          </div>
+        <div className="footer-section">
+          <h4>Quick Links</h4>
+          <ul>
+            <li><Link to="/marketplace">Marketplace</Link></li>
+            <li><Link to="/inventory">My Inventory</Link></li>
+            <li><Link to="/trades">My Trades</Link></li>
+            <li><Link to="/faq">FAQ</Link></li>
+          </ul>
         </div>
         
-        <div className="footer-column">
-          <h3 className="footer-title">Help & Support</h3>
-          <div className="footer-links">
-            <Link to="/faq" className="footer-link">FAQ</Link>
-            <Link to="/support" className="footer-link">Contact Support</Link>
-            <Link to="/guides" className="footer-link">Trading Guides</Link>
-            <Link to="/fees" className="footer-link">Fees & Charges</Link>
-          </div>
+        <div className="footer-section">
+          <h4>Support</h4>
+          <ul>
+            <li><Link to="/contact">Contact Us</Link></li>
+            <li><Link to="/help">Help Center</Link></li>
+            <li><Link to="/terms">Terms of Service</Link></li>
+            <li><Link to="/privacy">Privacy Policy</Link></li>
+          </ul>
         </div>
         
-        <div className="footer-column">
-          <h3 className="footer-title">Legal</h3>
-          <div className="footer-links">
-            <Link to="/terms" className="footer-link">Terms of Service</Link>
-            <Link to="/privacy" className="footer-link">Privacy Policy</Link>
-            <Link to="/refund" className="footer-link">Refund Policy</Link>
-            <Link to="/cookies" className="footer-link">Cookie Policy</Link>
-          </div>
+        <div className="footer-section">
+          <h4>Trading</h4>
+          <ul>
+            <li><Link to="/how-it-works">How It Works</Link></li>
+            <li><Link to="/fees">Trading Fees</Link></li>
+            <li><Link to="/security">Security</Link></li>
+            <li><Link to="/api">API Access</Link></li>
+          </ul>
         </div>
       </div>
       
       <div className="footer-bottom">
-        <div className="footer-copyright">
-          © {new Date().getFullYear()} CS2 Marketplace Georgia. All rights reserved.
-        </div>
-        <div className="footer-legal">
-          <Link to="/terms" className="legal-link">Terms</Link>
-          <Link to="/privacy" className="legal-link">Privacy</Link>
-          <Link to="/cookies" className="legal-link">Cookies</Link>
-        </div>
+        <p>&copy; {new Date().getFullYear()} CS2 Marketplace Georgia. All rights reserved.</p>
       </div>
     </footer>
   );
@@ -657,30 +650,6 @@ const Home = () => {
   const [featuredItems, setFeaturedItems] = useState([]);
   const [animationActive, setAnimationActive] = useState(false);
   const [particles, setParticles] = useState([]);
-
-  // Check if user is logged in
-  useEffect(() => {
-    // In a real implementation, this would check with your backend
-    const checkUserStatus = async () => {
-      try {
-        // This would be an API call in production
-        // const response = await axios.get(`${API_URL}/auth/status`);
-        // setUser(response.data.user);
-        
-        // For now, simulate a logged in user to test the UI
-        setUser({
-          id: 1,
-          displayName: "TestUser",
-          avatar: "https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg"
-        });
-      } catch (error) {
-        console.error('Error checking user status:', error);
-        setUser(null);
-      }
-    };
-    
-    checkUserStatus();
-  }, []);
 
   // Add animated particles
   useEffect(() => {

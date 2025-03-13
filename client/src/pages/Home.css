@@ -134,12 +134,14 @@ html, body {
 }
 
 .hero-image {
-  max-width: 380px;
+  max-width: 300px;
   width: 100%;
   height: auto;
-  filter: drop-shadow(0 0 20px rgba(114, 47, 247, 0.5));
-  transition: transform 0.3s ease-in-out;
-  animation: float 3s ease-in-out infinite;
+  border: none;
+  box-shadow: none;
+  transition: transform var(--transition-medium);
+  background: transparent;
+  filter: drop-shadow(0 0 15px var(--primary-glow));
 }
 
 .hero-image:hover {
@@ -297,9 +299,18 @@ html, body {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Completely remove the roadmap line */
+/* Improved roadmap line */
 .roadmap-line {
-  display: none;
+  position: absolute;
+  left: 30px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--primary-color), transparent);
+  z-index: 1;
+  opacity: 0.7;
+  box-shadow: 0 0 10px var(--primary-glow);
+  height: 95%;
 }
 
 /* Featured items section improvements */
@@ -459,19 +470,19 @@ html, body {
 
 /* CS2 Logo styles - bigger and without container */
 .hero-section .cs2-logo {
-  max-width: 400px;
+  max-width: 500px;
   width: 100%;
   height: auto;
   border: none;
   background: transparent;
-  filter: drop-shadow(0 0 20px var(--primary-glow));
+  filter: drop-shadow(0 0 30px var(--primary-glow));
   transition: transform 0.3s ease;
   margin-top: -2rem;
 }
 
 .hero-section .cs2-logo:hover {
   transform: scale(1.05);
-  filter: drop-shadow(0 0 30px var(--primary-glow));
+  filter: drop-shadow(0 0 40px var(--primary-glow));
 }
 
 /* Simplify section styling to prevent rendering issues */
@@ -662,33 +673,29 @@ section {
   padding: 6rem 2rem;
   background: var(--surface-dark);
   z-index: 1;
-  min-height: 80vh; /* Ensure enough space for the roadmap */
+  min-height: 80vh;
 }
 
-/* Subtle background gradient */
-.how-it-works-section-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    linear-gradient(135deg, rgba(19, 26, 41, 0.9) 0%, rgba(30, 38, 63, 0.9) 100%);
-  z-index: -1;
-}
-
-/* Roadmap path in background */
+/* Remove the blue line */
 .how-it-works-section-container::after {
-  content: '';
-  position: absolute;
-  top: 100px;
-  left: 50%;
-  width: 4px;
-  height: calc(100% - 200px);
-  background: var(--accent-blue);
-  opacity: 0.3;
-  z-index: -1;
+  display: none;
+}
+
+/* No stats message */
+.no-stats {
+  text-align: center;
+  padding: 3rem 1rem;
+  max-width: 600px;
+  margin: 0 auto;
+  background: rgba(19, 26, 41, 0.6);
+  border-radius: 12px;
+  border: 1px solid rgba(63, 169, 245, 0.1);
+}
+
+.no-stats p {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  margin: 0;
 }
 
 /* Final CTA Section */
@@ -982,12 +989,14 @@ section:hover::after {
 }
 
 .hero-image {
-  max-width: 380px;
+  max-width: 300px;
   width: 100%;
   height: auto;
-  filter: drop-shadow(0 0 20px rgba(114, 47, 247, 0.5));
-  transition: transform 0.3s ease-in-out;
-  animation: float 3s ease-in-out infinite;
+  border: none;
+  box-shadow: none;
+  transition: transform var(--transition-medium);
+  background: transparent;
+  filter: drop-shadow(0 0 15px var(--primary-glow));
 }
 
 .hero-image:hover {
@@ -1295,6 +1304,18 @@ section:hover::after {
   padding: 2rem 0;
 }
 
+.roadmap-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 4px;
+  background: linear-gradient(to bottom, var(--primary-light), var(--primary-dark));
+  transform: translateX(-50%);
+  z-index: 1;
+  box-shadow: 0 0 15px var(--primary-glow);
+}
+
 .roadmap-item {
   display: flex;
   gap: 2rem;
@@ -1491,6 +1512,10 @@ section:hover::after {
   .roadmap-item {
     flex-direction: row !important;
     text-align: left !important;
+  }
+  
+  .roadmap-line {
+    left: 25px;
   }
   
   .roadmap-step {
@@ -1740,13 +1765,13 @@ section:hover::after {
   }
 }
 
-/* Add a proper footer style */
+/* Footer Styles */
 .footer {
-  background-color: #1a1527;
-  color: #f1f1f1;
-  padding: 60px 20px 30px;
-  margin-top: 50px;
-  border-top: 1px solid rgba(114, 47, 247, 0.3);
+  background: var(--surface-dark);
+  padding: 4rem 2rem 2rem;
+  color: var(--text-secondary);
+  position: relative;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .footer::before {
@@ -1756,10 +1781,7 @@ section:hover::after {
   left: 0;
   right: 0;
   bottom: 0;
-  background-image: 
-    radial-gradient(circle at top right, rgba(142, 36, 170, 0.08), transparent 60%),
-    radial-gradient(circle at bottom left, rgba(33, 150, 243, 0.08), transparent 60%);
-  pointer-events: none;
+  background: linear-gradient(135deg, rgba(10, 14, 23, 0.97) 0%, rgba(19, 26, 41, 0.97) 100%);
   z-index: 0;
 }
 
@@ -1767,138 +1789,115 @@ section:hover::after {
   max-width: 1200px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 40px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 3rem;
+  position: relative;
+  z-index: 1;
 }
 
-.footer-column {
-  display: flex;
-  flex-direction: column;
-}
-
-.footer-logo {
-  font-size: 22px;
+.footer-section h3 {
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
   font-weight: 700;
-  margin-bottom: 15px;
-  background: linear-gradient(90deg, #8e2de2, #4a00e0);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 
-.footer-description {
-  font-size: 14px;
+.footer-section h4 {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.footer-section p {
+  color: var(--text-secondary);
   line-height: 1.6;
-  color: #aaa;
-  margin-bottom: 20px;
+  margin-bottom: 1.5rem;
+}
+
+.footer-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.footer-section ul li {
+  margin-bottom: 0.75rem;
+}
+
+.footer-section ul li a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.footer-section ul li a:hover {
+  color: var(--text-primary);
+  transform: translateX(5px);
 }
 
 .footer-social {
   display: flex;
-  gap: 15px;
-  margin-bottom: 20px;
+  gap: 1rem;
+  margin-top: 1.5rem;
 }
 
-.social-icon {
-  width: 36px;
-  height: 36px;
+.footer-social a {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #f1f1f1;
   transition: all 0.3s ease;
 }
 
-.social-icon:hover {
-  background: rgba(114, 47, 247, 0.7);
+.footer-social a:hover {
   transform: translateY(-3px);
+  background: var(--primary-color);
 }
 
-.footer-title {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 20px;
-  position: relative;
-}
-
-.footer-title::after {
-  content: '';
-  display: block;
-  width: 30px;
-  height: 3px;
-  background: linear-gradient(90deg, #8e2de2, #4a00e0);
-  margin-top: 8px;
-  border-radius: 2px;
-}
-
-.footer-links {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.footer-link {
-  color: #ccc;
-  font-size: 14px;
-  text-decoration: none;
-  transition: color 0.3s ease;
-  display: flex;
-  align-items: center;
-}
-
-.footer-link:hover {
-  color: #fff;
-  text-decoration: none;
-  transform: translateX(3px);
+.footer-social i {
+  font-size: 1.2rem;
+  color: var(--text-primary);
 }
 
 .footer-bottom {
-  max-width: 1200px;
-  margin: 40px auto 0;
-  padding-top: 30px;
+  text-align: center;
+  padding-top: 2rem;
+  margin-top: 3rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
 }
 
-.footer-copyright {
-  font-size: 14px;
-  color: #888;
+.footer-bottom p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
 }
 
-.footer-legal {
-  display: flex;
-  gap: 20px;
-}
-
-.legal-link {
-  color: #888;
-  font-size: 14px;
-  text-decoration: none;
-  transition: color 0.3s ease;
-}
-
-.legal-link:hover {
-  color: #fff;
-}
-
-/* Responsive Footer */
 @media (max-width: 768px) {
   .footer-content {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 30px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
   }
   
-  .footer-bottom {
-    flex-direction: column;
-    gap: 20px;
-    text-align: center;
+  .footer-section:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer-content {
+    grid-template-columns: 1fr;
   }
   
-  .footer-legal {
-    justify-content: center;
+  .footer {
+    padding: 3rem 1.5rem 1.5rem;
+  }
+  
+  .hero-section .cs2-logo {
+    max-width: 400px;
   }
 }
