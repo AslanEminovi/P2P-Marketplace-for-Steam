@@ -1,190 +1,244 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { formatCurrency } from '../config/constants';
-import NotificationCenter from './NotificationCenter';
-import LanguageSwitcher from './LanguageSwitcher';
+import { Link, NavLink, useLocation } from 'react-router-dom';
+import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { API_URL } from '../config/constants';
 import './Navbar.css';
 
-function Navbar({ user, onLogout }) {
+// Import logo if you have one
+import csLogo from '../assets/cs-logo.png';
+
+const Navbar = () => {
+  const { t } = useTranslation();
+  const [user, setUser] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const dropdownRef = useRef(null);
-  const profileBtnRef = useRef(null);
   const location = useLocation();
   
+  // Refs for click outside detection
+  const dropdownRef = useRef(null);
+  const profileBtnRef = useRef(null);
+  
+  // Check if user is authenticated
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/auth/me`, { withCredentials: true });
+        if (response.data && response.data.user) {
+          setUser(response.data.user);
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+        setUser(null);
+      }
+    };
+    
+    checkAuth();
+  }, []);
+  
+  // Handle scroll effects
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 30);
+      if (window.scrollY > 50) {
+        setScrolled(true);
+      } else {
+        setScrolled(false);
+      }
     };
     
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
   
-  // Clean up click handler when component unmounts
+  // Handle click outside of dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // Skip if dropdown is not open
-      if (!dropdownOpen) return;
+      // Check if click is outside both the dropdown and the profile button
+      const isClickOutsideDropdown = dropdownRef.current && !dropdownRef.current.contains(event.target);
+      const isClickOutsideBtn = profileBtnRef.current && !profileBtnRef.current.contains(event.target);
       
-      // Skip if clicking within the dropdown or profile button
-      const clickedDropdown = dropdownRef.current && dropdownRef.current.contains(event.target);
-      const clickedProfileBtn = profileBtnRef.current && profileBtnRef.current.contains(event.target);
-      
-      if (!clickedDropdown && !clickedProfileBtn) {
+      if (dropdownOpen && isClickOutsideDropdown && isClickOutsideBtn) {
         setDropdownOpen(false);
       }
     };
     
-    // Add event listener
+    // Add event listener to document
     document.addEventListener('mousedown', handleClickOutside);
     
+    // Clean up the event listener
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [dropdownOpen]);
   
-  // Toggle dropdown with explicit control of event propagation
+  // Close mobile menu when changing routes
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location]);
+  
+  // Function to toggle dropdown
   const toggleDropdown = (e) => {
-    // Stop event from bubbling to document
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+    e.stopPropagation(); // Prevent event bubbling
     setDropdownOpen(prevState => !prevState);
   };
   
-  // Close mobile menu when changing routes
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [location.pathname]);
-
+  // Close dropdown when clicking a link inside it
+  const handleDropdownLinkClick = () => {
+    setDropdownOpen(false);
+  };
+  
+  // Get user initials for avatar placeholder
+  const getUserInitials = () => {
+    if (!user || !user.displayName) return '?';
+    
+    const names = user.displayName.split(' ');
+    if (names.length >= 2) {
+      return `${names[0][0]}${names[1][0]}`.toUpperCase();
+    }
+    
+    return names[0][0].toUpperCase();
+  };
+  
+  // Format balance
+  const formatBalance = (balance) => {
+    if (!balance) return '0.00';
+    
+    return (balance / 100).toFixed(2);
+  };
+  
   return (
-    <nav className={`navbar ${scrolled ? 'scrolled' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+    <nav className={`navbar ${scrolled ? 'scrolled' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       <div className="navbar-container">
         <div className="navbar-left">
           <Link to="/" className="navbar-logo">
-            CS2 GEO
+            <img src={csLogo} alt="CS2 Marketplace" className="logo-icon" />
+            <span className="logo-text">CS2 Market</span>
           </Link>
           
           <div className="navbar-links desktop-only">
-            <Link to="/" className={`navbar-link ${location.pathname === '/' ? 'active' : ''}`}>
-              Home
-            </Link>
-            <Link to="/marketplace" className={`navbar-link ${location.pathname === '/marketplace' ? 'active' : ''}`}>
+            <NavLink to="/marketplace" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
               Marketplace
-            </Link>
+            </NavLink>
+            <NavLink to="/sell" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
+              Sell Items
+            </NavLink>
+            <NavLink to="/blog" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
+              Blog
+            </NavLink>
+            <NavLink to="/faq" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
+              FAQ
+            </NavLink>
           </div>
         </div>
         
         <div className="navbar-right">
           <div className="social-links desktop-only">
-            <a href="https://discord.gg/your-discord-invite" target="_blank" rel="noopener noreferrer" className="social-link">
+            <a href="https://discord.gg/" target="_blank" rel="noopener noreferrer" className="social-link">
               <i className="fab fa-discord"></i>
             </a>
-            <a href="https://facebook.com/your-facebook-page" target="_blank" rel="noopener noreferrer" className="social-link">
-              <i className="fab fa-facebook"></i>
+            <a href="https://twitter.com/" target="_blank" rel="noopener noreferrer" className="social-link">
+              <i className="fab fa-twitter"></i>
             </a>
           </div>
           
           {user ? (
             <div className="user-section">
-              <div className="balance-display desktop-only">
-                <span className="balance-icon">
-                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M2 8.5V7C2 5.89543 2.89543 5 4 5H20C21.1046 5 22 5.89543 22 7V17C22 18.1046 21.1046 19 20 19H4C2.89543 19 2 18.1046 2 17V15.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M16 12C16 11.4477 16.4477 11 17 11H22V13H17C16.4477 13 16 12.5523 16 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <circle cx="8" cy="12" r="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <div className="balance-display">
+                <div className="balance-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                   </svg>
-                </span>
-                <span className="balance-amount">{formatCurrency(user.walletBalance || 0)}</span>
-                <Link to="/wallet" className="balance-add">+</Link>
+                </div>
+                <span className="balance-amount">{formatBalance(user.balance)} ₾</span>
+                <Link to="/add-funds" className="balance-add">+</Link>
               </div>
               
-              <div className={`user-profile-wrapper ${dropdownOpen ? 'dropdown-active' : ''}`}>
+              <div className="user-profile-wrapper">
                 <button 
+                  ref={profileBtnRef}
                   className="user-profile" 
                   onClick={toggleDropdown}
-                  ref={profileBtnRef}
-                  type="button"
-                  aria-haspopup="true"
                   aria-expanded={dropdownOpen}
+                  aria-haspopup="true"
                 >
                   <div className="user-avatar">
-                    {user.avatar ? (
-                      <img src={user.avatar} alt={user.name || 'User'} />
+                    {user.avatarUrl ? (
+                      <img src={user.avatarUrl} alt={user.displayName} />
                     ) : (
-                      <div className="avatar-placeholder">
-                        {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                      </div>
+                      <div className="avatar-placeholder">{getUserInitials()}</div>
                     )}
                   </div>
-                  <span className={`dropdown-arrow ${dropdownOpen ? 'active' : ''}`}>
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <span className="user-name desktop-only">{user.displayName}</span>
+                  <div className={`dropdown-arrow ${dropdownOpen ? 'active' : ''}`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>
-                  </span>
+                  </div>
                 </button>
                 
                 <div 
-                  className={`dropdown-menu ${dropdownOpen ? 'dropdown-visible' : ''}`} 
-                  ref={dropdownRef}
-                  aria-hidden={!dropdownOpen}
+                  ref={dropdownRef} 
+                  className={`dropdown-menu ${dropdownOpen ? 'dropdown-visible' : ''}`}
                 >
                   <div className="dropdown-header">
-                    <span className="dropdown-username">{user.name || 'User'}</span>
-                    <span className="dropdown-email">{user.email || ''}</span>
+                    <span className="dropdown-username">{user.displayName}</span>
+                    <span className="dropdown-email">{user.email || 'No email provided'}</span>
                   </div>
                   
                   <div className="dropdown-links">
-                    <Link to="/profile" className="dropdown-link" onClick={() => setDropdownOpen(false)}>
-                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <Link to="/profile" className="dropdown-link" onClick={handleDropdownLinkClick}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
                       </svg>
                       My Profile
                     </Link>
                     
-                    <Link to="/inventory" className="dropdown-link" onClick={() => setDropdownOpen(false)}>
-                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M21 16V8C21 6.89543 20.1046 6 19 6H5C3.89543 6 3 6.89543 3 8V16C3 17.1046 3.89543 18 5 18H19C20.1046 18 21 17.1046 21 16Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M3 10H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M7 14H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M11 14H12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <Link to="/inventory" className="dropdown-link" onClick={handleDropdownLinkClick}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="8" x2="8" y2="8"></line>
+                        <line x1="16" y1="12" x2="8" y2="12"></line>
+                        <line x1="16" y1="16" x2="8" y2="16"></line>
                       </svg>
                       My Inventory
                     </Link>
                     
-                    <Link to="/trades" className="dropdown-link" onClick={() => setDropdownOpen(false)}>
-                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 17L10 11L4 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M12 19H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <Link to="/trades" className="dropdown-link" onClick={handleDropdownLinkClick}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="17 1 21 5 17 9"></polyline>
+                        <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                        <polyline points="7 23 3 19 7 15"></polyline>
+                        <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
                       </svg>
                       My Trades
                     </Link>
                     
-                    <Link to="/wallet" className="dropdown-link" onClick={() => setDropdownOpen(false)}>
-                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M2 8.5V7C2 5.89543 2.89543 5 4 5H20C21.1046 5 22 5.89543 22 7V17C22 18.1046 21.1046 19 20 19H4C2.89543 19 2 18.1046 2 17V15.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M16 12C16 11.4477 16.4477 11 17 11H22V13H17C16.4477 13 16 12.5523 16 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <circle cx="8" cy="12" r="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <Link to="/settings" className="dropdown-link" onClick={handleDropdownLinkClick}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                       </svg>
-                      My Wallet
+                      Settings
                     </Link>
                     
                     <div className="dropdown-divider"></div>
                     
                     <button className="dropdown-link logout-button" onClick={() => {
                       setDropdownOpen(false);
-                      onLogout();
+                      window.location.href = `${API_URL}/auth/logout`;
                     }}>
-                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M14 8V6C14 5.46957 13.7893 4.96086 13.4142 4.58579C13.0391 4.21071 12.5304 4 12 4H5C4.46957 4 3.96086 4.21071 3.58579 4.58579C3.21071 4.96086 3 5.46957 3 6V18C3 18.5304 3.21071 19.0391 3.58579 19.4142C3.96086 19.7893 4.46957 20 5 20H12C12.5304 20 13.0391 19.7893 13.4142 19.4142C13.7893 19.0391 14 18.5304 14 18V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M7 12H21M21 12L18 9M21 12L18 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
                       </svg>
-                      Sign Out
+                      Log Out
                     </button>
                   </div>
                 </div>
@@ -192,16 +246,20 @@ function Navbar({ user, onLogout }) {
             </div>
           ) : (
             <a href={`${API_URL}/auth/steam`} className="sign-in-button">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-                <polyline points="10 17 15 12 10 7"/>
-                <line x1="15" y1="12" x2="3" y2="12"/>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                <polyline points="10 17 15 12 10 7"></polyline>
+                <line x1="15" y1="12" x2="3" y2="12"></line>
               </svg>
               Sign in with Steam
             </a>
           )}
           
-          <button className="mobile-menu-toggle" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+          <button 
+            className="mobile-menu-toggle" 
+            aria-label="Toggle mobile menu"
+            onClick={() => setMobileOpen(!mobileOpen)}
+          >
             <span className="hamburger-line"></span>
             <span className="hamburger-line"></span>
             <span className="hamburger-line"></span>
@@ -209,54 +267,116 @@ function Navbar({ user, onLogout }) {
         </div>
       </div>
       
-      {/* Mobile menu */}
+      {/* Mobile Menu */}
       <div className="mobile-menu">
         <div className="mobile-menu-links">
-          <Link to="/" className={`mobile-menu-link ${location.pathname === '/' ? 'active' : ''}`}>
-            Home
-          </Link>
-          <Link to="/marketplace" className={`mobile-menu-link ${location.pathname === '/marketplace' ? 'active' : ''}`}>
+          <NavLink to="/marketplace" className={({ isActive }) => 
+            isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
+          }>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="21" r="1"></circle>
+              <circle cx="20" cy="21" r="1"></circle>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+            </svg>
             Marketplace
-          </Link>
+          </NavLink>
+          
+          <NavLink to="/sell" className={({ isActive }) => 
+            isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
+          }>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23"></line>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+            Sell Items
+          </NavLink>
           
           {user && (
             <>
-              <Link to="/profile" className="mobile-menu-link">
-                My Profile
-              </Link>
-              <Link to="/inventory" className="mobile-menu-link">
-                My Inventory
-              </Link>
-              <Link to="/trades" className="mobile-menu-link">
-                My Trades
-              </Link>
-              <Link to="/wallet" className="mobile-menu-link">
-                My Wallet ({formatCurrency(user.walletBalance || 0)})
-              </Link>
-              <button className="mobile-menu-link logout-button" onClick={onLogout}>
-                Sign Out
-              </button>
-            </>
-          )}
-          
-          {!user && (
-            <a href={`${API_URL}/auth/steam`} className="mobile-menu-link steam-login">
-              Sign in with Steam
-            </a>
-          )}
-        </div>
+              <NavLink to="/inventory" className={({ isActive }) => 
+              isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
+            }>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="8" x2="8" y2="8"></line>
+                <line x1="16" y1="12" x2="8" y2="12"></line>
+                <line x1="16" y1="16" x2="8" y2="16"></line>
+              </svg>
+              My Inventory
+            </NavLink>
+            
+            <NavLink to="/trades" className={({ isActive }) => 
+              isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
+            }>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="17 1 21 5 17 9"></polyline>
+                <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                <polyline points="7 23 3 19 7 15"></polyline>
+                <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+              </svg>
+              My Trades
+            </NavLink>
+            
+            <NavLink to="/profile" className={({ isActive }) => 
+              isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
+            }>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              My Profile
+            </NavLink>
+          </>
+        )}
         
-        <div className="mobile-menu-social">
-          <a href="https://discord.gg/your-discord-invite" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
-            <i className="fab fa-discord"></i> Discord
+        <NavLink to="/blog" className={({ isActive }) => 
+          isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
+        }>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+            <path d="M2 2l7.586 7.586"></path>
+            <circle cx="11" cy="11" r="2"></circle>
+          </svg>
+          Blog
+        </NavLink>
+        
+        <NavLink to="/faq" className={({ isActive }) => 
+          isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
+        }>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          FAQ
+        </NavLink>
+        
+        {!user && (
+          <a href={`${API_URL}/auth/steam`} className="mobile-menu-link steam-login">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+              <polyline points="10 17 15 12 10 7"></polyline>
+              <line x1="15" y1="12" x2="3" y2="12"></line>
+            </svg>
+            Sign in with Steam
           </a>
-          <a href="https://facebook.com/your-facebook-page" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
-            <i className="fab fa-facebook"></i> Facebook
-          </a>
-        </div>
+        )}
+      </div>
+      
+      <div className="mobile-menu-social">
+        <a href="https://discord.gg/" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
+          <i className="fab fa-discord"></i>
+        </a>
+        <a href="https://twitter.com/" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
+          <i className="fab fa-twitter"></i>
+        </a>
+        <a href="https://reddit.com/" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
+          <i className="fab fa-reddit"></i>
+        </a>
       </div>
     </nav>
   );
-}
+};
 
 export default Navbar; 

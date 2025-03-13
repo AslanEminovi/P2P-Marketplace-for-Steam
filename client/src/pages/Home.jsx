@@ -1,92 +1,91 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
-import { API_URL } from '../config/constants';
+import { API_URL, getColorForRarity } from '../config/constants';
 import './Home.css';
 
-// Import the CS2 logo
-import csLogo from './cs-logo.png';
-
-// Helper function to get color for item rarity
-const getColorForRarity = (rarity) => {
-  const rarityLower = (rarity || '').toLowerCase();
-  
-  switch (rarityLower) {
-    case 'factory new':
-    case 'covert':
-    case 'extraordinary':
-    case 'contraband':
-      return '#EB4B4B'; // Red
-    case 'minimal wear':
-    case 'classified':
-      return '#D32CE6'; // Pink/Purple
-    case 'field-tested':
-    case 'restricted':
-      return '#8847FF'; // Purple
-    case 'well-worn':
-    case 'mil-spec':
-    case 'high grade':
-      return '#4B69FF'; // Blue
-    case 'battle-scarred':
-    case 'industrial grade':
-      return '#5E98D9'; // Light blue
-    case 'consumer grade':
-      return '#B0C3D9'; // Light grey
-    default:
-      return '#3498db'; // Default blue
+// Generate random particles for background effect
+const generateParticles = (count) => {
+  const particles = [];
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 5 + 3
+    });
   }
+  return particles;
 };
 
-// Creating separate section components for better organization and independent styling
+const particles = generateParticles(30);
+
+// Hero Section Component
 const HeroSection = ({ user, stats, animationActive }) => {
   const { t } = useTranslation();
   
   return (
     <section className="hero-section-container">
-      <div className={`hero-section ${animationActive ? 'hero-active' : ''}`}>
-        <div className="hero-content">
-          <h1 className="hero-title">
-            <span className="gradient-text">CS2</span> Marketplace Georgia
-          </h1>
-          <p className="hero-subtitle">
-            Buy, sell, and trade CS2 items with <span className="gradient-text">custom GEL pricing</span>
-          </p>
+      <div className="hero-decoration top-left"></div>
+      <div className="hero-decoration bottom-right"></div>
+      
+      <div className="hero-content">
+        <h1 className="hero-title">
+          The Ultimate <span className="gradient-text" data-text="CS2 Marketplace">CS2 Marketplace</span> for Game Items
+        </h1>
+        <p className="hero-description">
+          Buy and sell CS2 skins with confidence on our secure P2P marketplace. 
+          Trade directly with other players, no bots, no scams - just safe, fast, and reliable transactions.
+        </p>
+        
+        <div className="hero-cta">
+          <Link to="/marketplace" className="hero-button primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="21" r="1"></circle>
+              <circle cx="20" cy="21" r="1"></circle>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+            </svg>
+            Browse Marketplace
+          </Link>
           
-          <div className="hero-stats">
-            <div className="stat-item">
-              <span className="stat-number gradient-text">{stats.items}+</span>
-              <span className="stat-label">Items Listed</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number gradient-text">{stats.users}+</span>
-              <span className="stat-label">Active Users</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number gradient-text">{stats.trades}+</span>
-              <span className="stat-label">Completed Trades</span>
-            </div>
-          </div>
+          {!user && (
+            <a href={`${API_URL}/auth/steam`} className="hero-button secondary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                <polyline points="10 17 15 12 10 7"></polyline>
+                <line x1="15" y1="12" x2="3" y2="12"></line>
+              </svg>
+              Sign in with Steam
+            </a>
+          )}
           
-          <div className="hero-cta">
-            {user ? (
-              <Link to="/inventory" className="primary-button">
-                View Your Inventory
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-              </Link>
-            ) : (
-              <a href={`${API_URL}/auth/steam`} className="primary-button">
-                Sign in with Steam
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/></svg>
-              </a>
-            )}
-            <Link to="/marketplace" className="secondary-button">
-              Browse Marketplace
+          {user && (
+            <Link to="/sell" className="hero-button secondary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Sell Your Items
             </Link>
-          </div>
+          )}
         </div>
-        <div className="hero-image-container">
-          <img src={csLogo} alt="CS2 Logo" className="hero-image" />
+        
+        <div className="hero-stats">
+          <div className="hero-stat">
+            <div className="hero-stat-value">{stats.items || 0}</div>
+            <div className="hero-stat-label">Active Listings</div>
+          </div>
+          
+          <div className="hero-stat">
+            <div className="hero-stat-value">{stats.users || 0}</div>
+            <div className="hero-stat-label">Active Users</div>
+          </div>
+          
+          <div className="hero-stat">
+            <div className="hero-stat-value">{stats.trades || 0}</div>
+            <div className="hero-stat-label">Completed Trades</div>
+          </div>
         </div>
       </div>
     </section>
@@ -142,27 +141,34 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
       ) : featuredItems && featuredItems.length > 0 ? (
         <>
           <div className="featured-grid">
-            {featuredItems.map(item => (
-              <div key={item._id} className="item-card">
+            {featuredItems.map((item, index) => (
+              <div key={item._id || index} className="item-card">
                 <div className="item-card-image">
-                  <img src={item.image} alt={item.name} />
+                  {item.image ? (
+                    <img src={item.image} alt={item.name || 'CS2 Item'} />
+                  ) : (
+                    <div className="no-image-placeholder">No Image Available</div>
+                  )}
                 </div>
                 <div className="item-card-content">
-                  <h3 className="item-name gradient-text">{item.name}</h3>
+                  <h3 className="item-name gradient-text">{item.name || 'Unknown Item'}</h3>
                   <span className="item-rarity" style={{ 
-                    backgroundColor: getColorForRarity(item.rarity)
+                    backgroundColor: getColorForRarity(item.rarity || 'Consumer Grade')
                   }}>
-                    {item.rarity} {item.wear && `• ${item.wear}`}
+                    {item.rarity || 'Standard'} {item.wear && `• ${item.wear}`}
                   </span>
                   <div className="item-meta">
                     <div className="item-price">
                       <span className="price-tag-currency gradient-text">GEL</span>
                       <span className="price-tag-amount gradient-text">
-                        {(item.price/100).toFixed(2)}
+                        {((item.price || 0)/100).toFixed(2)}
                       </span>
                     </div>
                     <Link to={`/marketplace/${item._id}`} className="buy-now-button">
                       View Item
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                      </svg>
                     </Link>
                   </div>
                 </div>
@@ -179,142 +185,134 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
           </div>
         </>
       ) : (
-        <div className="empty-items">
-          <div className="empty-items-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-              <circle cx="8.5" cy="8.5" r="1.5"></circle>
-              <polyline points="21 15 16 10 5 21"></polyline>
-            </svg>
-          </div>
-          <h3>No Featured Items</h3>
-          <p>Check back soon for featured CS2 items or browse our marketplace!</p>
-          <Link to="/marketplace" className="primary-button">
-            Browse Marketplace
-          </Link>
+        <div className="loading-items">
+          <p>No items available at the moment. Please check back later!</p>
         </div>
       )}
     </section>
   );
 };
 
-const FeaturesSection = () => {
-  const featuresRef = useRef(null);
-  
-  useEffect(() => {
-    // Make all feature cards visible immediately to ensure they're seen
-    const featureCards = document.querySelectorAll('.feature-card');
-    featureCards.forEach(card => {
-      card.classList.add('animated');
-    });
-    
-    // Function to check if element is in viewport (only for fancy entrance animation)
-    const isInViewport = (element) => {
-      const rect = element.getBoundingClientRect();
-      return (
-        rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.8 &&
-        rect.bottom >= 0
-      );
-    };
-    
-    // Improved scroll handler for additional animation effects only
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          featureCards.forEach(card => {
-            if (isInViewport(card)) {
-              card.classList.add('in-view');
-            }
-          });
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-    
-    // Add scroll event listener
-    window.addEventListener('scroll', handleScroll);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
+const TradingStatsSection = () => {
   return (
-    <section className="features-section-container">
+    <section className="trading-stats-section">
       <div className="section-title">
         <div className="section-title-content">
-          <h2>Premium <span className="gradient-text">Features</span></h2>
-          <p>Everything you need for safe and efficient CS2 item trading</p>
+          <h2>Platform <span className="gradient-text">Statistics</span></h2>
+          <p>Check out our marketplace performance and trading activity</p>
           <div className="title-decoration"></div>
         </div>
       </div>
       
-      <div className="features-section" ref={featuresRef}>
-        <div className="feature-card animated">
-          <div className="feature-icon">
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
             </svg>
           </div>
-          <h3>Secure Steam Integration</h3>
-          <p>Connect your Steam account securely through official OpenID and Steam API protocols for direct inventory access.</p>
+          <div className="stat-value">99.8%</div>
+          <div className="stat-label">Success Rate</div>
+          <div className="stat-description">Nearly all transactions are completed successfully without any issues</div>
         </div>
         
-        <div className="feature-card animated">
+        <div className="stat-card">
+          <div className="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <div className="stat-value">5 min</div>
+          <div className="stat-label">Avg. Trade Time</div>
+          <div className="stat-description">Most trades are completed within minutes after payment</div>
+        </div>
+        
+        <div className="stat-card">
+          <div className="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+          </div>
+          <div className="stat-value">$1,245</div>
+          <div className="stat-label">Highest Value Trade</div>
+          <div className="stat-description">Record-setting item sold on our marketplace</div>
+        </div>
+        
+        <div className="stat-card">
+          <div className="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="1" y="3" width="15" height="13"></rect>
+              <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+              <circle cx="5.5" cy="18.5" r="2.5"></circle>
+              <circle cx="18.5" cy="18.5" r="2.5"></circle>
+            </svg>
+          </div>
+          <div className="stat-value">8,547+</div>
+          <div className="stat-label">Total Deliveries</div>
+          <div className="stat-description">Items successfully delivered to buyers worldwide</div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const FeaturesSection = () => {
+  return (
+    <section className="features-section">
+      <div className="section-title">
+        <div className="section-title-content">
+          <h2>Premium <span className="gradient-text">Features</span></h2>
+          <p>Experience the best CS2 item trading platform with our unique features</p>
+          <div className="title-decoration"></div>
+        </div>
+      </div>
+      
+      <div className="features-grid">
+        <div className="feature-card">
+          <div className="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 7h-9"></path>
+              <path d="M14 17H5"></path>
+              <circle cx="17" cy="17" r="3"></circle>
+              <circle cx="7" cy="7" r="3"></circle>
+            </svg>
+          </div>
+          <h3 className="feature-title">P2P Trading</h3>
+          <p className="feature-description">Trade directly with other players without middlemen. Secure, fast, and reliable transactions every time.</p>
+        </div>
+        
+        <div className="feature-card">
+          <div className="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+          <h3 className="feature-title">Secure Escrow</h3>
+          <p className="feature-description">All trades are protected by our escrow system. Your money is safe until you receive your items.</p>
+        </div>
+        
+        <div className="feature-card">
+          <div className="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+              <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+            </svg>
+          </div>
+          <h3 className="feature-title">Instant Inventory</h3>
+          <p className="feature-description">Connect your Steam account and instantly list your CS2 items for sale with just a few clicks.</p>
+        </div>
+        
+        <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="1" x2="12" y2="23"></line>
               <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
             </svg>
           </div>
-          <h3>GEL & USD Pricing</h3>
-          <p>Set your prices in Georgian Lari (₾) or USD ($) with automatic currency conversion and real-time exchange rates.</p>
-        </div>
-        
-        <div className="feature-card animated">
-          <div className="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-            </svg>
-          </div>
-          <h3>Real-Time Inventory Sync</h3>
-          <p>Your Steam inventory automatically stays in sync with live updates and accurate item information.</p>
-        </div>
-        
-        <div className="feature-card animated">
-          <div className="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="12" y1="8" x2="12" y2="16"></line>
-              <line x1="8" y1="12" x2="16" y2="12"></line>
-            </svg>
-          </div>
-          <h3>Offer System</h3>
-          <p>Make and receive offers on items with our integrated notification system and trade manager.</p>
-        </div>
-        
-        <div className="feature-card animated">
-          <div className="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-            </svg>
-          </div>
-          <h3>Comprehensive Trade History</h3>
-          <p>Keep track of all your trades with detailed history logs and transaction records.</p>
-        </div>
-        
-        <div className="feature-card animated">
-          <div className="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-            </svg>
-          </div>
-          <h3>Advanced Item Filtering</h3>
-          <p>Find exactly what you're looking for with our powerful search and filter options for CS2 items.</p>
+          <h3 className="feature-title">Multiple Payment Methods</h3>
+          <p className="feature-description">Pay using credit cards, cryptocurrency, or other popular payment methods with low transaction fees.</p>
         </div>
       </div>
     </section>
@@ -322,113 +320,42 @@ const FeaturesSection = () => {
 };
 
 const HowItWorksSection = () => {
-  const roadmapRef = useRef(null);
-  
-  useEffect(() => {
-    // Make all roadmap items visible immediately
-    const roadmapItems = document.querySelectorAll('.roadmap-item');
-    roadmapItems.forEach((item, index) => {
-      item.classList.add('animated');
-      // Add a small staggered delay for visual effect
-      setTimeout(() => {
-        item.style.opacity = '1';
-      }, index * 100);
-    });
-    
-    // Function to check if element is in viewport (for enhanced effects only)
-    const isInViewport = (element) => {
-      const rect = element.getBoundingClientRect();
-      return (
-        rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.8 &&
-        rect.bottom >= 0
-      );
-    };
-    
-    // Create sequential animation with delay between items (for enhanced effects)
-    const animateSequentially = () => {
-      roadmapItems.forEach(item => {
-        if (isInViewport(item)) {
-          item.classList.add('in-view');
-        }
-      });
-    };
-    
-    // Improved scroll handler with throttling for performance
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          animateSequentially();
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-    
-    // Run once on mount
-    animateSequentially();
-    
-    // Add scroll event listener
-    window.addEventListener('scroll', handleScroll);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
   return (
-    <section className="how-it-works-section-container">
-      <div className="section-title">
-        <div className="section-title-content">
-          <h2>How It <span className="gradient-text">Works</span></h2>
-          <p>Follow these simple steps to start trading CS2 items on our platform</p>
-          <div className="title-decoration"></div>
+    <section className="how-it-works-section">
+      <div className="how-it-works-container">
+        <div className="section-title">
+          <div className="section-title-content">
+            <h2>How It <span className="gradient-text">Works</span></h2>
+            <p>Get started with our simple 4-step process to buy or sell CS2 items</p>
+            <div className="title-decoration"></div>
+          </div>
         </div>
-      </div>
-      
-      <div className="how-it-works-section">
-        <div className="roadmap-container" ref={roadmapRef}>
-          <div className="roadmap-line"></div>
-          
-          <div className="roadmap-item animated">
-            <div className="roadmap-step">1</div>
-            <div className="roadmap-content">
-              <h3>Connect Steam Account</h3>
-              <p>Sign in with your Steam account and allow access to your inventory. All connections are made securely through official Steam protocols.</p>
-            </div>
+        
+        <div className="steps-connection"></div>
+        
+        <div className="steps-timeline">
+          <div className="step-card">
+            <div className="step-number">1</div>
+            <h3 className="step-title">Connect Your Account</h3>
+            <p className="step-description">Sign in using your Steam account to access your inventory and trading features</p>
           </div>
           
-          <div className="roadmap-item animated">
-            <div className="roadmap-step">2</div>
-            <div className="roadmap-content">
-              <h3>Browse or List Items</h3>
-              <p>Browse items from other users or list your own items for sale from your Steam inventory. Set your prices in GEL or USD.</p>
-            </div>
+          <div className="step-card">
+            <div className="step-number">2</div>
+            <h3 className="step-title">Browse or List Items</h3>
+            <p className="step-description">Find items to buy or list your own items for sale with competitive prices</p>
           </div>
           
-          <div className="roadmap-item animated">
-            <div className="roadmap-step">3</div>
-            <div className="roadmap-content">
-              <h3>Make or Accept Offers</h3>
-              <p>Make offers on items you want or receive offers on your listed items. Negotiate prices and terms directly with other users.</p>
-            </div>
+          <div className="step-card">
+            <div className="step-number">3</div>
+            <h3 className="step-title">Secure Payment</h3>
+            <p className="step-description">Use our secure payment system to purchase items or receive funds for your sales</p>
           </div>
           
-          <div className="roadmap-item animated">
-            <div className="roadmap-step">4</div>
-            <div className="roadmap-content">
-              <h3>Complete Trades</h3>
-              <p>Once an offer is accepted, Steam trade offers are automatically generated. Complete the trade through the Steam trade system.</p>
-            </div>
-          </div>
-          
-          <div className="roadmap-item animated">
-            <div className="roadmap-step">5</div>
-            <div className="roadmap-content">
-              <h3>Track Your History</h3>
-              <p>Keep a comprehensive record of all your transactions, completed trades, and marketplace activity in your profile.</p>
-            </div>
+          <div className="step-card">
+            <div className="step-number">4</div>
+            <h3 className="step-title">Trade & Delivery</h3>
+            <p className="step-description">Complete the trade and receive your items directly in your Steam inventory</p>
           </div>
         </div>
       </div>
@@ -438,126 +365,61 @@ const HowItWorksSection = () => {
 
 const FinalCTASection = ({ user }) => {
   return (
-    <section className="final-cta-section-container">
-      <div className="section-title">
-        <div className="section-title-content">
-          <h2>Ready to <span className="gradient-text">Trade</span>?</h2>
-          <p>Join our community of CS2 traders and start buying and selling items today</p>
-          <div className="title-decoration"></div>
-        </div>
-      </div>
+    <section className="final-cta-section">
+      <div className="final-cta-background"></div>
+      <div className="final-cta-decoration top-right"></div>
+      <div className="final-cta-decoration bottom-left"></div>
       
-      <div className="final-cta-section">
-        <div className="cta-buttons">
-          {user ? (
-            <Link to="/inventory" className="primary-button">
-              View My Inventory
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </Link>
+      <div className="final-cta-content">
+        <h2 className="final-cta-title">
+          Ready to <span className="gradient-text">Trade</span>?
+        </h2>
+        <p className="final-cta-description">
+          Join thousands of CS2 players who buy and sell items on our secure marketplace.
+          No hidden fees, no scams - just seamless trading.
+        </p>
+        
+        <div className="final-cta-buttons">
+          {!user ? (
+            <>
+              <a href={`${API_URL}/auth/steam`} className="hero-button primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                  <polyline points="10 17 15 12 10 7"></polyline>
+                  <line x1="15" y1="12" x2="3" y2="12"></line>
+                </svg>
+                Sign in with Steam
+              </a>
+              
+              <Link to="/marketplace" className="hero-button secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="9" cy="21" r="1"></circle>
+                  <circle cx="20" cy="21" r="1"></circle>
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                </svg>
+                Browse Marketplace
+              </Link>
+            </>
           ) : (
-            <a href={`${API_URL}/auth/steam`} className="primary-button">
-              Sign in with Steam
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/></svg>
-            </a>
+            <>
+              <Link to="/sell" className="hero-button primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Sell Your Items
+              </Link>
+              
+              <Link to="/marketplace" className="hero-button secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="9" cy="21" r="1"></circle>
+                  <circle cx="20" cy="21" r="1"></circle>
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                </svg>
+                Browse Marketplace
+              </Link>
+            </>
           )}
-          <Link to="/marketplace" className="secondary-button">
-            Browse Marketplace
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-};
-
-// Update the TradingStatsSection to use dynamic data from actual trades
-const TradingStatsSection = () => {
-  const [marketStats, setMarketStats] = useState({
-    popularItem: { name: "Calculating...", count: 0 },
-    highestTrade: { value: 0, description: "Calculating..." },
-    avgTradeTime: "5-10 minutes"
-  });
-
-  useEffect(() => {
-    // In a real implementation, this would fetch data from your API
-    // For now, we'll use placeholder data that simulates a real calculation
-    const calculateMarketStats = async () => {
-      try {
-        // This would be an API call in production
-        // const response = await axios.get(`${API_URL}/market/stats`);
-        
-        // Simulate the stats based on your requirements
-        // In reality, this data would come from your backend
-        setMarketStats({
-          popularItem: {
-            name: "AWP | Neo-Noir",
-            count: 38
-          },
-          highestTrade: {
-            value: 12500,
-            description: "Karambit | Fade (Factory New)"
-          },
-          avgTradeTime: "5-10 minutes"
-        });
-      } catch (error) {
-        console.error("Failed to load market stats", error);
-      }
-    };
-    
-    calculateMarketStats();
-  }, []);
-
-  return (
-    <section className="trading-stats-section-container">
-      <div className="section-title">
-        <div className="section-title-content">
-          <h2>Market <span className="gradient-text">Insights</span></h2>
-          <p>Check out the latest trading statistics and market trends</p>
-          <div className="title-decoration"></div>
-        </div>
-      </div>
-      
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--gradient-purple)' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
-              <polyline points="16 7 22 7 22 13"></polyline>
-            </svg>
-          </div>
-          <div className="stat-info">
-            <h3>Most Popular Item</h3>
-            <p className="stat-highlight">{marketStats.popularItem.name}</p>
-            <p className="stat-detail">Traded {marketStats.popularItem.count} times this month</p>
-          </div>
-        </div>
-        
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--gradient-blue)' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-              <polyline points="17 6 23 6 23 12"></polyline>
-            </svg>
-          </div>
-          <div className="stat-info">
-            <h3>Highest Value Trade</h3>
-            <p className="stat-highlight">{marketStats.highestTrade.value.toLocaleString()} ₾</p>
-            <p className="stat-detail">{marketStats.highestTrade.description}</p>
-          </div>
-        </div>
-        
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--gradient-orange)' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-          </div>
-          <div className="stat-info">
-            <h3>Average Trade Time</h3>
-            <p className="stat-highlight">{marketStats.avgTradeTime}</p>
-            <p className="stat-detail">From listing to completion</p>
-          </div>
         </div>
       </div>
     </section>
@@ -566,13 +428,12 @@ const TradingStatsSection = () => {
 
 const Home = () => {
   const [user, setUser] = useState(null);
-  const [stats, setStats] = useState({ items: 0, users: 0, trades: 0 });
   const [loading, setLoading] = useState(true);
   const [featuredItems, setFeaturedItems] = useState([]);
+  const [stats, setStats] = useState({ items: 0, users: 0, trades: 0 });
   const [animationActive, setAnimationActive] = useState(false);
-  const [particles, setParticles] = useState([]);
-
-  // Check user authentication status
+  
+  // Check if user is authenticated
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -588,49 +449,7 @@ const Home = () => {
     
     checkAuth();
   }, []);
-
-  // Add animated particles
-  useEffect(() => {
-    const particlesCount = 20;
-    const newParticles = [];
-    
-    for (let i = 0; i < particlesCount; i++) {
-      newParticles.push({
-        id: i,
-        x: Math.random() * 100,
-        y: Math.random() * 100,
-        size: Math.random() * 5 + 3
-      });
-    }
-    
-    setParticles(newParticles);
-  }, []);
-
-  // Add scroll behavior for navbar
-  useEffect(() => {
-    const handleScroll = () => {
-      const navbar = document.querySelector('.navbar');
-      if (navbar) {
-        if (window.scrollY > 50) {
-          navbar.classList.add('scrolled');
-        } else {
-          navbar.classList.remove('scrolled');
-        }
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    
-    // Activate hero animation on load
-    setTimeout(() => {
-      setAnimationActive(true);
-    }, 100);
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
+  
   // Fetch featured items from the server
   const fetchFeaturedItems = async () => {
     try {
