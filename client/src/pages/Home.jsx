@@ -26,15 +26,15 @@ const HeroSection = ({ user, stats, animationActive }) => {
           
           <div className="hero-stats">
             <div className="stat-item">
-              <span className="stat-number">{stats.items}+</span>
+              <span className="stat-number gradient-text">{stats.items}+</span>
               <span className="stat-label">Items Listed</span>
             </div>
             <div className="stat-item">
-              <span className="stat-number">{stats.users}+</span>
+              <span className="stat-number gradient-text">{stats.users}+</span>
               <span className="stat-label">Active Users</span>
             </div>
             <div className="stat-item">
-              <span className="stat-number">{stats.trades}+</span>
+              <span className="stat-number gradient-text">{stats.trades}+</span>
               <span className="stat-label">Completed Trades</span>
             </div>
           </div>
@@ -83,11 +83,11 @@ const SearchSection = () => {
           </button>
         </div>
         <div className="search-tags">
-          <Link to="/marketplace?category=rifle" className="search-tag">Rifles</Link>
-          <Link to="/marketplace?category=knife" className="search-tag">Knives</Link>
-          <Link to="/marketplace?category=pistol" className="search-tag">Pistols</Link>
-          <Link to="/marketplace?category=glove" className="search-tag">Gloves</Link>
-          <Link to="/marketplace?category=case" className="search-tag">Cases</Link>
+          <Link to="/marketplace?category=rifle" className="search-tag gradient-text">Rifles</Link>
+          <Link to="/marketplace?category=knife" className="search-tag gradient-text">Knives</Link>
+          <Link to="/marketplace?category=pistol" className="search-tag gradient-text">Pistols</Link>
+          <Link to="/marketplace?category=glove" className="search-tag gradient-text">Gloves</Link>
+          <Link to="/marketplace?category=case" className="search-tag gradient-text">Cases</Link>
         </div>
       </div>
     </section>
@@ -123,7 +123,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
                   <img src={item.image} alt={item.name} />
                 </div>
                 <div className="item-card-content">
-                  <h3 className="item-name">{item.name}</h3>
+                  <h3 className="item-name gradient-text">{item.name}</h3>
                   <span className="item-rarity" style={{ 
                     backgroundColor: getColorForRarity(item.rarity) 
                   }}>
@@ -131,8 +131,8 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
                   </span>
                   <div className="item-meta">
                     <div className="item-price">
-                      <span className="price-tag-currency">GEL</span>
-                      <span className="price-tag-amount">{(item.price / 100).toFixed(2)}</span>
+                      <span className="price-tag-currency gradient-text">GEL</span>
+                      <span className="price-tag-amount gradient-text">{(item.price / 100).toFixed(2)}</span>
                     </div>
                     <Link to={`/item/${item.id}`} className="buy-now-button">
                       View Item

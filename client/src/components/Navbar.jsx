@@ -32,7 +32,7 @@ function Navbar({ user, onLogout }) {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '1rem 2rem',
-    backgroundColor: scrolled ? 'rgba(18, 18, 18, 0.95)' : 'rgba(18, 18, 18, 0.75)',
+    background: scrolled ? 'var(--ultra-gradient-1)' : 'var(--ultra-gradient-2)',
     backdropFilter: 'blur(10px)',
     color: 'white',
     boxShadow: scrolled ? '0 4px 20px rgba(0,0,0,0.5)' : 'none',
@@ -48,7 +48,7 @@ function Navbar({ user, onLogout }) {
   const logoStyles = {
     fontSize: '1.75rem', 
     fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #c158dc 0%, #9c27b0 50%, #7b1fa2 100%)',
+    background: 'var(--text-gradient-1)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     textDecoration: 'none',
@@ -62,14 +62,14 @@ function Navbar({ user, onLogout }) {
     transition: 'all 0.2s',
     padding: '0.5rem 1rem',
     borderRadius: '8px',
-    backgroundColor: 'rgba(142, 36, 170, 0.2)',
+    background: 'var(--ultra-gradient-3)',
     border: '1px solid rgba(142, 36, 170, 0.3)',
     fontWeight: '600',
     letterSpacing: '0.5px'
   };
 
   const navLinkHoverStyles = {
-    backgroundColor: 'rgba(142, 36, 170, 0.3)',
+    background: 'var(--ultra-gradient-4)',
     transform: 'translateY(-2px)',
     boxShadow: '0 4px 12px rgba(142, 36, 170, 0.4)',
     border: '1px solid rgba(142, 36, 170, 0.5)',
@@ -80,7 +80,7 @@ function Navbar({ user, onLogout }) {
     padding: '0.5rem 1rem',
     borderRadius: '8px',
     fontWeight: 'bold',
-    backgroundColor: '#8e24aa',
+    background: 'var(--ultra-gradient-5)',
     color: 'white',
     textTransform: 'uppercase',
     letterSpacing: '0.05em',
@@ -90,7 +90,7 @@ function Navbar({ user, onLogout }) {
   };
 
   const adminButtonHoverStyles = {
-    backgroundColor: '#c158dc',
+    background: 'var(--ultra-gradient-6)',
     boxShadow: '0 0 20px rgba(142, 36, 170, 0.8)',
     transform: 'translateY(-2px)'
   };
@@ -103,14 +103,14 @@ function Navbar({ user, onLogout }) {
     padding: '0.5rem 1rem',
     borderRadius: '8px',
     transition: 'all 0.2s',
-    backgroundColor: 'rgba(142, 36, 170, 0.2)',
+    background: 'var(--ultra-gradient-3)',
     border: '1px solid rgba(142, 36, 170, 0.3)',
     userSelect: 'none',
     fontWeight: '600'
   };
 
   const userProfileHoverStyles = {
-    backgroundColor: 'rgba(142, 36, 170, 0.3)',
+    background: 'var(--ultra-gradient-4)',
     transform: 'translateY(-2px)',
     boxShadow: '0 4px 12px rgba(142, 36, 170, 0.4)',
     border: '1px solid rgba(142, 36, 170, 0.5)',
@@ -120,7 +120,7 @@ function Navbar({ user, onLogout }) {
     position: 'absolute',
     top: '100%',
     right: 0,
-    backgroundColor: 'rgba(25, 25, 25, 0.98)',
+    background: 'var(--ultra-gradient-1)',
     backdropFilter: 'blur(15px)',
     border: '1px solid rgba(142, 36, 170, 0.5)',
     borderRadius: '12px',
@@ -147,7 +147,7 @@ function Navbar({ user, onLogout }) {
   };
 
   const dropdownLinkHoverStyles = {
-    backgroundColor: 'rgba(142, 36, 170, 0.3)',
+    background: 'var(--ultra-gradient-3)',
     transform: 'translateX(4px)',
     boxShadow: '0 0 10px rgba(142, 36, 170, 0.3)'
   };

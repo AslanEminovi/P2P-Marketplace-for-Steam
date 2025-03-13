@@ -9,69 +9,72 @@ html, body {
 
 /* CS2 Marketplace Design - Base Styles */
 :root {
-  /* Primary colors - dark purple theme with better contrast */
+  /* Primary Colors */
   --primary-color: #8e24aa;
-  --primary-dark: #5c007a;
   --primary-light: #c158dc;
-  --primary-glow: rgba(142, 36, 170, 0.6);
+  --primary-dark: #7b1fa2;
   
-  /* Gradient colors - more vivid */
-  --gradient-start: #c158dc;
-  --gradient-mid: #9c27b0;
-  --gradient-end: #7b1fa2;
+  /* Ultra Gradient Colors */
+  --ultra-gradient-1: linear-gradient(135deg, rgba(18, 18, 18, 0.95) 0%, rgba(25, 25, 25, 0.95) 100%);
+  --ultra-gradient-2: linear-gradient(135deg, rgba(18, 18, 18, 0.75) 0%, rgba(25, 25, 25, 0.75) 100%);
+  --ultra-gradient-3: linear-gradient(135deg, rgba(142, 36, 170, 0.2) 0%, rgba(193, 88, 220, 0.2) 100%);
+  --ultra-gradient-4: linear-gradient(135deg, rgba(142, 36, 170, 0.3) 0%, rgba(193, 88, 220, 0.3) 100%);
+  --ultra-gradient-5: linear-gradient(135deg, #8e24aa 0%, #9c27b0 50%, #7b1fa2 100%);
+  --ultra-gradient-6: linear-gradient(135deg, #c158dc 0%, #9c27b0 50%, #7b1fa2 100%);
   
-  /* Surface colors - increased contrast */
-  --surface-dark: #121212;
-  --surface-medium: #1e1e1e;
-  --surface-light: #2d2d2d;
+  /* Text Gradient Colors */
+  --text-gradient-1: linear-gradient(135deg, #c158dc 0%, #9c27b0 50%, #7b1fa2 100%);
+  --text-gradient-2: linear-gradient(135deg, #e1bee7 0%, #ce93d8 50%, #ba68c8 100%);
+  --text-gradient-3: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 50%, #ce93d8 100%);
+  --text-gradient-4: linear-gradient(135deg, #fafafa 0%, #f5f5f5 50%, #eeeeee 100%);
   
-  /* Text colors - increased visibility */
+  /* Surface Colors */
+  --surface-color: #1a1a1a;
+  --surface-color-light: #2a2a2a;
+  --surface-color-dark: #0a0a0a;
+  
+  /* Text Colors */
   --text-primary: #ffffff;
-  --text-secondary: #d0d0d0;
-  --text-highlight: #e0e0ff;
+  --text-secondary: #b3b3b3;
+  --text-tertiary: #808080;
   
-  /* Accent colors */
-  --accent-success: #00e676;
-  --accent-info: #40c4ff;
-  --accent-warning: #ffab00;
-  --accent-danger: #ff5252;
+  /* Shadows */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
   
-  /* Grid and border colors - more visible */
-  --grid-color: rgba(142, 36, 170, 0.3);
-  --border-light: rgba(255, 255, 255, 0.15);
-  --border-medium: rgba(255, 255, 255, 0.25);
-  --border-glow: rgba(142, 36, 170, 0.6);
-  
-  /* Shadows - enhanced */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 15px rgba(142, 36, 170, 0.6);
-  
-  /* Animations */
+  /* Transitions */
   --transition-fast: 0.2s ease;
-  --transition-medium: 0.3s ease;
+  --transition-normal: 0.3s ease;
   --transition-slow: 0.5s ease;
-
-  /* Enhanced color scheme with more game-like colors */
-  --accent-blue: #2196f3;
-  --accent-orange: #ff9800;
-  --accent-green: #00e676;
-  --accent-red: #f44336;
   
-  /* Gradients with more vibrant colors */
-  --gradient-blue: linear-gradient(135deg, #2196f3, #0d47a1);
-  --gradient-orange: linear-gradient(135deg, #ff9800, #e65100);
-  --gradient-purple: linear-gradient(135deg, #c158dc, #5c007a);
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   
-  /* Glow effects */
-  --blue-glow: rgba(33, 150, 243, 0.6);
-  --orange-glow: rgba(255, 152, 0, 0.6);
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  
+  /* Z-index */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
 }
 
 /* Main container */
 .home-container {
-  background-color: var(--surface-dark);
+  background-color: var(--surface-color-dark);
   color: var(--text-primary);
   position: relative;
   overflow-x: hidden;
@@ -94,12 +97,14 @@ html, body {
   z-index: 0;
 }
 
-/* Enhanced gradient text */
+/* Enhanced gradient text with new colors */
 .gradient-text {
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+  background: linear-gradient(97deg, var(--text-gradient-1), var(--text-gradient-2) 42%, var(--text-gradient-3) 74%, var(--text-gradient-4));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
   display: inline-block;
   position: relative;
 }
@@ -139,14 +144,14 @@ html, body {
   height: auto;
   border: none;
   box-shadow: none;
-  transition: transform var(--transition-medium);
+  transition: transform var(--transition-normal);
   background: transparent;
-  filter: drop-shadow(0 0 15px var(--primary-glow));
+  filter: drop-shadow(0 0 15px var(--primary-color));
 }
 
 .hero-image:hover {
   transform: scale(1.05);
-  filter: drop-shadow(0 0 25px var(--primary-glow));
+  filter: drop-shadow(0 0 25px var(--primary-color));
 }
 
 /* Features section */
@@ -158,75 +163,55 @@ html, body {
 }
 
 .feature-card {
-  background: var(--surface-medium);
-  border-radius: 12px;
-  padding: 2rem;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  background: rgba(30, 30, 30, 0.8);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--border-light);
-  height: 100%;
+  border-radius: 16px;
+  padding: 2rem;
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  box-shadow: var(--shadow-md);
-  opacity: 1;
-  transform: translateY(0);
 }
 
-.feature-card.animated {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.feature-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
-  border-color: var(--border-medium);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-/* Enhanced hover effects for feature cards */
-.feature-card:hover .feature-icon {
-  transform: scale(1.05);
-  box-shadow: 0 8px 20px rgba(142, 36, 170, 0.4);
-  transition: transform 0.15s ease, box-shadow 0.15s ease; /* Even faster transition */
-}
-
-.feature-icon {
-  width: 60px;
-  height: 60px;
-  background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1.5rem;
-  color: white;
-  position: relative;
-  z-index: 1;
-  box-shadow: 0 5px 15px rgba(142, 36, 170, 0.3);
-  transition: transform 0.15s ease, box-shadow 0.15s ease; /* Even faster transition */
-}
-
-.feature-icon::before {
+.feature-card::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-  border-radius: 12px;
-  opacity: 0.7;
-  z-index: -1;
-  transition: var(--transition-medium);
+  background-image: linear-gradient(
+    var(--mx-chip-gradient-angle),
+    var(--ultra-gradient-1) var(--mx-ultra-gradient-stop-1),
+    var(--ultra-gradient-2) var(--mx-ultra-gradient-stop-2),
+    var(--ultra-gradient-3) var(--mx-ultra-gradient-stop-3),
+    var(--ultra-gradient-4) var(--mx-ultra-gradient-stop-4),
+    var(--ultra-gradient-5) var(--mx-ultra-gradient-stop-5),
+    var(--ultra-gradient-6) var(--mx-ultra-gradient-stop-6)
+  );
+  opacity: 0.05;
+  z-index: 0;
 }
 
-.feature-icon svg {
-  width: 28px;
-  height: 28px;
-  stroke-width: 2px;
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+  border-color: var(--border-medium);
+}
+
+.feature-card:hover::before {
+  opacity: 0.1;
+}
+
+.feature-icon {
+  background: linear-gradient(97deg, var(--text-gradient-1), var(--text-gradient-2) 42%, var(--text-gradient-3) 74%, var(--text-gradient-4));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  position: relative;
+  z-index: 1;
 }
 
 .feature-card h3 {
@@ -288,14 +273,14 @@ html, body {
   border-radius: 50%;
   flex-shrink: 0;
   position: relative;
-  box-shadow: 0 0 20px var(--primary-glow);
+  box-shadow: 0 0 20px var(--primary-color);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   z-index: 2;
 }
 
 .roadmap-item:hover .roadmap-step {
   transform: scale(1.1);
-  box-shadow: 0 0 25px var(--primary-glow);
+  box-shadow: 0 0 25px var(--primary-color);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -309,7 +294,7 @@ html, body {
   background: linear-gradient(180deg, var(--primary-color), transparent);
   z-index: 1;
   opacity: 0.7;
-  box-shadow: 0 0 10px var(--primary-glow);
+  box-shadow: 0 0 10px var(--primary-color);
   height: 95%;
 }
 
@@ -324,7 +309,7 @@ html, body {
 }
 
 .item-card {
-  background: var(--surface-medium);
+  background: var(--surface-color-light);
   border-radius: 12px;
   overflow: hidden;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -346,7 +331,7 @@ html, body {
   height: 200px;
   overflow: hidden;
   position: relative;
-  background: var(--surface-dark);
+  background: var(--surface-color-dark);
 }
 
 .item-card-image img {
@@ -450,22 +435,21 @@ html, body {
   100% { transform: rotate(360deg); }
 }
 
-/* Navbar styling */
+/* Navbar styling with new gradients */
 .navbar {
+  background: rgba(18, 18, 18, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-light);
+  transition: all 0.3s ease;
   position: fixed;
+  width: 100%;
   top: 0;
-  left: 0;
-  right: 0;
   z-index: 1000;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
-  background-color: rgba(18, 18, 18, 0.1); /* Much more transparent when at top */
-  padding: 1rem 2rem;
 }
 
 .navbar.scrolled {
-  background-color: rgba(18, 18, 18, 0.95);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  background: rgba(18, 18, 18, 0.95);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 /* CS2 Logo styles - bigger and without container */
@@ -475,14 +459,14 @@ html, body {
   height: auto;
   border: none;
   background: transparent;
-  filter: drop-shadow(0 0 20px var(--primary-glow));
+  filter: drop-shadow(0 0 20px var(--primary-color));
   transition: transform 0.3s ease;
   margin-top: -2rem;
 }
 
 .hero-section .cs2-logo:hover {
   transform: scale(1.05);
-  filter: drop-shadow(0 0 30px var(--primary-glow));
+  filter: drop-shadow(0 0 30px var(--primary-color));
 }
 
 /* Simplify section styling to prevent rendering issues */
@@ -498,27 +482,14 @@ section {
   z-index: 1;
 }
 
-/* Hero Section */
+/* Hero Section with new gradients */
 .hero-section-container {
   position: relative;
-  padding: 6rem 2rem;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--surface-dark);
-  z-index: 1;
-  box-shadow: 0 10px 30px -15px rgba(10, 14, 23, 0.8);
-  /* Add cyber-grid as background with 60% opacity */
-  background-image: url('../pages/cyber-grid.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-blend-mode: overlay;
-  background-attachment: fixed;
+  padding: 120px 0;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--surface-color-dark), var(--surface-color-light));
 }
 
-/* Add a dark overlay to improve content visibility */
 .hero-section-container::before {
   content: '';
   position: absolute;
@@ -526,12 +497,17 @@ section {
   left: 0;
   right: 0;
   bottom: 0;
-  background-image: url('./cyber-grid.png');
-  background-size: cover;
-  background-position: center;
-  opacity: 0.2;
-  pointer-events: none;
-  z-index: -1;
+  background-image: linear-gradient(
+    var(--mx-chip-gradient-angle),
+    var(--ultra-gradient-1) var(--mx-ultra-gradient-stop-1),
+    var(--ultra-gradient-2) var(--mx-ultra-gradient-stop-2),
+    var(--ultra-gradient-3) var(--mx-ultra-gradient-stop-3),
+    var(--ultra-gradient-4) var(--mx-ultra-gradient-stop-4),
+    var(--ultra-gradient-5) var(--mx-ultra-gradient-stop-5),
+    var(--ultra-gradient-6) var(--mx-ultra-gradient-stop-6)
+  );
+  opacity: 0.1;
+  z-index: 0;
 }
 
 /* Subtle grid effect in the background */
@@ -542,7 +518,7 @@ section {
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(circle at top right, var(--primary-glow) 0%, transparent 60%);
+  background: radial-gradient(circle at top right, var(--primary-color) 0%, transparent 60%);
   opacity: 0.7;
   pointer-events: none;
   z-index: -1;
@@ -563,7 +539,7 @@ section {
 .search-section-container {
   position: relative;
   padding: 4rem 2rem;
-  background-color: var(--surface-dark);
+  background-color: var(--surface-color-dark);
   z-index: 2;
   border-top: 1px solid rgba(63, 169, 245, 0.05);
   border-bottom: 1px solid rgba(63, 169, 245, 0.05);
@@ -614,7 +590,7 @@ section {
 .featured-section-container {
   position: relative;
   padding: 6rem 2rem;
-  background: var(--surface-dark);
+  background: var(--surface-color-dark);
   z-index: 1;
 }
 
@@ -650,7 +626,7 @@ section {
 .features-section-container {
   position: relative;
   padding: 6rem 2rem;
-  background-color: var(--surface-dark);
+  background-color: var(--surface-color-dark);
   z-index: 2;
 }
 
@@ -671,7 +647,7 @@ section {
 .how-it-works-section-container {
   position: relative;
   padding: 6rem 2rem;
-  background: var(--surface-dark);
+  background: var(--surface-color-dark);
   z-index: 1;
   min-height: 80vh; /* Ensure enough space for the roadmap */
 }
@@ -706,7 +682,7 @@ section {
 .final-cta-section-container {
   position: relative;
   padding: 8rem 2rem;
-  background-color: var(--surface-dark);
+  background-color: var(--surface-color-dark);
   text-align: center;
   z-index: 2;
 }
@@ -829,51 +805,44 @@ section:hover::after {
 }
 
 .hero-title {
-  font-size: 4.5rem;
+  font-size: 3.5rem;
   font-weight: 800;
-  line-height: 1.1;
   margin-bottom: 1.5rem;
-  letter-spacing: -0.02em;
-  color: var(--text-primary);
+  line-height: 1.2;
   position: relative;
+  z-index: 1;
 }
 
-/* Add accent to CS2 text */
 .hero-title .gradient-text {
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+  background: linear-gradient(97deg, var(--text-gradient-1), var(--text-gradient-2) 42%, var(--text-gradient-3) 74%, var(--text-gradient-4));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  display: inline-block;
-  position: relative;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 @media (max-width: 768px) {
   .hero-title {
-    font-size: 3.5rem;
+    font-size: 2.5rem;
   }
 }
 
 .hero-subtitle {
   font-size: 1.5rem;
-  line-height: 1.6;
-  margin-bottom: 2.5rem;
   color: var(--text-secondary);
+  margin-bottom: 2rem;
   position: relative;
   z-index: 1;
 }
 
-/* Accent line under subtitle */
-.hero-subtitle::before {
-  content: '';
-  position: absolute;
-  bottom: -10px;
-  left: 0;
-  width: 60px;
-  height: 3px;
-  background: var(--accent-orange);
-  z-index: -1;
-  border-radius: 3px;
+.hero-subtitle .gradient-text {
+  background: linear-gradient(97deg, var(--text-gradient-1), var(--text-gradient-2) 42%, var(--text-gradient-3) 74%, var(--text-gradient-4));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 .hero-content::after {
@@ -884,30 +853,6 @@ section:hover::after {
   margin-top: 1.5rem;
   font-style: italic;
   opacity: 0.8;
-}
-
-/* Enhanced gradient text with better visibility */
-.gradient-text {
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  display: inline-block;
-  position: relative;
-  text-shadow: 0 0 2px rgba(142, 36, 170, 0.3);
-}
-
-.gradient-text::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
-  filter: blur(15px);
-  opacity: 0.4;
-  z-index: -1;
 }
 
 .highlight {
@@ -998,14 +943,14 @@ section:hover::after {
   height: auto;
   border: none;
   box-shadow: none;
-  transition: transform var(--transition-medium);
+  transition: transform var(--transition-normal);
   background: transparent;
-  filter: drop-shadow(0 0 15px var(--primary-glow));
+  filter: drop-shadow(0 0 15px var(--primary-color));
 }
 
 .hero-image:hover {
   transform: scale(1.05);
-  filter: drop-shadow(0 0 25px var(--primary-glow));
+  filter: drop-shadow(0 0 25px var(--primary-color));
 }
 
 /* Updated primary button with better contrast */
@@ -1150,7 +1095,7 @@ section:hover::after {
 }
 
 .search-input::placeholder {
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   opacity: 0.7;
 }
 
@@ -1218,7 +1163,7 @@ section:hover::after {
 }
 
 .feature-card {
-  background: var(--surface-medium);
+  background: var(--surface-color-light);
   border-radius: 12px;
   padding: 2rem;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -1273,7 +1218,7 @@ section:hover::after {
   border-radius: 12px;
   opacity: 0.7;
   z-index: -1;
-  transition: var(--transition-medium);
+  transition: var(--transition-normal);
 }
 
 .feature-icon svg {
@@ -1317,7 +1262,7 @@ section:hover::after {
   background: linear-gradient(to bottom, var(--primary-light), var(--primary-dark));
   transform: translateX(-50%);
   z-index: 1;
-  box-shadow: 0 0 15px var(--primary-glow);
+  box-shadow: 0 0 15px var(--primary-color);
 }
 
 .roadmap-item {
@@ -1352,13 +1297,13 @@ section:hover::after {
 
 .roadmap-item:hover .roadmap-step {
   transform: scale(1.1);
-  box-shadow: 0 0 25px var(--primary-glow);
+  box-shadow: 0 0 25px var(--primary-color);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .roadmap-content {
   flex: 1;
-  background-color: var(--surface-medium);
+  background-color: var(--surface-color-light);
   border-radius: 12px;
   padding: 1.5rem;
   flex-grow: 1;
@@ -1370,7 +1315,7 @@ section:hover::after {
 
 .roadmap-content:hover {
   transform: translateY(-5px);
-  box-shadow: var(--shadow-lg), 0 0 15px var(--primary-glow);
+  box-shadow: var(--shadow-lg), 0 0 15px var(--primary-color);
   transition: transform 0.15s ease, box-shadow 0.15s ease; /* Faster transition */
 }
 
@@ -1388,8 +1333,8 @@ section:hover::after {
   font-size: 1.75rem;
   position: relative;
   z-index: 3;
-  box-shadow: 0 0 15px var(--primary-glow);
-  transition: var(--transition-medium);
+  box-shadow: 0 0 15px var(--primary-color);
+  transition: var(--transition-normal);
   border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
@@ -1635,7 +1580,7 @@ section:hover::after {
 
 /* Trading Stats Section */
 .trading-stats-section-container {
-  background-color: var(--surface-dark);
+  background-color: var(--surface-color-dark);
   position: relative;
   padding: 5rem 2rem;
 }
@@ -1665,7 +1610,7 @@ section:hover::after {
 }
 
 .stat-card {
-  background: var(--surface-medium);
+  background: var(--surface-color-light);
   border-radius: 12px;
   padding: 2rem;
   display: flex;
