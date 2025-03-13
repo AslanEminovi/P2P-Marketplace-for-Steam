@@ -804,7 +804,7 @@
   border: 1px solid #3373F2;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
-  z-index: 10000;
+  z-index: 99999 !important; /* Make sure it's always on top */
   overflow: hidden;
 }
 
@@ -849,6 +849,8 @@
   border: none;
   text-align: left;
   font-family: inherit;
+  position: relative;
+  z-index: 99999 !important;
 }
 
 .dropdown-menu-item:hover {
@@ -895,4 +897,28 @@ div[style*="position: relative"] {
   position: relative !important;
   z-index: 1000;
   pointer-events: auto !important;
+}
+
+/* Override any other z-index that might be interfering */
+.navbar,
+.navbar-container,
+.navbar-right,
+.user-section,
+.dropdown-wrapper {
+  z-index: 99990 !important; /* High z-index for nav elements */
+  position: relative;
+}
+
+/* Ensure inventory items don't overlap our dropdown */
+.inventory-item,
+.marketplace-item,
+.item-card,
+.featured-item {
+  z-index: 1 !important; /* Low z-index for inventory items */
+}
+
+/* Additional safety to make dropdown appear on top of everything */
+.dropdown-menu-item {
+  position: relative;
+  z-index: 99999 !important;
 } 

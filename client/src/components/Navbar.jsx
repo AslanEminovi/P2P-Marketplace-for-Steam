@@ -138,6 +138,31 @@ const Navbar = () => {
     return (balance / 100).toFixed(2);
   };
   
+  // Create a proper logout function that handles redirection
+  const handleLogout = async () => {
+    try {
+      // Close dropdown first
+      setDropdownOpen(false);
+      
+      // Make logout request
+      await axios.get(`${API_URL}/auth/logout`, { withCredentials: true });
+      
+      // Clear local storage
+      localStorage.removeItem('auth_token');
+      
+      // Update user state to null
+      setUser(null);
+      
+      // Redirect to homepage
+      navigate('/');
+      
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Redirect to homepage even if there's an error
+      navigate('/');
+    }
+  };
+  
   return (
     <nav className={`navbar ${scrolled ? 'scrolled' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       <div className="navbar-container">
@@ -255,6 +280,7 @@ const Navbar = () => {
                   <div 
                     ref={dropdownRef}
                     className="user-dropdown"
+                    style={{ zIndex: 99999 }} // Ensure highest z-index possible for dropdown
                   >
                     <div className="dropdown-header">
                       <span className="dropdown-username">{user.displayName}</span>
@@ -300,10 +326,9 @@ const Navbar = () => {
                       
                       <div className="dropdown-divider"></div>
                       
-                      <a 
-                        href={`${API_URL}/auth/logout`}
+                      <button 
+                        onClick={handleLogout}
                         className="dropdown-menu-item logout"
-                        onClick={() => setDropdownOpen(false)}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -311,7 +336,7 @@ const Navbar = () => {
                           <line x1="21" y1="12" x2="9" y2="12"></line>
                         </svg>
                         Log Out
-                      </a>
+                      </button>
                     </div>
                   </div>
                 )}
