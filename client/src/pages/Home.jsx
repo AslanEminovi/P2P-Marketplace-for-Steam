@@ -8,6 +8,36 @@ import './Home.css';
 // Import the CS2 logo
 import csLogo from './cs-logo.png';
 
+// Helper function to get color for item rarity
+const getColorForRarity = (rarity) => {
+  const rarityLower = (rarity || '').toLowerCase();
+  
+  switch (rarityLower) {
+    case 'factory new':
+    case 'covert':
+    case 'extraordinary':
+    case 'contraband':
+      return '#EB4B4B'; // Red
+    case 'minimal wear':
+    case 'classified':
+      return '#D32CE6'; // Pink/Purple
+    case 'field-tested':
+    case 'restricted':
+      return '#8847FF'; // Purple
+    case 'well-worn':
+    case 'mil-spec':
+    case 'high grade':
+      return '#4B69FF'; // Blue
+    case 'battle-scarred':
+    case 'industrial grade':
+      return '#5E98D9'; // Light blue
+    case 'consumer grade':
+      return '#B0C3D9'; // Light grey
+    default:
+      return '#3498db'; // Default blue
+  }
+};
+
 // Creating separate section components for better organization and independent styling
 const HeroSection = ({ user, stats, animationActive }) => {
   const { t } = useTranslation();
@@ -96,7 +126,25 @@ const SearchSection = () => {
 const FeaturedItemsSection = ({ loading, featuredItems }) => {
   const { t } = useTranslation();
   
-  // No more dummy items - we'll use empty state messaging instead
+  // Function to get fallback image if item image is missing
+  const getItemImage = (item) => {
+    // Return item image if available and valid, otherwise use fallback
+    if (item && item.image && item.image.trim() !== '') {
+      return item.image;
+    }
+    // Return a default placeholder based on item type if available
+    if (item && item.type) {
+      if (item.type.toLowerCase().includes('knife')) {
+        return '/images/placeholders/knife-placeholder.png';
+      } else if (item.type.toLowerCase().includes('rifle')) {
+        return '/images/placeholders/rifle-placeholder.png';
+      } else if (item.type.toLowerCase().includes('pistol')) {
+        return '/images/placeholders/pistol-placeholder.png';
+      }
+    }
+    // Generic fallback
+    return '/images/placeholders/item-placeholder.png';
+  };
 
   return (
     <section className="featured-section-container">
@@ -117,23 +165,32 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
         <>
           <div className="featured-grid">
             {featuredItems.map(item => (
-              <div key={item.id} className="item-card">
+              <div key={item.id || item._id} className="item-card">
                 <div className="item-card-image">
-                  <img src={item.image} alt={item.name} />
+                  <img 
+                    src={getItemImage(item)} 
+                    alt={item.name || 'CS2 Item'} 
+                    onError={(e) => {
+                      e.target.onerror = null; 
+                      e.target.src = '/images/placeholders/item-placeholder.png';
+                    }}
+                  />
                 </div>
                 <div className="item-card-content">
-                  <h3 className="item-name gradient-text">{item.name}</h3>
+                  <h3 className="item-name gradient-text">{item.name || 'Unknown Item'}</h3>
                   <span className="item-rarity" style={{ 
-                    backgroundColor: getColorForRarity(item.rarity) 
+                    backgroundColor: getColorForRarity(item.rarity || 'Common') 
                   }}>
-                    {item.rarity} {item.wear && `• ${item.wear}`}
+                    {item.rarity || 'Common'} {item.wear && `• ${item.wear}`}
                   </span>
                   <div className="item-meta">
                     <div className="item-price">
                       <span className="price-tag-currency gradient-text">GEL</span>
-                      <span className="price-tag-amount gradient-text">{(item.price / 100).toFixed(2)}</span>
+                      <span className="price-tag-amount gradient-text">
+                        {item.price ? (item.price / 100).toFixed(2) : '0.00'}
+                      </span>
                     </div>
-                    <Link to={`/item/${item.id}`} className="buy-now-button">
+                    <Link to={`/marketplace/${item.id || item._id}`} className="buy-now-button">
                       View Item
                     </Link>
                   </div>
@@ -151,36 +208,23 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
           </div>
         </>
       ) : (
-        <div className="no-items">
-          <p>No featured items available at the moment. Check back soon!</p>
-          <div className="featured-cta">
-            <Link to="/marketplace" className="view-all-button">
-              Browse Marketplace
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
-            </Link>
+        <div className="empty-items">
+          <div className="empty-items-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
           </div>
+          <h3>No Featured Items</h3>
+          <p>Check back soon for featured CS2 items or browse our marketplace!</p>
+          <Link to="/marketplace" className="primary-button">
+            Browse Marketplace
+          </Link>
         </div>
       )}
     </section>
   );
-};
-
-// Helper function to get color for rarity
-const getColorForRarity = (rarity) => {
-  if (!rarity) return 'rgba(138, 43, 226, 0.1)';
-  
-  switch (String(rarity).toLowerCase()) {
-    case 'consumer grade': return 'rgba(176, 195, 217, 0.2)';
-    case 'industrial grade': return 'rgba(94, 152, 217, 0.2)';
-    case 'mil-spec': return 'rgba(75, 105, 255, 0.2)';
-    case 'restricted': return 'rgba(136, 71, 255, 0.2)';
-    case 'classified': return 'rgba(211, 44, 230, 0.2)';
-    case 'covert': return 'rgba(235, 75, 75, 0.2)';
-    case 'knife': return 'rgba(255, 206, 80, 0.2)';
-    default: return 'rgba(138, 43, 226, 0.1)';
-  }
 };
 
 const FeaturesSection = () => {
