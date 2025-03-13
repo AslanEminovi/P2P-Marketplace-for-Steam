@@ -71,25 +71,25 @@ const Navbar = () => {
     };
   }, []);
   
-  // Handle click outside of dropdown
+  // NEW IMPLEMENTATION: Handle click outside of dropdown
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      // Check if click is outside both the dropdown and the profile button
-      const isClickOutsideDropdown = dropdownRef.current && !dropdownRef.current.contains(event.target);
-      const isClickOutsideBtn = profileBtnRef.current && !profileBtnRef.current.contains(event.target);
-      
-      if (dropdownOpen && isClickOutsideDropdown && isClickOutsideBtn) {
-        console.log('Closing dropdown due to outside click');
+    function handleClickOutside(event) {
+      if (dropdownRef.current && 
+          !dropdownRef.current.contains(event.target) && 
+          profileBtnRef.current && 
+          !profileBtnRef.current.contains(event.target)) {
+        console.log("Click detected outside dropdown - closing dropdown");
         setDropdownOpen(false);
       }
-    };
+    }
     
-    // Add event listener to document
-    document.addEventListener('mousedown', handleClickOutside);
+    // Only add the event listener if the dropdown is open
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
     
-    // Clean up the event listener
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [dropdownOpen]);
   
@@ -107,20 +107,11 @@ const Navbar = () => {
     }
   }, [user]);
   
-  // Function to toggle dropdown
-  const toggleDropdown = (e) => {
-    e.stopPropagation(); // Prevent event bubbling
-    console.log("Toggle dropdown called, current state:", dropdownOpen);
-    setDropdownOpen(prevState => !prevState);
-    // Log after state update is scheduled
-    setTimeout(() => {
-      console.log("Dropdown state after toggle:", dropdownOpen);
-    }, 0);
-  };
-  
-  // Close dropdown when clicking a link inside it
-  const handleDropdownLinkClick = () => {
-    setDropdownOpen(false);
+  // NEW IMPLEMENTATION: Simplified dropdown toggle
+  const toggleDropdown = () => {
+    console.log("BEFORE toggle - dropdown state:", dropdownOpen);
+    setDropdownOpen(!dropdownOpen);
+    console.log("AFTER toggle - dropdown state will be:", !dropdownOpen);
   };
   
   // Get user initials for avatar placeholder
@@ -140,6 +131,225 @@ const Navbar = () => {
     if (!balance) return '0.00';
     
     return (balance / 100).toFixed(2);
+  };
+  
+  // NEW IMPLEMENTATION: Separate dropdown component for better control
+  const ProfileDropdown = () => {
+    if (!dropdownOpen) return null;
+    
+    console.log("Rendering dropdown menu, visible:", dropdownOpen);
+    
+    return (
+      <div 
+        ref={dropdownRef}
+        className="dropdown-menu-container"
+        style={{
+          position: 'absolute',
+          top: 'calc(100% + 8px)',
+          right: 0,
+          width: '280px',
+          backgroundColor: '#151C2B',
+          border: '1px solid #3373F2',
+          borderRadius: '8px',
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+          zIndex: 9999,
+          overflow: 'hidden'
+        }}
+      >
+        <div style={{
+          padding: '12px 16px',
+          borderBottom: '1px solid rgba(51, 115, 242, 0.3)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px'
+        }}>
+          <span style={{
+            fontWeight: 600,
+            color: '#FFFFFF',
+            fontSize: '14px'
+          }}>
+            {user.displayName}
+          </span>
+          <span style={{
+            fontSize: '12px',
+            color: '#BBC7DB'
+          }}>
+            {user.email || 'No email provided'}
+          </span>
+        </div>
+        
+        <div style={{ padding: '8px' }}>
+          <Link 
+            to="/profile" 
+            onClick={() => setDropdownOpen(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '10px 12px',
+              color: '#BBC7DB',
+              textDecoration: 'none',
+              borderRadius: '6px',
+              transition: 'all 0.2s ease',
+              fontSize: '14px'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.color = '#FFFFFF';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#BBC7DB';
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            My Profile
+          </Link>
+          
+          <Link 
+            to="/inventory" 
+            onClick={() => setDropdownOpen(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '10px 12px',
+              color: '#BBC7DB',
+              textDecoration: 'none',
+              borderRadius: '6px',
+              transition: 'all 0.2s ease',
+              fontSize: '14px'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.color = '#FFFFFF';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#BBC7DB';
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="8" x2="8" y2="8"></line>
+              <line x1="16" y1="12" x2="8" y2="12"></line>
+              <line x1="16" y1="16" x2="8" y2="16"></line>
+            </svg>
+            My Inventory
+          </Link>
+          
+          <Link 
+            to="/trades" 
+            onClick={() => setDropdownOpen(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '10px 12px',
+              color: '#BBC7DB',
+              textDecoration: 'none',
+              borderRadius: '6px',
+              transition: 'all 0.2s ease',
+              fontSize: '14px'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.color = '#FFFFFF';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#BBC7DB';
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="17 1 21 5 17 9"></polyline>
+              <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+              <polyline points="7 23 3 19 7 15"></polyline>
+              <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+            </svg>
+            My Trades
+          </Link>
+          
+          <Link 
+            to="/settings" 
+            onClick={() => setDropdownOpen(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '10px 12px',
+              color: '#BBC7DB',
+              textDecoration: 'none',
+              borderRadius: '6px',
+              transition: 'all 0.2s ease',
+              fontSize: '14px'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.color = '#FFFFFF';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#BBC7DB';
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            Settings
+          </Link>
+          
+          <div style={{
+            height: '1px',
+            background: 'rgba(51, 115, 242, 0.3)',
+            margin: '8px 0'
+          }}></div>
+          
+          <button 
+            onClick={() => {
+              setDropdownOpen(false);
+              window.location.href = `${API_URL}/auth/logout`;
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '10px 12px',
+              color: '#BBC7DB',
+              textDecoration: 'none',
+              borderRadius: '6px',
+              transition: 'all 0.2s ease',
+              fontSize: '14px',
+              width: '100%',
+              textAlign: 'left',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: 'inherit'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.color = '#FF4B6E';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#BBC7DB';
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            Log Out
+          </button>
+        </div>
+      </div>
+    );
   };
   
   return (
@@ -191,16 +401,41 @@ const Navbar = () => {
                 <Link to="/add-funds" className="balance-add">+</Link>
               </div>
               
-              <div className="user-profile-wrapper">
+              <div style={{ position: 'relative' }}>
                 <button 
                   ref={profileBtnRef}
-                  className="user-profile" 
                   onClick={toggleDropdown}
-                  aria-expanded={dropdownOpen}
-                  aria-haspopup="true"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    transition: 'all 0.2s ease',
+                    color: '#FFFFFF'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
                 >
-                  <div className="user-avatar">
-                    {console.log('Rendering avatar, user data:', user)}
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    backgroundColor: '#3373F2',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 600,
+                    color: '#0A0E17',
+                    overflow: 'hidden'
+                  }}>
                     {user && (user.avatar || user.avatarUrl || user.avatarfull) ? (
                       <>
                         <img 
@@ -213,82 +448,38 @@ const Navbar = () => {
                           }}
                           style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
                         />
-                        {console.log('Avatar URL being used:', user.avatar || user.avatarUrl || user.avatarfull)}
                       </>
                     ) : (
-                      <div className="avatar-placeholder">{getUserInitials()}</div>
+                      getUserInitials()
                     )}
                   </div>
-                  <span className="user-name desktop-only">{user.displayName}</span>
-                  <div className={`dropdown-arrow ${dropdownOpen ? 'active' : ''}`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <span className="desktop-only">{user.displayName}</span>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'transform 0.3s ease'
+                  }}>
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      width="18" 
+                      height="18" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                      style={{
+                        transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+                      }}
+                    >
                       <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>
                   </div>
                 </button>
                 
-                <div 
-                  ref={dropdownRef} 
-                  className={`dropdown-menu ${dropdownOpen ? 'dropdown-visible' : ''}`}
-                  style={{ zIndex: 9999 }}
-                >
-                  <div className="dropdown-header">
-                    <span className="dropdown-username">{user.displayName}</span>
-                    <span className="dropdown-email">{user.email || 'No email provided'}</span>
-                  </div>
-                  
-                  <div className="dropdown-links">
-                    <Link to="/profile" className="dropdown-link" onClick={handleDropdownLinkClick}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
-                      </svg>
-                      My Profile
-                    </Link>
-                    
-                    <Link to="/inventory" className="dropdown-link" onClick={handleDropdownLinkClick}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <line x1="16" y1="8" x2="8" y2="8"></line>
-                        <line x1="16" y1="12" x2="8" y2="12"></line>
-                        <line x1="16" y1="16" x2="8" y2="16"></line>
-                      </svg>
-                      My Inventory
-                    </Link>
-                    
-                    <Link to="/trades" className="dropdown-link" onClick={handleDropdownLinkClick}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="17 1 21 5 17 9"></polyline>
-                        <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                        <polyline points="7 23 3 19 7 15"></polyline>
-                        <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                      </svg>
-                      My Trades
-                    </Link>
-                    
-                    <Link to="/settings" className="dropdown-link" onClick={handleDropdownLinkClick}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                      </svg>
-                      Settings
-                    </Link>
-                    
-                    <div className="dropdown-divider"></div>
-                    
-                    <button className="dropdown-link logout-button" onClick={() => {
-                      setDropdownOpen(false);
-                      window.location.href = `${API_URL}/auth/logout`;
-                    }}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                      </svg>
-                      Log Out
-                    </button>
-                  </div>
-                </div>
+                {/* Render the dropdown if it's open */}
+                {dropdownOpen && <ProfileDropdown />}
               </div>
             </div>
           ) : (
