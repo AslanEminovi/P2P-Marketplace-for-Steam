@@ -11,6 +11,7 @@ function Navbar({ user, onLogout }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const profileBtnRef = useRef(null);
   const location = useLocation();
   
   useEffect(() => {
@@ -22,16 +23,37 @@ function Navbar({ user, onLogout }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   
+  // This effect handles clicks outside the dropdown to close it
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    function handleClickOutside(event) {
+      // Only process if dropdown is open
+      if (!dropdownOpen) return;
+      
+      // Check if click was outside both the dropdown and the profile button
+      if (
+        dropdownRef.current && 
+        !dropdownRef.current.contains(event.target) &&
+        profileBtnRef.current &&
+        !profileBtnRef.current.contains(event.target)
+      ) {
         setDropdownOpen(false);
       }
-    };
+    }
     
+    // Add the event listener
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    
+    return () => {
+      // Clean up
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [dropdownOpen]);
+  
+  // Toggle dropdown function
+  const toggleDropdown = (e) => {
+    e.stopPropagation();
+    setDropdownOpen(!dropdownOpen);
+  };
   
   // Close mobile menu when changing routes
   useEffect(() => {
@@ -80,10 +102,11 @@ function Navbar({ user, onLogout }) {
                 <Link to="/wallet" className="balance-add">+</Link>
               </div>
               
-              <div className="user-profile-wrapper" ref={dropdownRef}>
+              <div className="user-profile-wrapper">
                 <div 
                   className="user-profile" 
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  onClick={toggleDropdown}
+                  ref={profileBtnRef}
                 >
                   <div className="user-avatar">
                     {user.avatar ? (
@@ -102,14 +125,14 @@ function Navbar({ user, onLogout }) {
                 </div>
                 
                 {dropdownOpen && (
-                  <div className="dropdown-menu">
+                  <div className="dropdown-menu" ref={dropdownRef}>
                     <div className="dropdown-header">
                       <span className="dropdown-username">{user.name || 'User'}</span>
                       <span className="dropdown-email">{user.email || ''}</span>
                     </div>
                     
                     <div className="dropdown-links">
-                      <Link to="/profile" className="dropdown-link">
+                      <Link to="/profile" className="dropdown-link" onClick={() => setDropdownOpen(false)}>
                         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                           <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -117,7 +140,7 @@ function Navbar({ user, onLogout }) {
                         My Profile
                       </Link>
                       
-                      <Link to="/inventory" className="dropdown-link">
+                      <Link to="/inventory" className="dropdown-link" onClick={() => setDropdownOpen(false)}>
                         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M21 16V8C21 6.89543 20.1046 6 19 6H5C3.89543 6 3 6.89543 3 8V16C3 17.1046 3.89543 18 5 18H19C20.1046 18 21 17.1046 21 16Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                           <path d="M3 10H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -127,7 +150,7 @@ function Navbar({ user, onLogout }) {
                         My Inventory
                       </Link>
                       
-                      <Link to="/trades" className="dropdown-link">
+                      <Link to="/trades" className="dropdown-link" onClick={() => setDropdownOpen(false)}>
                         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M4 17L10 11L4 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                           <path d="M12 19H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -135,7 +158,7 @@ function Navbar({ user, onLogout }) {
                         My Trades
                       </Link>
                       
-                      <Link to="/wallet" className="dropdown-link">
+                      <Link to="/wallet" className="dropdown-link" onClick={() => setDropdownOpen(false)}>
                         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M2 8.5V7C2 5.89543 2.89543 5 4 5H20C21.1046 5 22 5.89543 22 7V17C22 18.1046 21.1046 19 20 19H4C2.89543 19 2 18.1046 2 17V15.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                           <path d="M16 12C16 11.4477 16.4477 11 17 11H22V13H17C16.4477 13 16 12.5523 16 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -146,7 +169,10 @@ function Navbar({ user, onLogout }) {
                       
                       <div className="dropdown-divider"></div>
                       
-                      <button className="dropdown-link logout-button" onClick={onLogout}>
+                      <button className="dropdown-link logout-button" onClick={() => {
+                        setDropdownOpen(false);
+                        onLogout();
+                      }}>
                         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M14 8V6C14 5.46957 13.7893 4.96086 13.4142 4.58579C13.0391 4.21071 12.5304 4 12 4H5C4.46957 4 3.96086 4.21071 3.58579 4.58579C3.21071 4.96086 3 5.46957 3 6V18C3 18.5304 3.21071 19.0391 3.58579 19.4142C3.96086 19.7893 4.46957 20 5 20H12C12.5304 20 13.0391 19.7893 13.4142 19.4142C13.7893 19.0391 14 18.5304 14 18V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                           <path d="M7 12H21M21 12L18 9M21 12L18 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

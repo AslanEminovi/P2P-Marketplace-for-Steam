@@ -264,6 +264,11 @@
   display: block;
 }
 
+/* Ensure the dropdown is clickable */
+.navbar .dropdown-menu {
+  pointer-events: auto;
+}
+
 @keyframes dropdownFadeIn {
   from {
     opacity: 0;
