@@ -205,46 +205,40 @@
   box-shadow: var(--gaming-shadow-cyan);
 }
 
-/* USER PROFILE DROPDOWN */
+/* User Profile & Dropdown Menu */
 .user-profile-wrapper {
   position: relative;
-  z-index: 1001;
 }
 
 .user-profile {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 8px;
+  background: none;
+  border: none;
   cursor: pointer;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  background: rgba(31, 43, 69, 0.5);
-  border: 1px solid var(--gaming-border-light);
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
   color: var(--gaming-text-bright);
-  font-weight: 500;
 }
 
 .user-profile:hover {
-  background: rgba(31, 43, 69, 0.8);
-  border-color: var(--gaming-accent-cyan);
-  transform: translateY(-2px);
-  box-shadow: var(--gaming-shadow-blue);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .user-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
+  background: var(--gaming-accent-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: var(--gaming-bg-dark);
   overflow: hidden;
-  border: 2px solid var(--gaming-accent-blue);
-  box-shadow: var(--gaming-shadow-blue);
-}
-
-.user-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  font-size: 14px;
 }
 
 .avatar-placeholder {
@@ -253,169 +247,133 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--gaming-gradient-blue);
-  color: white;
-  font-weight: bold;
-  font-size: 1.2rem;
+  background: var(--gaming-accent-blue);
+  color: var(--gaming-bg-dark);
 }
 
-.user-name {
-  font-weight: 600;
-}
-
-.dropdown-arrow {
-  display: flex;
-  color: var(--gaming-text-medium);
-  transition: transform 0.3s ease;
-}
-
-.dropdown-arrow svg {
-  width: 16px;
-  height: 16px;
-}
-
-.user-profile:hover .dropdown-arrow {
-  color: var(--gaming-text-bright);
-}
-
-.dropdown-arrow.active {
-  transform: rotate(180deg);
-  color: var(--gaming-accent-cyan);
-}
-
-/* DROPDOWN MENU */
 .dropdown-menu {
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 6px);
   right: 0;
-  width: 260px;
-  background-color: var(--gaming-bg-medium);
-  border: 1px solid var(--gaming-border-glow);
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), var(--gaming-shadow-blue);
-  z-index: 1002;
-  transform: translateY(15px);
+  width: 280px;
+  background: var(--gaming-bg-darker);
+  border: 1px solid var(--gaming-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   opacity: 0;
   visibility: hidden;
-  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
-  pointer-events: none;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  z-index: 1000; /* Ensure dropdown appears above other elements */
+  overflow: hidden;
 }
 
-.dropdown-menu.dropdown-visible {
-  transform: translateY(0);
+.dropdown-visible {
   opacity: 1;
   visibility: visible;
-  pointer-events: auto;
+  transform: translateY(0);
+  z-index: 9999; /* Even higher z-index when visible */
 }
 
 .dropdown-header {
-  padding: 1.25rem;
-  border-bottom: 1px solid rgba(51, 115, 242, 0.1);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--gaming-border);
   display: flex;
   flex-direction: column;
-  background: linear-gradient(to bottom, rgba(51, 115, 242, 0.1), rgba(0, 0, 0, 0));
+  gap: 4px;
 }
 
 .dropdown-username {
-  font-weight: 700;
-  font-size: 1.1rem;
+  font-weight: 600;
   color: var(--gaming-text-bright);
-  margin-bottom: 0.25rem;
+  font-size: 14px;
 }
 
 .dropdown-email {
-  font-size: 0.85rem;
-  color: var(--gaming-text-dim);
+  font-size: 12px;
+  color: var(--gaming-text-medium);
 }
 
 .dropdown-links {
-  padding: 0.75rem;
+  padding: 8px;
 }
 
 .dropdown-link {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.875rem 1rem;
+  gap: 12px;
+  padding: 10px 12px;
   color: var(--gaming-text-medium);
   text-decoration: none;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  position: relative;
-  overflow: hidden;
-}
-
-.dropdown-link::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: var(--gaming-gradient-blue);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  z-index: -1;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-size: 14px;
 }
 
 .dropdown-link svg {
-  width: 18px;
-  height: 18px;
-  stroke: var(--gaming-text-dim);
-  transition: all 0.3s ease;
-  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
 }
 
 .dropdown-link:hover {
+  background: rgba(255, 255, 255, 0.1);
   color: var(--gaming-text-bright);
-  background: rgba(51, 115, 242, 0.15);
-  transform: translateX(3px);
 }
 
-.dropdown-link:hover svg {
-  stroke: var(--gaming-accent-cyan);
-}
-
-.dropdown-link:active::before {
-  opacity: 0.1;
+.dropdown-divider {
+  height: 1px;
+  background: var(--gaming-border);
+  margin: 8px 0;
 }
 
 .logout-button {
   width: 100%;
   text-align: left;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.875rem 1rem;
-  color: var(--gaming-text-medium);
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  font-weight: 600;
-  margin-top: 0.5rem;
   background: none;
   border: none;
   cursor: pointer;
   font-family: inherit;
-  font-size: inherit;
+  display: flex;
+  align-items: center;
 }
 
 .logout-button:hover {
-  color: #FF4B6E;
-  background: rgba(255, 75, 110, 0.15);
+  color: var(--gaming-accent-red);
 }
 
-.logout-button:hover svg {
-  stroke: #FF4B6E;
+.dropdown-arrow {
+  display: flex;
+  align-items: center;
+  transition: transform 0.3s ease;
 }
 
-.dropdown-divider {
-  width: 100%;
-  height: 1px;
-  background: linear-gradient(to right, rgba(51, 115, 242, 0), rgba(51, 115, 242, 0.2), rgba(51, 115, 242, 0));
-  margin: 0.75rem 0;
+.dropdown-arrow svg {
+  width: 18px;
+  height: 18px;
+}
+
+.dropdown-arrow.active {
+  transform: rotate(180deg);
+}
+
+/* Make sure the container doesn't cut off the dropdown */
+.navbar-container, .navbar-right, .user-section {
+  overflow: visible;
+  position: relative;
+  z-index: 100;
+}
+
+/* Ensure mobile menu doesn't block dropdowns */
+.mobile-menu {
+  position: absolute;
+  z-index: 99;
+}
+
+/* Make sure any other navbar elements don't overlap the dropdown */
+.navbar {
+  position: relative;
+  z-index: 100;
 }
 
 /* SIGN IN BUTTON */

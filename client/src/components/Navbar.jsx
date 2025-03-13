@@ -5,8 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { API_URL } from '../config/constants';
 import './Navbar.css';
 
-// Import logo
-import csLogo from '../assets/cs-logo.png';
+// Remove logo import since it's not needed
+// import csLogo from '../assets/cs-logo.png';
 
 const Navbar = () => {
   const { t } = useTranslation();
@@ -79,6 +79,7 @@ const Navbar = () => {
       const isClickOutsideBtn = profileBtnRef.current && !profileBtnRef.current.contains(event.target);
       
       if (dropdownOpen && isClickOutsideDropdown && isClickOutsideBtn) {
+        console.log('Closing dropdown due to outside click');
         setDropdownOpen(false);
       }
     };
@@ -109,7 +110,12 @@ const Navbar = () => {
   // Function to toggle dropdown
   const toggleDropdown = (e) => {
     e.stopPropagation(); // Prevent event bubbling
+    console.log("Toggle dropdown called, current state:", dropdownOpen);
     setDropdownOpen(prevState => !prevState);
+    // Log after state update is scheduled
+    setTimeout(() => {
+      console.log("Dropdown state after toggle:", dropdownOpen);
+    }, 0);
   };
   
   // Close dropdown when clicking a link inside it
@@ -141,7 +147,7 @@ const Navbar = () => {
       <div className="navbar-container">
         <div className="navbar-left">
           <Link to="/" className="navbar-logo">
-            <img src={csLogo} alt="CS2 Marketplace" className="logo-icon" />
+            {/* Replace image with text-only logo */}
             <span className="logo-text">CS2 Market</span>
           </Link>
           
@@ -149,7 +155,8 @@ const Navbar = () => {
             <NavLink to="/marketplace" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
               Marketplace
             </NavLink>
-            <NavLink to="/sell" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
+            {/* Change "Sell Items" to link to inventory */}
+            <NavLink to="/inventory" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
               Sell Items
             </NavLink>
             <NavLink to="/blog" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
@@ -223,6 +230,7 @@ const Navbar = () => {
                 <div 
                   ref={dropdownRef} 
                   className={`dropdown-menu ${dropdownOpen ? 'dropdown-visible' : ''}`}
+                  style={{ zIndex: 9999 }}
                 >
                   <div className="dropdown-header">
                     <span className="dropdown-username">{user.displayName}</span>
@@ -320,7 +328,8 @@ const Navbar = () => {
             Marketplace
           </NavLink>
           
-          <NavLink to="/sell" className={({ isActive }) => 
+          {/* Change mobile "Sell Items" to also link to inventory */}
+          <NavLink to="/inventory" className={({ isActive }) => 
             isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
           }>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
