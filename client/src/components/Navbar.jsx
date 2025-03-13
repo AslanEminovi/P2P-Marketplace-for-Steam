@@ -5,8 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { API_URL } from '../config/constants';
 import './Navbar.css';
 
-// Import logo if you have one
-import csLogo from '../assets/cs-logo.png';
+// Remove the logo import since the file doesn't exist
+// import csLogo from '../assets/cs-logo.png';
 
 const Navbar = () => {
   const { t } = useTranslation();
@@ -115,8 +115,9 @@ const Navbar = () => {
       <div className="navbar-container">
         <div className="navbar-left">
           <Link to="/" className="navbar-logo">
-            <img src={csLogo} alt="CS2 Marketplace" className="logo-icon" />
-            <span className="logo-text">CS2 Market</span>
+            {/* Replace image with text-only logo */}
+            <span className="logo-icon">CS2</span>
+            <span className="logo-text">Market</span>
           </Link>
           
           <div className="navbar-links desktop-only">
