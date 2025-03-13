@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import ItemCard3D from '../components/ItemCard3D';
-import './Home.css';
 import { API_URL } from '../config/constants';
-// Fix image import but retain original approach
+import './Home.css';
+
+// Import the CS2 logo
 import csLogo from './cs-logo.png';
 
 // Creating separate section components for better organization and independent styling
@@ -557,6 +556,23 @@ const Home = () => {
   const [featuredItems, setFeaturedItems] = useState([]);
   const [animationActive, setAnimationActive] = useState(false);
   const [particles, setParticles] = useState([]);
+
+  // Check user authentication status
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/auth/me`, { withCredentials: true });
+        if (response.data && response.data.user) {
+          setUser(response.data.user);
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+        setUser(null);
+      }
+    };
+    
+    checkAuth();
+  }, []);
 
   // Add animated particles
   useEffect(() => {

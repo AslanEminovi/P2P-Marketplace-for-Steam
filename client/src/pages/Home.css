@@ -5,6 +5,8 @@ html, body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  background-color: var(--surface-color-dark);
+  color: var(--text-primary);
 }
 
 /* CS2 Marketplace Design - Base Styles */
@@ -15,18 +17,23 @@ html, body {
   --primary-dark: #7b1fa2;
   
   /* Ultra Gradient Colors */
-  --ultra-gradient-1: linear-gradient(135deg, rgba(18, 18, 18, 0.95) 0%, rgba(25, 25, 25, 0.95) 100%);
-  --ultra-gradient-2: linear-gradient(135deg, rgba(18, 18, 18, 0.75) 0%, rgba(25, 25, 25, 0.75) 100%);
-  --ultra-gradient-3: linear-gradient(135deg, rgba(142, 36, 170, 0.2) 0%, rgba(193, 88, 220, 0.2) 100%);
-  --ultra-gradient-4: linear-gradient(135deg, rgba(142, 36, 170, 0.3) 0%, rgba(193, 88, 220, 0.3) 100%);
-  --ultra-gradient-5: linear-gradient(135deg, #8e24aa 0%, #9c27b0 50%, #7b1fa2 100%);
-  --ultra-gradient-6: linear-gradient(135deg, #c158dc 0%, #9c27b0 50%, #7b1fa2 100%);
+  --mx-chip-gradient-angle: 45deg;
+  --mx-ultra-gradient-stop-1: 0%;
+  --mx-ultra-gradient-stop-2: 20%;
+  --mx-ultra-gradient-stop-3: 40%;
+  --mx-ultra-gradient-stop-4: 60%;
+  --mx-ultra-gradient-stop-5: 80%;
+  --mx-ultra-gradient-stop-6: 100%;
+  
+  --ultra-gradient-1: linear-gradient(var(--mx-chip-gradient-angle), #FFF3E5 var(--mx-ultra-gradient-stop-1), #F6CFB4 var(--mx-ultra-gradient-stop-2), #EEA4BC var(--mx-ultra-gradient-stop-3), #A18CFF var(--mx-ultra-gradient-stop-4), #64A8FF var(--mx-ultra-gradient-stop-5), #C7F8FF var(--mx-ultra-gradient-stop-6));
+  --ultra-gradient-2: linear-gradient(var(--mx-chip-gradient-angle), #F6CFB4 var(--mx-ultra-gradient-stop-1), #EEA4BC var(--mx-ultra-gradient-stop-2), #A18CFF var(--mx-ultra-gradient-stop-3), #64A8FF var(--mx-ultra-gradient-stop-4), #C7F8FF var(--mx-ultra-gradient-stop-5), #FFF3E5 var(--mx-ultra-gradient-stop-6));
+  --ultra-gradient-3: linear-gradient(var(--mx-chip-gradient-angle), #EEA4BC var(--mx-ultra-gradient-stop-1), #A18CFF var(--mx-ultra-gradient-stop-2), #64A8FF var(--mx-ultra-gradient-stop-3), #C7F8FF var(--mx-ultra-gradient-stop-4), #FFF3E5 var(--mx-ultra-gradient-stop-5), #F6CFB4 var(--mx-ultra-gradient-stop-6));
   
   /* Text Gradient Colors */
-  --text-gradient-1: linear-gradient(135deg, #c158dc 0%, #9c27b0 50%, #7b1fa2 100%);
-  --text-gradient-2: linear-gradient(135deg, #e1bee7 0%, #ce93d8 50%, #ba68c8 100%);
-  --text-gradient-3: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 50%, #ce93d8 100%);
-  --text-gradient-4: linear-gradient(135deg, #fafafa 0%, #f5f5f5 50%, #eeeeee 100%);
+  --text-gradient-1: linear-gradient(97deg, #0096FF, #BB64FF 42%, #F2416B 74%, #EB7500);
+  --text-gradient-2: linear-gradient(97deg, #BB64FF, #F2416B 42%, #EB7500 74%, #0096FF);
+  --text-gradient-3: linear-gradient(97deg, #F2416B, #EB7500 42%, #0096FF 74%, #BB64FF);
+  --text-gradient-4: linear-gradient(97deg, #EB7500, #0096FF 42%, #BB64FF 74%, #F2416B);
   
   /* Surface Colors */
   --surface-color: #1a1a1a;
@@ -37,6 +44,26 @@ html, body {
   --text-primary: #ffffff;
   --text-secondary: #b3b3b3;
   --text-tertiary: #808080;
+  
+  /* Border Colors */
+  --border-light: rgba(255, 255, 255, 0.1);
+  --border-medium: rgba(255, 255, 255, 0.2);
+  
+  /* Accent Colors */
+  --accent-blue: #3f9ff5;
+  --accent-orange: #ff9d0a;
+  --accent-green: #33b679;
+  --accent-purple: #8a2be2;
+  
+  /* Gradient Colors */
+  --gradient-start: #8e24aa;
+  --gradient-mid: #c158dc;
+  --gradient-end: #7b1fa2;
+  
+  /* Glow Effects */
+  --blue-glow: 0 0 15px rgba(63, 159, 245, 0.5);
+  --orange-glow: 0 0 15px rgba(255, 157, 10, 0.5);
+  --shadow-glow: 0 0 20px rgba(142, 36, 170, 0.3);
   
   /* Shadows */
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -99,7 +126,7 @@ html, body {
 
 /* Enhanced gradient text with new colors */
 .gradient-text {
-  background: linear-gradient(97deg, var(--text-gradient-1), var(--text-gradient-2) 42%, var(--text-gradient-3) 74%, var(--text-gradient-4));
+  background: var(--text-gradient-1);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -107,6 +134,8 @@ html, body {
   box-decoration-break: clone;
   display: inline-block;
   position: relative;
+  font-weight: 600;
+  text-shadow: none;
 }
 
 .gradient-text::after {
@@ -116,7 +145,7 @@ html, body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+  background: var(--text-gradient-1);
   filter: blur(15px);
   opacity: 0.4;
   z-index: -1;
@@ -811,6 +840,7 @@ section:hover::after {
   line-height: 1.2;
   position: relative;
   z-index: 1;
+  color: var(--text-primary);
 }
 
 .hero-title .gradient-text {
@@ -899,8 +929,13 @@ section:hover::after {
 .stat-number {
   font-size: 2.5rem;
   font-weight: 800;
-  color: var(--accent-orange);
   line-height: 1;
+  background: var(--text-gradient-1);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 .stat-label {
