@@ -5,8 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { API_URL } from '../config/constants';
 import './Navbar.css';
 
-// Remove the logo import since the file doesn't exist
-// import csLogo from '../assets/cs-logo.png';
+// Import logo
+import csLogo from '../assets/cs-logo.png';
 
 const Navbar = () => {
   const { t } = useTranslation();
@@ -115,9 +115,8 @@ const Navbar = () => {
       <div className="navbar-container">
         <div className="navbar-left">
           <Link to="/" className="navbar-logo">
-            {/* Replace image with text-only logo */}
-            <span className="logo-icon">CS2</span>
-            <span className="logo-text">Market</span>
+            <img src={csLogo} alt="CS2 Marketplace" className="logo-icon" />
+            <span className="logo-text">CS2 Market</span>
           </Link>
           
           <div className="navbar-links desktop-only">
@@ -168,8 +167,8 @@ const Navbar = () => {
                   aria-haspopup="true"
                 >
                   <div className="user-avatar">
-                    {user.avatarUrl ? (
-                      <img src={user.avatarUrl} alt={user.displayName} />
+                    {user.avatar ? (
+                      <img src={user.avatar} alt={user.displayName} />
                     ) : (
                       <div className="avatar-placeholder">{getUserInitials()}</div>
                     )}

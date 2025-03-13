@@ -108,7 +108,9 @@ function App() {
         window.history.replaceState({}, document.title, window.location.pathname);
         
         // Verify token with backend
+        console.log("Verifying token with backend...");
         const verifyResponse = await axios.post(`${API_URL}/auth/verify-token`, { token: authToken }, { withCredentials: true });
+        console.log("Token verification response:", verifyResponse.data);
         
         if (verifyResponse.data.authenticated) {
           console.log("Token verified, user authenticated:", verifyResponse.data.user);
@@ -137,7 +139,9 @@ function App() {
         console.log("Found stored token, verifying...");
         
         try {
+          console.log("Verifying stored token with backend...");
           const verifyResponse = await axios.post(`${API_URL}/auth/verify-token`, { token: storedToken }, { withCredentials: true });
+          console.log("Stored token verification response:", verifyResponse.data);
           
           if (verifyResponse.data.authenticated) {
             console.log("Stored token verified, user authenticated:", verifyResponse.data.user);
@@ -146,6 +150,7 @@ function App() {
             return;
           } else {
             // Token is invalid, remove it
+            console.log("Stored token is invalid, removing...");
             localStorage.removeItem('auth_token');
           }
         } catch (error) {
@@ -156,6 +161,7 @@ function App() {
       
       // If we reach here, try the regular session-based auth as fallback
       try {
+        console.log("Trying session-based auth as fallback...");
         const res = await axios.get(`${API_URL}/auth/user`, { 
           withCredentials: true 
         })
@@ -175,7 +181,13 @@ function App() {
         
         if (res.data.authenticated) {
           console.log("User authenticated via session:", res.data.user);
-          setUser(res.data.user);
+          // Make sure avatar property is available for the Navbar component
+          const userData = {
+            ...res.data.user,
+            // Add any missing properties if needed
+          };
+          console.log("Setting user data:", userData);
+          setUser(userData);
         } else {
           console.log("User not authenticated");
         }
