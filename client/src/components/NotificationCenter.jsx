@@ -75,7 +75,7 @@ const NotificationCenter = ({ user }) => {
   const [activeOfferMenu, setActiveOfferMenu] = useState(null);
   const dropdownRef = useRef(null);
   const { t } = useTranslation();
-  
+
   // Audio will be implemented later
   const [notificationSounds] = useState({
     success: null,
@@ -101,7 +101,7 @@ const NotificationCenter = ({ user }) => {
   useEffect(() => {
     if (user) {
       fetchNotifications();
-      
+
       // Refresh notifications every minute, but only if the dropdown is open
       // to conserve resources
       const interval = setInterval(() => {
@@ -109,14 +109,14 @@ const NotificationCenter = ({ user }) => {
           fetchNotifications();
         }
       }, 60000); // Change from 30s to 60s to reduce load
-      
+
       return () => clearInterval(interval);
     }
   }, [user, isOpen]);
 
   const fetchNotifications = async () => {
     if (loading) return; // Prevent multiple concurrent requests
-    
+
     setLoading(true);
     setError(null);
     try {
@@ -124,7 +124,7 @@ const NotificationCenter = ({ user }) => {
         withCredentials: true,
         params: { limit: 10, offset: 0 }
       });
-      
+
       setNotifications(response.data.notifications || []);
       setUnreadCount(response.data.unreadCount || 0);
     } catch (err) {
@@ -147,13 +147,13 @@ const NotificationCenter = ({ user }) => {
       read: false,
       createdAt: new Date().toISOString()
     };
-    
+
     setNotifications(prev => [newNotification, ...prev]);
     setUnreadCount(prev => prev + 1);
-    
+
     // Sound effects will be implemented later
     // Placeholder for future sound implementation
-    
+
     return id;
   }, [notificationSounds]);
 
@@ -175,16 +175,16 @@ const NotificationCenter = ({ user }) => {
           withCredentials: true
         });
       }
-      
+
       // Update local notification state - Fix for marking all as read
       if (notificationId) {
-        setNotifications(notifications.map(n => 
+        setNotifications(notifications.map(n =>
           n._id === notificationId ? { ...n, read: true } : n
         ));
         setUnreadCount(prev => Math.max(0, prev - 1));
       } else {
         // Fix to properly update all notifications to read status
-        setNotifications(prevNotifications => 
+        setNotifications(prevNotifications =>
           prevNotifications.map(n => ({ ...n, read: true }))
         );
         setUnreadCount(0);
@@ -196,21 +196,21 @@ const NotificationCenter = ({ user }) => {
 
   const toggleDropdown = () => {
     setIsOpen(!isOpen);
-    
+
     // Demo notifications - will be removed in production
     if (!isOpen && notifications.length === 0) {
       setTimeout(() => {
         addNotification(
-          'Welcome to CS2 Marketplace', 
-          'Welcome to the largest CS2 marketplace in Georgia!', 
+          'Welcome to CS2 Marketplace',
+          'Welcome to the largest CS2 marketplace in Georgia!',
           'SUCCESS'
         );
       }, 1000);
-      
+
       setTimeout(() => {
         addNotification(
-          'New Trade Offer', 
-          'You received a new trade offer for your AWP | Asiimov', 
+          'New Trade Offer',
+          'You received a new trade offer for your AWP | Asiimov',
           'TRADE',
           '/marketplace?tab=offers'
         );
@@ -231,10 +231,10 @@ const NotificationCenter = ({ user }) => {
       'transaction': 'SUCCESS',
       'system': 'INFO'
     };
-    
+
     const mappedType = typeMap[type] || 'INFO';
     const notificationType = NOTIFICATION_TYPES[mappedType];
-    
+
     return (
       <span style={{ color: notificationType?.iconColor || '#f1f1f1' }}>
         {notificationType?.icon || NOTIFICATION_TYPES.INFO.icon}
@@ -246,18 +246,18 @@ const NotificationCenter = ({ user }) => {
     const date = new Date(dateString);
     const now = new Date();
     const diff = now - date;
-    
+
     // Less than a day
     if (diff < 24 * 60 * 60 * 1000) {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
-    
+
     // Less than a week
     if (diff < 7 * 24 * 60 * 60 * 1000) {
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       return days[date.getDay()];
     }
-    
+
     // Otherwise show the date
     return date.toLocaleDateString();
   };
@@ -308,7 +308,7 @@ const NotificationCenter = ({ user }) => {
       }
     `;
     document.head.appendChild(styleElement);
-    
+
     return () => {
       document.head.removeChild(styleElement);
     };
@@ -339,11 +339,11 @@ const NotificationCenter = ({ user }) => {
         }}
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12.0201 2.91C8.71009 2.91 6.02009 5.6 6.02009 8.91V11.8C6.02009 12.41 5.76009 13.34 5.45009 13.86L4.30009 15.77C3.59009 16.95 4.08009 18.26 5.38009 18.7C9.69009 20.14 14.3401 20.14 18.6501 18.7C19.8601 18.3 20.3901 16.87 19.7301 15.77L18.5801 13.86C18.2801 13.34 18.0201 12.41 18.0201 11.8V8.91C18.0201 5.61 15.3201 2.91 12.0201 2.91Z" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round"/>
-          <path d="M13.8699 3.2C13.5599 3.11 13.2399 3.04 12.9099 3C11.9499 2.88 11.0299 2.95 10.1699 3.2C10.4599 2.46 11.1799 1.94 12.0199 1.94C12.8599 1.94 13.5799 2.46 13.8699 3.2Z" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M15.02 19.06C15.02 20.71 13.67 22.06 12.02 22.06C11.2 22.06 10.44 21.72 9.9 21.18C9.36 20.64 9.02 19.88 9.02 19.06" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10"/>
+          <path d="M12.0201 2.91C8.71009 2.91 6.02009 5.6 6.02009 8.91V11.8C6.02009 12.41 5.76009 13.34 5.45009 13.86L4.30009 15.77C3.59009 16.95 4.08009 18.26 5.38009 18.7C9.69009 20.14 14.3401 20.14 18.6501 18.7C19.8601 18.3 20.3901 16.87 19.7301 15.77L18.5801 13.86C18.2801 13.34 18.0201 12.41 18.0201 11.8V8.91C18.0201 5.61 15.3201 2.91 12.0201 2.91Z" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" />
+          <path d="M13.8699 3.2C13.5599 3.11 13.2399 3.04 12.9099 3C11.9499 2.88 11.0299 2.95 10.1699 3.2C10.4599 2.46 11.1799 1.94 12.0199 1.94C12.8599 1.94 13.5799 2.46 13.8699 3.2Z" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M15.02 19.06C15.02 20.71 13.67 22.06 12.02 22.06C11.2 22.06 10.44 21.72 9.9 21.18C9.36 20.64 9.02 19.88 9.02 19.06" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" />
         </svg>
-        
+
         {/* Unread Count Badge */}
         {unreadCount > 0 && (
           <span
@@ -369,7 +369,7 @@ const NotificationCenter = ({ user }) => {
           </span>
         )}
       </button>
-      
+
       {/* Dropdown Panel without Animation */}
       {isOpen && (
         <div
@@ -398,9 +398,9 @@ const NotificationCenter = ({ user }) => {
               borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
             }}
           >
-            <h3 style={{ 
-              color: '#f1f1f1', 
-              margin: 0, 
+            <h3 style={{
+              color: '#f1f1f1',
+              margin: 0,
               fontSize: '1.1rem',
               fontWeight: '600'
             }}>
@@ -427,7 +427,7 @@ const NotificationCenter = ({ user }) => {
               </button>
             )}
           </div>
-          
+
           {/* Notification list */}
           <div style={{
             maxHeight: '400px',
@@ -479,14 +479,14 @@ const NotificationCenter = ({ user }) => {
                   minHeight: '200px'
                 }}
               >
-                <svg 
-                  width="48" 
-                  height="48" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="1.5" 
-                  strokeLinecap="round" 
+                <svg
+                  width="48"
+                  height="48"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
                   strokeLinejoin="round"
                   style={{ marginBottom: '16px', opacity: 0.7 }}
                 >
@@ -504,8 +504,8 @@ const NotificationCenter = ({ user }) => {
                   style={{
                     padding: '12px 16px',
                     borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                    background: notification.read 
-                      ? 'rgba(45, 27, 105, 0.5)' 
+                    background: notification.read
+                      ? 'rgba(45, 27, 105, 0.5)'
                       : 'rgba(76, 44, 166, 0.2)',
                     backdropFilter: 'blur(8px)',
                     cursor: 'pointer',
@@ -524,19 +524,19 @@ const NotificationCenter = ({ user }) => {
                   <div style={{
                     display: 'flex'
                   }}>
-                    <div 
+                    <div
                       style={{
                         marginRight: '12px',
                         padding: '8px',
-                        backgroundColor: notification.read 
-                          ? 'rgba(255, 255, 255, 0.1)' 
+                        backgroundColor: notification.read
+                          ? 'rgba(255, 255, 255, 0.1)'
                           : 'rgba(76, 44, 166, 0.8)',
                         borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        boxShadow: notification.read 
-                          ? 'none' 
+                        boxShadow: notification.read
+                          ? 'none'
                           : '0 0 15px rgba(76, 44, 166, 0.3)',
                         width: '36px',
                         height: '36px',
@@ -547,21 +547,21 @@ const NotificationCenter = ({ user }) => {
                       {getNotificationIcon(notification.type)}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
                         justifyContent: 'space-between',
                         marginBottom: '4px'
                       }}>
-                        <h4 style={{ 
-                          margin: 0, 
-                          fontSize: '14px', 
+                        <h4 style={{
+                          margin: 0,
+                          fontSize: '14px',
                           fontWeight: '600',
                           color: '#f1f1f1'
                         }}>
                           {notification.title}
                         </h4>
-                        
+
                         {/* Add action buttons for offer notifications */}
                         {notification.type === 'offer' && notification.relatedItemId && (
                           <div style={{ position: 'relative' }}>
@@ -588,9 +588,9 @@ const NotificationCenter = ({ user }) => {
                                 <circle cx="5" cy="12" r="1"></circle>
                               </svg>
                             </button>
-                            
+
                             {activeOfferMenu === notification._id && (
-                              <OfferActionMenu 
+                              <OfferActionMenu
                                 offer={{
                                   itemId: notification.relatedItemId,
                                   offerId: notification.offerId
@@ -600,7 +600,7 @@ const NotificationCenter = ({ user }) => {
                                 }}
                                 onActionComplete={(action, data) => {
                                   // Remove this notification from the list
-                                  setNotifications(prevNotifications => 
+                                  setNotifications(prevNotifications =>
                                     prevNotifications.filter(n => n._id !== notification._id)
                                   );
                                 }}
@@ -609,7 +609,7 @@ const NotificationCenter = ({ user }) => {
                           </div>
                         )}
                       </div>
-                      
+
                       <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -624,7 +624,7 @@ const NotificationCenter = ({ user }) => {
                         }}>
                           {notification.message}
                         </p>
-                        
+
                         <span style={{
                           color: '#9ca3af',
                           fontSize: '11px',
@@ -634,7 +634,7 @@ const NotificationCenter = ({ user }) => {
                           {formatDate(notification.createdAt)}
                         </span>
                       </div>
-                      
+
                       {notification.link && (
                         <div>
                           <Link
@@ -664,14 +664,14 @@ const NotificationCenter = ({ user }) => {
                           >
                             {t('notifications.viewDetails')}
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M5 12h14M12 5l7 7-7 7"/>
+                              <path d="M5 12h14M12 5l7 7-7 7" />
                             </svg>
                           </Link>
                         </div>
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Unread indicator */}
                   {!notification.read && (
                     <div
@@ -692,7 +692,7 @@ const NotificationCenter = ({ user }) => {
               ))
             )}
           </div>
-          
+
           {/* Footer */}
           {notifications.length > 0 && (
             <div
@@ -728,7 +728,7 @@ const NotificationCenter = ({ user }) => {
               >
                 {t('notifications.viewAll')}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                  <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
               </Link>
             </div>

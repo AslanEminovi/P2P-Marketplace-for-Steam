@@ -129,10 +129,7 @@ const Navbar = ({ user, onLogout }) => {
                 <circle cx="20" cy="21" r="1"></circle>
                 <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
               </svg>
-              <div className="nav-text-container">
-                <span>Marketplace</span>
-                <span className="georgian-text">მარკეტი</span>
-              </div>
+              Marketplace
             </NavLink>
             {/* Change "Sell Items" to link to inventory */}
             <NavLink to="/inventory" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
@@ -142,10 +139,7 @@ const Navbar = ({ user, onLogout }) => {
                 <line x1="16" y1="12" x2="8" y2="12"></line>
                 <line x1="16" y1="16" x2="8" y2="16"></line>
               </svg>
-              <div className="nav-text-container">
-                <span>Sell Items</span>
-                <span className="georgian-text">გაყიდვა</span>
-              </div>
+              Sell Items
             </NavLink>
             <NavLink to="/blog" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -154,10 +148,7 @@ const Navbar = ({ user, onLogout }) => {
                 <path d="M2 2l7.586 7.586"></path>
                 <circle cx="11" cy="11" r="2"></circle>
               </svg>
-              <div className="nav-text-container">
-                <span>Blog</span>
-                <span className="georgian-text">ბლოგი</span>
-              </div>
+              Blog
             </NavLink>
             <NavLink to="/faq" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
