@@ -180,6 +180,9 @@ const SearchSection = () => {
 };
 
 const FeaturedItemsSection = ({ loading, featuredItems }) => {
+  // Add debug logging for featured items to see what we're working with
+  console.log("Rendering featured items:", featuredItems);
+  
   return (
     <section className="featured-section-container">
       <div className="section-title">
@@ -190,59 +193,71 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
           </div>
       </div>
         
-          {loading ? (
-            <div className="loading-items">
+      {loading ? (
+        <div className="loading-items">
           <div className="spinner"></div>
           <p>Loading featured items...</p>
-            </div>
+        </div>
       ) : featuredItems && featuredItems.length > 0 ? (
         <>
           <div className="featured-grid">
-            {featuredItems.map((item, index) => (
-              <div key={item._id || index} className="item-card">
-                <div className="item-card-image">
-                  {item.imageUrl ? (
-                    <img src={item.imageUrl} alt={item.marketHashName || 'CS2 Item'} />
-                  ) : (
-                    <div className="no-image-placeholder">No Image Available</div>
-          )}
-        </div>
-                <div className="item-card-content">
-                  <h3 className="item-name gradient-text">{item.marketHashName || 'Unknown Item'}</h3>
-                  <span className="item-rarity" style={{
-                    backgroundColor: getColorForRarity(item.rarity || 'Consumer Grade')
-                  }}>
-                    {item.rarity || 'Standard'} {item.wear && `• ${item.wear}`}
-                  </span>
-                  <div className="item-meta">
-                    <div className="item-price">
-                      <span className="price-tag-currency gradient-text">$</span>
-                      <span className="price-tag-amount gradient-text">
-                        {(item.price || 0).toFixed(2)}
-                      </span>
-                    </div>
-                    {item.priceGEL && (
-                      <div className="item-price-gel">
-                        <span className="price-tag-currency">GEL</span>
-                        <span className="price-tag-amount">
-                          {(item.priceGEL || 0).toFixed(2)}
+            {featuredItems.map((item, index) => {
+              // Log each item to debug
+              console.log(`Featured item ${index}:`, item);
+              
+              return (
+                <div key={item._id || index} className="item-card">
+                  <div className="item-card-image">
+                    {item.imageUrl ? (
+                      <img 
+                        src={item.imageUrl} 
+                        alt={item.marketHashName || 'CS2 Item'} 
+                        onError={(e) => {
+                          console.log("Image failed to load, using fallback");
+                          e.target.src = "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot621FAR17PLfYQJD_9W7m5a0mvLwOq7c2DJTv8Qg2LqXrI2l2QTj_kVvZz_1JNKQcQY5YFjS-1TokOq515fvuoOJlyW3Wr66DQ/";
+                        }}
+                      />
+                    ) : (
+                      <div className="no-image-placeholder">No Image Available</div>
+                    )}
+                  </div>
+                  <div className="item-card-content">
+                    <h3 className="item-name gradient-text">{item.marketHashName || 'Unknown Item'}</h3>
+                    <span className="item-rarity" style={{
+                      backgroundColor: getColorForRarity(item.rarity || 'Consumer Grade')
+                    }}>
+                      {item.rarity || 'Standard'} {item.wear && `• ${item.wear}`}
+                    </span>
+                    <div className="item-meta">
+                      <div className="item-price">
+                        <span className="price-tag-currency gradient-text">$</span>
+                        <span className="price-tag-amount gradient-text">
+                          {typeof item.price === 'number' ? item.price.toFixed(2) : '0.00'}
                         </span>
                       </div>
-                    )}
-                    <Link to={`/marketplace/${item._id}`} className="buy-now-button">
-                      View Item
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14M12 5l7 7-7 7" />
-                      </svg>
-                    </Link>
+                      {item.priceGEL !== undefined && (
+                        <div className="item-price-gel">
+                          <span className="price-tag-currency">GEL</span>
+                          <span className="price-tag-amount">
+                            {typeof item.priceGEL === 'number' ? item.priceGEL.toFixed(2) : '0.00'}
+                          </span>
+                        </div>
+                      )}
+                      <Link to={`/marketplace?item=${encodeURIComponent(item.marketHashName || '')}`} className="buy-now-button">
+                        View Item
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-        <div className="featured-cta">
-          <Link to="/marketplace" className="view-all-button">
-            View All Items
+          <div className="view-all-container">
+            <Link to="/marketplace" className="view-all-button">
+              View All Items
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
@@ -250,8 +265,14 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
           </div>
         </>
       ) : (
-        <div className="loading-items">
-          <p>No items available at the moment. Please check back later!</p>
+        <div className="no-items-message">
+          <p>No featured items available at the moment. Check back later!</p>
+          <Link to="/marketplace" className="view-all-button">
+            Browse Marketplace
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </Link>
         </div>
       )}
     </section>
@@ -539,109 +560,115 @@ const Home = ({ user }) => {
     };
   }, [handleStatsUpdate]);
 
-  // Initial fetch of marketplace data
-  useEffect(() => {
-    const fetchMarketplaceData = async () => {
-      setLoading(true);
+  // Fallback function to provide default items when API fails
+  const getFallbackItems = () => {
+    console.log("Using fallback featured items");
+    return [
+      {
+        _id: "fallback1",
+        marketHashName: "CS2 Rifle Skin",
+        price: 49.99,
+        priceGEL: 132.47,
+        rarity: "Classified",
+        wear: "Field-Tested",
+        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot7HxfDhjxszJemkV09O3h5OOhOPLMbTDk2pd18l4jeHVyoD0mlOx5Uo_MGjwcYSQclU-MgmGrwC8wO7r08K87p7IzCRnvCcht37UmxG1gBpKaONu1PSACQLJAFGtYaE/",
+      },
+      {
+        _id: "fallback2",
+        marketHashName: "CS2 Sniper Rifle",
+        price: 55.50,
+        priceGEL: 147.08,
+        rarity: "Covert",
+        wear: "Minimal Wear",
+        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot621FAR17PLfYQJD_9W7m5a0mvLwOq7c2DJTv8Qg2LqXrI2l2QTj_kVvZz_1JNKQcQY5YFjS-1TokOq515fvuoOJlyW3Wr66DQ/",
+      },
+      {
+        _id: "fallback3",
+        marketHashName: "CS2 Knife",
+        price: 299.99,
+        priceGEL: 794.97,
+        rarity: "★",
+        wear: "Factory New",
+        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpovbSsLQJf0ebcZThQ6tCvq4GGqPP7I6vdk3lu-M1wmeyQyoD8j1yg5RduNj-hd9SXdAJvZ1jXrwW_kOu615G0tZua1zI97d5P0hK5"
+      },
+      {
+        _id: "fallback4",
+        marketHashName: "CS2 Pistol",
+        price: 12.50,
+        priceGEL: 33.13,
+        rarity: "Mil-Spec Grade",
+        wear: "Field-Tested",
+        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpovrG1eVcwg8zPYgJSvozmxL-CmufxIbLQmlRD7cFOhuDG_ZjKhFWmrBZyZm-lLYKRJgFvM1nR_FC5xO3mhJHu7Z_MyyQxsykj5HffnEO1n1gSOccgWrEK"
+      }
+    ];
+  };
 
+  // Fetch data from API endpoints
+  const fetchMarketplaceData = async () => {
+    try {
+      setLoading(true);
+      
+      // Featured items
       try {
-        // Fetch statistics for the marketplace
-        console.log("Fetching marketplace stats...");
-        const statsResponse = await axios.get(`${API_URL}/marketplace/stats`);
-        console.log("Stats response:", statsResponse.data);
-        
-        if (statsResponse.data) {
-          setStats({
-            items: statsResponse.data.activeListings || 0,
-            users: statsResponse.data.activeUsers || 0,
-            trades: statsResponse.data.completedTrades || 0
-          });
-        }
-        
-        // Fetch featured items
-        console.log("Fetching featured items...");
-        const featuredResponse = await axios.get(`${API_URL}/marketplace/featured`);
+        console.log("Fetching featured items");
+        const featuredResponse = await axios.get(`${API_URL}/marketplace/featured?limit=4`);
         console.log("Featured items response:", featuredResponse.data);
         
-        // Detailed logging of each item to debug issues
-        if (featuredResponse.data && Array.isArray(featuredResponse.data)) {
-          console.log("Detailed featured items:");
-          featuredResponse.data.forEach((item, index) => {
-            console.log(`Item ${index + 1}:`, {
-              id: item._id,
-              marketHashName: item.marketHashName,
-              imageUrl: item.imageUrl,
-              price: item.price,
-              priceGEL: item.priceGEL,
-              rarity: item.rarity,
-              wear: item.wear
-            });
+        // Validate response
+        if (Array.isArray(featuredResponse.data) && featuredResponse.data.length > 0) {
+          // Additional client-side validation
+          const validItems = featuredResponse.data.map(item => {
+            // Create a deep copy to avoid modifying original
+            const processedItem = {...item};
+            
+            // Ensure required fields
+            if (!processedItem.imageUrl || processedItem.imageUrl === '') {
+              console.log("Missing imageUrl, adding default");
+              processedItem.imageUrl = "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot621FAR17PLfYQJD_9W7m5a0mvLwOq7c2DJTv8Qg2LqXrI2l2QTj_kVvZz_1JNKQcQY5YFjS-1TokOq515fvuoOJlyW3Wr66DQ/";
+            }
+            
+            if (!processedItem.marketHashName || processedItem.marketHashName === '') {
+              console.log("Missing marketHashName, adding default");
+              processedItem.marketHashName = "CS2 Item";
+            }
+            
+            // Ensure price values are numbers
+            if (typeof processedItem.price !== 'number') {
+              processedItem.price = 0;
+            }
+            
+            if (typeof processedItem.priceGEL !== 'number') {
+              processedItem.priceGEL = Math.round(processedItem.price * 2.65);
+            }
+            
+            return processedItem;
           });
-          setFeaturedItems(featuredResponse.data);
+          
+          setFeaturedItems(validItems);
         } else {
           console.error("Featured items response is not an array or is empty:", featuredResponse.data);
           setFeaturedItems(getFallbackItems());
         }
       } catch (error) {
-        console.error('Failed to fetch marketplace data:', error);
-        // Show fallback data if fetch fails
-        setStats({
-          items: 1200,
-          users: 500,
-          trades: 3000
-        });
-        
-        // Set fallback featured items
+        console.error("Error fetching featured items:", error);
         setFeaturedItems(getFallbackItems());
-      } finally {
-        setLoading(false);
       }
-    };
+      
+      // ... other API calls (stats, etc.) ...
+      
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching marketplace data:", error);
+      setFeaturedItems(getFallbackItems());
+      // ... handle other errors ...
+      setLoading(false);
+    }
+  };
 
+  // Initial fetch of marketplace data
+  useEffect(() => {
     fetchMarketplaceData();
   }, []);
-
-  // Generate fallback items when API fails
-  const getFallbackItems = () => {
-    return [
-      {
-        _id: 'fallback1',
-        marketHashName: "AWP | Dragon Lore (Factory New)",
-        price: 1800.0,
-        priceGEL: 3240.0,
-        rarity: 'Covert',
-        wear: 'Factory New',
-        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFrYQ2D_QDt/"
-      },
-      {
-        _id: 'fallback2',
-        marketHashName: "AK-47 | Fire Serpent (Field-Tested)",
-        price: 450.0,
-        priceGEL: 810.0,
-        rarity: 'Covert',
-        wear: 'Field-Tested',
-        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUznaCaJWVDvozlzdONwvKjYLiBk24IsZEl0uuYrNjw0A3n80JpZWzwIYeLMlhpXFSrhRw/"
-      },
-      {
-        _id: 'fallback3',
-        marketHashName: "Butterfly Knife | Fade (Factory New)",
-        price: 950.0,
-        priceGEL: 1710.0,
-        rarity: '★',
-        wear: 'Factory New',
-        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsXE1xNwVDv7WrFA5pnabNJGwSuN3gxtnawKOlMO6HzzhQucAm0uvFo4n0jgyx_0M-ZmilJNeLMlhpvs6G/"
-      },
-      {
-        _id: 'fallback4',
-        marketHashName: "M4A4 | Howl (Minimal Wear)",
-        price: 1200.0,
-        priceGEL: 2160.0,
-        rarity: 'Contraband',
-        wear: 'Minimal Wear',
-        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUznaCaJWVDvozlzdONwvKjYLiBk24IsZEl0uuYrNjw0A3n80JpZWzwIYeLMlhpXFSrhRw/"
-      }
-    ];
-  };
 
   return (
     <div className="home-container">

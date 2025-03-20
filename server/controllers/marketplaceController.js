@@ -389,97 +389,72 @@ exports.getFeaturedItems = async (req, res) => {
     // First try to find items with images
     let items = await Item.find({
       isListed: true,
-      imageUrl: { $exists: true, $ne: null, $ne: "" }, // Ensure image exists
     })
       .sort({ createdAt: -1 })
-      .limit(limit)
+      .limit(limit * 2) // Fetch more items initially to ensure we have enough valid ones
       .populate("owner", "displayName avatar");
 
-    console.log(`Found ${items.length} featured items with images`);
+    console.log(`Found ${items.length} potential featured items`);
 
-    // If no items with images are found, fall back to any listed items
-    if (items.length === 0) {
-      console.log(
-        "No featured items with images found, falling back to any listed items"
-      );
-      items = await Item.find({
-        isListed: true,
-      })
-        .sort({ createdAt: -1 })
-        .limit(limit)
-        .populate("owner", "displayName avatar");
-
-      console.log(`Found ${items.length} featured items without image filter`);
-    }
-
-    // Add default image URLs for items without images and ensure all required fields are present
-    items = items.map((item) => {
-      // Create a copy to avoid modifying the database objects directly
-      const processedItem = item.toObject ? item.toObject() : { ...item };
-
-      // Ensure imageUrl exists
-      if (!processedItem.imageUrl || processedItem.imageUrl === "") {
-        console.log(`Adding default image for item: ${processedItem._id}`);
-
-        // Default image based on known CS2 weapon type if possible
-        const itemName = processedItem.marketHashName
-          ? processedItem.marketHashName.toLowerCase()
-          : "";
-
-        if (itemName.includes("knife")) {
-          processedItem.imageUrl =
-            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsXE1xNwVDv7WrFA5pnabNJGwSuN3gxtnawKOlMO6HzzhQucAm0uvFo4n0jgyx_0M-ZmilJNeLMlhpvs6G/";
-        } else if (
-          itemName.includes("rifle") ||
-          itemName.includes("ak-47") ||
-          itemName.includes("m4a")
-        ) {
-          processedItem.imageUrl =
-            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUznaCaJWVDvozlzdONwvKjYLiBk24IsZEl0uuYrNjw0A3n80JpZWzwIYeLMlhpXFSrhRw/";
-        } else {
-          processedItem.imageUrl =
-            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFrYQ2D_QDt/";
-        }
-      }
+    // Process items to ensure they have required fields
+    const processedItems = items.map((item) => {
+      // Create a plain JS object from the Mongoose document
+      const processedItem = item.toObject();
 
       // Ensure marketHashName exists
       if (
         !processedItem.marketHashName ||
         processedItem.marketHashName === ""
       ) {
-        console.log(
-          `Adding default marketHashName for item: ${processedItem._id}`
-        );
-        processedItem.marketHashName = "CS2 Item";
+        processedItem.marketHashName = processedItem.name || "CS2 Item";
+      }
+
+      // Ensure imageUrl exists
+      if (!processedItem.imageUrl || processedItem.imageUrl === "") {
+        // Set default image based on item type hints in name
+        if (processedItem.marketHashName.toLowerCase().includes("knife")) {
+          processedItem.imageUrl =
+            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpovbSsLQJf1ObcTjxP09i5hJCHkuXLI7PQhW4F18l4jeHVyoD0mlOx5RZrYWnwIdWRdQdvMFGB-FDsl7jt05S-75ydnXNr7CkrstPUmEe0n1gSORnDKQIj/";
+        } else if (
+          processedItem.marketHashName.toLowerCase().includes("rifle")
+        ) {
+          processedItem.imageUrl =
+            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot7HxfDhjxszJemkV09O3h5OOhOPLMbTDk2pd18l4jeHVyoD0mlOx5Uo_MGjwcYSQclU-MgmGrwC8wO7r08K87p7IzCRnvCcht37UmxG1gBpKaONu1PSACQLJAFGtYaE/";
+        } else {
+          processedItem.imageUrl =
+            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot621FAR17PLfYQJD_9W7m5a0mvLwOq7c2DJTv8Qg2LqXrI2l2QTj_kVvZz_1JNKQcQY5YFjS-1TokOq515fvuoOJlyW3Wr66DQ/";
+        }
       }
 
       // Ensure price exists
-      if (!processedItem.price || isNaN(processedItem.price)) {
-        console.log(`Adding default price for item: ${processedItem._id}`);
+      if (!processedItem.price) {
         processedItem.price = 0;
       }
 
-      // Ensure priceGEL exists if we have a price and currency rate
-      if (
-        (!processedItem.priceGEL || isNaN(processedItem.priceGEL)) &&
-        processedItem.price &&
-        processedItem.currencyRate
-      ) {
-        console.log(`Calculating priceGEL for item: ${processedItem._id}`);
-        processedItem.priceGEL =
-          processedItem.price * processedItem.currencyRate;
+      // Calculate GEL price if missing
+      if (!processedItem.priceGEL) {
+        processedItem.priceGEL = Math.round(processedItem.price * 2.65);
       }
 
       return processedItem;
     });
 
-    console.log(`Returning ${items.length} processed featured items`);
-    return res.json(items);
-  } catch (err) {
-    console.error("Error fetching featured items:", err);
+    // Filter out any items that still don't have required fields
+    const validItems = processedItems
+      .filter(
+        (item) =>
+          item.marketHashName && item.imageUrl && item.price !== undefined
+      )
+      .slice(0, limit); // Take only up to the required limit
+
+    console.log(`Returning ${validItems.length} valid featured items`);
+
+    return res.json(validItems);
+  } catch (error) {
+    console.error("Error fetching featured items:", error);
     return res
       .status(500)
-      .json({ error: "Failed to retrieve featured items." });
+      .json({ message: "Error fetching featured items", error: error.message });
   }
 };
 

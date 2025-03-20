@@ -1,10 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import './Footer.css';
 
 const Footer = () => {
-  const { t } = useTranslation();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -12,38 +10,38 @@ const Footer = () => {
       <div className="footer-container">
         <div className="footer-content">
           <div className="footer-section">
-            <h3 className="footer-title">{t('footer.about')}</h3>
+            <h3 className="footer-title">About Us</h3>
             <p className="footer-description">
-              {t('footer.aboutDescription')}
+              CS2 Marketplace is the leading platform for buying and selling Counter-Strike 2 items in Georgia with secure transactions and fair prices.
             </p>
           </div>
           
           <div className="footer-section">
-            <h3 className="footer-title">{t('footer.links')}</h3>
+            <h3 className="footer-title">Quick Links</h3>
             <ul className="footer-links">
-              <li><Link to="/marketplace">{t('footer.marketplace')}</Link></li>
-              <li><Link to="/inventory">{t('footer.inventory')}</Link></li>
-              <li><Link to="/trades">{t('footer.trades')}</Link></li>
-              <li><Link to="/faq">{t('footer.faq')}</Link></li>
+              <li><Link to="/marketplace">Marketplace</Link></li>
+              <li><Link to="/inventory">Inventory</Link></li>
+              <li><Link to="/trades">Trades</Link></li>
+              <li><Link to="/">Home</Link></li>
             </ul>
           </div>
           
           <div className="footer-section">
-            <h3 className="footer-title">{t('footer.support')}</h3>
+            <h3 className="footer-title">Support</h3>
             <ul className="footer-links">
-              <li><Link to="/contact">{t('footer.contact')}</Link></li>
-              <li><Link to="/terms">{t('footer.terms')}</Link></li>
-              <li><Link to="/privacy">{t('footer.privacy')}</Link></li>
+              <li><Link to="/">Contact Us</Link></li>
+              <li><Link to="/">Terms of Service</Link></li>
+              <li><Link to="/">Privacy Policy</Link></li>
             </ul>
           </div>
         </div>
         
         <div className="footer-bottom">
           <div className="footer-copyright">
-            &copy; {currentYear} CS2 Marketplace Georgia. {t('footer.allRightsReserved')}
+            &copy; {currentYear} CS2 Marketplace Georgia. All rights reserved.
           </div>
           <div className="footer-disclaimer">
-            {t('footer.disclaimer')}
+            This site is not affiliated with Valve Corporation. All game assets belong to their respective owners.
           </div>
         </div>
       </div>

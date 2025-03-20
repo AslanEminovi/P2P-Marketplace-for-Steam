@@ -1,11 +1,13 @@
 .site-footer {
   background-color: #0a0c14;
-  color: #9aa0b5;
+  color: #ffffff;
   padding: 3rem 0 1.5rem;
   margin-top: 4rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
   position: relative;
   overflow: hidden;
+  z-index: 100;
+  box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.2);
 }
 
 .site-footer::before {
@@ -14,8 +16,8 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, rgba(48, 105, 152, 0), rgba(48, 105, 152, 0.5), rgba(48, 105, 152, 0));
+  height: 2px;
+  background: linear-gradient(90deg, rgba(48, 105, 152, 0), rgba(48, 105, 152, 0.8), rgba(48, 105, 152, 0));
 }
 
 .footer-container {
@@ -37,10 +39,10 @@
 }
 
 .footer-title {
-  font-size: 1.2rem;
+  font-size: 1.3rem;
   margin-bottom: 1.2rem;
   font-weight: 600;
-  color: #cfd6e9;
+  color: #ffffff;
   position: relative;
   padding-bottom: 0.5rem;
 }
@@ -50,8 +52,8 @@
   position: absolute;
   bottom: 0;
   left: 0;
-  width: 40px;
-  height: 2px;
+  width: 50px;
+  height: 3px;
   background: linear-gradient(90deg, #306998, #5593c9);
 }
 
@@ -59,6 +61,7 @@
   line-height: 1.6;
   margin-bottom: 1.5rem;
   font-size: 0.95rem;
+  color: #d0d6e5;
 }
 
 .footer-links {
@@ -72,19 +75,20 @@
 }
 
 .footer-links li a {
-  color: #9aa0b5;
+  color: #d0d6e5;
   text-decoration: none;
   transition: color 0.2s ease;
-  font-size: 0.95rem;
+  font-size: 1rem;
   display: inline-block;
   position: relative;
+  padding: 0.2rem 0;
 }
 
 .footer-links li a::after {
   content: '';
   position: absolute;
   width: 0;
-  height: 1px;
+  height: 2px;
   bottom: -2px;
   left: 0;
   background: linear-gradient(90deg, #306998, #5593c9);
@@ -92,7 +96,7 @@
 }
 
 .footer-links li a:hover {
-  color: #cfd6e9;
+  color: #ffffff;
 }
 
 .footer-links li a:hover::after {
@@ -101,19 +105,21 @@
 
 .footer-bottom {
   padding-top: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   text-align: center;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
 }
 
 .footer-copyright {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.8rem;
+  color: #d0d6e5;
 }
 
 .footer-disclaimer {
-  opacity: 0.7;
-  font-size: 0.8rem;
+  opacity: 0.8;
+  font-size: 0.85rem;
   line-height: 1.5;
+  color: #acb4c8;
 }
 
 /* Responsive styles */
