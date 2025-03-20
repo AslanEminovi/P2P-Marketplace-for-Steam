@@ -23,9 +23,6 @@ import TradeHistory from './components/TradeHistory';
 import NotificationCenter from './components/NotificationCenter';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import PageWrapper from './components/PageWrapper';
-import Notifications from './components/Notifications';
-import Trades from './pages/Trades';
-import UserProfile from './pages/UserProfile';
 import SocketConnectionIndicator from './components/SocketConnectionIndicator';
 
 // Import constants
@@ -50,15 +47,6 @@ const AdminRoute = ({ user, children }) => {
   }
   console.log("AdminRoute - Access granted");
   return children;
-};
-
-// Page wrapper (removed animations)
-const PageWrapper = ({ children }) => {
-  return (
-    <div style={{ width: '100%', minHeight: '100%', overflow: 'visible', display: 'flex', flexDirection: 'column' }}>
-      {children}
-    </div>
-  );
 };
 
 const loadingScreenStyles = css`
