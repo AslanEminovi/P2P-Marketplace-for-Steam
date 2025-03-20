@@ -7,7 +7,7 @@ const SocketConnectionIndicator = ({ isConnected, show }) => {
   const [visible, setVisible] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const timeoutRef = useRef(null);
-  
+
   // Controlled mounting/unmounting with delays
   useEffect(() => {
     // Clear any existing timeouts to prevent race conditions
@@ -15,39 +15,39 @@ const SocketConnectionIndicator = ({ isConnected, show }) => {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-    
+
     if (show) {
       setVisible(true);
       setFadeOut(false);
     } else if (visible) {
       // Start fade out first
       setFadeOut(true);
-      
+
       // Then completely hide after animation completes
       timeoutRef.current = setTimeout(() => {
         setVisible(false);
       }, 500); // Match CSS transition time
     }
-    
+
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
     };
   }, [show, isConnected, visible]);
-  
+
   // Additional effect for connected state
   useEffect(() => {
     if (isConnected && show) {
       // If connected and showing, start auto-hide sequence after 3 seconds
       timeoutRef.current = setTimeout(() => {
         setFadeOut(true);
-        
+
         timeoutRef.current = setTimeout(() => {
           setVisible(false);
         }, 500); // Match CSS transition time
       }, 3000);
-      
+
       return () => {
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
@@ -58,10 +58,10 @@ const SocketConnectionIndicator = ({ isConnected, show }) => {
 
   const handleReconnect = () => {
     setReconnecting(true);
-    
+
     // Try to reconnect
     socketService.reconnect();
-    
+
     // Update UI after a delay
     setTimeout(() => {
       setReconnecting(false);
@@ -78,9 +78,9 @@ const SocketConnectionIndicator = ({ isConnected, show }) => {
           {isConnected ? 'Connected' : 'Disconnected'}
         </span>
       </div>
-      
+
       {!isConnected && (
-        <button 
+        <button
           className="reconnect-button"
           onClick={handleReconnect}
           disabled={reconnecting}
