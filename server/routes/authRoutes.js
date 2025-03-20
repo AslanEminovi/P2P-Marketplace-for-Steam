@@ -159,46 +159,135 @@ router.post("/verify-token", async (req, res) => {
 });
 
 // Get current user (session-based fallback)
-router.get("/user", (req, res) => {
+router.get("/user", async (req, res) => {
   try {
     console.log("Auth check request received");
 
-    if (!req.user) {
-      console.log("No authenticated user found");
-      return res.json({ authenticated: false });
+    // First check if the user is authenticated via session
+    if (req.user) {
+      console.log(
+        "User authenticated via session:",
+        req.user.username || req.user.displayName
+      );
+
+      // Generate a new token for the user (refresh their session)
+      const token = jwt.sign({ id: req.user.id }, process.env.JWT_SECRET, {
+        expiresIn: "7d",
+      });
+
+      // Set token in cookie
+      res.cookie("auth_token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+      return res.json({
+        authenticated: true,
+        user: {
+          id: req.user._id,
+          steamId: req.user.steamId,
+          username: req.user.username || req.user.displayName,
+          displayName: req.user.displayName,
+          avatar: req.user.avatar,
+          roles: req.user.roles || [],
+          tradeUrl: req.user.tradeUrl || "",
+          balance: req.user.balance || 0,
+          walletBalance: req.user.balance || 0,
+          isAdmin: req.user.isAdmin || false,
+          // Add other necessary user fields
+        },
+      });
+    }
+
+    // If not authenticated via session, check for token in query parameters
+    const token = req.query.auth_token;
+
+    if (!token) {
+      console.log("No auth token in session or query parameters");
+      return res.json({
+        authenticated: false,
+        message: "No authentication token",
+      });
     }
 
     console.log(
-      "User authenticated:",
-      req.user.username || req.user.displayName
+      "Checking token from query parameters:",
+      token.substring(0, 10) + "..."
     );
 
-    // Generate a new token for the user (refresh their session)
-    const token = jwt.sign({ id: req.user.id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    // Verify the token
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Set token in cookie
-    res.cookie("auth_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
+      if (!decoded || !decoded.id) {
+        console.log("Invalid token structure:", decoded);
+        return res
+          .status(401)
+          .json({ authenticated: false, message: "Invalid token" });
+      }
 
-    return res.json({
-      authenticated: true,
-      user: {
-        id: req.user._id,
-        steamId: req.user.steamId,
-        username: req.user.username || req.user.displayName,
-        displayName: req.user.displayName,
-        avatar: req.user.avatar,
-        roles: req.user.roles || [],
-        tradeUrl: req.user.tradeUrl || "",
-        balance: req.user.balance || 0,
-        // Add other necessary user fields
-      },
-    });
+      console.log("Token verified, finding user with ID:", decoded.id);
+
+      // Find user by ID
+      const user = await User.findById(decoded.id);
+
+      if (!user) {
+        console.log("User not found for ID:", decoded.id);
+        return res
+          .status(404)
+          .json({ authenticated: false, message: "User not found" });
+      }
+
+      console.log("User found via token:", user.username || user.displayName);
+
+      // Update last login time
+      user.lastLogin = new Date();
+      await user.save();
+
+      // Set token in cookie as well for extra security
+      res.cookie("auth_token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+      // Return the user data
+      return res.json({
+        authenticated: true,
+        user: {
+          id: user._id,
+          steamId: user.steamId,
+          username: user.username || user.displayName,
+          displayName: user.displayName,
+          avatar: user.avatar,
+          roles: user.roles || [],
+          tradeUrl: user.tradeUrl || "",
+          balance: user.balance || 0,
+          walletBalance: user.balance || 0,
+          isAdmin: user.isAdmin || false,
+          // Add other necessary user fields
+        },
+      });
+    } catch (error) {
+      console.error("Token verification error:", error);
+
+      if (error.name === "TokenExpiredError") {
+        return res
+          .status(401)
+          .json({ authenticated: false, message: "Token expired" });
+      }
+
+      if (error.name === "JsonWebTokenError") {
+        return res
+          .status(401)
+          .json({ authenticated: false, message: "Invalid token" });
+      }
+
+      return res
+        .status(500)
+        .json({ authenticated: false, message: "Server error" });
+    }
   } catch (error) {
     console.error("Auth check error:", error);
     return res
