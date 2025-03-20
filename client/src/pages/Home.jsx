@@ -183,6 +183,12 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
   // Add debug logging for featured items to see what we're working with
   console.log("Rendering featured items:", featuredItems);
   
+  // Function to handle clicking "View All Items" - scroll to top before navigating
+  const handleViewAllClick = (e) => {
+    // Scroll to top of the page
+    window.scrollTo(0, 0);
+  };
+  
   return (
     <section className="featured-section-container">
       <div className="section-title">
@@ -243,7 +249,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
                           </span>
                         </div>
                       )}
-                      <Link to={`/marketplace?item=${encodeURIComponent(item.marketHashName || '')}`} className="buy-now-button">
+                      <Link to={`/marketplace?item=${encodeURIComponent(item.marketHashName || '')}`} className="buy-now-button" onClick={handleViewAllClick}>
                         View Item
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M5 12h14M12 5l7 7-7 7" />
@@ -256,7 +262,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
             })}
           </div>
           <div className="view-all-container">
-            <Link to="/marketplace" className="view-all-button">
+            <Link to="/marketplace" className="view-all-button" onClick={handleViewAllClick}>
               View All Items
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7" />
@@ -267,7 +273,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
       ) : (
         <div className="no-items-message">
           <p>No featured items available at the moment. Check back later!</p>
-          <Link to="/marketplace" className="view-all-button">
+          <Link to="/marketplace" className="view-all-button" onClick={handleViewAllClick}>
             Browse Marketplace
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14M12 5l7 7-7 7" />
@@ -279,13 +285,13 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
   );
 };
 
-const TradingStatsSection = () => {
+const TradingStatsSection = ({ stats }) => {
   return (
     <section className="trading-stats-section">
       <div className="section-title">
         <div className="section-title-content">
-          <h2>Platform <span className="gradient-text">Statistics</span></h2>
-          <p>Check out our marketplace performance and trading activity</p>
+          <h2>Market <span className="gradient-text">Statistics</span></h2>
+          <p>Real-time data about our marketplace activity</p>
           <div className="title-decoration"></div>
         </div>
       </div>
@@ -293,50 +299,52 @@ const TradingStatsSection = () => {
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
             </svg>
           </div>
-          <div className="stat-value">99.8%</div>
-          <div className="stat-label">Success Rate</div>
-          <div className="stat-description">Nearly all transactions are completed successfully without any issues</div>
+          <div className="stat-value">{stats.users.toLocaleString()}</div>
+          <div className="stat-label">Active Users</div>
+          <p className="stat-description">People actively trading on our platform this month</p>
         </div>
 
         <div className="stat-card">
           <div className="stat-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </div>
+          <div className="stat-value">{stats.items.toLocaleString()}</div>
+          <div className="stat-label">Items Listed</div>
+          <p className="stat-description">Total number of items listed on our marketplace</p>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          </div>
+          <div className="stat-value">{stats.trades > 0 ? '98.7%' : '0%'}</div>
+          <div className="stat-label">Successful Trades</div>
+          <p className="stat-description">Percentage of completed trades with satisfied users</p>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
+              <path d="M16 6l-8 12"></path>
+              <path d="M8 6l8 12"></path>
             </svg>
           </div>
-          <div className="stat-value">5 min</div>
-          <div className="stat-label">Avg. Trade Time</div>
-          <div className="stat-description">Most trades are completed within minutes after payment</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-            </svg>
-          </div>
-          <div className="stat-value">$1,245</div>
-          <div className="stat-label">Highest Value Trade</div>
-          <div className="stat-description">Record-setting item sold on our marketplace</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="1" y="3" width="15" height="13"></rect>
-              <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
-              <circle cx="5.5" cy="18.5" r="2.5"></circle>
-              <circle cx="18.5" cy="18.5" r="2.5"></circle>
-            </svg>
-          </div>
-          <div className="stat-value">8,547+</div>
-          <div className="stat-label">Total Deliveries</div>
-          <div className="stat-description">Items successfully delivered to buyers worldwide</div>
+          <div className="stat-value">{stats.trades.toLocaleString()}</div>
+          <div className="stat-label">Completed Trades</div>
+          <p className="stat-description">Total number of successful trades on our platform</p>
         </div>
       </div>
     </section>
@@ -348,57 +356,86 @@ const FeaturesSection = () => {
     <section className="features-section">
       <div className="section-title">
         <div className="section-title-content">
-          <h2>Premium <span className="gradient-text">Features</span></h2>
-          <p>Experience the best CS2 item trading platform with our unique features</p>
+          <h2>Platform <span className="gradient-text">Features</span></h2>
+          <p>What makes our CS2 marketplace stand out from the rest</p>
           <div className="title-decoration"></div>
         </div>
       </div>
-      
+
       <div className="features-grid">
         <div className="feature-card">
           <div className="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 7h-9"></path>
-              <path d="M14 17H5"></path>
-              <circle cx="17" cy="17" r="3"></circle>
-              <circle cx="7" cy="7" r="3"></circle>
-            </svg>
-          </div>
-          <h3 className="feature-title">P2P Trading</h3>
-          <p className="feature-description">Trade directly with other players without middlemen. Secure, fast, and reliable transactions every time.</p>
-        </div>
-        
-        <div className="feature-card">
-          <div className="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
               <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
             </svg>
           </div>
-          <h3 className="feature-title">Secure Escrow</h3>
-          <p className="feature-description">All trades are protected by our escrow system. Your money is safe until you receive your items.</p>
+          <h3 className="feature-title">Secure Trading</h3>
+          <p className="feature-description">Our escrow system ensures that all trades are secure and that both parties receive exactly what they agreed upon.</p>
         </div>
         
         <div className="feature-card">
           <div className="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
-              <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
             </svg>
           </div>
-          <h3 className="feature-title">Instant Inventory</h3>
-          <p className="feature-description">Connect your Steam account and instantly list your CS2 items for sale with just a few clicks.</p>
+          <h3 className="feature-title">Low Fees</h3>
+          <p className="feature-description">We charge one of the lowest fees in the industry, allowing you to maximize your profits when selling items.</p>
         </div>
-        
+            
         <div className="feature-card">
           <div className="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="1" x2="12" y2="23"></line>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.29 7 12 12 20.71 7"></polyline>
+              <line x1="12" y1="22" x2="12" y2="12"></line>
             </svg>
           </div>
-          <h3 className="feature-title">Multiple Payment Methods</h3>
-          <p className="feature-description">Pay using credit cards, cryptocurrency, or other popular payment methods with low transaction fees.</p>
+          <h3 className="feature-title">Easy to Use</h3>
+          <p className="feature-description">Our platform is designed to be intuitive and easy to use, with a clean interface that makes trading a breeze.</p>
+        </div>
+            
+        <div className="feature-card">
+          <div className="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+              <line x1="7" y1="2" x2="7" y2="22"></line>
+              <line x1="17" y1="2" x2="17" y2="22"></line>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <line x1="2" y1="7" x2="7" y2="7"></line>
+              <line x1="2" y1="17" x2="7" y2="17"></line>
+              <line x1="17" y1="17" x2="22" y2="17"></line>
+              <line x1="17" y1="7" x2="22" y2="7"></line>
+            </svg>
+          </div>
+          <h3 className="feature-title">Real-time Updates</h3>
+          <p className="feature-description">Get instant notifications for new listings, price changes, trade offers, and more with our real-time update system.</p>
+        </div>
+
+        <div className="feature-card">
+          <div className="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+          </div>
+          <h3 className="feature-title">Global Marketplace</h3>
+          <p className="feature-description">Connect with buyers and sellers from all around the world, expanding your trading opportunities beyond borders.</p>
+        </div>
+
+        <div className="feature-card">
+          <div className="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+          <h3 className="feature-title">Community Support</h3>
+          <p className="feature-description">Join our vibrant community of CS2 players and traders, with dedicated support staff to assist you with any questions.</p>
         </div>
       </div>
     </section>
@@ -589,7 +626,7 @@ const Home = ({ user }) => {
         priceGEL: 794.97,
         rarity: "★",
         wear: "Factory New",
-        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpovbSsLQJf0ebcZThQ6tCvq4GGqPP7I6vdk3lu-M1wmeyQyoD8j1yg5RduNj-hd9SXdAJvZ1jXrwW_kOu615G0tZua1zI97d5P0hK5"
+        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpovbSsLQJf0ebcZThQ6tCvq4GGqPP7I6vdk3lu-M1wmeyQyoD8j1yg5RduNj-hd9SXdAJvZ1jXrwW_kOu615G0tZua1zI97d5P0hK5",
       },
       {
         _id: "fallback4",
@@ -598,7 +635,25 @@ const Home = ({ user }) => {
         priceGEL: 33.13,
         rarity: "Mil-Spec Grade",
         wear: "Field-Tested",
-        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpovrG1eVcwg8zPYgJSvozmxL-CmufxIbLQmlRD7cFOhuDG_ZjKhFWmrBZyZm-lLYKRJgFvM1nR_FC5xO3mhJHu7Z_MyyQxsykj5HffnEO1n1gSOccgWrEK"
+        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpovrG1eVcwg8zPYgJSvozmxL-CmufxIbLQmlRD7cFOhuDG_ZjKhFWmrBZyZm-lLYKRJgFvM1nR_FC5xO3mhJHu7Z_MyyQxsykj5HffnEO1n1gSOccgWrEK",
+      },
+      {
+        _id: "fallback5",
+        marketHashName: "CS2 Gloves",
+        price: 95.75,
+        priceGEL: 253.74,
+        rarity: "Extraordinary",
+        wear: "Minimal Wear",
+        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpovbSsLQJf2PLacDBA5ciJlY20k_jkI7fUhFRB4MRij7j--YXygED6-kU_Y2HyLYGTJAZsNArR-gO3lLy9gcfpus7MzXdm7icn-z-DyMgvHUHl/",
+      },
+      {
+        _id: "fallback6",
+        marketHashName: "CS2 Case",
+        price: 3.25,
+        priceGEL: 8.61,
+        rarity: "Base Grade",
+        wear: null,
+        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUznaCaJWVDvozlzdONwvKjYLiBk24IsZEl0uuYrNjw0A3n80JpZWzwIYWLMlhpLvhcskA/",
       }
     ];
   };
@@ -611,7 +666,7 @@ const Home = ({ user }) => {
       // Featured items
       try {
         console.log("Fetching featured items");
-        const featuredResponse = await axios.get(`${API_URL}/marketplace/featured?limit=4`);
+        const featuredResponse = await axios.get(`${API_URL}/marketplace/featured?limit=6`);
         console.log("Featured items response:", featuredResponse.data);
         
         // Validate response
@@ -699,174 +754,17 @@ const Home = ({ user }) => {
       {/* Featured Items Section */}
       <FeaturedItemsSection loading={loading} featuredItems={featuredItems} />
 
-      {/* Trading Stats Section */}
-      <section className="trading-stats-section">
-        <div className="section-title">
-          <div className="section-title-content">
-            <h2>Market <span className="gradient-text">Statistics</span></h2>
-            <p>Real-time data about our marketplace activity</p>
-            <div className="title-decoration"></div>
-          </div>
-        </div>
-
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-              </svg>
-            </div>
-            <div className="stat-value">{stats.users.toLocaleString()}</div>
-            <div className="stat-label">Active Users</div>
-            <p className="stat-description">People actively trading on our platform this month</p>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                <line x1="8" y1="21" x2="16" y2="21"></line>
-                <line x1="12" y1="17" x2="12" y2="21"></line>
-              </svg>
-            </div>
-            <div className="stat-value">{stats.items.toLocaleString()}</div>
-            <div className="stat-label">Items Listed</div>
-            <p className="stat-description">Total number of items listed on our marketplace</p>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-              </svg>
-            </div>
-            <div className="stat-value">{stats.trades > 0 ? '98.7%' : '0%'}</div>
-            <div className="stat-label">Successful Trades</div>
-            <p className="stat-description">Percentage of completed trades with satisfied users</p>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M16 6l-8 12"></path>
-                <path d="M8 6l8 12"></path>
-              </svg>
-            </div>
-            <div className="stat-value">{stats.trades.toLocaleString()}</div>
-            <div className="stat-label">Completed Trades</div>
-            <p className="stat-description">Total number of successful trades on our platform</p>
-          </div>
-        </div>
-      </section>
+      {/* Trading Stats Section - pass stats to the component */}
+      <TradingStatsSection stats={stats} />
 
       {/* Features Section */}
-      <section className="features-section">
-        <div className="section-title">
-          <div className="section-title-content">
-            <h2>Platform <span className="gradient-text">Features</span></h2>
-            <p>What makes our CS2 marketplace stand out from the rest</p>
-            <div className="title-decoration"></div>
-          </div>
-        </div>
+      <FeaturesSection />
 
-        <div className="features-grid">
-          <div className="feature-card">
-            <div className="feature-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-              </svg>
-            </div>
-            <h3 className="feature-title">Secure Trading</h3>
-            <p className="feature-description">Our escrow system ensures that all trades are secure and that both parties receive exactly what they agreed upon.</p>
-          </div>
-          
-          <div className="feature-card">
-            <div className="feature-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
-              </svg>
-            </div>
-            <h3 className="feature-title">Low Fees</h3>
-            <p className="feature-description">We charge one of the lowest fees in the industry, allowing you to maximize your profits when selling items.</p>
-            </div>
-            
-          <div className="feature-card">
-            <div className="feature-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                <polyline points="3.29 7 12 12 20.71 7"></polyline>
-                <line x1="12" y1="22" x2="12" y2="12"></line>
-              </svg>
-            </div>
-            <h3 className="feature-title">Easy to Use</h3>
-            <p className="feature-description">Our platform is designed to be intuitive and easy to use, with a clean interface that makes trading a breeze.</p>
-            </div>
-            
-          <div className="feature-card">
-            <div className="feature-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
-                <line x1="7" y1="2" x2="7" y2="22"></line>
-                <line x1="17" y1="2" x2="17" y2="22"></line>
-                <line x1="2" y1="12" x2="22" y2="12"></line>
-                <line x1="2" y1="7" x2="7" y2="7"></line>
-                <line x1="2" y1="17" x2="7" y2="17"></line>
-                <line x1="17" y1="17" x2="22" y2="17"></line>
-                <line x1="17" y1="7" x2="22" y2="7"></line>
-              </svg>
-            </div>
-            <h3 className="feature-title">Real-time Updates</h3>
-            <p className="feature-description">Get instant notifications for new listings, price changes, trade offers, and more with our real-time update system.</p>
-          </div>
-        </div>
-      </section>
+      {/* How It Works Section */}
+      <HowItWorksSection />
 
       {/* Final CTA Section */}
-      <section className="final-cta-section">
-        <div className="final-cta-decoration top-right"></div>
-        <div className="final-cta-decoration bottom-left"></div>
-        <div className="final-cta-background"></div>
-        
-        <div className="final-cta-content">
-          <h2 className="final-cta-title">
-            Ready to <span className="gradient-text">Trade</span>?
-          </h2>
-          <p className="final-cta-description">
-            Join thousands of CS2 players who trust our platform for safe and reliable item trading. Sign up now and start trading in minutes!
-          </p>
-          <div className="final-cta-buttons">
-            {!user ? (
-              <a href={`${API_URL}/auth/steam`} className="hero-button primary">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
-                  <polyline points="10 17 15 12 10 7"></polyline>
-                  <line x1="15" y1="12" x2="3" y2="12"></line>
-                </svg>
-                Sign in with Steam
-              </a>
-            ) : (
-              <Link to="/marketplace" className="hero-button primary">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="9" cy="21" r="1"></circle>
-                  <circle cx="20" cy="21" r="1"></circle>
-                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-                </svg>
-                Browse Marketplace
-              </Link>
-            )}
-            <Link to="/marketplace" className="hero-button secondary">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14M12 5l7 7-7 7"></path>
-              </svg>
-              View All Items
-            </Link>
-          </div>
-        </div>
-      </section>
+      <FinalCTASection user={user} />
     </div>
   );
 };
