@@ -85,9 +85,6 @@ const HeroSection = ({ user, stats, prevStats }) => {
           <h1 className="hero-title">
           The Ultimate <span className="gradient-text" data-text="CS2 Marketplace">CS2 Marketplace</span> for Game Items
           </h1>
-          <div className="geo-title">
-            <span className="geo-text">ითამაშე და ივაჭრე საუკეთესო ნივთებით</span>
-          </div>
         <p className="hero-description">
           Buy and sell CS2 skins with confidence on our secure P2P marketplace.
           Trade directly with other players, no bots, no scams - just safe, fast, and reliable transactions.

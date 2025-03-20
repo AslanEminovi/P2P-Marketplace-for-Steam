@@ -111,43 +111,11 @@
 .hero-title {
   font-size: 3.5rem;
   font-weight: 800;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
   color: var(--gaming-text-bright);
   line-height: 1.2;
   text-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
   letter-spacing: -0.5px;
-}
-
-/* Georgian title section */
-.geo-title {
-  margin-bottom: 1.8rem;
-  text-align: center;
-}
-
-.geo-title .geo-text {
-  font-size: 1.8rem;
-  font-weight: 600;
-  background: linear-gradient(135deg, #2ecc71, #1abc9c, #3498db);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  position: relative;
-  display: inline-block;
-  text-shadow: 0 0 15px rgba(46, 204, 113, 0.6);
-  animation: heroGeoGlow 3s infinite alternate;
-  letter-spacing: 0.5px;
-}
-
-@keyframes heroGeoGlow {
-  0% {
-    filter: drop-shadow(0 0 3px rgba(46, 204, 113, 0.6));
-  }
-  50% {
-    filter: drop-shadow(0 0 8px rgba(52, 152, 219, 0.8));
-  }
-  100% {
-    filter: drop-shadow(0 0 5px rgba(26, 188, 156, 0.7));
-  }
 }
 
 .hero-title .gradient-text {
