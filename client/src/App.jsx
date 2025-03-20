@@ -107,29 +107,62 @@ function App() {
         // Remove token from URL to prevent bookmarking with token
         window.history.replaceState({}, document.title, window.location.pathname);
 
-        // Verify token with backend
-        console.log("Verifying token with backend...");
-        const verifyResponse = await axios.post(`${API_URL}/auth/verify-token`, { token: authToken }, { withCredentials: true });
-        console.log("Token verification response:", verifyResponse.data);
+        try {
+          // Verify token with backend
+          console.log("Verifying token with backend...");
+          const verifyResponse = await axios.post(
+            `${API_URL}/auth/verify-token`, 
+            { token: authToken }, 
+            { 
+              withCredentials: true,
+              timeout: 10000 // 10 second timeout for token verification
+            }
+          );
+          
+          console.log("Token verification response:", verifyResponse.data);
 
-        if (verifyResponse.data.authenticated) {
-          console.log("Token verified, user authenticated:", verifyResponse.data.user);
-          setUser(verifyResponse.data.user);
+          if (verifyResponse.data && verifyResponse.data.authenticated) {
+            console.log("Token verified, user authenticated:", verifyResponse.data.user);
+            
+            // Store token in localStorage first
+            localStorage.setItem('auth_token', authToken);
+            
+            // Then set user state
+            setUser(verifyResponse.data.user);
 
-          // Store token in localStorage for future use
-          localStorage.setItem('auth_token', authToken);
+            // Show success notification
+            if (window.showNotification) {
+              window.showNotification(
+                t('common.signIn'),
+                t('common.success'),
+                'SUCCESS'
+              );
+            }
 
-          // Show success notification
-          if (window.showNotification) {
-            window.showNotification(
-              t('common.signIn'),
-              t('common.success'),
-              'SUCCESS'
-            );
+            setLoading(false);
+            return;
+          } else {
+            console.warn("Token verification failed, response:", verifyResponse.data);
+            // Token verification failed but still returned a response
+            localStorage.removeItem('auth_token');
           }
-
-          setLoading(false);
-          return;
+        } catch (verifyError) {
+          console.error("Token verification request failed:", verifyError);
+          
+          // If there was a network error, we can't be sure if the token is valid or not
+          // Store the token anyway and we'll verify it on the next page load
+          if (verifyError.code === 'ECONNABORTED' || !verifyError.response) {
+            console.log("Network error during verification, storing token for retry");
+            localStorage.setItem('auth_token', authToken);
+            
+            // Force a page reload to retry with the stored token
+            console.log("Reloading page to retry authentication...");
+            window.location.reload();
+            return;
+          }
+          
+          // Otherwise, clear the token
+          localStorage.removeItem('auth_token');
         }
       }
 
@@ -140,10 +173,18 @@ function App() {
 
         try {
           console.log("Verifying stored token with backend...");
-          const verifyResponse = await axios.post(`${API_URL}/auth/verify-token`, { token: storedToken }, { withCredentials: true });
+          const verifyResponse = await axios.post(
+            `${API_URL}/auth/verify-token`, 
+            { token: storedToken }, 
+            { 
+              withCredentials: true,
+              timeout: 10000 // 10 second timeout for token verification
+            }
+          );
+          
           console.log("Stored token verification response:", verifyResponse.data);
 
-          if (verifyResponse.data.authenticated) {
+          if (verifyResponse.data && verifyResponse.data.authenticated) {
             console.log("Stored token verified, user authenticated:", verifyResponse.data.user);
             setUser(verifyResponse.data.user);
             setLoading(false);
@@ -155,7 +196,14 @@ function App() {
           }
         } catch (error) {
           console.error("Stored token verification failed:", error);
-          localStorage.removeItem('auth_token');
+          
+          // Only remove the token if we got a clear rejection from the server
+          if (error.response && error.response.status >= 400) {
+            localStorage.removeItem('auth_token');
+          } else {
+            // For network errors, we'll try the session-based auth as fallback
+            console.log("Network error during stored token verification, trying session auth...");
+          }
         }
       }
 
@@ -163,23 +211,13 @@ function App() {
       try {
         console.log("Trying session-based auth as fallback...");
         const res = await axios.get(`${API_URL}/auth/user`, {
-          withCredentials: true
-        })
-          .then(response => {
-            console.log("Auth response:", response.data);
-            return response;
-          })
-          .catch(error => {
-            console.error("Auth request failed:", error.message);
-            if (error.response) {
-              console.error("Response data:", error.response.data);
-              console.error("Response status:", error.response.status);
-              console.error("Response headers:", error.response.headers);
-            }
-            throw error;
-          });
+          withCredentials: true,
+          timeout: 10000 // 10 second timeout
+        });
+        
+        console.log("Auth response:", res.data);
 
-        if (res.data.authenticated) {
+        if (res.data && res.data.authenticated) {
           console.log("User authenticated via session:", res.data.user);
           // Make sure avatar property is available for the Navbar component
           const userData = {
@@ -190,12 +228,15 @@ function App() {
           setUser(userData);
         } else {
           console.log("User not authenticated");
+          setUser(null);
         }
       } catch (err) {
         console.error("Session auth check failed:", err);
+        setUser(null);
       }
     } catch (err) {
       console.error('Auth check error:', err);
+      setUser(null);
     } finally {
       setLoading(false);
     }
