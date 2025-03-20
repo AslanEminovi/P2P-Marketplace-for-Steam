@@ -384,6 +384,7 @@ exports.getAllItems = async (req, res) => {
 exports.getFeaturedItems = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 8; // Default to 8 featured items
+    console.log(`Getting up to ${limit} featured items`);
 
     // First try to find items with images
     let items = await Item.find({
@@ -393,6 +394,8 @@ exports.getFeaturedItems = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(limit)
       .populate("owner", "displayName avatar");
+
+    console.log(`Found ${items.length} featured items with images`);
 
     // If no items with images are found, fall back to any listed items
     if (items.length === 0) {
@@ -405,41 +408,72 @@ exports.getFeaturedItems = async (req, res) => {
         .sort({ createdAt: -1 })
         .limit(limit)
         .populate("owner", "displayName avatar");
+
+      console.log(`Found ${items.length} featured items without image filter`);
     }
 
-    // Log how many items we're returning
-    console.log(`Returning ${items.length} featured items`);
-
-    // Add default image URLs for items without images
+    // Add default image URLs for items without images and ensure all required fields are present
     items = items.map((item) => {
-      if (!item.imageUrl || item.imageUrl === "") {
-        // Create a deep copy to avoid modifying the database document directly
-        const itemWithDefaultImage = item.toObject();
+      // Create a copy to avoid modifying the database objects directly
+      const processedItem = item.toObject ? item.toObject() : { ...item };
+
+      // Ensure imageUrl exists
+      if (!processedItem.imageUrl || processedItem.imageUrl === "") {
+        console.log(`Adding default image for item: ${processedItem._id}`);
 
         // Default image based on known CS2 weapon type if possible
-        const itemName = item.marketHashName
-          ? item.marketHashName.toLowerCase()
+        const itemName = processedItem.marketHashName
+          ? processedItem.marketHashName.toLowerCase()
           : "";
+
         if (itemName.includes("knife")) {
-          itemWithDefaultImage.imageUrl =
+          processedItem.imageUrl =
             "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsXE1xNwVDv7WrFA5pnabNJGwSuN3gxtnawKOlMO6HzzhQucAm0uvFo4n0jgyx_0M-ZmilJNeLMlhpvs6G/";
         } else if (
           itemName.includes("rifle") ||
           itemName.includes("ak-47") ||
           itemName.includes("m4a")
         ) {
-          itemWithDefaultImage.imageUrl =
+          processedItem.imageUrl =
             "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUznaCaJWVDvozlzdONwvKjYLiBk24IsZEl0uuYrNjw0A3n80JpZWzwIYeLMlhpXFSrhRw/";
         } else {
-          itemWithDefaultImage.imageUrl =
+          processedItem.imageUrl =
             "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFrYQ2D_QDt/";
         }
-
-        return itemWithDefaultImage;
       }
-      return item;
+
+      // Ensure marketHashName exists
+      if (
+        !processedItem.marketHashName ||
+        processedItem.marketHashName === ""
+      ) {
+        console.log(
+          `Adding default marketHashName for item: ${processedItem._id}`
+        );
+        processedItem.marketHashName = "CS2 Item";
+      }
+
+      // Ensure price exists
+      if (!processedItem.price || isNaN(processedItem.price)) {
+        console.log(`Adding default price for item: ${processedItem._id}`);
+        processedItem.price = 0;
+      }
+
+      // Ensure priceGEL exists if we have a price and currency rate
+      if (
+        (!processedItem.priceGEL || isNaN(processedItem.priceGEL)) &&
+        processedItem.price &&
+        processedItem.currencyRate
+      ) {
+        console.log(`Calculating priceGEL for item: ${processedItem._id}`);
+        processedItem.priceGEL =
+          processedItem.price * processedItem.currencyRate;
+      }
+
+      return processedItem;
     });
 
+    console.log(`Returning ${items.length} processed featured items`);
     return res.json(items);
   } catch (err) {
     console.error("Error fetching featured items:", err);

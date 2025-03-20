@@ -1194,3 +1194,24 @@
     transform: scale(1);
   }
 }
+
+.item-price-gel {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--gaming-text-medium);
+}
+
+.item-price-gel .price-tag-currency {
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.8;
+  margin-right: 0.25rem;
+}
+
+.item-price-gel .price-tag-amount {
+  font-size: 0.85rem;
+  font-weight: 600;
+}

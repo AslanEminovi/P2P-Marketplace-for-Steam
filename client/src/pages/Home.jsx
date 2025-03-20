@@ -201,14 +201,14 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
             {featuredItems.map((item, index) => (
               <div key={item._id || index} className="item-card">
                 <div className="item-card-image">
-                  {item.image ? (
-                    <img src={item.image} alt={item.name || 'CS2 Item'} />
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt={item.marketHashName || 'CS2 Item'} />
                   ) : (
                     <div className="no-image-placeholder">No Image Available</div>
                   )}
                 </div>
                 <div className="item-card-content">
-                  <h3 className="item-name gradient-text">{item.name || 'Unknown Item'}</h3>
+                  <h3 className="item-name gradient-text">{item.marketHashName || 'Unknown Item'}</h3>
                   <span className="item-rarity" style={{
                     backgroundColor: getColorForRarity(item.rarity || 'Consumer Grade')
                   }}>
@@ -216,11 +216,19 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
                   </span>
                   <div className="item-meta">
                     <div className="item-price">
-                      <span className="price-tag-currency gradient-text">GEL</span>
+                      <span className="price-tag-currency gradient-text">$</span>
                       <span className="price-tag-amount gradient-text">
-                        {((item.price || 0) / 100).toFixed(2)}
+                        {(item.price || 0).toFixed(2)}
                       </span>
                     </div>
+                    {item.priceGEL && (
+                      <div className="item-price-gel">
+                        <span className="price-tag-currency">GEL</span>
+                        <span className="price-tag-amount">
+                          {(item.priceGEL || 0).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
                     <Link to={`/marketplace/${item._id}`} className="buy-now-button">
                       View Item
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -555,17 +563,36 @@ const Home = ({ user }) => {
         const featuredResponse = await axios.get(`${API_URL}/marketplace/featured`);
         console.log("Featured items response:", featuredResponse.data);
         
+        // Detailed logging of each item to debug issues
         if (featuredResponse.data && Array.isArray(featuredResponse.data)) {
+          console.log("Detailed featured items:");
+          featuredResponse.data.forEach((item, index) => {
+            console.log(`Item ${index + 1}:`, {
+              id: item._id,
+              marketHashName: item.marketHashName,
+              imageUrl: item.imageUrl,
+              price: item.price,
+              priceGEL: item.priceGEL,
+              rarity: item.rarity,
+              wear: item.wear
+            });
+          });
           setFeaturedItems(featuredResponse.data);
+        } else {
+          console.error("Featured items response is not an array or is empty:", featuredResponse.data);
+          setFeaturedItems(getFallbackItems());
         }
       } catch (error) {
-        console.error('Failed to fetch marketplace stats:', error);
+        console.error('Failed to fetch marketplace data:', error);
         // Show fallback data if fetch fails
         setStats({
           items: 1200,
           users: 500,
           trades: 3000
         });
+        
+        // Set fallback featured items
+        setFeaturedItems(getFallbackItems());
       } finally {
         setLoading(false);
       }
@@ -573,6 +600,48 @@ const Home = ({ user }) => {
 
     fetchMarketplaceData();
   }, []);
+
+  // Generate fallback items when API fails
+  const getFallbackItems = () => {
+    return [
+      {
+        _id: 'fallback1',
+        marketHashName: "AWP | Dragon Lore (Factory New)",
+        price: 1800.0,
+        priceGEL: 3240.0,
+        rarity: 'Covert',
+        wear: 'Factory New',
+        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFrYQ2D_QDt/"
+      },
+      {
+        _id: 'fallback2',
+        marketHashName: "AK-47 | Fire Serpent (Field-Tested)",
+        price: 450.0,
+        priceGEL: 810.0,
+        rarity: 'Covert',
+        wear: 'Field-Tested',
+        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUznaCaJWVDvozlzdONwvKjYLiBk24IsZEl0uuYrNjw0A3n80JpZWzwIYeLMlhpXFSrhRw/"
+      },
+      {
+        _id: 'fallback3',
+        marketHashName: "Butterfly Knife | Fade (Factory New)",
+        price: 950.0,
+        priceGEL: 1710.0,
+        rarity: '★',
+        wear: 'Factory New',
+        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsXE1xNwVDv7WrFA5pnabNJGwSuN3gxtnawKOlMO6HzzhQucAm0uvFo4n0jgyx_0M-ZmilJNeLMlhpvs6G/"
+      },
+      {
+        _id: 'fallback4',
+        marketHashName: "M4A4 | Howl (Minimal Wear)",
+        price: 1200.0,
+        priceGEL: 2160.0,
+        rarity: 'Contraband',
+        wear: 'Minimal Wear',
+        imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUznaCaJWVDvozlzdONwvKjYLiBk24IsZEl0uuYrNjw0A3n80JpZWzwIYeLMlhpXFSrhRw/"
+      }
+    ];
+  };
 
   return (
     <div className="home-container">
