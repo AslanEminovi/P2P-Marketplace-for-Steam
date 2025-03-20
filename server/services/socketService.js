@@ -3,153 +3,241 @@
  * This service manages WebSocket connections and event handling
  */
 
-let io;
+let io = null;
+let activeSockets = new Map(); // Map of userId -> socket.id
 
-const socketService = {
-  /**
-   * Initialize the socket service with the io instance
-   * @param {Object} ioInstance - The Socket.io server instance
-   */
-  init: (ioInstance) => {
-    io = ioInstance;
-    console.log("Socket service initialized");
-  },
+/**
+ * Initialize the socket service with the io instance
+ * @param {Object} ioInstance - The Socket.io instance
+ */
+const init = (ioInstance) => {
+  io = ioInstance;
 
-  /**
-   * Send a notification to a specific user
-   * @param {string} userId - The user ID to send notification to
-   * @param {Object} notification - The notification data
-   */
-  sendNotification: (userId, notification) => {
-    if (!io) {
-      console.error("Socket service not initialized");
-      return;
+  // Setup global connection events if needed
+  io.on("connection", (socket) => {
+    // We'll get the userId from the socket handshake auth in server.js
+    const userId = socket.userId;
+
+    if (userId) {
+      // Store socket association
+      activeSockets.set(userId, socket.id);
+
+      // Emit user activity
+      emitUserActivity({
+        action: "join",
+        user: socket.username || "A user",
+      });
+
+      // Handle disconnection
+      socket.on("disconnect", () => {
+        activeSockets.delete(userId);
+
+        // Emit user activity
+        emitUserActivity({
+          action: "logout",
+          user: socket.username || "A user",
+        });
+
+        // Update active users count
+        broadcastStats();
+      });
     }
-
-    io.to(`user:${userId}`).emit("notification", notification);
-    console.log(`Notification sent to user:${userId}`);
-  },
-
-  /**
-   * Broadcast site statistics to all connected clients
-   * @param {Object} statsData - The statistics data to broadcast
-   */
-  broadcastStats: (statsData) => {
-    if (!io) {
-      console.error("Socket service not initialized");
-      return;
-    }
-
-    // Broadcast to all connected clients, even anonymous ones
-    io.emit("stats_update", {
-      activeListings: statsData.activeListings,
-      activeUsers: statsData.activeUsers,
-      completedTrades: statsData.completedTrades,
-      timestamp: new Date(),
-    });
-
-    console.log(
-      `Stats update broadcast to all clients: ${statsData.activeUsers} users, ${statsData.activeListings} listings`
-    );
-  },
-
-  /**
-   * Send a trade update to users involved in a trade
-   * @param {string} tradeId - The ID of the trade
-   * @param {string} buyerId - The buyer's user ID
-   * @param {string} sellerId - The seller's user ID
-   * @param {Object} tradeData - The updated trade data
-   */
-  sendTradeUpdate: (tradeId, buyerId, sellerId, tradeData) => {
-    if (!io) {
-      console.error("Socket service not initialized");
-      return;
-    }
-
-    const eventData = {
-      tradeId,
-      status: tradeData.status,
-      updateTime: new Date(),
-      data: tradeData,
-    };
-
-    // Send to both buyer and seller
-    io.to(`user:${buyerId}`).emit("trade_update", eventData);
-    io.to(`user:${sellerId}`).emit("trade_update", eventData);
-    console.log(
-      `Trade update for trade:${tradeId} sent to users ${buyerId} and ${sellerId}`
-    );
-  },
-
-  /**
-   * Send market update to all connected clients
-   * @param {Object} marketData - The market update data
-   */
-  sendMarketUpdate: (marketData) => {
-    if (!io) {
-      console.error("Socket service not initialized");
-      return;
-    }
-
-    io.emit("market_update", {
-      type: marketData.type, // "new_listing", "price_change", "sold", etc.
-      item: marketData.item,
-      timestamp: new Date(),
-    });
-    console.log(`Market update broadcast: ${marketData.type}`);
-  },
-
-  /**
-   * Send inventory update to a specific user
-   * @param {string} userId - The user ID to send update to
-   * @param {Object} inventoryData - The inventory update data
-   */
-  sendInventoryUpdate: (userId, inventoryData) => {
-    if (!io) {
-      console.error("Socket service not initialized");
-      return;
-    }
-
-    io.to(`user:${userId}`).emit("inventory_update", {
-      type: inventoryData.type, // "item_added", "item_removed", "refresh", etc.
-      data: inventoryData.data,
-      timestamp: new Date(),
-    });
-    console.log(`Inventory update sent to user:${userId}`);
-  },
-
-  /**
-   * Send wallet update to a specific user
-   * @param {string} userId - The user ID to send update to
-   * @param {Object} walletData - The wallet update data
-   */
-  sendWalletUpdate: (userId, walletData) => {
-    if (!io) {
-      console.error("Socket service not initialized");
-      return;
-    }
-
-    io.to(`user:${userId}`).emit("wallet_update", {
-      balance: walletData.balance,
-      balanceGEL: walletData.balanceGEL,
-      transaction: walletData.transaction,
-      timestamp: new Date(),
-    });
-    console.log(`Wallet update sent to user:${userId}`);
-  },
-
-  /**
-   * Get the count of all currently connected clients (including anonymous)
-   * @returns {number} The number of connected clients
-   */
-  getConnectedClientsCount: () => {
-    if (!io) {
-      console.error("Socket service not initialized");
-      return 0;
-    }
-
-    return io.sockets.sockets.size;
-  },
+  });
 };
 
-module.exports = socketService;
+/**
+ * Send a notification to a specific user
+ * @param {string} userId - The user to notify
+ * @param {Object} notification - The notification object
+ */
+const sendNotification = (userId, notification) => {
+  if (!io) return;
+
+  const socketId = activeSockets.get(userId);
+  if (socketId) {
+    io.to(socketId).emit("notification", notification);
+  }
+};
+
+/**
+ * Broadcast marketplace statistics to all connected clients
+ * @param {Object} stats - Optional stats object to broadcast
+ */
+const broadcastStats = async (stats) => {
+  if (!io) return;
+
+  try {
+    // If stats not provided, fetch them
+    if (!stats) {
+      // Get counts from database or services
+      const activeListings = await getActiveListingsCount();
+      const activeTrades = await getActiveTradesCount();
+      const activeUsers = getConnectedClientsCount();
+
+      stats = { activeListings, activeTrades, activeUsers };
+    }
+
+    io.emit("stats_update", stats);
+  } catch (error) {
+    console.error("Error broadcasting stats:", error);
+  }
+};
+
+/**
+ * Send a trade update to a specific user
+ * @param {string} userId - The user to notify
+ * @param {Object} update - The trade update object
+ */
+const sendTradeUpdate = (userId, update) => {
+  if (!io) return;
+
+  const socketId = activeSockets.get(userId);
+  if (socketId) {
+    io.to(socketId).emit("trade_update", update);
+  }
+};
+
+/**
+ * Send a market update to all connected clients or a specific user
+ * @param {Object} update - The market update object
+ * @param {string} [userId] - Optional user ID to send the update to
+ */
+const sendMarketUpdate = (update, userId = null) => {
+  if (!io) return;
+
+  // Enrich the update with additional information if needed
+  const enrichedUpdate = {
+    ...update,
+    timestamp: new Date().toISOString(),
+  };
+
+  if (userId) {
+    const socketId = activeSockets.get(userId);
+    if (socketId) {
+      io.to(socketId).emit("market_update", enrichedUpdate);
+    }
+  } else {
+    io.emit("market_update", enrichedUpdate);
+
+    // Log market activity for all users to see
+    // This is useful for the live activity feed
+    emitMarketActivity(enrichedUpdate);
+  }
+};
+
+/**
+ * Emit market activity for the live activity feed
+ * @param {Object} activity - The market activity object
+ */
+const emitMarketActivity = (activity) => {
+  if (!io) return;
+
+  io.emit("market_update", {
+    type: activity.type || "listing",
+    itemName: activity.itemName || activity.item?.marketHashName || "an item",
+    price: activity.price || activity.item?.price,
+    user: activity.userName || activity.user || "Anonymous",
+    timestamp: activity.timestamp || new Date().toISOString(),
+  });
+};
+
+/**
+ * Emit user activity for the live activity feed
+ * @param {Object} activity - The user activity object
+ */
+const emitUserActivity = (activity) => {
+  if (!io) return;
+
+  io.emit("user_activity", {
+    action: activity.action,
+    user: activity.user || "Anonymous",
+    timestamp: activity.timestamp || new Date().toISOString(),
+  });
+};
+
+/**
+ * Send an inventory update to a specific user
+ * @param {string} userId - The user to update
+ * @param {Object} update - The inventory update object
+ */
+const sendInventoryUpdate = (userId, update) => {
+  if (!io) return;
+
+  const socketId = activeSockets.get(userId);
+  if (socketId) {
+    io.to(socketId).emit("inventory_update", update);
+  }
+};
+
+/**
+ * Send a wallet update to a specific user
+ * @param {string} userId - The user to update
+ * @param {Object} update - The wallet update object
+ */
+const sendWalletUpdate = (userId, update) => {
+  if (!io) return;
+
+  const socketId = activeSockets.get(userId);
+  if (socketId) {
+    io.to(socketId).emit("wallet_update", update);
+  }
+};
+
+/**
+ * Get the count of currently connected clients
+ * @returns {number} The number of connected clients
+ */
+const getConnectedClientsCount = () => {
+  if (!io) return 0;
+  return activeSockets.size;
+};
+
+/**
+ * Check if a user is online
+ * @param {string} userId - The user to check
+ * @returns {boolean} Whether the user is online
+ */
+const isUserOnline = (userId) => {
+  return activeSockets.has(userId);
+};
+
+// Helper functions to fetch counts (you'll need to implement these based on your data models)
+const getActiveListingsCount = async () => {
+  // Implement based on your database structure
+  // Example: return await ListingModel.countDocuments({ status: 'active' });
+  try {
+    const MarketplaceItem = require("../models/MarketplaceItem");
+    return await MarketplaceItem.countDocuments({ isForSale: true });
+  } catch (error) {
+    console.error("Error getting active listings count:", error);
+    return 0;
+  }
+};
+
+const getActiveTradesCount = async () => {
+  // Implement based on your database structure
+  // Example: return await TradeModel.countDocuments({ status: 'active' });
+  try {
+    const Trade = require("../models/Trade");
+    return await Trade.countDocuments({
+      status: { $nin: ["completed", "cancelled"] },
+    });
+  } catch (error) {
+    console.error("Error getting active trades count:", error);
+    return 0;
+  }
+};
+
+module.exports = {
+  init,
+  sendNotification,
+  broadcastStats,
+  sendTradeUpdate,
+  sendMarketUpdate,
+  sendInventoryUpdate,
+  sendWalletUpdate,
+  getConnectedClientsCount,
+  isUserOnline,
+  emitMarketActivity,
+  emitUserActivity,
+};

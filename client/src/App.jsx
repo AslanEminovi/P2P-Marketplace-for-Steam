@@ -6,6 +6,10 @@ import socketService from './services/socketService';
 import { Toaster } from 'react-hot-toast';
 import AdminTools from './pages/AdminTools';
 import { css } from '@emotion/react';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import SocketConnectionIndicator from './components/SocketConnectionIndicator';
+import LiveActivityFeed from './components/LiveActivityFeed';
 
 // Pages
 import Home from './pages/Home';
@@ -17,13 +21,12 @@ import TradeDetailPage from './pages/TradeDetailPage';
 import SteamSettingsPage from './pages/SteamSettings';
 
 // Components
-import Navbar from './components/Navbar';
 import SteamSettings from './components/SteamSettings';
 import TradeHistory from './components/TradeHistory';
 import NotificationCenter from './components/NotificationCenter';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import PageWrapper from './components/PageWrapper';
-import SocketConnectionIndicator from './components/SocketConnectionIndicator';
+import ScrollToTop from './components/ScrollToTop';
 
 // Import constants
 import { API_URL } from './config/constants';
@@ -823,7 +826,8 @@ function App() {
         )}
       </Suspense>
 
-      {/* Audio elements will be added later */}
+      <LiveActivityFeed />
+      <Footer />
     </div>
   );
 }

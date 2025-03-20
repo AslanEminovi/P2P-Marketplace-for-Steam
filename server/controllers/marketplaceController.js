@@ -131,6 +131,15 @@ exports.listItem = async (req, res) => {
       }
     }
 
+    // Emit socket event for new listing
+    socketService.emitMarketActivity({
+      type: "listing",
+      itemName: newItem.marketHashName,
+      price: newItem.price,
+      user: req.user.username || req.user.steamName || "A user",
+      timestamp: new Date().toISOString(),
+    });
+
     return res.status(201).json(newItem);
   } catch (err) {
     console.error(err);
@@ -323,6 +332,15 @@ exports.buyItem = async (req, res) => {
 
       await User.findByIdAndUpdate(buyer._id, {
         $push: { tradeHistory: trade._id },
+      });
+
+      // Emit socket event for item sale
+      socketService.emitMarketActivity({
+        type: "sale",
+        itemName: item.marketHashName,
+        price: item.price,
+        user: buyer.username || buyer.steamName || "A user",
+        timestamp: new Date().toISOString(),
       });
 
       return res.json({

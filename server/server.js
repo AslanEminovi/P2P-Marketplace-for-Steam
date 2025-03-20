@@ -312,250 +312,67 @@ if (isProduction) {
 // Create HTTP server and integrate with Express
 const server = http.createServer(app);
 
-// Initialize Socket.io
+// Set up Socket.io with CORS and connection settings
 const io = new Server(server, {
   cors: {
-    origin: config.CLIENT_URL,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    methods: ["GET", "POST"],
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"],
-    exposedHeaders: ["set-cookie"],
   },
-  pingTimeout: 60000, // 60 seconds ping timeout
-  pingInterval: 25000, // 25 seconds ping interval
-  transports: ["websocket", "polling"], // Use both WebSocket and polling for maximum compatibility
-  allowUpgrades: true,
-  cookie: {
-    name: "io",
-    path: "/",
-    httpOnly: true,
-    sameSite: "lax",
-  },
+  pingTimeout: 60000,
+  transports: ["websocket", "polling"],
 });
 
-// Use session middleware with Socket.io
-const wrap = (middleware) => (socket, next) =>
-  middleware(socket.request, {}, next);
-io.use(wrap(sessionMiddleware));
-io.use(wrap(passport.initialize()));
-io.use(wrap(passport.session()));
-
+// Socket middleware for authentication
 io.use(async (socket, next) => {
   try {
-    // First try to authenticate via session
-    if (socket.request.user && socket.request.user._id) {
-      console.log(`User authenticated via session: ${socket.request.user._id}`);
-      socket.userId = socket.request.user._id;
-      socket.join(`user:${socket.request.user._id}`);
+    const token =
+      socket.handshake.auth.token ||
+      socket.handshake.headers.authorization?.split(" ")[1];
+
+    if (!token) {
+      // Allow anonymous connections but mark them as such
+      socket.userId = null;
+      socket.username = null;
+      socket.isAuthenticated = false;
       return next();
     }
 
-    // If no session auth, check for token in handshake
-    let token = null;
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Try to get token from different places
-    if (socket.handshake.auth && socket.handshake.auth.token) {
-      token = socket.handshake.auth.token;
-    } else if (socket.handshake.query && socket.handshake.query.token) {
-      token = socket.handshake.query.token;
-    } else if (
-      socket.handshake.headers &&
-      socket.handshake.headers.authorization
-    ) {
-      // Try to get from Authorization header (Bearer token)
-      const authHeader = socket.handshake.headers.authorization;
-      if (authHeader && authHeader.startsWith("Bearer ")) {
-        token = authHeader.substring(7);
-      }
+    // Find user
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return next(new Error("User not found"));
     }
 
-    if (token) {
-      console.log(
-        `Attempting to authenticate socket with token: ${token.substring(
-          0,
-          10
-        )}...`
-      );
-
-      try {
-        // If JWT is enabled, try to verify it first
-        if (process.env.JWT_SECRET) {
-          try {
-            const jwt = require("jsonwebtoken");
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            if (decoded && decoded.id) {
-              const User = require("./models/User");
-              const user = await User.findById(decoded.id);
-
-              if (user) {
-                console.log(`User authenticated via JWT: ${user._id}`);
-                socket.request.user = user;
-                socket.userId = user._id.toString();
-                socket.join(`user:${user._id}`);
-                return next();
-              }
-            }
-          } catch (jwtError) {
-            console.log(
-              `JWT verification failed, trying direct ID lookup: ${jwtError.message}`
-            );
-          }
-        }
-
-        // If JWT verification failed or not enabled, try direct ID lookup
-        const User = require("./models/User");
-        const user = await User.findById(token);
-
-        if (user) {
-          console.log(`User authenticated via token ID: ${user._id}`);
-          socket.request.user = user;
-          socket.userId = user._id.toString();
-          socket.join(`user:${user._id}`);
-          return next();
-        }
-
-        console.log(`Invalid token provided for socket authentication`);
-        // Fall through to anonymous connection
-      } catch (authError) {
-        console.error(`Error in token authentication:`, authError);
-        // Fall through to anonymous connection
-      }
-    }
-
-    // Allow anonymous connections for all environments to make site more responsive
-    // Set a flag that this is an anonymous connection
-    console.log(`Anonymous connection allowed: ${socket.id}`);
-    socket.anonymous = true;
-    return next();
-  } catch (error) {
-    console.error(`Socket authentication error:`, error);
-    return next(new Error("Internal server error"));
+    // Attach user data to socket
+    socket.userId = user._id.toString();
+    socket.username = user.username || user.steamName || "User";
+    socket.isAuthenticated = true;
+    next();
+  } catch (err) {
+    // If token verification fails, allow as anonymous
+    socket.userId = null;
+    socket.username = null;
+    socket.isAuthenticated = false;
+    next();
   }
 });
-
-// WebSocket connection handling
-io.on("connection", (socket) => {
-  const socketId = socket.id;
-  const userId = socket.request.user
-    ? socket.request.user._id
-    : socket.userId || null;
-
-  console.log(
-    `New client connected: ${socketId}${userId ? ` (User: ${userId})` : ""}`
-  );
-
-  // Send immediate confirmation of connection success
-  socket.emit("connect_success", {
-    connected: true,
-    socketId: socketId,
-    authenticated: !!userId,
-    timestamp: Date.now(),
-  });
-
-  // Join user-specific room for targeted messages
-  if (userId) {
-    socket.join(`user:${userId}`);
-
-    // Notify user of connection success
-    io.to(`user:${userId}`).emit("notification", {
-      type: "connection",
-      title: "Connection Established",
-      message: "You are now connected to real-time updates",
-      timestamp: new Date(),
-    });
-  }
-
-  // Track this connection by updating connected users count
-  updateSiteStats();
-
-  // Handle individual socket events
-  socket.on("request_stats_update", async () => {
-    // Client is explicitly requesting fresh stats
-    await updateSiteStats();
-  });
-
-  socket.on("disconnect", () => {
-    console.log(`Client disconnected: ${socketId}`);
-    // Update connected users count on disconnect
-    setTimeout(updateSiteStats, 500); // Short delay to ensure disconnect is complete
-  });
-});
-
-// Function to update site statistics and broadcast to all clients
-async function updateSiteStats() {
-  try {
-    const socketService = require("./services/socketService");
-    const connectedClients = socketService.getConnectedClientsCount();
-
-    // Get data from database
-    const Item = mongoose.model("Item");
-    const User = mongoose.model("User");
-    const Trade = mongoose.model("Trade");
-
-    // Get counts of active listings, users, and completed trades
-    const [activeListings, registeredUsers, completedTrades] =
-      await Promise.all([
-        Item.countDocuments({ isListed: true }),
-        User.countDocuments({
-          lastLogin: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-        }),
-        Trade.countDocuments({ status: "completed" }),
-      ]);
-
-    // To avoid fluctuations, store the highest active user count in memory
-    if (
-      !global.highestActiveUsers ||
-      connectedClients > global.highestActiveUsers
-    ) {
-      global.highestActiveUsers = connectedClients;
-    }
-
-    // Gradually decay the highest count (every hour reduce by 1 if no new high is reached)
-    const oneHourAgo = Date.now() - 60 * 60 * 1000;
-    if (!global.lastUserCountReset || global.lastUserCountReset < oneHourAgo) {
-      global.lastUserCountReset = Date.now();
-      if (global.highestActiveUsers > connectedClients) {
-        global.highestActiveUsers = Math.max(
-          connectedClients,
-          global.highestActiveUsers - 1
-        );
-      }
-    }
-
-    // Use either the highest recorded clients count or registered users count
-    const activeUsers = Math.max(global.highestActiveUsers, registeredUsers);
-
-    // Create stats object
-    const stats = {
-      activeListings,
-      activeUsers,
-      completedTrades,
-      timestamp: new Date(),
-    };
-
-    // Update stats cache for the /marketplace/stats endpoint
-    const marketplaceRoutes = require("./routes/marketplaceRoutes");
-    if (marketplaceRoutes.statsCache) {
-      marketplaceRoutes.statsCache = {
-        data: stats,
-        timestamp: Date.now(),
-      };
-    }
-
-    // Broadcast to all connected clients
-    socketService.broadcastStats(stats);
-
-    console.log(
-      `Site stats updated and broadcast: ${activeUsers} active users, ${activeListings} listings`
-    );
-  } catch (error) {
-    console.error("Error updating site statistics:", error);
-  }
-}
 
 // Initialize socket service
 const socketService = require("./services/socketService");
 socketService.init(io);
+
+// Periodically broadcast stats
+setInterval(async () => {
+  try {
+    await socketService.broadcastStats();
+  } catch (error) {
+    console.error("Error broadcasting stats:", error);
+  }
+}, 30000); // Every 30 seconds
 
 // Export io instance for use in other files
 app.set("io", io);

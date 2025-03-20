@@ -154,5 +154,20 @@
     "help": "Help",
     "copyright": "© 2025 CS2 Marketplace Georgia. All rights reserved.",
     "disclaimer": "Not affiliated with Valve or Steam."
+  },
+  "activity": {
+    "live_activity": "Live Activity",
+    "no_activities": "No recent activity",
+    "new_listing": "{{user}} listed {{item}} for {{price}}",
+    "item_sold": "{{item}} sold for {{price}}",
+    "user_joined": "{{user}} joined the marketplace",
+    "user_left": "{{user}} left the marketplace",
+    "user_action": "{{user}} {{action}}",
+    "generic": "Market {{type}} activity"
+  },
+  "time": {
+    "just_now": "Just now",
+    "minutes_ago": "{{mins}}m ago",
+    "hours_ago": "{{hours}}h ago"
   }
 }
