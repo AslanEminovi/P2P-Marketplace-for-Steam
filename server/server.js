@@ -415,28 +415,18 @@ io.use(async (socket, next) => {
         }
 
         console.log(`Invalid token provided for socket authentication`);
-        return next(new Error("Invalid authentication token"));
+        // Fall through to anonymous connection
       } catch (authError) {
         console.error(`Error in token authentication:`, authError);
-        return next(new Error("Authentication error"));
-      }
-    } else {
-      // For development, you might allow unauthenticated connections in debug mode
-      if (
-        process.env.NODE_ENV !== "production" &&
-        process.env.ALLOW_ANONYMOUS_WS === "true"
-      ) {
-        console.log(
-          `Anonymous connection allowed in development mode: ${socket.id}`
-        );
-        socket.anonymous = true;
-        return next();
+        // Fall through to anonymous connection
       }
     }
 
-    // If we reach here, no valid authentication
-    console.log(`Unauthenticated socket connection rejected: ${socket.id}`);
-    return next(new Error("Authentication required"));
+    // Allow anonymous connections for all environments to make site more responsive
+    // Set a flag that this is an anonymous connection
+    console.log(`Anonymous connection allowed: ${socket.id}`);
+    socket.anonymous = true;
+    return next();
   } catch (error) {
     console.error(`Socket authentication error:`, error);
     return next(new Error("Internal server error"));

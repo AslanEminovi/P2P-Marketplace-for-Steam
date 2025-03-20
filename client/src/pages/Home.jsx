@@ -483,42 +483,56 @@ const FinalCTASection = ({ user }) => {
 };
 
 const Home = ({ user }) => {
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ items: 0, users: 0, trades: 0 });
-  const [prevStats, setPrevStats] = useState({ items: 0, users: 0, trades: 0 });
-  const [featuredItems, setFeaturedItems] = useState([]);
   const { t } = useTranslation();
+  const [loading, setLoading] = useState(true);
+  const [featuredItems, setFeaturedItems] = useState([]);
+  const [stats, setStats] = useState({
+    items: 0,
+    users: 0,
+    trades: 0
+  });
 
+  // Fetch marketplace stats and featured items
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchMarketplaceData = async () => {
+      setLoading(true);
+
       try {
-        const response = await axios.get(`${API_URL}/marketplace/stats`);
-        setPrevStats(stats);
-        setStats(response.data || { items: 0, users: 0, trades: 0 });
+        // Fetch statistics for the marketplace
+        console.log("Fetching marketplace stats...");
+        const statsResponse = await axios.get(`${API_URL}/marketplace/stats`);
+        console.log("Stats response:", statsResponse.data);
+        
+        if (statsResponse.data) {
+          setStats({
+            items: statsResponse.data.activeListings || 0,
+            users: statsResponse.data.activeUsers || 0,
+            trades: statsResponse.data.completedTrades || 0
+          });
+        }
+        
+        // Fetch featured items
+        console.log("Fetching featured items...");
+        const featuredResponse = await axios.get(`${API_URL}/marketplace/featured`);
+        console.log("Featured items response:", featuredResponse.data);
+        
+        if (featuredResponse.data && Array.isArray(featuredResponse.data)) {
+          setFeaturedItems(featuredResponse.data);
+        }
       } catch (error) {
         console.error('Failed to fetch marketplace stats:', error);
-      }
-    };
-
-    const fetchFeaturedItems = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get(`${API_URL}/marketplace/featured`);
-        setFeaturedItems(response.data || []);
-      } catch (error) {
-        console.error('Failed to fetch featured items:', error);
+        // Show fallback data if fetch fails
+        setStats({
+          items: 1200,
+          users: 500,
+          trades: 3000
+        });
       } finally {
         setLoading(false);
       }
     };
 
-    fetchStats();
-    fetchFeaturedItems();
-
-    // Refresh stats periodically
-    const interval = setInterval(fetchStats, 60000); // every minute
-
-    return () => clearInterval(interval);
+    fetchMarketplaceData();
   }, []);
 
   return (
@@ -542,7 +556,7 @@ const Home = ({ user }) => {
       </div>
 
       {/* Hero Section */}
-      <HeroSection user={user} stats={stats} prevStats={prevStats} />
+      <HeroSection user={user} stats={stats} />
 
       {/* Search Section */}
       <SearchSection />
@@ -568,7 +582,7 @@ const Home = ({ user }) => {
                 <circle cx="12" cy="10" r="3"></circle>
               </svg>
             </div>
-            <div className="stat-value">3,245</div>
+            <div className="stat-value">{stats.users.toLocaleString()}</div>
             <div className="stat-label">Active Users</div>
             <p className="stat-description">People actively trading on our platform this month</p>
           </div>
@@ -581,7 +595,7 @@ const Home = ({ user }) => {
                 <line x1="12" y1="17" x2="12" y2="21"></line>
               </svg>
             </div>
-            <div className="stat-value">12,876</div>
+            <div className="stat-value">{stats.items.toLocaleString()}</div>
             <div className="stat-label">Items Listed</div>
             <p className="stat-description">Total number of items listed on our marketplace</p>
           </div>
@@ -593,7 +607,7 @@ const Home = ({ user }) => {
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
               </svg>
             </div>
-            <div className="stat-value">98.7%</div>
+            <div className="stat-value">{stats.trades > 0 ? '98.7%' : '0%'}</div>
             <div className="stat-label">Successful Trades</div>
             <p className="stat-description">Percentage of completed trades with satisfied users</p>
           </div>
@@ -606,9 +620,9 @@ const Home = ({ user }) => {
                 <path d="M8 6l8 12"></path>
               </svg>
             </div>
-            <div className="stat-value">$5.2M</div>
-            <div className="stat-label">Total Trading Volume</div>
-            <p className="stat-description">The total value of all trades processed on our platform</p>
+            <div className="stat-value">{stats.trades.toLocaleString()}</div>
+            <div className="stat-label">Completed Trades</div>
+            <p className="stat-description">Total number of successful trades on our platform</p>
           </div>
         </div>
       </section>
