@@ -557,7 +557,8 @@ function App() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
+      width: '100%',
+      background: !renderError ? 'linear-gradient(45deg, #581845 0%, #900C3F 100%)' : '#121212',
       position: 'relative',
       overflow: 'hidden',
       transition: 'background 0.5s ease-out'
