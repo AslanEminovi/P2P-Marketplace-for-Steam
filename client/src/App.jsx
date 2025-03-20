@@ -438,6 +438,17 @@ function App() {
       const unsubscribeWalletUpdate = socketService.on('wallet_update', handleWalletUpdate);
       const unsubscribeMarketUpdate = socketService.on('market_update', handleMarketUpdate);
 
+      // Add a heartbeat to check connection status periodically
+      const connectionCheckInterval = setInterval(() => {
+        const isConnected = socketService.isSocketConnected();
+        if (!isConnected) {
+          console.log('Connection check: WebSocket disconnected, attempting to reconnect...');
+          socketService.reconnect();
+        } else {
+          console.log('Connection check: WebSocket connected');
+        }
+      }, 30000); // Check every 30 seconds
+
       // Clean up function to remove all listeners when component unmounts
       return () => {
         unsubscribeConnectionStatus();
@@ -446,6 +457,9 @@ function App() {
         unsubscribeInventoryUpdate();
         unsubscribeWalletUpdate();
         unsubscribeMarketUpdate();
+
+        // Clear the heartbeat interval
+        clearInterval(connectionCheckInterval);
 
         // Disconnect socket when user logs out or component unmounts
         socketService.disconnect();
@@ -514,10 +528,32 @@ function App() {
             zIndex: 1000,
             transition: 'all 0.5s ease',
             opacity: showConnectionIndicator ? 0.8 : 0,
-            pointerEvents: 'none',
+            pointerEvents: 'auto', // Changed from 'none' to 'auto' to allow clicks
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}
         >
-          {socketConnected ? t('app.connected') : t('app.disconnected')}
+          <span>{socketConnected ? t('app.connected') : t('app.disconnected')}</span>
+          {!socketConnected && (
+            <button
+              onClick={() => {
+                console.log("Manual reconnection requested by user");
+                socketService.reconnect();
+              }}
+              style={{
+                background: 'none',
+                border: '1px solid white',
+                borderRadius: '3px',
+                padding: '1px 4px',
+                fontSize: '10px',
+                color: 'white',
+                cursor: 'pointer'
+              }}
+            >
+              {t('app.reconnect')}
+            </button>
+          )}
         </div>
       )}
 

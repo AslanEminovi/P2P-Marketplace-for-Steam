@@ -283,6 +283,16 @@ const io = new Server(server, {
     allowedHeaders: ["Content-Type", "Authorization"],
     exposedHeaders: ["set-cookie"],
   },
+  pingTimeout: 60000, // 60 seconds ping timeout
+  pingInterval: 25000, // 25 seconds ping interval
+  transports: ["websocket", "polling"], // Use both WebSocket and polling for maximum compatibility
+  allowUpgrades: true,
+  cookie: {
+    name: "io",
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+  },
 });
 
 // Use session middleware with Socket.io
@@ -295,63 +305,140 @@ io.use(wrap(passport.session()));
 io.use(async (socket, next) => {
   try {
     // First try to authenticate via session
-    if (socket.request.user) {
+    if (socket.request.user && socket.request.user._id) {
       console.log(`User authenticated via session: ${socket.request.user._id}`);
+      socket.userId = socket.request.user._id;
+      socket.join(`user:${socket.request.user._id}`);
       return next();
     }
 
     // If no session auth, check for token in handshake
-    const token = socket.handshake.auth.token || socket.handshake.query.token;
+    let token = null;
+
+    // Try to get token from different places
+    if (socket.handshake.auth && socket.handshake.auth.token) {
+      token = socket.handshake.auth.token;
+    } else if (socket.handshake.query && socket.handshake.query.token) {
+      token = socket.handshake.query.token;
+    } else if (
+      socket.handshake.headers &&
+      socket.handshake.headers.authorization
+    ) {
+      // Try to get from Authorization header (Bearer token)
+      const authHeader = socket.handshake.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.substring(7);
+      }
+    }
 
     if (token) {
-      console.log(`Attempting to authenticate socket with token: ${token}`);
+      console.log(
+        `Attempting to authenticate socket with token: ${token.substring(
+          0,
+          10
+        )}...`
+      );
 
-      const User = require("./models/User");
-      const user = await User.findById(token);
+      try {
+        // If JWT is enabled, try to verify it first
+        if (process.env.JWT_SECRET) {
+          try {
+            const jwt = require("jsonwebtoken");
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            if (decoded && decoded.id) {
+              const User = require("./models/User");
+              const user = await User.findById(decoded.id);
 
-      if (user) {
-        console.log(`User authenticated via token: ${user._id}`);
-        socket.request.user = user;
+              if (user) {
+                console.log(`User authenticated via JWT: ${user._id}`);
+                socket.request.user = user;
+                socket.userId = user._id.toString();
+                socket.join(`user:${user._id}`);
+                return next();
+              }
+            }
+          } catch (jwtError) {
+            console.log(
+              `JWT verification failed, trying direct ID lookup: ${jwtError.message}`
+            );
+          }
+        }
+
+        // If JWT verification failed or not enabled, try direct ID lookup
+        const User = require("./models/User");
+        const user = await User.findById(token);
+
+        if (user) {
+          console.log(`User authenticated via token ID: ${user._id}`);
+          socket.request.user = user;
+          socket.userId = user._id.toString();
+          socket.join(`user:${user._id}`);
+          return next();
+        }
+
+        console.log(`Invalid token provided for socket authentication`);
+        return next(new Error("Invalid authentication token"));
+      } catch (authError) {
+        console.error(`Error in token authentication:`, authError);
+        return next(new Error("Authentication error"));
+      }
+    } else {
+      // For development, you might allow unauthenticated connections in debug mode
+      if (
+        process.env.NODE_ENV !== "production" &&
+        process.env.ALLOW_ANONYMOUS_WS === "true"
+      ) {
+        console.log(
+          `Anonymous connection allowed in development mode: ${socket.id}`
+        );
+        socket.anonymous = true;
         return next();
       }
-
-      console.log(`Invalid token provided for socket authentication: ${token}`);
     }
 
     // If we reach here, no valid authentication
-    console.log(`Unauthenticated socket connection: ${socket.id}`);
-    next(new Error("Authentication required"));
+    console.log(`Unauthenticated socket connection rejected: ${socket.id}`);
+    return next(new Error("Authentication required"));
   } catch (error) {
     console.error(`Socket authentication error:`, error);
-    next(new Error("Internal server error"));
+    return next(new Error("Internal server error"));
   }
 });
 
 // WebSocket connection handling
 io.on("connection", (socket) => {
-  console.log(`New client connected: ${socket.id}`);
+  const socketId = socket.id;
+  const userId = socket.request.user
+    ? socket.request.user._id
+    : socket.userId || null;
 
-  // Authenticate the socket connection using session data
-  if (socket.request.user) {
-    const userId = socket.request.user._id;
-    console.log(
-      `Authenticated user ${userId} connected to socket ${socket.id}`
-    );
+  console.log(
+    `New client connected: ${socketId}${userId ? ` (User: ${userId})` : ""}`
+  );
 
-    // Join user to their own room for targeted messages
+  // Send immediate confirmation of connection success
+  socket.emit("connect_success", {
+    connected: true,
+    socketId: socketId,
+    authenticated: !!userId,
+    timestamp: Date.now(),
+  });
+
+  // Join user-specific room for targeted messages
+  if (userId) {
     socket.join(`user:${userId}`);
 
-    // Send welcome message to client
-    socket.emit("connect_success", {
-      message: "Successfully connected to WebSocket server",
+    // Notify user of connection success
+    io.to(`user:${userId}`).emit("notification", {
+      type: "connection",
+      title: "Connection Established",
+      message: "You are now connected to real-time updates",
+      timestamp: new Date(),
     });
-  } else {
-    console.log(`Unauthenticated connection: ${socket.id}`);
-    socket.emit("auth_error", { message: "Authentication required" });
   }
 
   socket.on("disconnect", () => {
-    console.log(`Client disconnected: ${socket.id}`);
+    console.log(`Client disconnected: ${socketId}`);
   });
 });
 

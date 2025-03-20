@@ -7,16 +7,26 @@ class SocketService {
     this.isConnected = false;
     this.listeners = new Map();
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
+    this.maxReconnectAttempts = 10;
+    this.reconnectTimer = null;
+    this.autoReconnect = true;
   }
 
   /**
    * Initialize the socket connection to the server
    */
   init() {
-    if (this.socket) {
-      console.log("Socket already initialized");
+    if (this.socket && this.socket.connected) {
+      console.log("Socket already connected");
+      this._triggerListeners("connection_status", { connected: true });
       return;
+    }
+
+    // Clean up existing socket if it exists but isn't connected
+    if (this.socket) {
+      this.socket.removeAllListeners();
+      this.socket.disconnect();
+      this.socket = null;
     }
 
     console.log("Initializing socket connection to:", API_URL);
@@ -28,36 +38,67 @@ class SocketService {
     // Connect to the WebSocket server (use the same URL as the API)
     this.socket = io(API_URL, {
       withCredentials: true,
+      reconnection: true,
       reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      timeout: 10000,
+      timeout: 20000,
+      autoConnect: true,
+      forceNew: false,
+      transports: ["websocket", "polling"],
       auth: {
-        token: authToken, // Send token in auth object
+        token: authToken,
       },
       query: {
-        token: authToken, // Send token in query as fallback
+        token: authToken,
       },
+      extraHeaders: authToken
+        ? {
+            Authorization: `Bearer ${authToken}`,
+          }
+        : {},
     });
 
-    console.log("Socket options:", {
+    console.log("Socket options configured:", {
       withCredentials: true,
       url: API_URL,
-      transports: this.socket.io.opts.transports,
-      auth: { token: authToken ? "present" : "not found" },
+      reconnection: true,
+      transports: ["websocket", "polling"],
+      authAvailable: !!authToken,
     });
 
     // Setup event listeners
     this.socket.on("connect", () => {
-      console.log("WebSocket connected");
+      console.log("WebSocket connected successfully");
       this.isConnected = true;
       this.reconnectAttempts = 0;
       this._triggerListeners("connection_status", { connected: true });
+
+      // Clear any reconnect timers
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
     });
 
     this.socket.on("connect_error", (error) => {
-      console.error("WebSocket connection error:", error);
+      console.error("WebSocket connection error:", error.message);
+      this.isConnected = false;
       this._triggerListeners("connection_status", { connected: false, error });
+
+      // Attempt reconnection with a slight delay if not already reconnecting
+      if (this.autoReconnect && !this.reconnectTimer) {
+        this.scheduleReconnect();
+      }
+    });
+
+    this.socket.on("connect_timeout", (timeout) => {
+      console.error("WebSocket connection timeout:", timeout);
+      this.isConnected = false;
+      this._triggerListeners("connection_status", {
+        connected: false,
+        reason: "timeout",
+      });
     });
 
     this.socket.on("connect_success", (data) => {
@@ -69,6 +110,40 @@ class SocketService {
       console.log("WebSocket disconnected:", reason);
       this.isConnected = false;
       this._triggerListeners("connection_status", { connected: false, reason });
+
+      // Attempt to reconnect for certain disconnection reasons
+      if (
+        this.autoReconnect &&
+        !this.reconnectTimer &&
+        reason !== "io client disconnect" &&
+        reason !== "io server disconnect"
+      ) {
+        console.log("Scheduling reconnection after disconnect...");
+        this.scheduleReconnect();
+      }
+    });
+
+    this.socket.on("reconnect", (attemptNumber) => {
+      console.log(`Socket reconnected after ${attemptNumber} attempts`);
+      this.isConnected = true;
+      this._triggerListeners("connection_status", { connected: true });
+    });
+
+    this.socket.on("reconnect_attempt", (attemptNumber) => {
+      console.log(`Socket reconnection attempt #${attemptNumber}`);
+    });
+
+    this.socket.on("reconnect_error", (error) => {
+      console.error("Socket reconnection error:", error);
+    });
+
+    this.socket.on("reconnect_failed", () => {
+      console.error("Socket reconnection failed after all attempts");
+      // Final connection status update
+      this._triggerListeners("connection_status", {
+        connected: false,
+        error: "Maximum reconnection attempts reached",
+      });
     });
 
     this.socket.on("auth_error", (data) => {
@@ -106,13 +181,39 @@ class SocketService {
       console.log("Wallet update received:", data);
       this._triggerListeners("wallet_update", data);
     });
+
+    // Initial connection status (pre-connection)
+    this._triggerListeners("connection_status", {
+      connected: false,
+      connecting: true,
+    });
   }
 
   /**
-   * Reconnect to the WebSocket server
+   * Schedule a reconnection attempt with exponential backoff
    */
-  reconnect() {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+  scheduleReconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
+
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error("Maximum reconnection attempts reached");
+      this._triggerListeners("connection_status", {
+        connected: false,
+        error: "Maximum reconnection attempts reached",
+      });
+      return;
+    }
+
+    const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), 10000);
+    console.log(
+      `Scheduling reconnect in ${delay}ms (attempt ${
+        this.reconnectAttempts + 1
+      }/${this.maxReconnectAttempts})`
+    );
+
+    this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempts++;
       console.log(
         `Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`
@@ -123,23 +224,55 @@ class SocketService {
       } else {
         this.init();
       }
-    } else {
-      console.error("Maximum reconnection attempts reached");
-      this._triggerListeners("connection_status", {
-        connected: false,
-        error: "Maximum reconnection attempts reached",
-      });
-    }
+      this.reconnectTimer = null;
+    }, delay);
+  }
+
+  /**
+   * Reconnect to the WebSocket server
+   */
+  reconnect() {
+    // Force a reconnection
+    this.disconnect();
+
+    // Reset reconnect attempts to ensure we get a full set of retries
+    this.reconnectAttempts = 0;
+
+    // Schedule an immediate reconnect
+    setTimeout(() => {
+      console.log("Manual reconnection initiated");
+      this.init();
+    }, 100);
   }
 
   /**
    * Disconnect from the WebSocket server
    */
   disconnect() {
+    // Cancel any pending reconnects
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    // Disable auto reconnect temporarily
+    this.autoReconnect = false;
+
     if (this.socket) {
+      console.log("Disconnecting socket");
       this.socket.disconnect();
       this.isConnected = false;
+      // Update connection status immediately
+      this._triggerListeners("connection_status", {
+        connected: false,
+        reason: "manual disconnect",
+      });
     }
+
+    // Re-enable auto reconnect after a short delay
+    setTimeout(() => {
+      this.autoReconnect = true;
+    }, 1000);
   }
 
   /**

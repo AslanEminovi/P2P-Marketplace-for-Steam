@@ -18,6 +18,11 @@
     "notifications": "Notifications",
     "noItems": "No items available"
   },
+  "app": {
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "reconnect": "Reconnect"
+  },
   "notifications": {
     "markAllRead": "Mark all as read",
     "viewAll": "View All Notifications",
