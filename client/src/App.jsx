@@ -76,8 +76,34 @@ function App() {
   const [notifications, setNotifications] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
   const [showConnectionIndicator, setShowConnectionIndicator] = useState(false);
+  const [renderError, setRenderError] = useState(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
+
+  // Safety wrapper for components that might cause rendering issues
+  const SafeRender = ({ children, fallback = null }) => {
+    try {
+      return children;
+    } catch (error) {
+      console.error("Render error caught in SafeRender:", error);
+      return fallback || <div className="error-fallback">Component Error</div>;
+    }
+  };
+
+  // Function to safely access user properties
+  const safeUser = user ? {
+    ...user,
+    displayName: user.displayName || 'User',
+    balance: typeof user.balance === 'number' ? user.balance : 0,
+    avatar: user.avatar || user.avatarUrl || null,
+    isAdmin: !!user.isAdmin,
+  } : null;
+  
+  // Function to handle rendering errors
+  const handleRenderError = (error) => {
+    console.error("Critical render error:", error);
+    setRenderError(error);
+  };
 
   // Function to show a notification
   window.showNotification = (title, message, type = 'INFO', timeout = 5000) => {
@@ -536,7 +562,7 @@ function App() {
       overflow: 'hidden',
       transition: 'background 0.5s ease-out'
     }}>
-      <Navbar user={user} onLogout={handleLogout} />
+      <Navbar user={safeUser} onLogout={handleLogout} />
 
       {/* Toast notifications */}
       <Toaster
@@ -616,8 +642,8 @@ function App() {
             z-index: 9999;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            alignItems: center;
+            justifyContent: center;
             transition: opacity 0.5s ease-in-out; /* Longer transition */
           }
         `}
@@ -748,60 +774,60 @@ function App() {
           <Routes>
             <Route path="/" element={
               <PageWrapper key="home">
-                <Home user={user} />
+                <Home user={safeUser} />
               </PageWrapper>
             } />
 
             <Route path="/inventory" element={
-              <ProtectedRoute user={user}>
+              <ProtectedRoute user={safeUser}>
                 <PageWrapper key="inventory">
-                  <Inventory user={user} />
+                  <Inventory user={safeUser} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
 
             <Route path="/marketplace" element={
               <PageWrapper key="marketplace">
-                <Marketplace user={user} />
+                <Marketplace user={safeUser} />
               </PageWrapper>
             } />
 
             <Route path="/my-listings" element={
-              <ProtectedRoute user={user}>
+              <ProtectedRoute user={safeUser}>
                 <PageWrapper key="my-listings">
-                  <MyListings user={user} />
+                  <MyListings user={safeUser} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
 
             <Route path="/settings/steam" element={
-              <ProtectedRoute user={user}>
+              <ProtectedRoute user={safeUser}>
                 <PageWrapper key="steam-settings">
-                  <SteamSettings user={user} />
+                  <SteamSettings user={safeUser} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
 
             <Route path="/trades" element={
-              <ProtectedRoute user={user}>
+              <ProtectedRoute user={safeUser}>
                 <PageWrapper key="trades">
-                  <TradeHistory user={user} />
+                  <TradeHistory user={safeUser} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
 
             <Route path="/trades/:tradeId" element={
-              <ProtectedRoute user={user}>
+              <ProtectedRoute user={safeUser}>
                 <PageWrapper key="trade-detail">
-                  <TradeDetailPage user={user} />
+                  <TradeDetailPage user={safeUser} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
 
             <Route path="/profile" element={
-              <ProtectedRoute user={user}>
+              <ProtectedRoute user={safeUser}>
                 <PageWrapper key="profile">
-                  <Profile user={user} onBalanceUpdate={refreshWalletBalance} />
+                  <Profile user={safeUser} onBalanceUpdate={refreshWalletBalance} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
@@ -813,7 +839,7 @@ function App() {
             } />
 
             <Route path="/admin/tools" element={
-              <AdminRoute user={user}>
+              <AdminRoute user={safeUser}>
                 <PageWrapper key="admin-tools">
                   <AdminTools />
                 </PageWrapper>
