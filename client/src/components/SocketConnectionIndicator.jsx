@@ -1,27 +1,58 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import socketService from '../services/socketService';
 import './SocketConnectionIndicator.css';
 
 const SocketConnectionIndicator = ({ isConnected, show }) => {
   const [reconnecting, setReconnecting] = useState(false);
-  const [visible, setVisible] = useState(show);
+  const [visible, setVisible] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
-
+  const timeoutRef = useRef(null);
+  
+  // Controlled mounting/unmounting with delays
   useEffect(() => {
-    setVisible(show);
-    setFadeOut(false);
+    // Clear any existing timeouts to prevent race conditions
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
     
-    // Hide indicator after connection is restored
-    if (isConnected && show) {
-      // Start fade out transition first
+    if (show) {
+      setVisible(true);
+      setFadeOut(false);
+    } else if (visible) {
+      // Start fade out first
       setFadeOut(true);
       
-      // Then hide completely after animation completes
-      const timer = setTimeout(() => {
+      // Then completely hide after animation completes
+      timeoutRef.current = setTimeout(() => {
         setVisible(false);
-      }, 1000); // Matches the CSS transition duration
+      }, 500); // Match CSS transition time
+    }
+    
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [show, isConnected, visible]);
+  
+  // Additional effect for connected state
+  useEffect(() => {
+    if (isConnected && show) {
+      // If connected and showing, start auto-hide sequence after 3 seconds
+      timeoutRef.current = setTimeout(() => {
+        setFadeOut(true);
+        
+        timeoutRef.current = setTimeout(() => {
+          setVisible(false);
+        }, 500); // Match CSS transition time
+      }, 3000);
       
-      return () => clearTimeout(timer);
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+      };
     }
   }, [isConnected, show]);
 
@@ -31,7 +62,7 @@ const SocketConnectionIndicator = ({ isConnected, show }) => {
     // Try to reconnect
     socketService.reconnect();
     
-    // Update UI after a short delay
+    // Update UI after a delay
     setTimeout(() => {
       setReconnecting(false);
     }, 1500);

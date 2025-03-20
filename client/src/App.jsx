@@ -208,22 +208,61 @@ function App() {
     };
   }, []);
 
-  // Add an effect to ensure loading state resets on route changes
+  // Replace the existing route change effect with this more comprehensive one
   useEffect(() => {
     const handleRouteChange = () => {
       // Make sure loading state is reset when navigating
-      setTimeout(() => {
-        setLoading(false);
-      }, 100);
+      console.log("Route changed, resetting loading state");
+      setLoading(false);
+
+      // Also hide any socket connection indicators
+      setShowConnectionIndicator(false);
     };
 
-    // Listen for navigation events
+    // Listen for navigation events - both History API events and direct clicks
     window.addEventListener('popstate', handleRouteChange);
+    
+    // Use a mutation observer to detect when React Router changes the URL without triggering popstate
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList' || mutation.type === 'attributes') {
+          handleRouteChange();
+          break;
+        }
+      }
+    });
+    
+    // Observe the document body for changes that might indicate a route change
+    observer.observe(document.body, { 
+      childList: true, 
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'style'] 
+    });
 
     return () => {
       window.removeEventListener('popstate', handleRouteChange);
+      observer.disconnect();
     };
   }, []);
+
+  // Add a new useEffect to clear loading state periodically to prevent stuck states
+  useEffect(() => {
+    // If loading has been true for more than 10 seconds, force reset it
+    // This is a safety measure to prevent loading states from getting stuck
+    let loadingTimeout;
+    
+    if (loading) {
+      loadingTimeout = setTimeout(() => {
+        console.log("Loading timeout reached, force resetting loading state");
+        setLoading(false);
+      }, 10000); // 10 second timeout
+    }
+    
+    return () => {
+      if (loadingTimeout) clearTimeout(loadingTimeout);
+    };
+  }, [loading]);
 
   // Check authentication status on mount and when URL has auth token
   useEffect(() => {

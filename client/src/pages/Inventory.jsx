@@ -142,19 +142,39 @@ function Inventory({ user }) {
       setMessage('Item listed for sale successfully!');
       setShowSellModal(false);
       setSelectedItem(null);
-      fetchInventory(); // Refresh inventory after listing
+      
+      // Instead of immediately calling fetchInventory which can create a race condition,
+      // set a small delay to ensure UI states are updated first
+      setTimeout(() => {
+        fetchInventory(); // Refresh inventory after listing
+      }, 300);
     } catch (err) {
       console.error('List item error:', err);
       setMessage(err.response?.data?.error || 'Failed to list item for sale.');
-      setLoading(false);
+      setLoading(false); // Ensure loading is turned off on error
     }
   };
 
   useEffect(() => {
-    fetchInventory();
+    let isMounted = true;
+    
+    const loadInventory = async () => {
+      try {
+        await fetchInventory();
+      } catch (error) {
+        console.error("Error loading inventory:", error);
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    
+    loadInventory();
     
     // Setup WebSocket event listener for inventory updates
     const handleInventoryUpdate = (data) => {
+      if (!isMounted) return;
+      
       console.log('Inventory update received in component:', data);
       
       // Check the type of update and handle accordingly
@@ -178,11 +198,13 @@ function Inventory({ user }) {
     };
     
     // Register the event handler
-    const unsubscribe = socketService.on('inventory_update', handleInventoryUpdate);
+    socketService.on('inventory_update', handleInventoryUpdate);
     
     // Clean up the event handler when component unmounts
     return () => {
-      unsubscribe();
+      isMounted = false;
+      setLoading(false); // Ensure loading state is reset
+      socketService.off('inventory_update', handleInventoryUpdate);
     };
   }, []);
 

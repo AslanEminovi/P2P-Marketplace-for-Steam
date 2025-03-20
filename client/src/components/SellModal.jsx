@@ -1,10 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const SellModal = ({ item, onClose, onConfirm }) => {
   const [currencyRate, setCurrencyRate] = useState(1.8);
   const [showCustom, setShowCustom] = useState(false);
   const [customRate, setCustomRate] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Reset state when modal opens with a new item
+  useEffect(() => {
+    setCurrencyRate(1.8);
+    setShowCustom(false);
+    setCustomRate('');
+    setIsSubmitting(false);
+  }, [item?.assetid, item?.asset_id]);
+  
   const usdToGel = 2.79; // Current USD to GEL exchange rate
   const standardRates = [1.8, 1.9, 2.0];
   
@@ -68,39 +77,76 @@ const SellModal = ({ item, onClose, onConfirm }) => {
     return wearColors[wear] || '#b0c3d9';
   };
 
-  const handleSubmit = () => {
-    onConfirm({
-      ...item,
-      assetId: item.assetId || item.asset_id || item.id, // Include assetId for backend validation
-      currencyRate,
-      priceGEL: calculatePrice()
-    });
-  };
-
   // Improved closing function with cleanup
   const handleClose = () => {
     // Clean up any state before closing
     setShowCustom(false);
     setCustomRate('');
+    setIsSubmitting(false);
     
     // Call the parent's onClose function
     onClose();
   };
 
+  const handleSubmit = () => {
+    if (isSubmitting) return; // Prevent double submissions
+    
+    setIsSubmitting(true);
+    
+    // Create a copy of the data to prevent reference issues
+    const itemData = {
+      ...item,
+      assetId: item.assetId || item.asset_id || item.id, // Include assetId for backend validation
+      currencyRate,
+      priceGEL: calculatePrice()
+    };
+    
+    // Slight delay to ensure UI state updates properly
+    setTimeout(() => {
+      onConfirm(itemData);
+    }, 50);
+  };
+
+  // Handle escape key to close modal
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === 'Escape') {
+        handleClose();
+      }
+    };
+    
+    document.addEventListener('keydown', handleEscKey);
+    
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, []);
+
+  // Handle clicking outside the modal to close it
+  const handleBackdropClick = (e) => {
+    // Only close if clicking directly on the backdrop, not the modal content
+    if (e.target === e.currentTarget) {
+      handleClose();
+    }
+  };
+
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.75)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000,
-      backdropFilter: 'blur(5px)'
-    }}>
+    <div 
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000,
+        backdropFilter: 'blur(5px)'
+      }}
+      onClick={handleBackdropClick}
+    >
       <div style={{
         backgroundColor: 'rgba(45, 27, 105, 0.9)',
         backdropFilter: 'blur(10px)',
@@ -112,7 +158,9 @@ const SellModal = ({ item, onClose, onConfirm }) => {
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
         color: '#e2e8f0',
         position: 'relative'
-      }}>
+      }}
+      onClick={e => e.stopPropagation()} // Prevent clicks from propagating to backdrop
+      >
         <button
           onClick={handleClose} // Using the improved closing function
           style={{
@@ -373,7 +421,7 @@ const SellModal = ({ item, onClose, onConfirm }) => {
           gap: '1rem'
         }}>
           <button
-            onClick={handleClose} // Using the improved closing function
+            onClick={handleClose}
             style={{
               flex: 1,
               padding: '0.75rem',
@@ -392,6 +440,7 @@ const SellModal = ({ item, onClose, onConfirm }) => {
             onMouseLeave={(e) => {
               e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
             }}
+            disabled={isSubmitting}
           >
             Cancel
           </button>
@@ -401,28 +450,34 @@ const SellModal = ({ item, onClose, onConfirm }) => {
             style={{
               flex: 1,
               padding: '0.75rem',
-              backgroundColor: '#4ade80',
+              backgroundColor: isSubmitting ? '#22c55e' : '#4ade80',
               color: 'white',
               border: 'none',
               borderRadius: '12px',
-              cursor: 'pointer',
+              cursor: isSubmitting ? 'default' : 'pointer',
               fontSize: '0.9rem',
               fontWeight: '600',
               transition: 'all 0.3s ease',
-              boxShadow: '0 0 20px rgba(74, 222, 128, 0.2)'
+              boxShadow: '0 0 20px rgba(74, 222, 128, 0.2)',
+              opacity: isSubmitting ? 0.8 : 1
             }}
             onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#22c55e';
-              e.target.style.transform = 'translateY(-2px)';
-              e.target.style.boxShadow = '0 0 30px rgba(74, 222, 128, 0.4)';
+              if (!isSubmitting) {
+                e.target.style.backgroundColor = '#22c55e';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 0 30px rgba(74, 222, 128, 0.4)';
+              }
             }}
             onMouseLeave={(e) => {
-              e.target.style.backgroundColor = '#4ade80';
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 0 20px rgba(74, 222, 128, 0.2)';
+              if (!isSubmitting) {
+                e.target.style.backgroundColor = '#4ade80';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 0 20px rgba(74, 222, 128, 0.2)';
+              }
             }}
+            disabled={isSubmitting}
           >
-            Confirm Listing
+            {isSubmitting ? 'Processing...' : 'Confirm Listing'}
           </button>
         </div>
       </div>

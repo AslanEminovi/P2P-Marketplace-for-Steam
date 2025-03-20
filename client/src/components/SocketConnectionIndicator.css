@@ -24,7 +24,6 @@
 .socket-connection-indicator.connected {
   background-color: rgba(46, 49, 54, 0.9);
   border: 1px solid #43b581;
-  animation: fadeIn 0.3s ease-in-out, fadeOut 0.3s ease-in-out 2.7s forwards;
 }
 
 .socket-connection-indicator.disconnected {
