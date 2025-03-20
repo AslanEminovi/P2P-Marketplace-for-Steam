@@ -5,6 +5,7 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #2A033C; /* Dark Purple */
     color: #fff;
+    transition: background-color 0.3s ease-in-out; /* Add smooth transition */
   }
   
   a {

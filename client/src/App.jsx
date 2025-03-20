@@ -203,14 +203,20 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await axios.get(`${API_URL}/auth/logout`, { withCredentials: true });
-      setUser(null);
-
-      // Clear token from localStorage
+      // Set loading state to true to prevent double-clicks
+      setLoading(true);
+      
+      // Clear token from localStorage first
       localStorage.removeItem('auth_token');
-
-      navigate('/');
-
+      
+      // Then update user state to null
+      setUser(null);
+      
+      // Make the logout API call, but don't wait for it to complete
+      // This prevents issues if the server is slow to respond
+      axios.get(`${API_URL}/auth/logout`, { withCredentials: true })
+        .catch(err => console.error('Logout API error:', err));
+      
       // Show notification
       if (window.showNotification) {
         window.showNotification(
@@ -219,8 +225,14 @@ function App() {
           'SUCCESS'
         );
       }
+      
+      // Navigate to homepage
+      navigate('/');
     } catch (err) {
       console.error('Logout error:', err);
+    } finally {
+      // Reset loading state
+      setLoading(false);
     }
   };
 
@@ -357,7 +369,8 @@ function App() {
       minHeight: '100vh',
       background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
       position: 'relative',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      transition: 'background 0.3s ease-in-out'
     }}>
       <Navbar user={user} onLogout={handleLogout} />
 
@@ -444,6 +457,7 @@ function App() {
           .loading-screen-background {
             background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95)), 
                       repeating-linear-gradient(45deg, rgba(99, 102, 241, 0.05) 0px, rgba(99, 102, 241, 0.05) 1px, transparent 1px, transparent 10px);
+            transition: opacity 0.3s ease-in-out;
           }
           .loading-logo {
             animation: pulse 2s ease-in-out infinite;
