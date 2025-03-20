@@ -487,7 +487,8 @@ function App() {
             </div>
           </div>
         }>
-          {loading ? (
+          {/* Modified to continue showing content while loading auth */}
+          {loading && (
             <div className="loading-screen-background" style={{
               display: 'flex',
               justifyContent: 'center',
@@ -497,9 +498,10 @@ function App() {
               position: 'fixed',
               top: 0,
               left: 0,
-              zIndex: 9999,
+              zIndex: 9998, /* Lower z-index so it doesn't block UI interactions */
               flexDirection: 'column',
-              gap: '30px'
+              gap: '30px',
+              pointerEvents: 'none'
             }}>
               <div className="loading-logo" style={{
                 fontSize: '2.5rem',
@@ -549,86 +551,87 @@ function App() {
                 {t('common.loading')}
               </p>
             </div>
-          ) : (
-            <Routes>
-              <Route path="/" element={
-                <PageWrapper key="home">
-                  <Home />
-                </PageWrapper>
-              } />
-
-              <Route path="/inventory" element={
-                <ProtectedRoute>
-                  <PageWrapper key="inventory">
-                    <Inventory />
-                  </PageWrapper>
-                </ProtectedRoute>
-              } />
-
-              <Route path="/marketplace" element={
-                <PageWrapper key="marketplace">
-                  <Marketplace />
-                </PageWrapper>
-              } />
-
-              <Route path="/my-listings" element={
-                <ProtectedRoute>
-                  <PageWrapper key="my-listings">
-                    <MyListings />
-                  </PageWrapper>
-                </ProtectedRoute>
-              } />
-
-              <Route path="/settings/steam" element={
-                <ProtectedRoute>
-                  <PageWrapper key="steam-settings">
-                    <SteamSettings />
-                  </PageWrapper>
-                </ProtectedRoute>
-              } />
-
-              <Route path="/trades" element={
-                <ProtectedRoute>
-                  <PageWrapper key="trades">
-                    <TradeHistory />
-                  </PageWrapper>
-                </ProtectedRoute>
-              } />
-
-              <Route path="/trades/:tradeId" element={
-                <ProtectedRoute>
-                  <PageWrapper key="trade-detail">
-                    <TradeDetailPage />
-                  </PageWrapper>
-                </ProtectedRoute>
-              } />
-
-              <Route path="/profile" element={
-                <ProtectedRoute>
-                  <PageWrapper key="profile">
-                    <Profile onBalanceUpdate={refreshWalletBalance} />
-                  </PageWrapper>
-                </ProtectedRoute>
-              } />
-
-              <Route path="/steam-settings" element={
-                <ProtectedRoute>
-                  <SteamSettingsPage />
-                </ProtectedRoute>
-              } />
-
-              <Route path="/admin/tools" element={
-                <AdminRoute>
-                  <PageWrapper key="admin-tools">
-                    <AdminTools />
-                  </PageWrapper>
-                </AdminRoute>
-              } />
-
-              {/* Catch-all route */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
           )}
+          
+          {/* Always render routes regardless of loading state */}
+          <Routes>
+            <Route path="/" element={
+              <PageWrapper key="home">
+                <Home />
+              </PageWrapper>
+            } />
+
+            <Route path="/inventory" element={
+              <ProtectedRoute>
+                <PageWrapper key="inventory">
+                  <Inventory />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/marketplace" element={
+              <PageWrapper key="marketplace">
+                <Marketplace />
+              </PageWrapper>
+            } />
+
+            <Route path="/my-listings" element={
+              <ProtectedRoute>
+                <PageWrapper key="my-listings">
+                  <MyListings />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/settings/steam" element={
+              <ProtectedRoute>
+                <PageWrapper key="steam-settings">
+                  <SteamSettings />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/trades" element={
+              <ProtectedRoute>
+                <PageWrapper key="trades">
+                  <TradeHistory />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/trades/:tradeId" element={
+              <ProtectedRoute>
+                <PageWrapper key="trade-detail">
+                  <TradeDetailPage />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <PageWrapper key="profile">
+                  <Profile onBalanceUpdate={refreshWalletBalance} />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/steam-settings" element={
+              <ProtectedRoute>
+                <SteamSettingsPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/tools" element={
+              <AdminRoute>
+                <PageWrapper key="admin-tools">
+                  <AdminTools />
+                </PageWrapper>
+              </AdminRoute>
+            } />
+
+            {/* Catch-all route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </Suspense>
 
         {/* Audio elements will be added later */}

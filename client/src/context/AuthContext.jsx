@@ -61,7 +61,16 @@ export const AuthProvider = ({ children }) => {
       // Make request to check authentication
       debugLog("Making auth request to:", `${API_URL}/auth/me`);
       
-      const response = await axios.get(`${API_URL}/auth/me`, config);
+      // Set a timeout to ensure we don't get stuck in loading state
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Auth request timed out')), 5000);
+      });
+      
+      // Race between the actual request and the timeout
+      const response = await Promise.race([
+        axios.get(`${API_URL}/auth/me`, config),
+        timeoutPromise
+      ]);
       
       debugLog("Auth response received:", response.data);
       
@@ -102,6 +111,20 @@ export const AuthProvider = ({ children }) => {
       setAuthInitialized(true);
     }
   };
+
+  // Emergency override to unstick loading state
+  useEffect(() => {
+    // If loading state persists for more than 10 seconds, force it to false
+    const timer = setTimeout(() => {
+      if (loading) {
+        debugLog("EMERGENCY: Forcing loading state to false after timeout");
+        setLoading(false);
+        setAuthInitialized(true);
+      }
+    }, 10000);
+    
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   // Check for auth token in URL (after Steam login)
   const checkURLAuth = () => {
@@ -145,19 +168,42 @@ export const AuthProvider = ({ children }) => {
 
   // Initial auth check on mount
   useEffect(() => {
+    let isMounted = true;
     debugLog("AuthProvider mounted, running initial auth check");
-    try {
-      const hasURLToken = checkURLAuth();
-      if (!hasURLToken) {
-        checkAuth();
+    
+    const performInitialCheck = async () => {
+      try {
+        const hasURLToken = checkURLAuth();
+        if (!hasURLToken) {
+          await checkAuth();
+        }
+      } catch (error) {
+        console.error("Error in initial auth check:", error);
+        debugLog("Initial auth check error:", error.message);
+        
+        if (isMounted) {
+          setLoading(false);
+          setAuthInitialized(true);
+          setAuthError(error.message);
+        }
       }
-    } catch (error) {
-      console.error("Error in initial auth check:", error);
-      debugLog("Initial auth check error:", error.message);
-      setLoading(false);
-      setAuthInitialized(true);
-      setAuthError(error.message);
-    }
+    };
+    
+    performInitialCheck();
+    
+    // Add a fallback timeout to ensure we don't get stuck in loading state
+    const fallbackTimer = setTimeout(() => {
+      if (isMounted && loading) {
+        debugLog("Fallback timer triggered - forcing auth state resolution");
+        setLoading(false);
+        setAuthInitialized(true);
+      }
+    }, 5000);
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(fallbackTimer);
+    };
   }, []);
 
   // Listen for localStorage changes (for cross-tab login/logout)
@@ -189,6 +235,10 @@ export const AuthProvider = ({ children }) => {
     authInitialized,
     hasError: authError ? true : false
   });
+
+  // Force the app to render even if authentication is still loading
+  // This prevents the blank screen issue
+  const shouldRenderChildren = true; // Always render children regardless of loading state
 
   return (
     <AuthContext.Provider value={value}>
