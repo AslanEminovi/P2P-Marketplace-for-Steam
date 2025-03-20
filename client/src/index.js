@@ -3,15 +3,10 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { BrowserRouter } from "react-router-dom";
 import "./index.css";
-// Import i18n config and get the initialized instance
-import i18n from "./i18n/config";
+// Import our simplified i18n config
+import "./i18n/config";
 // Import Bootstrap CSS
 import "bootstrap/dist/css/bootstrap.min.css";
-// Import I18nextProvider after i18n is initialized
-import { I18nextProvider } from "react-i18next";
-
-// Log i18n to help with debugging
-console.log("i18n instance:", i18n);
 
 // Global error handler component
 class GlobalErrorBoundary extends React.Component {

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import axios from 'axios';
-import { useTranslation } from 'react-i18next';
 import socketService from './services/socketService';
 import { Toaster } from 'react-hot-toast';
 import AdminTools from './pages/AdminTools';
@@ -78,7 +77,6 @@ function App() {
   const [showConnectionIndicator, setShowConnectionIndicator] = useState(false);
   const [renderError, setRenderError] = useState(null);
   const navigate = useNavigate();
-  const { t } = useTranslation();
 
   // Safety wrapper for components that might cause rendering issues
   const SafeRender = ({ children, fallback = null }) => {
@@ -170,8 +168,8 @@ function App() {
           } else {
             // Show error message for other endpoints
             window.showNotification(
-              t('common.error'),
-              t('auth.sessionExpired'),
+              'Error',
+              'Session expired. Please log in again.',
               'ERROR'
             );
           }
@@ -190,7 +188,7 @@ function App() {
       axios.interceptors.request.eject(requestInterceptor);
       axios.interceptors.response.eject(responseInterceptor);
     };
-  }, [t]);
+  }, []);
 
   // Handle socket connection status
   useEffect(() => {
@@ -396,8 +394,8 @@ function App() {
             // Show success notification
             if (window.showNotification) {
               window.showNotification(
-                t('common.signIn'),
-                t('common.success'),
+                'Sign In',
+                'Success',
                 'SUCCESS'
               );
             }
@@ -504,8 +502,8 @@ function App() {
       // Show notification
       if (window.showNotification) {
         window.showNotification(
-          t('common.signOut'),
-          t('common.success'),
+          'Sign Out',
+          'Success',
           'SUCCESS'
         );
       }
@@ -702,7 +700,7 @@ function App() {
               letterSpacing: '0.05em',
               textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
             }}>
-              {t('common.loading')}
+              Loading...
             </p>
           </div>
         </div>
@@ -768,7 +766,7 @@ function App() {
                 textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
               }}
             >
-              {t('common.loading')}
+              Loading...
             </p>
           </div>
         ) : (
