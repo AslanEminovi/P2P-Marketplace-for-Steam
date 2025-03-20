@@ -5,15 +5,21 @@ import './SocketConnectionIndicator.css';
 const SocketConnectionIndicator = ({ isConnected, show }) => {
   const [reconnecting, setReconnecting] = useState(false);
   const [visible, setVisible] = useState(show);
+  const [fadeOut, setFadeOut] = useState(false);
 
   useEffect(() => {
     setVisible(show);
+    setFadeOut(false);
     
     // Hide indicator after connection is restored
     if (isConnected && show) {
+      // Start fade out transition first
+      setFadeOut(true);
+      
+      // Then hide completely after animation completes
       const timer = setTimeout(() => {
         setVisible(false);
-      }, 3000);
+      }, 1000); // Matches the CSS transition duration
       
       return () => clearTimeout(timer);
     }
@@ -34,7 +40,7 @@ const SocketConnectionIndicator = ({ isConnected, show }) => {
   if (!visible) return null;
 
   return (
-    <div className={`socket-connection-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
+    <div className={`socket-connection-indicator ${isConnected ? 'connected' : 'disconnected'} ${fadeOut ? 'fade-out' : ''}`}>
       <div className="connection-status">
         <div className={`status-indicator ${isConnected ? 'online' : 'offline'}`} />
         <span className="status-text">

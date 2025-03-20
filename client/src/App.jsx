@@ -98,22 +98,22 @@ function App() {
         if (config.url && config.url.startsWith(API_URL)) {
           const token = localStorage.getItem('auth_token');
           console.log("Axios interceptor - token exists:", !!token);
-          
+
           if (token) {
             // Set up query parameters if they don't exist
             if (!config.params) {
               config.params = {};
             }
-            
+
             // Add token to query params - this is the most reliable way to pass it
             // especially for Steam-related authentication
             config.params.auth_token = token;
-            
+
             console.log("Added Steam auth token to request:", config.url);
           } else {
             console.log("No auth token available for request:", config.url);
           }
-          
+
           // Always ensure this is set for CORS
           config.withCredentials = true;
         }
@@ -134,7 +134,7 @@ function App() {
         // Handle 401 Unauthorized errors, which might indicate an invalid token
         if (error.response && error.response.status === 401) {
           console.error('Authentication error (401):', error.response.data);
-          
+
           // Check if this is the /auth/user endpoint
           if (error.config.url && error.config.url.includes('/auth/user')) {
             console.log('User not authenticated. Please log in with Steam.');
@@ -168,7 +168,7 @@ function App() {
     const handleConnectionStatus = (status) => {
       console.log('Socket connection status update:', status);
       setSocketConnected(status.connected);
-      
+
       // Only show connection indicator when disconnected
       if (!status.connected && !status.connecting) {
         setShowConnectionIndicator(true);
@@ -197,14 +197,31 @@ function App() {
     socketService.on('notification', handleNotification);
 
     // Initial connection if needed
-    if (!socketService.isConnected) {
-      socketService.init();
+    if (!socketService.isConnected()) {
+      socketService.connect();
     }
 
     // Cleanup on unmount
     return () => {
       socketService.off('connection_status', handleConnectionStatus);
       socketService.off('notification', handleNotification);
+    };
+  }, []);
+
+  // Add an effect to ensure loading state resets on route changes
+  useEffect(() => {
+    const handleRouteChange = () => {
+      // Make sure loading state is reset when navigating
+      setTimeout(() => {
+        setLoading(false);
+      }, 100);
+    };
+
+    // Listen for navigation events
+    window.addEventListener('popstate', handleRouteChange);
+
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
     };
   }, []);
 
@@ -226,7 +243,7 @@ function App() {
         console.log("Found auth token in URL, storing it...");
         // Store token immediately - Steam auth model typically trusts the redirect
         localStorage.setItem('auth_token', authToken);
-        
+
         // Remove token from URL to prevent bookmarking with token
         window.history.replaceState({}, document.title, window.location.pathname);
 
@@ -245,7 +262,7 @@ function App() {
 
           if (userResponse.data && userResponse.data.authenticated) {
             console.log("User authenticated:", userResponse.data.user);
-            
+
             // Set user state
             setUser(userResponse.data.user);
 
@@ -266,7 +283,7 @@ function App() {
           }
         } catch (verifyError) {
           console.error("User details request failed:", verifyError);
-          
+
           // If network error, keep the token for retry
           if (verifyError.code === 'ECONNABORTED' || !verifyError.response) {
             console.log("Network error, will retry on next load");
@@ -449,49 +466,10 @@ function App() {
       />
 
       {/* Connection status indicator */}
-      {showConnectionIndicator && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '16px',
-            right: '16px',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            fontSize: '12px',
-            color: 'white',
-            backgroundColor: socketConnected ? '#4ade80' : 'rgba(239, 68, 68, 0.7)', // Make red less harsh with transparency
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-            zIndex: 1000,
-            transition: 'all 0.5s ease',
-            opacity: showConnectionIndicator ? 0.8 : 0,
-            pointerEvents: 'auto', // Changed from 'none' to 'auto' to allow clicks
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          <span>{socketConnected ? t('app.connected') : t('app.disconnected')}</span>
-          {!socketConnected && (
-            <button
-              onClick={() => {
-                console.log("Manual reconnection requested by user");
-                socketService.reconnect();
-              }}
-              style={{
-                background: 'none',
-                border: '1px solid white',
-                borderRadius: '3px',
-                padding: '1px 4px',
-                fontSize: '10px',
-                color: 'white',
-                cursor: 'pointer'
-              }}
-            >
-              {t('app.reconnect')}
-            </button>
-          )}
-        </div>
-      )}
+      <SocketConnectionIndicator 
+        isConnected={socketConnected} 
+        show={showConnectionIndicator} 
+      />
 
       {/* Background patterns */}
       <div style={{

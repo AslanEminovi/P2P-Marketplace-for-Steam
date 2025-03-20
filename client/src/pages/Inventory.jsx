@@ -115,6 +115,7 @@ function Inventory({ user }) {
 
   const listItemForSale = async (itemData) => {
     try {
+      setLoading(true);
       // Extract wear from marketHashName if not provided
       let itemWear = itemData.wear;
       if (!itemWear && itemData.markethashname) {
@@ -145,6 +146,7 @@ function Inventory({ user }) {
     } catch (err) {
       console.error('List item error:', err);
       setMessage(err.response?.data?.error || 'Failed to list item for sale.');
+      setLoading(false);
     }
   };
 

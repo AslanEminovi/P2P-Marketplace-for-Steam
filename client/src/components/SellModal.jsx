@@ -77,6 +77,16 @@ const SellModal = ({ item, onClose, onConfirm }) => {
     });
   };
 
+  // Improved closing function with cleanup
+  const handleClose = () => {
+    // Clean up any state before closing
+    setShowCustom(false);
+    setCustomRate('');
+    
+    // Call the parent's onClose function
+    onClose();
+  };
+
   return (
     <div style={{
       position: 'fixed',
@@ -104,7 +114,7 @@ const SellModal = ({ item, onClose, onConfirm }) => {
         position: 'relative'
       }}>
         <button
-          onClick={onClose}
+          onClick={handleClose} // Using the improved closing function
           style={{
             position: 'absolute',
             top: '1rem',
@@ -363,7 +373,7 @@ const SellModal = ({ item, onClose, onConfirm }) => {
           gap: '1rem'
         }}>
           <button
-            onClick={onClose}
+            onClick={handleClose} // Using the improved closing function
             style={{
               flex: 1,
               padding: '0.75rem',
