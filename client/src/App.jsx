@@ -50,7 +50,7 @@ const AdminRoute = ({ user, children }) => {
 // Page wrapper (removed animations)
 const PageWrapper = ({ children }) => {
   return (
-    <div style={{ width: '100%', height: '100%' }}>
+    <div style={{ width: '100%', minHeight: '100%', overflow: 'visible', display: 'flex', flexDirection: 'column' }}>
       {children}
     </div>
   );
@@ -131,22 +131,22 @@ function App() {
           // Verify token with backend
           console.log("Verifying token with backend...");
           const verifyResponse = await axios.post(
-            `${API_URL}/auth/verify-token`, 
-            { token: authToken }, 
-            { 
+            `${API_URL}/auth/verify-token`,
+            { token: authToken },
+            {
               withCredentials: true,
               timeout: 10000 // 10 second timeout for token verification
             }
           );
-          
+
           console.log("Token verification response:", verifyResponse.data);
 
           if (verifyResponse.data && verifyResponse.data.authenticated) {
             console.log("Token verified, user authenticated:", verifyResponse.data.user);
-            
+
             // Store token in localStorage first
             localStorage.setItem('auth_token', authToken);
-            
+
             // Then set user state
             setUser(verifyResponse.data.user);
 
@@ -168,19 +168,19 @@ function App() {
           }
         } catch (verifyError) {
           console.error("Token verification request failed:", verifyError);
-          
+
           // If there was a network error, we can't be sure if the token is valid or not
           // Store the token anyway and we'll verify it on the next page load
           if (verifyError.code === 'ECONNABORTED' || !verifyError.response) {
             console.log("Network error during verification, storing token for retry");
             localStorage.setItem('auth_token', authToken);
-            
+
             // Force a page reload to retry with the stored token
             console.log("Reloading page to retry authentication...");
             window.location.reload();
             return;
           }
-          
+
           // Otherwise, clear the token
           localStorage.removeItem('auth_token');
         }
@@ -194,14 +194,14 @@ function App() {
         try {
           console.log("Verifying stored token with backend...");
           const verifyResponse = await axios.post(
-            `${API_URL}/auth/verify-token`, 
-            { token: storedToken }, 
-            { 
+            `${API_URL}/auth/verify-token`,
+            { token: storedToken },
+            {
               withCredentials: true,
               timeout: 10000 // 10 second timeout for token verification
             }
           );
-          
+
           console.log("Stored token verification response:", verifyResponse.data);
 
           if (verifyResponse.data && verifyResponse.data.authenticated) {
@@ -216,7 +216,7 @@ function App() {
           }
         } catch (error) {
           console.error("Stored token verification failed:", error);
-          
+
           // Only remove the token if we got a clear rejection from the server
           if (error.response && error.response.status >= 400) {
             localStorage.removeItem('auth_token');
@@ -234,7 +234,7 @@ function App() {
           withCredentials: true,
           timeout: 10000 // 10 second timeout
         });
-        
+
         console.log("Auth response:", res.data);
 
         if (res.data && res.data.authenticated) {
@@ -265,26 +265,26 @@ function App() {
   const handleLogout = async () => {
     try {
       console.log("Logout process started");
-      
+
       // Set loading state to true to prevent double-clicks
       setLoading(true);
-      
+
       // Disconnect all websockets first
       console.log("Disconnecting websockets...");
       socketService.disconnect();
-      
+
       // Clear all auth tokens from localStorage
       console.log("Clearing localStorage tokens...");
       localStorage.removeItem('auth_token');
-      
+
       // Reset user state to null
       console.log("Resetting user state...");
       setUser(null);
-      
+
       // Make the logout API call to clear server-side session and cookies
       console.log("Sending logout request to server...");
       try {
-        await axios.get(`${API_URL}/auth/logout`, { 
+        await axios.get(`${API_URL}/auth/logout`, {
           withCredentials: true,
           timeout: 5000 // 5 second timeout
         });
@@ -293,7 +293,7 @@ function App() {
         console.error('Logout API error:', apiError);
         // Continue with client-side logout even if server request fails
       }
-      
+
       // Show notification
       if (window.showNotification) {
         window.showNotification(
@@ -309,17 +309,17 @@ function App() {
       setTimeout(() => {
         window.location.href = '/';
       }, 300); // Slightly longer delay to ensure notification is seen
-      
+
     } catch (err) {
       console.error('Logout error:', err);
-      
+
       // Even if there's an error, still force logout
       console.log("Disconnecting websockets due to error...");
       socketService.disconnect();
-      
+
       localStorage.removeItem('auth_token');
       setUser(null);
-      
+
       // Force reload with slight delay
       setTimeout(() => {
         window.location.href = '/';

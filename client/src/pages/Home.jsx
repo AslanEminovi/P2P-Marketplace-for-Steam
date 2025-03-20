@@ -482,103 +482,48 @@ const FinalCTASection = ({ user }) => {
   );
 };
 
-const Home = () => {
-  const [user, setUser] = useState(null);
+const Home = ({ user }) => {
   const [loading, setLoading] = useState(true);
-  const [featuredItems, setFeaturedItems] = useState([]);
   const [stats, setStats] = useState({ items: 0, users: 0, trades: 0 });
-  const [animationActive, setAnimationActive] = useState(false);
+  const [prevStats, setPrevStats] = useState({ items: 0, users: 0, trades: 0 });
+  const [featuredItems, setFeaturedItems] = useState([]);
+  const { t } = useTranslation();
 
-  // Setup real-time stat updates
   useEffect(() => {
-    // Initial fetch
-    fetchStats();
-
-    // Set up polling for real-time updates
-    const statsInterval = setInterval(() => {
-      fetchStats();
-    }, 10000); // Update every 10 seconds
-
-    return () => clearInterval(statsInterval);
-  }, []);
-
-  // Fetch platform statistics
-  const fetchStats = async () => {
-    try {
-      // Try to get stats from API endpoint
-      const response = await axios.get(`${API_URL}/stats`);
-
-      if (response.data) {
-        setStats({
-          items: response.data.activeListings || 0,
-          users: response.data.activeUsers || 0,
-          trades: response.data.completedTrades || 0
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching platform statistics:', error);
-
+    const fetchStats = async () => {
       try {
-        // Fallback: manually calculate stats from marketplace
-        const marketplaceResponse = await axios.get(`${API_URL}/marketplace`);
-
-        if (marketplaceResponse.data && Array.isArray(marketplaceResponse.data)) {
-          // Get active listings count directly from API
-          const activeListings = marketplaceResponse.data.length;
-
-          // Generate simulated stats as fallback
-          const activeUsers = Math.max(25, Math.floor(activeListings * 1.2) + Math.floor(Math.random() * 5));
-          const completedTrades = Math.floor(activeListings * 0.6) + Math.floor(Math.random() * 3);
-
-          setStats({
-            items: activeListings,
-            users: activeUsers,
-            trades: completedTrades
-          });
-        }
-      } catch (fallbackError) {
-        console.error('Fallback stats calculation also failed:', fallbackError);
-        // If all else fails, use existing stats or zeros
+        const response = await axios.get(`${API_URL}/marketplace/stats`);
+        setPrevStats(stats);
+        setStats(response.data || { items: 0, users: 0, trades: 0 });
+      } catch (error) {
+        console.error('Failed to fetch marketplace stats:', error);
       }
-    }
-  };
+    };
 
-  // Fetch featured items from the server
-  const fetchFeaturedItems = async () => {
-    try {
-      setLoading(true);
-
-      // Use the dedicated featured items endpoint
-      const response = await axios.get(`${API_URL}/marketplace/featured`);
-
-      if (response.data && Array.isArray(response.data)) {
-        // Set featured items directly from API
-        setFeaturedItems(response.data);
-
-        // Update the items count at minimum
-        setStats(prev => ({
-          ...prev,
-          items: response.data.length
-        }));
-      } else {
-        setFeaturedItems([]);
+    const fetchFeaturedItems = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`${API_URL}/marketplace/featured`);
+        setFeaturedItems(response.data || []);
+      } catch (error) {
+        console.error('Failed to fetch featured items:', error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching featured items:', error);
-      setFeaturedItems([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  // Fetch data on mount
-  useEffect(() => {
+    fetchStats();
     fetchFeaturedItems();
+
+    // Refresh stats periodically
+    const interval = setInterval(fetchStats, 60000); // every minute
+
+    return () => clearInterval(interval);
   }, []);
 
   return (
     <div className="home-container">
-      {/* Add animated particles */}
+      {/* Particles Background */}
       <div className="game-particles">
         {particles.map(particle => (
           <div
@@ -589,19 +534,190 @@ const Home = () => {
               top: `${particle.y}%`,
               width: `${particle.size}px`,
               height: `${particle.size}px`,
-              animationDelay: `${particle.id * 0.5}s`
+              animationDelay: `${Math.random() * 5}s`,
+              animationDuration: `${15 + Math.random() * 10}s`
             }}
-          ></div>
+          />
         ))}
       </div>
 
-      <HeroSection user={user} stats={stats} />
+      {/* Hero Section */}
+      <HeroSection user={user} stats={stats} prevStats={prevStats} />
+
+      {/* Search Section */}
       <SearchSection />
+
+      {/* Featured Items Section */}
       <FeaturedItemsSection loading={loading} featuredItems={featuredItems} />
-      <TradingStatsSection />
-      <FeaturesSection />
-      <HowItWorksSection />
-      <FinalCTASection user={user} />
+
+      {/* Trading Stats Section */}
+      <section className="trading-stats-section">
+        <div className="section-title">
+          <div className="section-title-content">
+            <h2>Market <span className="gradient-text">Statistics</span></h2>
+            <p>Real-time data about our marketplace activity</p>
+            <div className="title-decoration"></div>
+          </div>
+        </div>
+
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+            </div>
+            <div className="stat-value">3,245</div>
+            <div className="stat-label">Active Users</div>
+            <p className="stat-description">People actively trading on our platform this month</p>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </div>
+            <div className="stat-value">12,876</div>
+            <div className="stat-label">Items Listed</div>
+            <p className="stat-description">Total number of items listed on our marketplace</p>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+            </div>
+            <div className="stat-value">98.7%</div>
+            <div className="stat-label">Successful Trades</div>
+            <p className="stat-description">Percentage of completed trades with satisfied users</p>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M16 6l-8 12"></path>
+                <path d="M8 6l8 12"></path>
+              </svg>
+            </div>
+            <div className="stat-value">$5.2M</div>
+            <div className="stat-label">Total Trading Volume</div>
+            <p className="stat-description">The total value of all trades processed on our platform</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="features-section">
+        <div className="section-title">
+          <div className="section-title-content">
+            <h2>Platform <span className="gradient-text">Features</span></h2>
+            <p>What makes our CS2 marketplace stand out from the rest</p>
+            <div className="title-decoration"></div>
+          </div>
+        </div>
+
+        <div className="features-grid">
+          <div className="feature-card">
+            <div className="feature-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <h3 className="feature-title">Secure Trading</h3>
+            <p className="feature-description">Our escrow system ensures that all trades are secure and that both parties receive exactly what they agreed upon.</p>
+          </div>
+
+          <div className="feature-card">
+            <div className="feature-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+              </svg>
+            </div>
+            <h3 className="feature-title">Low Fees</h3>
+            <p className="feature-description">We charge one of the lowest fees in the industry, allowing you to maximize your profits when selling items.</p>
+          </div>
+
+          <div className="feature-card">
+            <div className="feature-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.29 7 12 12 20.71 7"></polyline>
+                <line x1="12" y1="22" x2="12" y2="12"></line>
+              </svg>
+            </div>
+            <h3 className="feature-title">Easy to Use</h3>
+            <p className="feature-description">Our platform is designed to be intuitive and easy to use, with a clean interface that makes trading a breeze.</p>
+          </div>
+
+          <div className="feature-card">
+            <div className="feature-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                <line x1="7" y1="2" x2="7" y2="22"></line>
+                <line x1="17" y1="2" x2="17" y2="22"></line>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <line x1="2" y1="7" x2="7" y2="7"></line>
+                <line x1="2" y1="17" x2="7" y2="17"></line>
+                <line x1="17" y1="17" x2="22" y2="17"></line>
+                <line x1="17" y1="7" x2="22" y2="7"></line>
+              </svg>
+            </div>
+            <h3 className="feature-title">Real-time Updates</h3>
+            <p className="feature-description">Get instant notifications for new listings, price changes, trade offers, and more with our real-time update system.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA Section */}
+      <section className="final-cta-section">
+        <div className="final-cta-decoration top-right"></div>
+        <div className="final-cta-decoration bottom-left"></div>
+        <div className="final-cta-background"></div>
+        
+        <div className="final-cta-content">
+          <h2 className="final-cta-title">
+            Ready to <span className="gradient-text">Trade</span>?
+          </h2>
+          <p className="final-cta-description">
+            Join thousands of CS2 players who trust our platform for safe and reliable item trading. Sign up now and start trading in minutes!
+          </p>
+          <div className="final-cta-buttons">
+            {!user ? (
+              <a href={`${API_URL}/auth/steam`} className="hero-button primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                  <polyline points="10 17 15 12 10 7"></polyline>
+                  <line x1="15" y1="12" x2="3" y2="12"></line>
+                </svg>
+                Sign in with Steam
+              </a>
+            ) : (
+              <Link to="/marketplace" className="hero-button primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="9" cy="21" r="1"></circle>
+                  <circle cx="20" cy="21" r="1"></circle>
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                </svg>
+                Browse Marketplace
+              </Link>
+            )}
+            <Link to="/marketplace" className="hero-button secondary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7"></path>
+              </svg>
+              View All Items
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
