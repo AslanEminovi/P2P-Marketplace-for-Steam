@@ -3,8 +3,10 @@ import axios from 'axios';
 import { API_URL } from '../config/constants';
 import Wallet from '../components/Wallet';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
-const Profile = ({ user, onBalanceUpdate }) => {
+const Profile = ({ onBalanceUpdate }) => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('wallet');
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);

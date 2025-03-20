@@ -52,16 +52,20 @@
     transform: translate(0, 0) scale(1);
     opacity: 0;
   }
+
   10% {
     opacity: 0.5;
   }
+
   50% {
     transform: translate(30px, -30px) scale(1.5);
     opacity: 0.2;
   }
+
   90% {
     opacity: 0.5;
   }
+
   100% {
     transform: translate(0, 0) scale(1);
     opacity: 0;
@@ -575,7 +579,7 @@
   font-weight: 700;
 }
 
-.price-tag-amount.gradient-text, 
+.price-tag-amount.gradient-text,
 .price-tag-currency.gradient-text {
   background: var(--gaming-gradient-blue);
   -webkit-background-clip: text;
@@ -991,11 +995,11 @@
   .steps-connection {
     display: none;
   }
-  
+
   .hero-title {
     font-size: 3rem;
   }
-  
+
   .final-cta-title {
     font-size: 2.5rem;
   }
@@ -1005,15 +1009,15 @@
   .hero-title {
     font-size: 2.75rem;
   }
-  
+
   .hero-stats {
     gap: 2rem;
   }
-  
+
   .hero-stat-value {
     font-size: 2rem;
   }
-  
+
   .section-title h2 {
     font-size: 2.25rem;
   }
@@ -1023,15 +1027,15 @@
   .hero-section-container {
     padding: 7rem 1.5rem 5rem;
   }
-  
+
   .hero-title {
     font-size: 2.5rem;
   }
-  
+
   .hero-description {
     font-size: 1.1rem;
   }
-  
+
   .hero-cta {
     flex-direction: column;
     gap: 1rem;
@@ -1040,28 +1044,28 @@
     margin-left: auto;
     margin-right: auto;
   }
-  
+
   .hero-stats {
     flex-wrap: wrap;
     gap: 2rem 3rem;
   }
-  
+
   .hero-stat::after {
     display: none;
   }
-  
-  .featured-section-container, 
-  .trading-stats-section, 
-  .features-section, 
+
+  .featured-section-container,
+  .trading-stats-section,
+  .features-section,
   .how-it-works-section,
   .final-cta-section {
     padding: 4rem 1.5rem;
   }
-  
+
   .section-title {
     margin-bottom: 2.5rem;
   }
-  
+
   .final-cta-buttons {
     flex-direction: column;
     gap: 1rem;
@@ -1070,11 +1074,11 @@
     margin-left: auto;
     margin-right: auto;
   }
-  
+
   .final-cta-title {
     font-size: 2.25rem;
   }
-  
+
   .final-cta-description {
     font-size: 1.1rem;
   }
@@ -1084,57 +1088,57 @@
   .hero-section-container {
     padding: 7rem 1rem 4rem;
   }
-  
+
   .hero-title {
     font-size: 2.25rem;
   }
-  
+
   .hero-description {
     font-size: 1rem;
   }
-  
+
   .hero-stat-value {
     font-size: 1.75rem;
   }
-  
+
   .section-title h2 {
     font-size: 2rem;
   }
-  
+
   .search-input {
     padding: 1rem 1.25rem;
     font-size: 1rem;
   }
-  
+
   .search-button {
     width: 40px;
     height: 40px;
   }
-  
+
   .featured-grid {
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   }
-  
-  .featured-section-container, 
-  .trading-stats-section, 
-  .features-section, 
+
+  .featured-section-container,
+  .trading-stats-section,
+  .features-section,
   .how-it-works-section,
   .final-cta-section {
     padding: 3rem 1rem;
   }
-  
+
   .stat-value {
     font-size: 1.75rem;
   }
-  
+
   .feature-title {
     font-size: 1.35rem;
   }
-  
+
   .step-title {
     font-size: 1.25rem;
   }
-  
+
   .final-cta-title {
     font-size: 2rem;
   }
@@ -1172,7 +1176,16 @@
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); color: var(--gaming-accent-cyan); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+    color: var(--gaming-accent-cyan);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }

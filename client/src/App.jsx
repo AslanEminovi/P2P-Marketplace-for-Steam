@@ -1,10 +1,11 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import socketService from './services/socketService';
 import { Toaster } from 'react-hot-toast';
 import AdminTools from './pages/AdminTools';
+import { useAuth } from './context/AuthContext';
 
 // Pages
 import Home from './pages/Home';
@@ -26,15 +27,28 @@ import LanguageSwitcher from './components/LanguageSwitcher';
 import { API_URL } from './config/constants';
 
 // Auth-protected route component
-const ProtectedRoute = ({ user, children }) => {
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return null; // Show nothing while authentication is loading
+  }
+  
   if (!user) {
     return <Navigate to="/" replace />;
   }
+  
   return children;
 };
 
 // Admin-protected route component
-const AdminRoute = ({ user, children }) => {
+const AdminRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return null; // Show nothing while authentication is loading
+  }
+  
   console.log("AdminRoute check - User:", user);
   console.log("AdminRoute check - isAdmin:", user?.isAdmin);
 
@@ -42,6 +56,7 @@ const AdminRoute = ({ user, children }) => {
     console.log("AdminRoute - Access denied, redirecting to home");
     return <Navigate to="/" replace />;
   }
+  
   console.log("AdminRoute - Access granted");
   return children;
 };
@@ -56,11 +71,9 @@ const PageWrapper = ({ children }) => {
 };
 
 function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading, refreshWalletBalance } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
-  const navigate = useNavigate();
   const { t } = useTranslation();
 
   // Configure Axios to include auth token with all requests
@@ -92,159 +105,6 @@ function App() {
       axios.interceptors.request.eject(interceptor);
     };
   }, []);
-
-  const checkAuthStatus = async () => {
-    try {
-      setLoading(true);
-      console.log("Checking auth status, API URL:", API_URL);
-
-      // Check for auth token in URL
-      const urlParams = new URLSearchParams(window.location.search);
-      const authToken = urlParams.get('auth_token');
-
-      if (authToken) {
-        console.log("Found auth token in URL, verifying...");
-        // Remove token from URL to prevent bookmarking with token
-        window.history.replaceState({}, document.title, window.location.pathname);
-
-        // Verify token with backend
-        console.log("Verifying token with backend...");
-        const verifyResponse = await axios.post(`${API_URL}/auth/verify-token`, { token: authToken }, { withCredentials: true });
-        console.log("Token verification response:", verifyResponse.data);
-
-        if (verifyResponse.data.authenticated) {
-          console.log("Token verified, user authenticated:", verifyResponse.data.user);
-          setUser(verifyResponse.data.user);
-
-          // Store token in localStorage for future use
-          localStorage.setItem('auth_token', authToken);
-
-          // Show success notification
-          if (window.showNotification) {
-            window.showNotification(
-              t('common.signIn'),
-              t('common.success'),
-              'SUCCESS'
-            );
-          }
-
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Check if we have a token in localStorage
-      const storedToken = localStorage.getItem('auth_token');
-      if (storedToken) {
-        console.log("Found stored token, verifying...");
-
-        try {
-          console.log("Verifying stored token with backend...");
-          const verifyResponse = await axios.post(`${API_URL}/auth/verify-token`, { token: storedToken }, { withCredentials: true });
-          console.log("Stored token verification response:", verifyResponse.data);
-
-          if (verifyResponse.data.authenticated) {
-            console.log("Stored token verified, user authenticated:", verifyResponse.data.user);
-            setUser(verifyResponse.data.user);
-            setLoading(false);
-            return;
-          } else {
-            // Token is invalid, remove it
-            console.log("Stored token is invalid, removing...");
-            localStorage.removeItem('auth_token');
-          }
-        } catch (error) {
-          console.error("Stored token verification failed:", error);
-          localStorage.removeItem('auth_token');
-        }
-      }
-
-      // If we reach here, try the regular session-based auth as fallback
-      try {
-        console.log("Trying session-based auth as fallback...");
-        const res = await axios.get(`${API_URL}/auth/user`, {
-          withCredentials: true
-        })
-          .then(response => {
-            console.log("Auth response:", response.data);
-            return response;
-          })
-          .catch(error => {
-            console.error("Auth request failed:", error.message);
-            if (error.response) {
-              console.error("Response data:", error.response.data);
-              console.error("Response status:", error.response.status);
-              console.error("Response headers:", error.response.headers);
-            }
-            throw error;
-          });
-
-        if (res.data.authenticated) {
-          console.log("User authenticated via session:", res.data.user);
-          // Make sure avatar property is available for the Navbar component
-          const userData = {
-            ...res.data.user,
-            // Add any missing properties if needed
-          };
-          console.log("Setting user data:", userData);
-          setUser(userData);
-        } else {
-          console.log("User not authenticated");
-        }
-      } catch (err) {
-        console.error("Session auth check failed:", err);
-      }
-    } catch (err) {
-      console.error('Auth check error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await axios.get(`${API_URL}/auth/logout`, { withCredentials: true });
-      setUser(null);
-
-      // Clear token from localStorage
-      localStorage.removeItem('auth_token');
-
-      navigate('/');
-
-      // Show notification
-      if (window.showNotification) {
-        window.showNotification(
-          t('common.signOut'),
-          t('common.success'),
-          'SUCCESS'
-        );
-      }
-    } catch (err) {
-      console.error('Logout error:', err);
-    }
-  };
-
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
-
-  // Get wallet balance from API
-  const refreshWalletBalance = async () => {
-    if (user) {
-      try {
-        const response = await axios.get(`${API_URL}/wallet/balance`, { withCredentials: true });
-        if (response.data) {
-          setUser({
-            ...user,
-            walletBalance: response.data.balance.USD,
-            walletBalanceGEL: response.data.balance.GEL
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching wallet balance:', err);
-      }
-    }
-  };
 
   // Initialize WebSocket connection when user is authenticated
   useEffect(() => {
@@ -308,12 +168,8 @@ function App() {
 
       const handleWalletUpdate = (walletData) => {
         console.log('Wallet update:', walletData);
-        // Update user's wallet balance
-        setUser(prevUser => ({
-          ...prevUser,
-          walletBalance: walletData.balance,
-          walletBalanceGEL: walletData.balanceGEL
-        }));
+        // Update user's wallet balance through the AuthContext
+        refreshWalletBalance();
       };
 
       const handleMarketUpdate = (marketData) => {
@@ -343,14 +199,7 @@ function App() {
         socketService.disconnect();
       };
     }
-  }, [user]);
-
-  // Fetch wallet balance when user is loaded
-  useEffect(() => {
-    if (user) {
-      refreshWalletBalance();
-    }
-  }, [user]);
+  }, [user, refreshWalletBalance]);
 
   return (
     <div style={{
@@ -359,7 +208,7 @@ function App() {
       position: 'relative',
       overflow: 'hidden'
     }}>
-      <Navbar user={user} onLogout={handleLogout} />
+      <Navbar />
 
       {/* Toast notifications */}
       <Toaster
@@ -466,8 +315,6 @@ function App() {
           }
         `}
       </style>
-
-      {/* These UI controls will be moved to the Navbar */}
 
       <Suspense fallback={
         <div className="loading-screen-background" style={{
@@ -588,12 +435,12 @@ function App() {
           <Routes>
             <Route path="/" element={
               <PageWrapper key="home">
-                <Home user={user} />
+                <Home />
               </PageWrapper>
             } />
 
             <Route path="/inventory" element={
-              <ProtectedRoute user={user}>
+              <ProtectedRoute>
                 <PageWrapper key="inventory">
                   <Inventory />
                 </PageWrapper>
@@ -602,12 +449,12 @@ function App() {
 
             <Route path="/marketplace" element={
               <PageWrapper key="marketplace">
-                <Marketplace user={user} />
+                <Marketplace />
               </PageWrapper>
             } />
 
             <Route path="/my-listings" element={
-              <ProtectedRoute user={user}>
+              <ProtectedRoute>
                 <PageWrapper key="my-listings">
                   <MyListings />
                 </PageWrapper>
@@ -615,7 +462,7 @@ function App() {
             } />
 
             <Route path="/settings/steam" element={
-              <ProtectedRoute user={user}>
+              <ProtectedRoute>
                 <PageWrapper key="steam-settings">
                   <SteamSettings />
                 </PageWrapper>
@@ -623,7 +470,7 @@ function App() {
             } />
 
             <Route path="/trades" element={
-              <ProtectedRoute user={user}>
+              <ProtectedRoute>
                 <PageWrapper key="trades">
                   <TradeHistory />
                 </PageWrapper>
@@ -631,7 +478,7 @@ function App() {
             } />
 
             <Route path="/trades/:tradeId" element={
-              <ProtectedRoute user={user}>
+              <ProtectedRoute>
                 <PageWrapper key="trade-detail">
                   <TradeDetailPage />
                 </PageWrapper>
@@ -639,9 +486,9 @@ function App() {
             } />
 
             <Route path="/profile" element={
-              <ProtectedRoute user={user}>
+              <ProtectedRoute>
                 <PageWrapper key="profile">
-                  <Profile user={user} onBalanceUpdate={refreshWalletBalance} />
+                  <Profile onBalanceUpdate={refreshWalletBalance} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
@@ -653,7 +500,7 @@ function App() {
             } />
 
             <Route path="/admin/tools" element={
-              <AdminRoute user={user}>
+              <AdminRoute>
                 <PageWrapper key="admin-tools">
                   <AdminTools />
                 </PageWrapper>

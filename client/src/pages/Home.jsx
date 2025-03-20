@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 import { API_URL, getColorForRarity } from '../config/constants';
 import './Home.css';
 
@@ -22,8 +23,9 @@ const generateParticles = (count) => {
 const particles = generateParticles(30);
 
 // Hero Section Component
-const HeroSection = ({ user, stats, prevStats }) => {
+const HeroSection = ({ stats, prevStats }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [animatedStats, setAnimatedStats] = useState({
     items: { value: 0, updating: false },
     users: { value: 0, updating: false },
@@ -63,7 +65,7 @@ const HeroSection = ({ user, stats, prevStats }) => {
 
     if (hasChanges) {
       setAnimatedStats(newAnimatedStats);
-      
+
       // Remove animation classes after they've played
       setTimeout(() => {
         setAnimatedStats(prev => ({
@@ -74,21 +76,21 @@ const HeroSection = ({ user, stats, prevStats }) => {
       }, 1000);
     }
   }, [stats]);
-  
+
   return (
     <section className="hero-section-container">
       <div className="hero-decoration top-left"></div>
       <div className="hero-decoration bottom-right"></div>
-      
+
       <div className="hero-content">
         <h1 className="hero-title">
           The Ultimate <span className="gradient-text" data-text="CS2 Marketplace">CS2 Marketplace</span> for Game Items
         </h1>
         <p className="hero-description">
-          Buy and sell CS2 skins with confidence on our secure P2P marketplace. 
+          Buy and sell CS2 skins with confidence on our secure P2P marketplace.
           Trade directly with other players, no bots, no scams - just safe, fast, and reliable transactions.
         </p>
-        
+
         <div className="hero-cta">
           <Link to="/marketplace" className="hero-button primary">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -98,7 +100,7 @@ const HeroSection = ({ user, stats, prevStats }) => {
             </svg>
             Browse Marketplace
           </Link>
-          
+
           {!user && (
             <a href={`${API_URL}/auth/steam`} className="hero-button secondary">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -109,9 +111,9 @@ const HeroSection = ({ user, stats, prevStats }) => {
               Sign in with Steam
             </a>
           )}
-          
+
           {user && (
-            <Link to="/sell" className="hero-button secondary">
+            <Link to="/inventory" className="hero-button secondary">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -120,7 +122,7 @@ const HeroSection = ({ user, stats, prevStats }) => {
             </Link>
           )}
         </div>
-        
+
         <div className="hero-stats">
           <div className="hero-stat">
             <div className={`hero-stat-value count-animation ${animatedStats.items.updating ? 'updating' : ''}`}>
@@ -128,14 +130,14 @@ const HeroSection = ({ user, stats, prevStats }) => {
             </div>
             <div className="hero-stat-label">Active Listings</div>
           </div>
-          
+
           <div className="hero-stat">
             <div className={`hero-stat-value count-animation ${animatedStats.users.updating ? 'updating' : ''}`}>
               {animatedStats.users.value}
             </div>
             <div className="hero-stat-label">Active Users</div>
           </div>
-          
+
           <div className="hero-stat">
             <div className={`hero-stat-value count-animation ${animatedStats.trades.updating ? 'updating' : ''}`}>
               {animatedStats.trades.value}
@@ -150,19 +152,19 @@ const HeroSection = ({ user, stats, prevStats }) => {
 
 const SearchSection = () => {
   const { t } = useTranslation();
-  
+
   return (
     <section className="search-section-container">
       <div className="search-section">
         <div className="search-container">
-          <input 
-            type="text" 
-            className="search-input" 
-            placeholder="Search for skins, weapons, cases..." 
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search for skins, weapons, cases..."
           />
           <button className="search-button">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
         </div>
@@ -188,7 +190,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
           <div className="title-decoration"></div>
         </div>
       </div>
-      
+
       {loading ? (
         <div className="loading-items">
           <div className="spinner"></div>
@@ -208,7 +210,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
                 </div>
                 <div className="item-card-content">
                   <h3 className="item-name gradient-text">{item.name || 'Unknown Item'}</h3>
-                  <span className="item-rarity" style={{ 
+                  <span className="item-rarity" style={{
                     backgroundColor: getColorForRarity(item.rarity || 'Consumer Grade')
                   }}>
                     {item.rarity || 'Standard'} {item.wear && `• ${item.wear}`}
@@ -217,13 +219,13 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
                     <div className="item-price">
                       <span className="price-tag-currency gradient-text">GEL</span>
                       <span className="price-tag-amount gradient-text">
-                        {((item.price || 0)/100).toFixed(2)}
+                        {((item.price || 0) / 100).toFixed(2)}
                       </span>
                     </div>
                     <Link to={`/marketplace/${item._id}`} className="buy-now-button">
                       View Item
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                        <path d="M5 12h14M12 5l7 7-7 7" />
                       </svg>
                     </Link>
                   </div>
@@ -235,7 +237,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
             <Link to="/marketplace" className="view-all-button">
               View All Items
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
+                <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
             </Link>
           </div>
@@ -259,7 +261,7 @@ const TradingStatsSection = () => {
           <div className="title-decoration"></div>
         </div>
       </div>
-      
+
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon">
@@ -271,7 +273,7 @@ const TradingStatsSection = () => {
           <div className="stat-label">Success Rate</div>
           <div className="stat-description">Nearly all transactions are completed successfully without any issues</div>
         </div>
-        
+
         <div className="stat-card">
           <div className="stat-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -283,7 +285,7 @@ const TradingStatsSection = () => {
           <div className="stat-label">Avg. Trade Time</div>
           <div className="stat-description">Most trades are completed within minutes after payment</div>
         </div>
-        
+
         <div className="stat-card">
           <div className="stat-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -294,7 +296,7 @@ const TradingStatsSection = () => {
           <div className="stat-label">Highest Value Trade</div>
           <div className="stat-description">Record-setting item sold on our marketplace</div>
         </div>
-        
+
         <div className="stat-card">
           <div className="stat-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -323,7 +325,7 @@ const FeaturesSection = () => {
           <div className="title-decoration"></div>
         </div>
       </div>
-      
+
       <div className="features-grid">
         <div className="feature-card">
           <div className="feature-icon">
@@ -337,7 +339,7 @@ const FeaturesSection = () => {
           <h3 className="feature-title">P2P Trading</h3>
           <p className="feature-description">Trade directly with other players without middlemen. Secure, fast, and reliable transactions every time.</p>
         </div>
-        
+
         <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -348,7 +350,7 @@ const FeaturesSection = () => {
           <h3 className="feature-title">Secure Escrow</h3>
           <p className="feature-description">All trades are protected by our escrow system. Your money is safe until you receive your items.</p>
         </div>
-        
+
         <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -359,7 +361,7 @@ const FeaturesSection = () => {
           <h3 className="feature-title">Instant Inventory</h3>
           <p className="feature-description">Connect your Steam account and instantly list your CS2 items for sale with just a few clicks.</p>
         </div>
-        
+
         <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -386,28 +388,28 @@ const HowItWorksSection = () => {
             <div className="title-decoration"></div>
           </div>
         </div>
-        
+
         <div className="steps-connection"></div>
-        
+
         <div className="steps-timeline">
           <div className="step-card">
             <div className="step-number">1</div>
             <h3 className="step-title">Connect Your Account</h3>
             <p className="step-description">Sign in using your Steam account to access your inventory and trading features</p>
           </div>
-          
+
           <div className="step-card">
             <div className="step-number">2</div>
             <h3 className="step-title">Browse or List Items</h3>
             <p className="step-description">Find items to buy or list your own items for sale with competitive prices</p>
           </div>
-          
+
           <div className="step-card">
             <div className="step-number">3</div>
             <h3 className="step-title">Secure Payment</h3>
             <p className="step-description">Use our secure payment system to purchase items or receive funds for your sales</p>
           </div>
-          
+
           <div className="step-card">
             <div className="step-number">4</div>
             <h3 className="step-title">Trade & Delivery</h3>
@@ -419,13 +421,15 @@ const HowItWorksSection = () => {
   );
 };
 
-const FinalCTASection = ({ user }) => {
+const FinalCTASection = () => {
+  const { user } = useAuth();
+  
   return (
     <section className="final-cta-section">
       <div className="final-cta-background"></div>
       <div className="final-cta-decoration top-right"></div>
       <div className="final-cta-decoration bottom-left"></div>
-      
+
       <div className="final-cta-content">
         <h2 className="final-cta-title">
           Ready to <span className="gradient-text">Trade</span>?
@@ -434,7 +438,7 @@ const FinalCTASection = ({ user }) => {
           Join thousands of CS2 players who buy and sell items on our secure marketplace.
           No hidden fees, no scams - just seamless trading.
         </p>
-        
+
         <div className="final-cta-buttons">
           {!user ? (
             <>
@@ -446,7 +450,7 @@ const FinalCTASection = ({ user }) => {
                 </svg>
                 Sign in with Steam
               </a>
-              
+
               <Link to="/marketplace" className="hero-button secondary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="9" cy="21" r="1"></circle>
@@ -458,14 +462,14 @@ const FinalCTASection = ({ user }) => {
             </>
           ) : (
             <>
-              <Link to="/sell" className="hero-button primary">
+              <Link to="/inventory" className="hero-button primary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
                 Sell Your Items
               </Link>
-              
+
               <Link to="/marketplace" className="hero-button secondary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="9" cy="21" r="1"></circle>
@@ -483,34 +487,10 @@ const FinalCTASection = ({ user }) => {
 };
 
 const Home = () => {
-  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [featuredItems, setFeaturedItems] = useState([]);
   const [stats, setStats] = useState({ items: 0, users: 0, trades: 0 });
-  const [animationActive, setAnimationActive] = useState(false);
-  
-  // Check if user is authenticated
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const authToken = localStorage.getItem('auth_token');
-        if (authToken) {
-          const response = await axios.get(`${API_URL}/auth/me`, { 
-            withCredentials: true,
-            params: { auth_token: authToken }
-          });
-          if (response.data && response.data.user) {
-            setUser(response.data.user);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking auth status:', error);
-        setUser(null);
-      }
-    };
-    
-    checkAuth();
-  }, []);
+  const { user } = useAuth();
   
   // Setup real-time stat updates
   useEffect(() => {
@@ -604,9 +584,9 @@ const Home = () => {
       {/* Add animated particles */}
       <div className="game-particles">
         {particles.map(particle => (
-          <div 
-            key={particle.id} 
-            className="particle" 
+          <div
+            key={particle.id}
+            className="particle"
             style={{
               left: `${particle.x}%`,
               top: `${particle.y}%`,
@@ -617,14 +597,14 @@ const Home = () => {
           ></div>
         ))}
       </div>
-      
-      <HeroSection user={user} stats={stats} />
+
+      <HeroSection stats={stats} />
       <SearchSection />
       <FeaturedItemsSection loading={loading} featuredItems={featuredItems} />
       <TradingStatsSection />
       <FeaturesSection />
       <HowItWorksSection />
-      <FinalCTASection user={user} />
+      <FinalCTASection />
     </div>
   );
 };
