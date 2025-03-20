@@ -3,7 +3,7 @@ import axios from 'axios';
 import { API_URL } from '../config/constants';
 import SellModal from '../components/SellModal';
 import socketService from '../services/socketService';
-import performanceMonitor from '../utils/performanceMonitor';
+import lightPerformanceMonitor from '../utils/lightPerformanceMonitor';
 
 function Inventory({ user }) {
   const [items, setItems] = useState([]);
@@ -154,178 +154,144 @@ function Inventory({ user }) {
     setSelectedItem(null);
   };
 
-  const listItemForSale = async (itemData) => {
-    try {
-      // CRITICAL: First immediately close modal and show loading before ANY processing
-      setShowSellModal(false);
-      setSelectedItem(null);
-      setLoading(true);
-      
-      // Force UI update immediately using double requestAnimationFrame trick
-      requestAnimationFrame(() => {
-        requestAnimationFrame(async () => {
-          try {
-            // Create a minimal data object with only essential properties
-            // to avoid expensive object operations
-            const essentialData = {
-              steamItemId: itemData.classid,
-              assetId: itemData.assetid || itemData.asset_id,
-              marketHashName: itemData.markethashname,
-              price: itemData.pricelatest || itemData.pricereal || 1,
-              imageUrl: itemData.image,
-              wear: itemData.wear,
-              currencyRate: itemData.currencyRate || 1.8,
-              priceGEL: itemData.priceGEL
-            };
-            
-            console.log('Listing item with minimal data:', essentialData);
-            
-            // Create a Promise with timeout to prevent infinite waiting
-            const listingPromise = new Promise(async (resolve, reject) => {
-              try {
-                // Set a 20-second timeout for the entire operation
-                const timeoutId = setTimeout(() => {
-                  reject(new Error('Listing operation timed out after 20 seconds'));
-                }, 20000);
-                
-                // Make API call with minimal data
-                const response = await axios.post(
-                  `${API_URL}/marketplace/list`, 
-                  essentialData, 
-                  { withCredentials: true, timeout: 15000 }
-                );
-                
-                clearTimeout(timeoutId);
-                resolve(response);
-              } catch (error) {
-                reject(error);
-              }
-            });
-            
-            // Use Promise.race to handle both the listing operation and a timer
-            // This ensures we don't wait forever for the operation to complete
-            let response;
-            try {
-              response = await Promise.race([
-                listingPromise,
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Operation taking too long')), 10000))
-              ]);
-              
-              console.log('Listing response received successfully:', response.data);
-              
-              // Set success message and refresh inventory
-              setLoading(false);
-              setMessage('Item listed for sale successfully!');
-              setMessageType('success');
-              
-              // Refresh inventory in the background
-              refreshInventoryAfterListing();
-              
-            } catch (apiError) {
-              await optimizedErrorHandler(apiError, essentialData);
-            }
-          } catch (processingError) {
-            console.error('Error in processing before API call:', processingError);
-            setLoading(false);
-            setMessage('Error preparing item data: ' + (processingError.message || 'Unknown error'));
-            setMessageType('error');
-          }
-        });
-      });
-    } catch (fatalError) {
-      // This is a critical fallback for any unexpected errors
-      console.error('FATAL ERROR in listItemForSale:', fatalError);
-      setShowSellModal(false);
-      setSelectedItem(null);
+  const listItemForSale = (itemData) => {
+    // CRITICAL: We can't use async/await directly here as it might block
+    // Simply queue the operations and return immediately
+    
+    // First, show minimal loading indication
+    setLoading(true);
+    
+    // Set a safety timeout to reset loading state
+    const loadingTimeout = setTimeout(() => {
+      console.log("Safety timeout triggered - resetting loading state");
       setLoading(false);
-      setMessage('Critical error: ' + (fatalError.message || 'Unknown error occurred'));
-      setMessageType('error');
-      
-      // Reset any stuck UI states
-      document.body.style.overflow = '';
-      document.body.classList.remove('modal-open');
-      const mainContent = document.querySelector('main');
-      if (mainContent) {
-        mainContent.style.position = '';
-        mainContent.style.top = '';
+    }, 5000);
+    
+    // Use setTimeout with zero delay to move this task to a separate event loop tick
+    setTimeout(() => {
+      // Always try to clean up
+      try {
+        // Create extremely minimal data with no object references
+        const minimalData = {
+          steamItemId: String(itemData.classid || ""),
+          assetId: String(itemData.assetid || itemData.asset_id || ""),
+          marketHashName: String(itemData.markethashname || ""),
+          price: Number(itemData.pricelatest || itemData.pricereal || 1),
+          imageUrl: String(itemData.image || ""),
+          wear: String(itemData.wear || ""),
+          currencyRate: Number(itemData.currencyRate || 1.8),
+          priceGEL: String(itemData.priceGEL || "")
+        };
+
+        console.log('Preparing to list item with minimal data');
+
+        // CRITICAL: Make API call in a wrapped timeout to prevent blocking
+        setTimeout(() => {
+          // Use a basic fetch instead of axios (sometimes more reliable for preventing freezes)
+          const apiUrl = `${API_URL}/marketplace/list`;
+          
+          // Create the request with proper timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second timeout
+          
+          fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(minimalData),
+            signal: controller.signal
+          })
+          .then(response => {
+            clearTimeout(timeoutId);
+            return response.json().catch(() => ({})); // Handle JSON parse errors gracefully
+          })
+          .then(data => {
+            // Success handling
+            setLoading(false);
+            clearTimeout(loadingTimeout);
+            
+            setMessage('Item listed for sale successfully!');
+            setMessageType('success');
+            
+            // Don't do any further processing in this promise chain
+            // Instead queue a separate operation to refresh inventory
+            queueInventoryRefresh();
+          })
+          .catch(error => {
+            console.error('Error in listing item:', error);
+            setLoading(false);
+            clearTimeout(loadingTimeout);
+            
+            // Simple error message, don't do complex processing
+            setMessage('Error listing item. Please try again.');
+            setMessageType('error');
+          });
+        }, 10); // minimal delay to ensure UI responsiveness
+      } catch (e) {
+        // Last resort error handling
+        console.error('Critical error in listing flow:', e);
+        setLoading(false);
+        clearTimeout(loadingTimeout);
+        setMessage('An unexpected error occurred.');
+        setMessageType('error');
       }
-    }
+    }, 0);
   };
 
-  // Optimized error handler with reduced processing
-  const optimizedErrorHandler = async (apiError, itemData) => {
-    console.error('API error when listing item:', apiError);
-    
-    // Reset loading state immediately before any processing
-    setLoading(false);
-    
-    // Check for success in the error (simple checks only)
-    let isSuccess = false;
-    
-    // Fast success check - only do minimal checking
-    if (apiError.response) {
-      const status = apiError.response.status;
-      const responseData = apiError.response.data || {};
-      
-      // Check HTTP status first (fastest check)
-      if (status >= 200 && status < 300) {
-        isSuccess = true;
-      }
-      // Simple data checks (avoid complex string operations)
-      else if (responseData.success === true || responseData._id || responseData.listed === true) {
-        isSuccess = true;
-      }
-    }
-    
-    if (isSuccess) {
-      setMessage('Item listed for sale successfully!');
-      setMessageType('success');
-      refreshInventoryAfterListing();
-      return;
-    }
-    
-    // For genuine errors, show simple error message
-    const errorMsg = (apiError.response?.data?.message || apiError.message || 'Unknown error').slice(0, 100);
-    setMessage(`Error: ${errorMsg}`);
-    setMessageType('error');
-    
-    // Avoid storing complex objects in window variables
-    window.lastFailedListingId = itemData.assetId || itemData.classid;
-  };
-
-  // Completely rewritten inventory refresh with mandatory delay
-  const refreshInventoryAfterListing = (() => {
-    let refreshTimeout = null;
-    let isRefreshing = false;
+  // Queue inventory refresh instead of doing it directly
+  const queueInventoryRefresh = (() => {
+    let refreshQueued = false;
     
     return () => {
-      // Cancel any pending refresh
-      if (refreshTimeout) {
-        clearTimeout(refreshTimeout);
-      }
+      // Don't queue multiple refreshes
+      if (refreshQueued) return;
+      refreshQueued = true;
       
-      // If already refreshing, don't schedule another refresh
-      if (isRefreshing) return;
-      
-      // Schedule refresh with mandatory delay
-      refreshTimeout = setTimeout(() => {
-        isRefreshing = true;
-        
-        // Simple inventory fetch with failure handling
-        fetchInventory()
-          .catch(error => {
-            console.error('Error refreshing inventory:', error);
-          })
-          .finally(() => {
-            isRefreshing = false;
-            refreshTimeout = null;
-          });
-      }, 1000); // Mandatory 1 second delay
+      // Wait 1.5 seconds before refreshing
+      setTimeout(() => {
+        try {
+          console.log('Queued inventory refresh starting');
+          fetchInventory()
+            .catch(e => console.error('Error in queued inventory refresh:', e))
+            .finally(() => {
+              refreshQueued = false;
+            });
+        } catch (e) {
+          console.error('Error starting inventory refresh:', e);
+          refreshQueued = false;
+        }
+      }, 1500);
     };
   })();
 
   useEffect(() => {
     let isMounted = true;
+    
+    // CRITICAL: Reset any stuck state from previous renders
+    document.body.style.overflow = '';
+    document.body.style.backgroundColor = '';
+    document.body.classList.remove('modal-open');
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    
+    // Remove any modal elements that might be stuck
+    ['modal-backdrop', 'backdrop', 'overlay', 'modal-open'].forEach(className => {
+      document.querySelectorAll(`.${className}`).forEach(el => {
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+      });
+    });
+    
+    // Reset any fixed positioning
+    const mainContent = document.querySelector('main');
+    if (mainContent) {
+      mainContent.style.position = '';
+      mainContent.style.top = '';
+      mainContent.style.width = '';
+    }
     
     const loadInventory = async () => {
       try {
@@ -406,41 +372,37 @@ function Inventory({ user }) {
     };
   }, []);
 
-  // Initialize performance monitoring on component mount
+  // Use lightweight performance monitoring
   useEffect(() => {
-    // Start monitoring with custom settings for this component
-    const cleanup = performanceMonitor.startMonitoring({
-      checkInterval: 200, // Check more frequently (default 300ms)
-      freezeThreshold: 800, // Lower threshold for freezing detection (default 1000ms)
-      emergencyTimeout: 15000, // Higher emergency timeout (default 10000ms)
-      onFreeze: (reason) => {
-        console.warn('Freeze detected in Inventory component:', reason);
-        
-        // Force reset critical states if frozen
-        if (showSellModal || loading) {
-          setLoading(false);
-          setShowSellModal(false);
-          setSelectedItem(null);
-          
-          // Show user-friendly message
-          setMessage('An operation was taking too long and was automatically cancelled.');
-          setMessageType('warning');
-        }
-      }
+    // Ultra-light monitor with emergency reset handler
+    const cleanup = lightPerformanceMonitor.startMonitoring({
+      timeout: 10000 // 10 seconds max
     });
     
-    // Clean up monitoring on unmount
+    // Register emergency reset callback
+    lightPerformanceMonitor.registerResetCallback(() => {
+      console.warn('Emergency reset triggered in Inventory');
+      
+      // Reset critical states
+      setLoading(false);
+      setShowSellModal(false);
+      setSelectedItem(null);
+      
+      // Show user friendly message
+      setMessage('An operation was taking too long and was automatically cancelled.');
+      setMessageType('warning');
+    });
+    
     return cleanup;
-  }, [showSellModal, loading]); // Re-initialize when these critical states change
+  }, []); // Only on initial mount
 
-  // Monitor state changes for potential issues
+  // Reset monitor timeout when showing modal
   useEffect(() => {
-    // Reset emergency timeout when sell modal is shown
     if (showSellModal) {
-      performanceMonitor.resetEmergencyTimeout(20000); // 20 seconds emergency timeout for selling
+      lightPerformanceMonitor.resetTimeout(15000); // 15 seconds for modal
     }
   }, [showSellModal]);
-  
+
   // Add another safety check for loading state
   useEffect(() => {
     let loadingTimeoutId = null;
@@ -460,6 +422,22 @@ function Inventory({ user }) {
       }
     };
   }, [loading]);
+
+  // Add an extra reset effect that runs on every render to catch any frozen states
+  useEffect(() => {
+    // Create a cleanup timer that runs periodically
+    const cleanupTimer = setInterval(() => {
+      // If we're not in modal or loading state, perform a gentle cleanup
+      if (!showSellModal && !loading) {
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+      }
+    }, 5000);
+    
+    return () => {
+      clearInterval(cleanupTimer);
+    };
+  });
 
   if (loading) {
     return (

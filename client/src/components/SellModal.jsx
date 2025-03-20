@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import performanceMonitor from '../utils/performanceMonitor';
+import lightPerformanceMonitor from '../utils/lightPerformanceMonitor';
 
 // Debounce function to prevent UI blocking
 const debounce = (func, wait) => {
@@ -20,23 +20,19 @@ const SellModal = ({ item, onClose, onConfirm }) => {
   const [customRate, setCustomRate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Initialize performance monitoring when modal opens
+  // Initialize lightweight performance monitoring when modal opens
   useEffect(() => {
-    // Reset any previous emergency timeout
-    performanceMonitor.resetEmergencyTimeout(20000);
+    // Reset timeout for modal operations
+    lightPerformanceMonitor.resetTimeout(12000); // 12 seconds timeout
     
-    // Register an emergency callback specific to this modal
-    const cleanupCallback = performanceMonitor.registerEmergencyCallback((reason) => {
-      if (reason === 'freeze' || reason === 'emergency_timeout') {
-        console.warn('Emergency callback triggered in SellModal:', reason);
-        // Force close the modal if it's still open when this runs
-        handleClose();
-      }
+    // Register a one-time emergency callback for this specific modal
+    lightPerformanceMonitor.registerResetCallback(() => {
+      console.warn('Emergency reset triggered in SellModal');
+      forceCloseModal();
     });
     
     return () => {
-      // Clean up not needed since registerEmergencyCallback doesn't return a cleanup function
-      // But we should reset states just in case
+      // Reset is not needed here as forceCloseModal is already called in cleanup
       setIsSubmitting(false);
     };
   }, []);
@@ -122,128 +118,114 @@ const SellModal = ({ item, onClose, onConfirm }) => {
     return wearColors[wear] || '#b0c3d9';
   };
 
-  // Completely rewritten handleSubmit function to prevent browser freezing
-  const handleSubmit = () => {
-    if (isSubmitting) return; // Prevent double submissions
-    
-    // Immediately update UI state to prevent interaction
-    setIsSubmitting(true);
-    
-    // Use triple requestAnimationFrame to absolutely ensure UI updates
-    // This technique forces multiple render cycles to complete before continuing
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          try {
-            // Create a minimal data object with only the absolutely necessary values
-            // Never clone the full item object as it may contain circular references
-            const essentialData = {
-              classid: item.classid,
-              assetid: item.assetid || item.asset_id || item.id,
-              markethashname: item.markethashname,
-              image: item.image,
-              pricelatest: item.pricelatest,
-              pricereal: item.pricereal,
-              wear: item.wear,
-              rarity: item.rarity,
-              currencyRate: currencyRate,
-              priceGEL: calculatePrice()
-            };
-            
-            // Immediately close the modal before calling onConfirm
-            // This is critical to prevent freezing
-            handleClose();
-            
-            // Use setTimeout with zero delay to push the confirmation 
-            // to the next event loop tick after modal closing
-            setTimeout(() => {
-              try {
-                // Call the parent's onConfirm function
-                onConfirm(essentialData);
-              } catch (confirmError) {
-                console.error('Error in onConfirm callback:', confirmError);
-                // We can't update state here as component may be unmounted
-              }
-            }, 0);
-          } catch (error) {
-            console.error('Error in submit preparation:', error);
-            setIsSubmitting(false);
-            alert('There was an error processing your request. Please try again.');
-          }
-        });
-      });
-    });
-  };
-
-  // Improved closing function with more thorough cleanup
-  const handleClose = () => {
-    // Reset state first
-    setIsSubmitting(false);
-    setShowCustom(false);
-    setCustomRate('');
-    
-    // Remove any modal-related styles immediately
-    document.body.style.overflow = '';
-    document.body.style.backgroundColor = '';
-    document.body.classList.remove('modal-open');
-    
-    // Remove any backdrop or overlay elements that might be stuck
-    const overlayElements = document.querySelectorAll('.modal-backdrop, .overlay, .backdrop, [style*="backdrop"]');
-    overlayElements.forEach(element => {
-      if (element && element.parentNode) {
-        element.parentNode.removeChild(element);
-      }
-    });
-    
-    // Reset any fixed positioning
-    const mainContent = document.querySelector('main');
-    if (mainContent) {
-      mainContent.style.position = '';
-      mainContent.style.top = '';
-      mainContent.style.width = '';
-    }
-    
-    // Cleanup any fixed/locked body positioning
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.width = '';
-    document.body.style.paddingRight = '';
-    
-    // Inform the parent that the modal should close
-    onClose();
-  };
-
-  // Add cleanup effect when the component unmounts
-  useEffect(() => {
-    // Set up any necessary modal state
-    document.body.classList.add('modal-open');
-    
-    // Emergency timeout to auto-close modal if it stays open too long
-    const emergencyTimeout = setTimeout(() => {
-      console.warn('Emergency timeout triggered - auto-closing modal');
-      handleClose();
-    }, 30000); // 30 seconds max open time
-    
-    // Clean up when the component unmounts
-    return () => {
-      clearTimeout(emergencyTimeout);
-      document.body.classList.remove('modal-open');
+  // Force the modal to close as quickly as possible
+  // This is a SUPER AGGRESSIVE implementation that won't freeze
+  const forceCloseModal = () => {
+    try {
+      // First, inform the parent component immediately
+      onClose();
+      
+      // Clear all state immediately
+      setIsSubmitting(false);
+      setShowCustom(false);
+      setCustomRate('');
+      
+      // FORCEFULLY remove modal-related classes and styles from DOM
       document.body.style.overflow = '';
       document.body.style.backgroundColor = '';
+      document.body.classList.remove('modal-open');
       document.body.style.position = '';
       document.body.style.top = '';
       document.body.style.width = '';
       document.body.style.paddingRight = '';
       
-      // Reset any fixed positioning that was applied
+      // Force remove backdrop - try multiple selectors for reliability
+      ['modal-backdrop', 'backdrop', 'overlay', 'modal-open'].forEach(className => {
+        document.querySelectorAll(`.${className}`).forEach(el => {
+          if (el && el.parentNode) el.parentNode.removeChild(el);
+        });
+      });
+      
+      // Reset main content styling
       const mainContent = document.querySelector('main');
       if (mainContent) {
         mainContent.style.position = '';
         mainContent.style.top = '';
         mainContent.style.width = '';
       }
+      
+      console.log('Modal forcefully closed');
+    } catch (e) {
+      console.error('Error during force close:', e);
+      // Even if something above fails, still try to call parent onClose
+      try { onClose(); } catch (e) {}
+    }
+  };
+
+  // COMPLETELY REWRITTEN to be as lightweight as possible
+  const handleSubmit = () => {
+    if (isSubmitting) return;
+    
+    // Start by setting submitting flag
+    setIsSubmitting(true);
+    
+    // IMMEDIATE FORCE CLOSE to prevent any freezing
+    forceCloseModal();
+    
+    // Create a minimal data structure with no references to original item
+    const essentialItemData = {
+      classid: String(item.classid || ''),
+      assetid: String(item.assetid || item.asset_id || ''),
+      markethashname: String(item.markethashname || ''),
+      pricelatest: Number(item.pricelatest || 0),
+      pricereal: Number(item.pricereal || 0),
+      rarity: String(item.rarity || ''),
+      wear: String(item.wear || ''),
+      currencyRate: Number(currencyRate || 0),
+      priceGEL: String(calculatePrice() || '0'),
+      // ONLY add image URL, not image object
+      image: String(item.image || '')
     };
-  }, []);
+    
+    // Delay the execution of the heavy operation 
+    // to allow UI updates to complete first
+    setTimeout(() => {
+      // Pass minimal data to parent with timeout protection
+      const confirmTimeout = setTimeout(() => {
+        console.warn('onConfirm taking too long - operation likely failed silently');
+      }, 5000);
+      
+      try {
+        onConfirm(essentialItemData);
+        clearTimeout(confirmTimeout);
+      } catch (error) {
+        clearTimeout(confirmTimeout);
+        console.error('Error in onConfirm:', error);
+      }
+    }, 100);
+  };
+  
+  // Replace the handleClose with the forceCloseModal function
+  const handleClose = forceCloseModal;
+
+  // Add emergency effect that forces modal to close after a timeout
+  useEffect(() => {
+    // Set a forced close timeout
+    const forceCloseTimeout = setTimeout(() => {
+      console.warn('Force closing modal after timeout');
+      forceCloseModal();
+    }, 15000);
+    
+    // And another quick close if submitting
+    const submittingTimeout = isSubmitting ? 
+      setTimeout(() => forceCloseModal(), 1000) : null;
+      
+    // Clean up timeouts
+    return () => {
+      clearTimeout(forceCloseTimeout);
+      if (submittingTimeout) clearTimeout(submittingTimeout);
+    };
+  }, [isSubmitting]);
 
   // Handle escape key to close modal
   useEffect(() => {
