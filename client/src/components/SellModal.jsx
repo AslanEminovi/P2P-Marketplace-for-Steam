@@ -1,10 +1,45 @@
 import React, { useState, useEffect } from 'react';
+import performanceMonitor from '../utils/performanceMonitor';
+
+// Debounce function to prevent UI blocking
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
 
 const SellModal = ({ item, onClose, onConfirm }) => {
   const [currencyRate, setCurrencyRate] = useState(1.8);
   const [showCustom, setShowCustom] = useState(false);
   const [customRate, setCustomRate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Initialize performance monitoring when modal opens
+  useEffect(() => {
+    // Reset any previous emergency timeout
+    performanceMonitor.resetEmergencyTimeout(20000);
+    
+    // Register an emergency callback specific to this modal
+    const cleanupCallback = performanceMonitor.registerEmergencyCallback((reason) => {
+      if (reason === 'freeze' || reason === 'emergency_timeout') {
+        console.warn('Emergency callback triggered in SellModal:', reason);
+        // Force close the modal if it's still open when this runs
+        handleClose();
+      }
+    });
+    
+    return () => {
+      // Clean up not needed since registerEmergencyCallback doesn't return a cleanup function
+      // But we should reset states just in case
+      setIsSubmitting(false);
+    };
+  }, []);
 
   // Reset state when modal opens with a new item
   useEffect(() => {
@@ -23,17 +58,21 @@ const SellModal = ({ item, onClose, onConfirm }) => {
   const usdToGel = 2.79; // Current USD to GEL exchange rate
   const standardRates = [1.8, 1.9, 2.0];
   
+  // Create debounced versions of state setters to prevent UI blocking
+  const setCustomRateDebounced = debounce(setCustomRate, 50);
+  const setCurrencyRateDebounced = debounce(setCurrencyRate, 50);
+  
   const handleRateChange = (rate) => {
-    setCurrencyRate(rate);
+    setCurrencyRateDebounced(rate);
     setShowCustom(false);
   };
 
   const handleCustomRateChange = (e) => {
     const value = e.target.value;
     if (value === '' || /^\d*\.?\d*$/.test(value)) {
-      setCustomRate(value);
+      setCustomRateDebounced(value);
       if (value !== '') {
-        setCurrencyRate(parseFloat(value));
+        setCurrencyRateDebounced(parseFloat(value));
       }
     }
   };
@@ -83,68 +122,95 @@ const SellModal = ({ item, onClose, onConfirm }) => {
     return wearColors[wear] || '#b0c3d9';
   };
 
-  // Improved closing function with cleanup
-  const handleClose = () => {
-    // Clean up any state before closing
-    setShowCustom(false);
-    setCustomRate('');
-    setIsSubmitting(false);
-    
-    // Reset any modal-related styles on the body
-    document.body.style.overflow = '';
-    document.body.style.backgroundColor = '';
-    document.body.classList.remove('modal-open');
-    
-    // Make sure any backdrop elements are removed
-    const backdrops = document.querySelectorAll('.modal-backdrop, .overlay, .backdrop');
-    backdrops.forEach(backdrop => {
-      if (backdrop && backdrop.parentNode) {
-        backdrop.parentNode.removeChild(backdrop);
-      }
-    });
-
-    // Call the parent's onClose function
-    onClose();
-  };
-
   // Completely rewritten handleSubmit function to prevent browser freezing
   const handleSubmit = () => {
     if (isSubmitting) return; // Prevent double submissions
     
-    // Immediately update UI to show we're processing
+    // Immediately update UI state to prevent interaction
     setIsSubmitting(true);
     
-    // Use requestAnimationFrame to ensure the UI updates before we do heavy work
+    // Use triple requestAnimationFrame to absolutely ensure UI updates
+    // This technique forces multiple render cycles to complete before continuing
     requestAnimationFrame(() => {
-      // Create a lightweight copy of only the data we need (avoid cloning the whole item)
-      const essentialData = {
-        classid: item.classid,
-        assetid: item.assetid || item.asset_id || item.id,
-        markethashname: item.markethashname,
-        image: item.image,
-        pricelatest: item.pricelatest,
-        pricereal: item.pricereal,
-        wear: item.wear,
-        rarity: item.rarity,
-        currencyRate: currencyRate,
-        priceGEL: calculatePrice()
-      };
-      
-      // Use setTimeout with 0 delay to move our processing to the next event loop tick
-      // This gives the browser a chance to update the UI before we continue
-      setTimeout(() => {
-        try {
-          // Call the confirm function
-          onConfirm(essentialData);
-          // Note: we don't need to clean up here as the onConfirm will eventually close the modal
-        } catch (error) {
-          console.error('Error in sell modal submission:', error);
-          setIsSubmitting(false);
-          alert('There was an error processing your request. Please try again.');
-          // We don't auto-close on error so the user can try again
-        }
-      }, 0);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          try {
+            // Create a minimal data object with only the absolutely necessary values
+            // Never clone the full item object as it may contain circular references
+            const essentialData = {
+              classid: item.classid,
+              assetid: item.assetid || item.asset_id || item.id,
+              markethashname: item.markethashname,
+              image: item.image,
+              pricelatest: item.pricelatest,
+              pricereal: item.pricereal,
+              wear: item.wear,
+              rarity: item.rarity,
+              currencyRate: currencyRate,
+              priceGEL: calculatePrice()
+            };
+            
+            // Immediately close the modal before calling onConfirm
+            // This is critical to prevent freezing
+            handleClose();
+            
+            // Use setTimeout with zero delay to push the confirmation 
+            // to the next event loop tick after modal closing
+            setTimeout(() => {
+              try {
+                // Call the parent's onConfirm function
+                onConfirm(essentialData);
+              } catch (confirmError) {
+                console.error('Error in onConfirm callback:', confirmError);
+                // We can't update state here as component may be unmounted
+              }
+            }, 0);
+          } catch (error) {
+            console.error('Error in submit preparation:', error);
+            setIsSubmitting(false);
+            alert('There was an error processing your request. Please try again.');
+          }
+        });
+      });
     });
+  };
+
+  // Improved closing function with more thorough cleanup
+  const handleClose = () => {
+    // Reset state first
+    setIsSubmitting(false);
+    setShowCustom(false);
+    setCustomRate('');
+    
+    // Remove any modal-related styles immediately
+    document.body.style.overflow = '';
+    document.body.style.backgroundColor = '';
+    document.body.classList.remove('modal-open');
+    
+    // Remove any backdrop or overlay elements that might be stuck
+    const overlayElements = document.querySelectorAll('.modal-backdrop, .overlay, .backdrop, [style*="backdrop"]');
+    overlayElements.forEach(element => {
+      if (element && element.parentNode) {
+        element.parentNode.removeChild(element);
+      }
+    });
+    
+    // Reset any fixed positioning
+    const mainContent = document.querySelector('main');
+    if (mainContent) {
+      mainContent.style.position = '';
+      mainContent.style.top = '';
+      mainContent.style.width = '';
+    }
+    
+    // Cleanup any fixed/locked body positioning
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    document.body.style.paddingRight = '';
+    
+    // Inform the parent that the modal should close
+    onClose();
   };
 
   // Add cleanup effect when the component unmounts
@@ -152,17 +218,22 @@ const SellModal = ({ item, onClose, onConfirm }) => {
     // Set up any necessary modal state
     document.body.classList.add('modal-open');
     
-    // Performance optimization: Preload image
-    if (item && item.image) {
-      const preloadImage = new Image();
-      preloadImage.src = item.image;
-    }
+    // Emergency timeout to auto-close modal if it stays open too long
+    const emergencyTimeout = setTimeout(() => {
+      console.warn('Emergency timeout triggered - auto-closing modal');
+      handleClose();
+    }, 30000); // 30 seconds max open time
     
     // Clean up when the component unmounts
     return () => {
+      clearTimeout(emergencyTimeout);
       document.body.classList.remove('modal-open');
       document.body.style.overflow = '';
       document.body.style.backgroundColor = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.paddingRight = '';
       
       // Reset any fixed positioning that was applied
       const mainContent = document.querySelector('main');
@@ -171,9 +242,6 @@ const SellModal = ({ item, onClose, onConfirm }) => {
         mainContent.style.top = '';
         mainContent.style.width = '';
       }
-      
-      // Additional cleanup for potential memory leaks
-      setIsSubmitting(false);
     };
   }, []);
 
