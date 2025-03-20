@@ -107,37 +107,56 @@ const SellModal = ({ item, onClose, onConfirm }) => {
     onClose();
   };
 
+  // Completely rewritten handleSubmit function to prevent browser freezing
   const handleSubmit = () => {
     if (isSubmitting) return; // Prevent double submissions
     
+    // Immediately update UI to show we're processing
     setIsSubmitting(true);
     
-    // Create a copy of the data to prevent reference issues
-    const itemData = {
-      ...item,
-      assetId: item.assetId || item.asset_id || item.id, // Include assetId for backend validation
-      currencyRate,
-      priceGEL: calculatePrice()
-    };
-    
-    // Add a small delay to ensure UI updates before potentially heavy operations
-    setTimeout(() => {
-      try {
-        // Call the confirm function
-        onConfirm(itemData);
-      } catch (error) {
-        console.error('Error submitting form:', error);
-        setIsSubmitting(false);
-        // Ensure we clean up even if an error occurs
-        handleClose();
-      }
-    }, 50); // Small delay allows UI to update
+    // Use requestAnimationFrame to ensure the UI updates before we do heavy work
+    requestAnimationFrame(() => {
+      // Create a lightweight copy of only the data we need (avoid cloning the whole item)
+      const essentialData = {
+        classid: item.classid,
+        assetid: item.assetid || item.asset_id || item.id,
+        markethashname: item.markethashname,
+        image: item.image,
+        pricelatest: item.pricelatest,
+        pricereal: item.pricereal,
+        wear: item.wear,
+        rarity: item.rarity,
+        currencyRate: currencyRate,
+        priceGEL: calculatePrice()
+      };
+      
+      // Use setTimeout with 0 delay to move our processing to the next event loop tick
+      // This gives the browser a chance to update the UI before we continue
+      setTimeout(() => {
+        try {
+          // Call the confirm function
+          onConfirm(essentialData);
+          // Note: we don't need to clean up here as the onConfirm will eventually close the modal
+        } catch (error) {
+          console.error('Error in sell modal submission:', error);
+          setIsSubmitting(false);
+          alert('There was an error processing your request. Please try again.');
+          // We don't auto-close on error so the user can try again
+        }
+      }, 0);
+    });
   };
 
   // Add cleanup effect when the component unmounts
   useEffect(() => {
     // Set up any necessary modal state
     document.body.classList.add('modal-open');
+    
+    // Performance optimization: Preload image
+    if (item && item.image) {
+      const preloadImage = new Image();
+      preloadImage.src = item.image;
+    }
     
     // Clean up when the component unmounts
     return () => {

@@ -155,171 +155,198 @@ function Inventory({ user }) {
 
   const listItemForSale = async (itemData) => {
     try {
+      // Show loading state right away
       setLoading(true);
-      // Extract wear from marketHashName if not provided
-      let itemWear = itemData.wear;
-      if (!itemWear && itemData.markethashname) {
-        const wearMatch = itemData.markethashname.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i);
-        if (wearMatch) {
-          itemWear = wearMatch[0];
-        }
-      }
-
-      // Calculate price in USD based on selected currency rate
-      const priceUSD = itemData.pricelatest || itemData.pricereal || 1;
-
-      console.log('Listing item for sale:', {
-        steamItemId: itemData.classid,
-        assetId: itemData.assetid || itemData.asset_id,
-        marketHashName: itemData.markethashname
-      });
-
-      // Make the API call to list the item
-      try {
-        const response = await axios.post(`${API_URL}/marketplace/list`, {
-          steamItemId: itemData.classid,
-          assetId: itemData.assetid || itemData.asset_id,
-          marketHashName: itemData.markethashname,
-          price: priceUSD,
-          imageUrl: itemData.image,
-          wear: itemWear,
-          currencyRate: itemData.currencyRate || 1.8,
-          priceGEL: itemData.priceGEL || (priceUSD * 1.8).toFixed(2)
-        }, { 
-          withCredentials: true,
-          timeout: 30000 // 30 second timeout
-        });
-        
-        console.log('Item listed successfully:', response.data);
-        
-        // Close modal first to prevent UI issues
-        setShowSellModal(false);
-        setSelectedItem(null);
-        
-        // Always set loading to false before setting the message
-        setLoading(false);
-        
-        // Display success message that won't prevent inventory viewing
-        setMessage('Item listed for sale successfully!');
-        setMessageType('success');
-        
-        // Refresh inventory without waiting
-        fetchInventory().catch(error => {
-          console.error('Error refreshing inventory after success:', error);
-          // Even if refresh fails, user already sees success message and can manually refresh
-        });
-      } catch (apiError) {
-        // Special handling for API errors
-        console.error('API error when listing item:', apiError);
-        
-        // IMPORTANT FIX: Check first if the operation was actually successful 
-        // despite the error response - this happens with some APIs where the 
-        // item is listed but the request still returns as an error
-        
-        let isActuallySuccess = false;
-        
-        // Always treat any response with status 2xx as success
-        if (apiError.response && (apiError.response.status >= 200 && apiError.response.status < 300)) {
-          console.log('Despite error, received success status code:', apiError.response.status);
-          isActuallySuccess = true;
-        }
-        
-        // Check response body for success indicators regardless of status code
-        if (apiError.response && apiError.response.data) {
-          const responseData = apiError.response.data;
-          // Check for success field or status field
-          if (
-            (responseData.success === true) || 
-            (responseData._id) || // If server returned an item ID, it likely succeeded
-            (typeof responseData.status === 'string' && responseData.status.toLowerCase().includes('success')) ||
-            (responseData.listed === true) ||
-            (responseData.message && (
-              responseData.message.toLowerCase().includes('success') || 
-              responseData.message.toLowerCase().includes('listed') ||
-              responseData.message.toLowerCase().includes('added to market')
-            ))
-          ) {
-            console.log('Despite error status code, response indicates success:', responseData);
-            isActuallySuccess = true;
-          }
-        }
-        
-        // Get detailed error info
-        const errorMsg = apiError.response?.data?.error || 
-                        apiError.response?.data?.message || 
-                        apiError.message || 
-                        'Failed to list item for sale.';
-                        
-        // Check if the error message indicates the item was actually listed
-        if (
-          errorMsg.toLowerCase().includes('already listed') || 
-          errorMsg.toLowerCase().includes('successfully') || 
-          errorMsg.toLowerCase().includes('success') || 
-          errorMsg.toLowerCase().includes('item listed') ||
-          errorMsg.toLowerCase().includes('added to market') ||
-          errorMsg.toLowerCase().includes('now for sale') ||
-          errorMsg.toLowerCase().includes('item is now') ||
-          errorMsg.toLowerCase().includes('listing created')
-        ) {
-          console.log('Error message actually indicates success:', errorMsg);
-          isActuallySuccess = true;
-        }
-        
-        if (isActuallySuccess) {
-          handleListingSuccess();
-          return;
-        }
-        
-        // Handle genuine error
-        setShowSellModal(false);
-        setSelectedItem(null);
-        setLoading(false);
-        
-        // Save item data for retry functionality
-        window.lastFailedListing = {
-          item: itemData,
-          timestamp: Date.now()
-        };
-        
-        // Set error message with retry option
-        setMessage(`Error: ${errorMsg}`);
-        setMessageType('error');
-        
-        // Add retry button separately
-        setTimeout(() => {
-          const retryButton = document.getElementById('retry-listing-button');
-          if (retryButton) {
-            retryButton.addEventListener('click', () => {
-              if (window.lastFailedListing && window.lastFailedListing.item) {
-                console.log('Retrying failed listing...');
-                listItemForSale(window.lastFailedListing.item);
-              }
-            });
-          }
-        }, 100);
-      }
-    } catch (err) {
-      // This handles any other errors outside the API call
-      console.error('Unexpected error in listItemForSale:', err);
       
-      // Close modal even on error
+      // Close modal immediately for better UX
       setShowSellModal(false);
       setSelectedItem(null);
+
+      // Use requestAnimationFrame to ensure UI updates before heavy processing
+      requestAnimationFrame(async () => {
+        try {
+          // Extract wear from marketHashName if not provided
+          let itemWear = itemData.wear;
+          if (!itemWear && itemData.markethashname) {
+            const wearMatch = itemData.markethashname.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i);
+            if (wearMatch) {
+              itemWear = wearMatch[0];
+            }
+          }
+
+          // Calculate price in USD based on selected currency rate
+          const priceUSD = itemData.pricelatest || itemData.pricereal || 1;
+
+          console.log('Listing item for sale:', {
+            steamItemId: itemData.classid,
+            assetId: itemData.assetid || itemData.asset_id,
+            marketHashName: itemData.markethashname
+          });
+
+          // Prepare the payload before making the API call
+          const payload = {
+            steamItemId: itemData.classid,
+            assetId: itemData.assetid || itemData.asset_id,
+            marketHashName: itemData.markethashname,
+            price: priceUSD,
+            imageUrl: itemData.image,
+            wear: itemWear,
+            currencyRate: itemData.currencyRate || 1.8,
+            priceGEL: itemData.priceGEL || (priceUSD * 1.8).toFixed(2)
+          };
+
+          const config = { 
+            withCredentials: true,
+            timeout: 30000 // 30 second timeout
+          };
+
+          // Make the API call to list the item - wrapped in a timeout to prevent UI blocking
+          try {
+            const response = await axios.post(`${API_URL}/marketplace/list`, payload, config);
+            
+            console.log('Item listed successfully:', response.data);
+            
+            // Always set loading to false before setting the message
+            setLoading(false);
+            
+            // Display success message that won't prevent inventory viewing
+            setMessage('Item listed for sale successfully!');
+            setMessageType('success');
+            
+            // Refresh inventory without waiting
+            refreshInventoryAfterListing();
+          } catch (apiError) {
+            await handleListingApiError(apiError, itemData);
+          }
+        } catch (processingError) {
+          // Handle any errors in the processing before the API call
+          console.error('Error processing item data:', processingError);
+          setLoading(false);
+          setMessage('Error preparing item data: ' + (processingError.message || 'Unknown error'));
+          setMessageType('error');
+        }
+      });
+    } catch (err) {
+      // This handles any other errors outside the main processing
+      console.error('Fatal error in listItemForSale:', err);
       
-      // Always reset loading state
+      // Ensure modal is closed and loading state is reset
+      setShowSellModal(false);
+      setSelectedItem(null);
       setLoading(false);
       
       // Set error message
       setMessage('Unexpected error: ' + (err.message || 'Failed to list item'));
       setMessageType('error');
-      
-      // Try to refresh inventory anyway - the item might have been listed despite the error
-      setTimeout(() => {
-        console.log('Attempting inventory refresh after error');
-        fetchInventory().catch(e => console.error('Inventory refresh error:', e));
-      }, 1000);
     }
   };
+
+  // Separate function to handle API errors, improving code organization
+  const handleListingApiError = async (apiError, itemData) => {
+    console.error('API error when listing item:', apiError);
+    
+    // IMPORTANT FIX: Check first if the operation was actually successful 
+    // despite the error response - this happens with some APIs where the 
+    // item is listed but the request still returns as an error
+    let isActuallySuccess = false;
+    
+    // Always treat any response with status 2xx as success
+    if (apiError.response && (apiError.response.status >= 200 && apiError.response.status < 300)) {
+      console.log('Despite error, received success status code:', apiError.response.status);
+      isActuallySuccess = true;
+    }
+    
+    // Check response body for success indicators regardless of status code
+    if (apiError.response && apiError.response.data) {
+      const responseData = apiError.response.data;
+      // Check for success field or status field
+      if (
+        (responseData.success === true) || 
+        (responseData._id) || // If server returned an item ID, it likely succeeded
+        (typeof responseData.status === 'string' && responseData.status.toLowerCase().includes('success')) ||
+        (responseData.listed === true) ||
+        (responseData.message && (
+          responseData.message.toLowerCase().includes('success') || 
+          responseData.message.toLowerCase().includes('listed') ||
+          responseData.message.toLowerCase().includes('added to market')
+        ))
+      ) {
+        console.log('Despite error status code, response indicates success:', responseData);
+        isActuallySuccess = true;
+      }
+    }
+    
+    // Get detailed error info
+    const errorMsg = apiError.response?.data?.error || 
+                     apiError.response?.data?.message || 
+                     apiError.message || 
+                     'Failed to list item for sale.';
+                    
+    // Check if the error message indicates the item was actually listed
+    if (
+      errorMsg.toLowerCase().includes('already listed') || 
+      errorMsg.toLowerCase().includes('successfully') || 
+      errorMsg.toLowerCase().includes('success') || 
+      errorMsg.toLowerCase().includes('item listed') ||
+      errorMsg.toLowerCase().includes('added to market') ||
+      errorMsg.toLowerCase().includes('now for sale') ||
+      errorMsg.toLowerCase().includes('item is now') ||
+      errorMsg.toLowerCase().includes('listing created')
+    ) {
+      console.log('Error message actually indicates success:', errorMsg);
+      isActuallySuccess = true;
+    }
+    
+    if (isActuallySuccess) {
+      handleListingSuccess();
+      return;
+    }
+    
+    // Handle genuine error
+    setLoading(false);
+    
+    // Save item data for retry functionality
+    window.lastFailedListing = {
+      item: itemData,
+      timestamp: Date.now()
+    };
+    
+    // Set error message with retry option
+    setMessage(`Error: ${errorMsg}`);
+    setMessageType('error');
+    
+    // Add retry button separately
+    setTimeout(() => {
+      const retryButton = document.getElementById('retry-listing-button');
+      if (retryButton) {
+        retryButton.addEventListener('click', () => {
+          if (window.lastFailedListing && window.lastFailedListing.item) {
+            console.log('Retrying failed listing...');
+            listItemForSale(window.lastFailedListing.item);
+          }
+        });
+      }
+    }, 100);
+  };
+
+  // Safely refresh inventory after listing, with debounce to prevent multiple refreshes
+  const refreshInventoryAfterListing = (() => {
+    let refreshTimeout = null;
+    
+    return () => {
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
+      }
+      
+      refreshTimeout = setTimeout(() => {
+        fetchInventory().catch(error => {
+          console.error('Error refreshing inventory after success:', error);
+          // Even if refresh fails, user already sees success message and can manually refresh
+        });
+        refreshTimeout = null;
+      }, 500);
+    };
+  })();
 
   const handleListingSuccess = () => {
     // Close modal first to prevent UI issues
@@ -437,6 +464,88 @@ function Inventory({ user }) {
       }
     };
   }, [loading]);
+
+  // Add a performance monitoring system and browser unfreeze mechanism
+  useEffect(() => {
+    // Create a heartbeat mechanism to unfreeze the browser if needed
+    let heartbeatTimer = null;
+    let lastHeartbeat = Date.now();
+    
+    // Mark the heartbeat as alive
+    const markAlive = () => {
+      lastHeartbeat = Date.now();
+    };
+    
+    // Setup heartbeat detection
+    const checkHeartbeat = () => {
+      const now = Date.now();
+      const timeSinceLastHeartbeat = now - lastHeartbeat;
+      
+      // If more than 5 seconds passed without a heartbeat, the UI might be frozen
+      if (timeSinceLastHeartbeat > 5000) {
+        console.warn('UI may be frozen - attempting to unfreeze');
+        
+        // Force reset loading state
+        setLoading(false);
+        
+        // If there's an active sell modal, close it
+        if (showSellModal) {
+          setShowSellModal(false);
+          setSelectedItem(null);
+          
+          // Display message to user
+          setMessage('The operation was taking too long and was cancelled to prevent browser freezing.');
+          setMessageType('warning');
+        }
+      }
+      
+      // Mark this check as a heartbeat
+      markAlive();
+    };
+    
+    // Start heartbeat monitoring
+    heartbeatTimer = setInterval(checkHeartbeat, 1000);
+    
+    // Register UI interaction events as heartbeats
+    const heartbeatEvents = ['mousemove', 'keydown', 'click', 'scroll'];
+    const registerHeartbeat = () => markAlive();
+    
+    heartbeatEvents.forEach(event => {
+      window.addEventListener(event, registerHeartbeat);
+    });
+    
+    // Cleanup on component unmount
+    return () => {
+      clearInterval(heartbeatTimer);
+      heartbeatEvents.forEach(event => {
+        window.removeEventListener(event, registerHeartbeat);
+      });
+    };
+  }, [showSellModal]);
+
+  // Browser performance monitoring
+  useEffect(() => {
+    // Create a handler for browser unresponsiveness warnings
+    window.addEventListener('beforeunload', (event) => {
+      // Only handle during selling process
+      if (showSellModal || loading) {
+        console.warn('Browser attempting to close during operation - cancelling operation');
+        
+        // Cancel any ongoing operations
+        setLoading(false);
+        setShowSellModal(false);
+        setSelectedItem(null);
+        
+        // Allow the page to close gracefully
+        delete event.returnValue;
+        return null;
+      }
+    });
+    
+    return () => {
+      window.removeEventListener('beforeunload', () => {});
+    };
+  }, [showSellModal, loading]);
 
   if (loading) {
     return (
