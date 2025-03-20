@@ -26,7 +26,7 @@ body {
 #root {
   width: 100%;
   min-height: 100vh; /* Ensure it covers the full viewport height */
-  background: linear-gradient(45deg, #581845 0%, #900C3F 100%);
+  background-color: #212121; /* Neutral dark background instead of gradient */
   transition: background 0.8s ease; /* Slower, smoother transition */
   display: flex;
   flex-direction: column;
