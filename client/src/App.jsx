@@ -92,24 +92,56 @@ function App() {
 
       // Get token from localStorage
       const token = localStorage.getItem('auth_token');
+      console.log('Axios interceptor - token exists:', !!token);
 
-      // If token exists, include it in query params
+      // If token exists, include it in query params and headers
       if (token) {
-        // Include token in URL if it's to our API
-        if (config.url.startsWith(API_URL)) {
-          // Initialize params object if not exists
-          config.params = config.params || {};
-          // Add token to params
-          config.params.auth_token = token;
-        }
+        // Initialize params object if not exists
+        config.params = config.params || {};
+        
+        // Add token to params for all requests
+        config.params.auth_token = token;
+        
+        // Also add token to Authorization header
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${token}`;
+        
+        console.log('Added auth token to request:', config.url);
+      } else {
+        console.log('No auth token available for request:', config.url);
       }
 
       return config;
+    }, error => {
+      console.error('Axios interceptor request error:', error);
+      return Promise.reject(error);
     });
 
-    // Remove interceptor on cleanup
+    // Add response interceptor to handle auth errors
+    const responseInterceptor = axios.interceptors.response.use(
+      response => response,
+      error => {
+        console.error('API Error in response interceptor:', error.response?.status, error.response?.data);
+        
+        // If we get a 401 Unauthorized, the token might be invalid
+        if (error.response && error.response.status === 401) {
+          console.log('Received 401 Unauthorized - clearing token');
+          
+          // Token might be invalid, clear it
+          // localStorage.removeItem('auth_token');
+          
+          // You might want to refresh the token or redirect to login here
+          // window.location.href = '/';
+        }
+        
+        return Promise.reject(error);
+      }
+    );
+
+    // Remove interceptors on cleanup
     return () => {
       axios.interceptors.request.eject(interceptor);
+      axios.interceptors.response.eject(responseInterceptor);
     };
   }, []);
 

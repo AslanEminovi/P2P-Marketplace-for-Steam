@@ -61,18 +61,29 @@ function Inventory({ user }) {
       // Get the auth token from localStorage with the correct key
       const token = localStorage.getItem('auth_token');
       
-      console.log('Using auth token:', token ? 'Token exists' : 'No token found');
+      console.log('Using auth token:', token ? token.substring(0, 10) + '...' : 'No token found');
+      console.log('Current API URL:', API_URL);
+      console.log('User object:', user);
       
-      const res = await axios.get(`${API_URL}/inventory/my`, { 
+      // Form the complete URL for debugging
+      const requestUrl = `${API_URL}/inventory/my`;
+      console.log('Request URL:', requestUrl);
+      
+      // Print all request details for debugging
+      const requestConfig = { 
         withCredentials: true,
         timeout: 30000, // 30 second timeout
         params: {
           auth_token: token // Adding as query param since server expects it here
         },
         headers: {
-          Authorization: token ? `Bearer ${token}` : ''
+          Authorization: token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
         }
-      });
+      };
+      console.log('Request config:', JSON.stringify(requestConfig, null, 2));
+      
+      const res = await axios.get(requestUrl, requestConfig);
       
       console.log('Inventory response:', res.data);
       

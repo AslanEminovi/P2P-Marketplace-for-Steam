@@ -2,9 +2,16 @@
  * Application constants
  */
 
+// Log the environment variable values for debugging
+console.log("Environment: ", process.env.NODE_ENV);
+console.log("API URL from env: ", process.env.REACT_APP_API_URL);
+
 export const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
+console.log("Using API_URL: ", API_URL);
+
 // Add production settings
 export const IS_PRODUCTION = process.env.NODE_ENV === "production";
+console.log("Is Production: ", IS_PRODUCTION);
 
 // Platform fee (as a percentage)
 export const PLATFORM_FEE = 2.5;
