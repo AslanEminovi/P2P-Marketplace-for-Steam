@@ -24,7 +24,10 @@
   color: var(--gaming-text-medium);
   min-height: 100vh;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* GAME PARTICLES ANIMATION */
@@ -37,6 +40,7 @@
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
+  will-change: transform;
 }
 
 .particle {
@@ -83,8 +87,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
   min-height: 80vh;
+  max-height: 100vh;
 }
 
 .hero-content {
