@@ -244,19 +244,37 @@ function App() {
 
   const handleLogout = async () => {
     try {
+      console.log("Logout process started");
+      
       // Set loading state to true to prevent double-clicks
       setLoading(true);
       
-      // Clear token from localStorage first
+      // Disconnect all websockets first
+      if (socket) {
+        console.log("Disconnecting websockets...");
+        socket.disconnect();
+      }
+      
+      // Clear all auth tokens from localStorage
+      console.log("Clearing localStorage tokens...");
       localStorage.removeItem('auth_token');
       
-      // Reset user state
+      // Reset user state to null
+      console.log("Resetting user state...");
       setUser(null);
       
-      // Make the logout API call asynchronously
-      // We'll wait for a small delay before force redirecting
-      axios.get(`${API_URL}/auth/logout`, { withCredentials: true })
-        .catch(err => console.error('Logout API error:', err));
+      // Make the logout API call to clear server-side session and cookies
+      console.log("Sending logout request to server...");
+      try {
+        await axios.get(`${API_URL}/auth/logout`, { 
+          withCredentials: true,
+          timeout: 5000 // 5 second timeout
+        });
+        console.log("Server logout successful");
+      } catch (apiError) {
+        console.error('Logout API error:', apiError);
+        // Continue with client-side logout even if server request fails
+      }
       
       // Show notification
       if (window.showNotification) {
@@ -269,16 +287,30 @@ function App() {
 
       // Force a complete page reload rather than using React Router
       // This ensures all React state is completely reset
+      console.log("Redirecting to homepage...");
       setTimeout(() => {
         window.location.href = '/';
-      }, 100);
+      }, 300); // Slightly longer delay to ensure notification is seen
       
     } catch (err) {
       console.error('Logout error:', err);
+      
       // Even if there's an error, still force logout
+      if (socket) {
+        socket.disconnect();
+      }
       localStorage.removeItem('auth_token');
       setUser(null);
-      window.location.href = '/';
+      
+      // Force reload with slight delay
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 300);
+    } finally {
+      // Ensure loading state is reset if the page doesn't reload for some reason
+      setTimeout(() => {
+        setLoading(false);
+      }, 1000);
     }
   };
 

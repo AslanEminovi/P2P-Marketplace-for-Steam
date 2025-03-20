@@ -272,12 +272,38 @@ router.get("/me", (req, res) => {
 
 // @route GET /auth/logout
 router.get("/logout", (req, res) => {
-  req.logout((err) => {
-    if (err) {
-      return res.status(500).json({ error: "Failed to logout" });
-    }
-    res.sendStatus(200);
-  });
+  try {
+    console.log("Logout request received");
+
+    // Clear the auth token cookie
+    res.clearCookie("auth_token");
+
+    // Call passport's logout method to clear the session
+    req.logout((err) => {
+      if (err) {
+        console.error("Passport logout error:", err);
+        // Continue with logout process despite passport error
+      }
+
+      // Destroy the session
+      if (req.session) {
+        req.session.destroy((sessionErr) => {
+          if (sessionErr) {
+            console.error("Session destruction error:", sessionErr);
+            // Continue with response despite session error
+          }
+          console.log("User logged out successfully");
+          return res.status(200).json({ message: "Logged out successfully" });
+        });
+      } else {
+        console.log("No session to destroy, user logged out");
+        return res.status(200).json({ message: "Logged out successfully" });
+      }
+    });
+  } catch (error) {
+    console.error("Logout error:", error);
+    return res.status(500).json({ error: "Failed to logout" });
+  }
 });
 
 module.exports = router;
