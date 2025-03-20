@@ -1,7 +1,6 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import axios from 'axios';
-import { useTranslation } from 'react-i18next';
 import socketService from './services/socketService';
 import { Toaster } from 'react-hot-toast';
 import AdminTools from './pages/AdminTools';
@@ -77,17 +76,6 @@ function App() {
   const [socketConnected, setSocketConnected] = useState(false);
   const [showConnectionIndicator, setShowConnectionIndicator] = useState(false);
   const navigate = useNavigate();
-  
-  // Safe translation function that won't crash the app
-  const { t: rawT } = useTranslation();
-  const t = (key, options) => {
-    try {
-      return rawT(key, options);
-    } catch (e) {
-      console.error('Translation error for key:', key, e);
-      return key.split('.').pop(); // Return the last part of the key as fallback
-    }
-  };
 
   // Function to show a notification
   window.showNotification = (title, message, type = 'INFO', timeout = 5000) => {
@@ -154,8 +142,8 @@ function App() {
           } else {
             // Show error message for other endpoints
             window.showNotification(
-              t('common.error'),
-              t('auth.sessionExpired'),
+              'Error',
+              'Session expired. Please log in again.',
               'ERROR'
             );
           }
@@ -174,7 +162,7 @@ function App() {
       axios.interceptors.request.eject(requestInterceptor);
       axios.interceptors.response.eject(responseInterceptor);
     };
-  }, [t]);
+  }, []);
 
   // Handle socket connection status
   useEffect(() => {
@@ -230,16 +218,16 @@ function App() {
 
       // Also hide any socket connection indicators
       setShowConnectionIndicator(false);
-      
+
       // Reset any stuck background styles
       document.body.style.backgroundColor = '';
-      
+
       // Remove any lingering modal-related classes from the body
       document.body.classList.remove('modal-open');
-      
+
       // Reset any overflow styles that might have been set by modals
       document.body.style.overflow = '';
-      
+
       // Clear any backdrop or overlay elements
       const backdrops = document.querySelectorAll('.modal-backdrop, .overlay, .backdrop');
       backdrops.forEach(backdrop => {
@@ -247,7 +235,7 @@ function App() {
           backdrop.parentNode.removeChild(backdrop);
         }
       });
-      
+
       // Reset any fixed positioning that was applied to the main content
       const mainContent = document.querySelector('main');
       if (mainContent) {
@@ -259,7 +247,7 @@ function App() {
 
     // Listen for navigation events - both History API events and direct clicks
     window.addEventListener('popstate', handleRouteChange);
-    
+
     // Use a mutation observer to detect when React Router changes the URL without triggering popstate
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
@@ -269,18 +257,18 @@ function App() {
         }
       }
     });
-    
+
     // Observe the document body for changes that might indicate a route change
-    observer.observe(document.body, { 
-      childList: true, 
+    observer.observe(document.body, {
+      childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['class', 'style'] 
+      attributeFilter: ['class', 'style']
     });
-    
+
     // Add safety: call handleRouteChange immediately when component mounts
     handleRouteChange();
-    
+
     // Add click listener to detect navigation via direct link clicks
     const handleDocumentClick = (e) => {
       // Find closest anchor element
@@ -288,14 +276,14 @@ function App() {
       while (element && element.tagName !== 'A') {
         element = element.parentElement;
       }
-      
+
       // If we found an anchor and it's an internal link
       if (element && element.href && element.href.startsWith(window.location.origin)) {
         // Schedule a handleRouteChange after the navigation occurs
         setTimeout(handleRouteChange, 50);
       }
     };
-    
+
     document.addEventListener('click', handleDocumentClick);
 
     return () => {
@@ -314,31 +302,31 @@ function App() {
         setLoading(false);
       }
     }, 3000); // Give it 3 seconds on first load
-    
+
     // Safety timeout to reset loading state if it gets stuck
     const safetyResetInterval = setInterval(() => {
       if (loading) {
         console.log("Safety mechanism: resetting stuck loading state");
         setLoading(false);
       }
-      
+
       // Check for other stuck states
       if (document.body.classList.contains('modal-open') && !document.querySelector('.modal.show')) {
         console.log("Safety mechanism: removing stuck modal-open class");
         document.body.classList.remove('modal-open');
         document.body.style.overflow = '';
       }
-      
+
       // Check for lingering red background
       const computedStyle = window.getComputedStyle(document.body);
-      if (computedStyle.backgroundColor === 'rgb(255, 0, 0)' || 
-          computedStyle.backgroundColor === 'red' ||
-          computedStyle.backgroundColor.includes('rgba(255, 0, 0')) {
+      if (computedStyle.backgroundColor === 'rgb(255, 0, 0)' ||
+        computedStyle.backgroundColor === 'red' ||
+        computedStyle.backgroundColor.includes('rgba(255, 0, 0')) {
         console.log("Safety mechanism: resetting red background");
         document.body.style.backgroundColor = '';
       }
     }, 5000); // Reduce to 5 seconds for faster recovery
-    
+
     return () => {
       clearTimeout(initialLoadingClear);
       clearInterval(safetyResetInterval);
@@ -513,8 +501,8 @@ function App() {
       // Show notification
       if (window.showNotification) {
         window.showNotification(
-          t('common.signOut'),
-          t('common.success'),
+          'Sign Out',
+          'Success',
           'SUCCESS'
         );
       }
@@ -602,9 +590,9 @@ function App() {
       />
 
       {/* Connection status indicator */}
-      <SocketConnectionIndicator 
-        isConnected={socketConnected} 
-        show={showConnectionIndicator} 
+      <SocketConnectionIndicator
+        isConnected={socketConnected}
+        show={showConnectionIndicator}
       />
 
       {/* Background patterns */}
@@ -710,7 +698,7 @@ function App() {
               letterSpacing: '0.05em',
               textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
             }}>
-              {t('common.loading')}
+              Loading...
             </p>
           </div>
         </div>
@@ -776,7 +764,7 @@ function App() {
                 textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
               }}
             >
-              {t('common.loading')}
+              Loading...
             </p>
           </div>
         ) : (

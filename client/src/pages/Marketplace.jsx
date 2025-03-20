@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '../utils/languageUtils';
 import OfferModal from '../components/OfferModal';
 import UserListings from '../components/UserListings';
 import ItemDetails from '../components/ItemDetails';

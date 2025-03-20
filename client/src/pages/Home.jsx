@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '../utils/languageUtils';
 import { API_URL, getColorForRarity } from '../config/constants';
 import socketService from '../services/socketService';
 import './Home.css';

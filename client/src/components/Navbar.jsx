@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { API_URL } from '../config/constants';
 import './Navbar.css';
 
@@ -9,17 +8,6 @@ import './Navbar.css';
 
 // Navbar now receives user and onLogout as props
 const Navbar = ({ user, onLogout }) => {
-  // Safe translation function that won't crash the app
-  const { t: rawT } = useTranslation();
-  const t = (key, options) => {
-    try {
-      return rawT(key, options);
-    } catch (e) {
-      console.error('Navbar translation error for key:', key, e);
-      return key.split('.').pop(); // Return the last part of the key as fallback
-    }
-  };
-  
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);

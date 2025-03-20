@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '../utils/languageUtils';
 
 // Define rarity colors mapping
 const RARITY_COLORS = {

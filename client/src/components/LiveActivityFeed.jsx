@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '../utils/languageUtils';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faChevronUp, 

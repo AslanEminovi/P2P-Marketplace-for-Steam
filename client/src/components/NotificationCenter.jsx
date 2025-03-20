@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { useTranslation } from 'react-i18next';
-import { API_URL } from '../config/constants';
+import { useTranslation } from '../utils/languageUtils';
 import OfferActionMenu from './OfferActionMenu';
 
 // Define notification types and their associated colors/icons
