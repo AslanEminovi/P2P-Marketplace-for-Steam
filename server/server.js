@@ -207,6 +207,32 @@ app.use("/wallet", walletRoutes);
 app.use("/user", userRoutes);
 app.use("/admin", adminRoutes);
 
+// Public stats endpoint for homepage
+app.get("/stats", async (req, res) => {
+  try {
+    const Item = mongoose.model("Item");
+    const User = mongoose.model("User");
+    const Trade = mongoose.model("Trade");
+
+    // Get counts of active listings, users, and completed trades
+    const activeListings = await Item.countDocuments({ isListed: true });
+    const activeUsers = await User.countDocuments({
+      lastActive: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+    });
+    const completedTrades = await Trade.countDocuments({ status: "completed" });
+
+    res.json({
+      activeListings,
+      activeUsers,
+      completedTrades,
+      timestamp: new Date(),
+    });
+  } catch (error) {
+    console.error("Error getting public stats:", error);
+    res.status(500).json({ error: "Failed to get statistics" });
+  }
+});
+
 // Steam Web API webhook endpoint
 app.post("/api/webhooks/steam-trade", async (req, res) => {
   try {

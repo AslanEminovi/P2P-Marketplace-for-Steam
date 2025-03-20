@@ -347,6 +347,30 @@ exports.getAllItems = async (req, res) => {
   }
 };
 
+// GET /marketplace/featured
+exports.getFeaturedItems = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 8; // Default to 8 featured items
+
+    // Find items that are listed for sale with images and complete data
+    // Sort by most recently listed first
+    const items = await Item.find({
+      isListed: true,
+      imageUrl: { $exists: true, $ne: null, $ne: "" }, // Ensure image exists
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate("owner", "displayName avatar");
+
+    return res.json(items);
+  } catch (err) {
+    console.error("Error fetching featured items:", err);
+    return res
+      .status(500)
+      .json({ error: "Failed to retrieve featured items." });
+  }
+};
+
 // GET /marketplace/item/:itemId
 exports.getItemDetails = async (req, res) => {
   try {

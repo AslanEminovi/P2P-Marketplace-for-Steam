@@ -548,8 +548,8 @@ const Home = () => {
     try {
       setLoading(true);
 
-      // Direct API call to marketplace endpoint
-      const response = await axios.get(`${API_URL}/marketplace`);
+      // Use the dedicated featured items endpoint
+      const response = await axios.get(`${API_URL}/marketplace/featured`);
 
       if (response.data && Array.isArray(response.data)) {
         // Set featured items directly from API
@@ -564,7 +564,7 @@ const Home = () => {
         setFeaturedItems([]);
       }
     } catch (error) {
-      console.error('Error fetching marketplace items:', error);
+      console.error('Error fetching featured items:', error);
       setFeaturedItems([]);
     } finally {
       setLoading(false);
