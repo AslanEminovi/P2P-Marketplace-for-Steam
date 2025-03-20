@@ -8,6 +8,7 @@ const bodyParser = require("body-parser");
 const path = require("path");
 const http = require("http");
 const { Server } = require("socket.io");
+const jwt = require("jsonwebtoken");
 
 // Determine environment
 const isProduction = process.env.NODE_ENV === "production";
@@ -166,9 +167,18 @@ app.use(async (req, res, next) => {
         return;
       }
 
-      // Token not in cache, verify by looking up user
+      // Decode the JWT token to get the user ID
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (!decoded || !decoded.id) {
+        console.error("Invalid token format, no user ID found");
+        return next();
+      }
+
+      // Token not in cache, verify by looking up user by ID from the JWT
       const User = require("./models/User");
-      const user = await User.findById(token);
+      const userId = decoded.id;
+      console.log(`Looking up user with ID: ${userId} from token`);
+      const user = await User.findById(userId);
 
       if (user) {
         // Add to cache with TTL
@@ -187,6 +197,8 @@ app.use(async (req, res, next) => {
           next();
         });
         return;
+      } else {
+        console.log(`User with ID ${userId} not found`);
       }
     } catch (error) {
       console.error("Token authentication error:", error);
