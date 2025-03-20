@@ -209,11 +209,11 @@ function App() {
       // Clear token from localStorage first
       localStorage.removeItem('auth_token');
       
-      // Then update user state to null
+      // Reset user state
       setUser(null);
       
-      // Make the logout API call, but don't wait for it to complete
-      // This prevents issues if the server is slow to respond
+      // Make the logout API call asynchronously
+      // We'll wait for a small delay before force redirecting
       axios.get(`${API_URL}/auth/logout`, { withCredentials: true })
         .catch(err => console.error('Logout API error:', err));
       
@@ -225,14 +225,19 @@ function App() {
           'SUCCESS'
         );
       }
+
+      // Force a complete page reload rather than using React Router
+      // This ensures all React state is completely reset
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
       
-      // Navigate to homepage
-      navigate('/');
     } catch (err) {
       console.error('Logout error:', err);
-    } finally {
-      // Reset loading state
-      setLoading(false);
+      // Even if there's an error, still force logout
+      localStorage.removeItem('auth_token');
+      setUser(null);
+      window.location.href = '/';
     }
   };
 
@@ -370,7 +375,7 @@ function App() {
       background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
       position: 'relative',
       overflow: 'hidden',
-      transition: 'background 0.3s ease-in-out'
+      transition: 'background 0.5s ease-out'
     }}>
       <Navbar user={user} onLogout={handleLogout} />
 
@@ -485,6 +490,7 @@ function App() {
 
       <Suspense fallback={
         <div className="loading-screen-background" style={{
+          opacity: 1,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
@@ -493,7 +499,8 @@ function App() {
           position: 'fixed',
           top: 0,
           left: 0,
-          zIndex: 9999
+          zIndex: 9999,
+          transition: 'opacity 0.3s ease-out'
         }}>
           <div style={{
             display: 'flex',
@@ -538,6 +545,7 @@ function App() {
       }>
         {loading ? (
           <div className="loading-screen-background" style={{
+            opacity: 1,
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
@@ -548,7 +556,8 @@ function App() {
             left: 0,
             zIndex: 9999,
             flexDirection: 'column',
-            gap: '30px'
+            gap: '30px',
+            transition: 'opacity 0.3s ease-out'
           }}>
             <div className="loading-logo" style={{
               fontSize: '2.5rem',
