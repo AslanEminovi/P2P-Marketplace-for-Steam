@@ -3,7 +3,6 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { API_URL } from '../config/constants';
-import { useAuth } from '../context/AuthContext';
 import './Navbar.css';
 
 // Remove logo import since it's not needed
@@ -11,17 +10,51 @@ import './Navbar.css';
 
 const Navbar = () => {
   const { t } = useTranslation();
-  const { user, logout } = useAuth();
+  const [user, setUser] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   // Refs for click outside detection
   const dropdownRef = useRef(null);
   const profileBtnRef = useRef(null);
-  
+
+  // Check if user is authenticated
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Get token from localStorage if available
+        const authToken = localStorage.getItem('auth_token');
+        const config = {
+          withCredentials: true,
+          params: {}
+        };
+
+        // Include token in request if available
+        if (authToken) {
+          config.params.auth_token = authToken;
+          console.log("Including auth token in request:", authToken.substring(0, 4) + "...");
+        }
+
+        // Make request with proper configuration
+        const response = await axios.get(`${API_URL}/auth/me`, config);
+        console.log("Auth response:", response.data);
+
+        if (response.data && response.data.user) {
+          console.log("Setting user data from /auth/me:", response.data.user);
+          setUser(response.data.user);
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+        setUser(null);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
   // Handle scroll effects
   useEffect(() => {
     const handleScroll = () => {
@@ -31,25 +64,25 @@ const Navbar = () => {
         setScrolled(false);
       }
     };
-    
+
     window.addEventListener('scroll', handleScroll);
-    
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
-  
+
   // Handle dropdown visibility and outside clicks
   useEffect(() => {
     function handleClickOutside(event) {
       // Only handle outside clicks if dropdown is open
       if (!dropdownOpen) return;
-      
+
       // Don't close if clicking the profile button itself
       if (profileBtnRef.current && profileBtnRef.current.contains(event.target)) {
         return;
       }
-      
+
       // Don't close if clicking inside the dropdown menu
       if (dropdownRef.current && dropdownRef.current.contains(event.target)) {
         return;
@@ -58,20 +91,20 @@ const Navbar = () => {
       // Close dropdown for clicks outside both elements
       setDropdownOpen(false);
     }
-    
+
     // Use capture phase for better handling
     document.addEventListener("mousedown", handleClickOutside, true);
-    
+
     return () => {
       document.removeEventListener("mousedown", handleClickOutside, true);
     };
   }, [dropdownOpen]);
-  
+
   // Close mobile menu when changing routes
   useEffect(() => {
     setMobileOpen(false);
   }, [location]);
-  
+
   // Debug: Log user data for inspection
   useEffect(() => {
     console.log("Navbar received user data:", user);
@@ -80,39 +113,42 @@ const Navbar = () => {
       console.log("User display name:", user.displayName);
     }
   }, [user]);
-  
+
   // Simple toggle function - no prevent default to avoid issues
   const toggleDropdown = () => {
     setDropdownOpen(prev => !prev);
   };
-  
+
   // Get user initials for avatar placeholder
   const getUserInitials = () => {
     if (!user || !user.displayName) return '?';
-    
+
     const names = user.displayName.split(' ');
     if (names.length >= 2) {
       return `${names[0][0]}${names[1][0]}`.toUpperCase();
     }
-    
+
     return names[0][0].toUpperCase();
   };
-  
+
   // Format balance
   const formatBalance = (balance) => {
     if (!balance) return '0.00';
-    
+
     return (balance / 100).toFixed(2);
   };
-  
+
   // Create a proper logout function that handles redirection
   const handleLogout = () => {
     // Close dropdown first
     setDropdownOpen(false);
-    
-    // Use the logout function from auth context
-    logout();
-    
+
+    // Clear local auth token
+    localStorage.removeItem('auth_token');
+
+    // Update user state to null
+    setUser(null);
+
     // Navigate to homepage
     window.location.href = '/';
   };

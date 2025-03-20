@@ -3,56 +3,28 @@ import axios from 'axios';
 import { API_URL } from '../config/constants';
 import Wallet from '../components/Wallet';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useTranslation } from 'react-i18next';
 
-const Profile = ({ onBalanceUpdate }) => {
-  const { user, checkAuth } = useAuth();
-  const { t } = useTranslation();
+const Profile = ({ user, onBalanceUpdate }) => {
   const [activeTab, setActiveTab] = useState('wallet');
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState('');
   
   // Settings form
-  const [formData, setFormData] = useState({
-    displayName: '',
-    email: '',
-    phone: '',
-    preferredCurrency: 'USD',
-    theme: 'dark',
-    notificationSettings: {
-      email: true,
-      push: true,
-      offers: true,
-      trades: true
-    },
-    tradeURL: '',
-    language: 'en'
+  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [preferredCurrency, setPreferredCurrency] = useState('USD');
+  const [theme, setTheme] = useState('dark');
+  const [notificationSettings, setNotificationSettings] = useState({
+    email: true,
+    push: true,
+    offers: true,
+    trades: true
   });
   
   useEffect(() => {
-    console.log("Profile component mounted, user:", user);
-    // If user data is available, initialize form fields
     if (user) {
-      setFormData({
-        displayName: user.displayName || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        preferredCurrency: user.settings?.currency || 'USD',
-        theme: user.settings?.theme || 'dark',
-        notificationSettings: {
-          email: user.settings?.notifications?.email ?? true,
-          push: user.settings?.notifications?.push ?? true,
-          offers: user.settings?.notifications?.offers ?? true,
-          trades: user.settings?.notifications?.trades ?? true
-        },
-        tradeURL: user.tradeURL || '',
-        language: user.language || 'en'
-      });
-      setLoading(false);
-    } else {
       fetchUserProfile();
     }
   }, [user]);
@@ -66,20 +38,16 @@ const Profile = ({ onBalanceUpdate }) => {
         
         // Initialize form with user data
         if (response.data.user) {
-          setFormData({
-            displayName: response.data.user.displayName || '',
-            email: response.data.user.email || '',
-            phone: response.data.user.phone || '',
-            preferredCurrency: response.data.user.settings?.currency || 'USD',
-            theme: response.data.user.settings?.theme || 'dark',
-            notificationSettings: {
-              email: response.data.user.settings?.notifications?.email ?? true,
-              push: response.data.user.settings?.notifications?.push ?? true,
-              offers: response.data.user.settings?.notifications?.offers ?? true,
-              trades: response.data.user.settings?.notifications?.trades ?? true
-            },
-            tradeURL: response.data.user.tradeURL || '',
-            language: response.data.user.language || 'en'
+          setDisplayName(response.data.user.displayName || '');
+          setEmail(response.data.user.email || '');
+          setPhone(response.data.user.phone || '');
+          setPreferredCurrency(response.data.user.settings?.currency || 'USD');
+          setTheme(response.data.user.settings?.theme || 'dark');
+          setNotificationSettings({
+            email: response.data.user.settings?.notifications?.email ?? true,
+            push: response.data.user.settings?.notifications?.push ?? true,
+            offers: response.data.user.settings?.notifications?.offers ?? true,
+            trades: response.data.user.settings?.notifications?.trades ?? true
           });
         }
       }
@@ -120,13 +88,13 @@ const Profile = ({ onBalanceUpdate }) => {
       const response = await axios.put(
         `${API_URL}/user/settings`,
         {
-          displayName: formData.displayName,
-          email: formData.email,
-          phone: formData.phone,
+          displayName,
+          email,
+          phone,
           settings: {
-            currency: formData.preferredCurrency,
-            theme: formData.theme,
-            notifications: formData.notificationSettings
+            currency: preferredCurrency,
+            theme,
+            notifications: notificationSettings
           }
         },
         { withCredentials: true }
@@ -406,8 +374,8 @@ const Profile = ({ onBalanceUpdate }) => {
                     </label>
                     <input
                       type="text"
-                      value={formData.displayName}
-                      onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
                       style={{
                         width: '100%',
                         backgroundColor: '#333',
@@ -426,8 +394,8 @@ const Profile = ({ onBalanceUpdate }) => {
                     </label>
                     <input
                       type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       style={{
                         width: '100%',
                         backgroundColor: '#333',
@@ -446,8 +414,8 @@ const Profile = ({ onBalanceUpdate }) => {
                     </label>
                     <input
                       type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
                       style={{
                         width: '100%',
                         backgroundColor: '#333',
@@ -470,8 +438,8 @@ const Profile = ({ onBalanceUpdate }) => {
                       Preferred Currency
                     </label>
                     <select
-                      value={formData.preferredCurrency}
-                      onChange={(e) => setFormData({ ...formData, preferredCurrency: e.target.value })}
+                      value={preferredCurrency}
+                      onChange={(e) => setPreferredCurrency(e.target.value)}
                       style={{
                         width: '100%',
                         backgroundColor: '#333',
@@ -491,8 +459,8 @@ const Profile = ({ onBalanceUpdate }) => {
                       Theme
                     </label>
                     <select
-                      value={formData.theme}
-                      onChange={(e) => setFormData({ ...formData, theme: e.target.value })}
+                      value={theme}
+                      onChange={(e) => setTheme(e.target.value)}
                       style={{
                         width: '100%',
                         backgroundColor: '#333',
@@ -521,13 +489,10 @@ const Profile = ({ onBalanceUpdate }) => {
                     }}>
                       <input
                         type="checkbox"
-                        checked={formData.notificationSettings.email}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          notificationSettings: {
-                            ...formData.notificationSettings,
-                            email: e.target.checked
-                          }
+                        checked={notificationSettings.email}
+                        onChange={(e) => setNotificationSettings({
+                          ...notificationSettings,
+                          email: e.target.checked
                         })}
                         style={{ marginRight: '10px' }}
                       />
@@ -544,13 +509,10 @@ const Profile = ({ onBalanceUpdate }) => {
                     }}>
                       <input
                         type="checkbox"
-                        checked={formData.notificationSettings.push}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          notificationSettings: {
-                            ...formData.notificationSettings,
-                            push: e.target.checked
-                          }
+                        checked={notificationSettings.push}
+                        onChange={(e) => setNotificationSettings({
+                          ...notificationSettings,
+                          push: e.target.checked
                         })}
                         style={{ marginRight: '10px' }}
                       />
@@ -567,13 +529,10 @@ const Profile = ({ onBalanceUpdate }) => {
                     }}>
                       <input
                         type="checkbox"
-                        checked={formData.notificationSettings.offers}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          notificationSettings: {
-                            ...formData.notificationSettings,
-                            offers: e.target.checked
-                          }
+                        checked={notificationSettings.offers}
+                        onChange={(e) => setNotificationSettings({
+                          ...notificationSettings,
+                          offers: e.target.checked
                         })}
                         style={{ marginRight: '10px' }}
                       />
@@ -590,13 +549,10 @@ const Profile = ({ onBalanceUpdate }) => {
                     }}>
                       <input
                         type="checkbox"
-                        checked={formData.notificationSettings.trades}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          notificationSettings: {
-                            ...formData.notificationSettings,
-                            trades: e.target.checked
-                          }
+                        checked={notificationSettings.trades}
+                        onChange={(e) => setNotificationSettings({
+                          ...notificationSettings,
+                          trades: e.target.checked
                         })}
                         style={{ marginRight: '10px' }}
                       />

@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../context/AuthContext';
 import { API_URL, getColorForRarity } from '../config/constants';
 import './Home.css';
 
@@ -23,9 +22,8 @@ const generateParticles = (count) => {
 const particles = generateParticles(30);
 
 // Hero Section Component
-const HeroSection = ({ stats, prevStats }) => {
+const HeroSection = ({ user, stats, prevStats }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const [animatedStats, setAnimatedStats] = useState({
     items: { value: 0, updating: false },
     users: { value: 0, updating: false },
@@ -113,7 +111,7 @@ const HeroSection = ({ stats, prevStats }) => {
           )}
 
           {user && (
-            <Link to="/inventory" className="hero-button secondary">
+            <Link to="/sell" className="hero-button secondary">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -421,9 +419,7 @@ const HowItWorksSection = () => {
   );
 };
 
-const FinalCTASection = () => {
-  const { user } = useAuth();
-  
+const FinalCTASection = ({ user }) => {
   return (
     <section className="final-cta-section">
       <div className="final-cta-background"></div>
@@ -462,7 +458,7 @@ const FinalCTASection = () => {
             </>
           ) : (
             <>
-              <Link to="/inventory" className="hero-button primary">
+              <Link to="/sell" className="hero-button primary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -487,30 +483,54 @@ const FinalCTASection = () => {
 };
 
 const Home = () => {
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [featuredItems, setFeaturedItems] = useState([]);
   const [stats, setStats] = useState({ items: 0, users: 0, trades: 0 });
-  const { user } = useAuth();
-  
+  const [animationActive, setAnimationActive] = useState(false);
+
+  // Check if user is authenticated
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const authToken = localStorage.getItem('auth_token');
+        if (authToken) {
+          const response = await axios.get(`${API_URL}/auth/me`, {
+            withCredentials: true,
+            params: { auth_token: authToken }
+          });
+          if (response.data && response.data.user) {
+            setUser(response.data.user);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+        setUser(null);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
   // Setup real-time stat updates
   useEffect(() => {
     // Initial fetch
     fetchStats();
-    
+
     // Set up polling for real-time updates
     const statsInterval = setInterval(() => {
       fetchStats();
     }, 10000); // Update every 10 seconds
-    
+
     return () => clearInterval(statsInterval);
   }, []);
-  
+
   // Fetch platform statistics
   const fetchStats = async () => {
     try {
       // Try to get stats from API endpoint
       const response = await axios.get(`${API_URL}/stats`);
-      
+
       if (response.data) {
         setStats({
           items: response.data.activeListings || 0,
@@ -520,19 +540,19 @@ const Home = () => {
       }
     } catch (error) {
       console.error('Error fetching platform statistics:', error);
-      
+
       try {
         // Fallback: manually calculate stats from marketplace
         const marketplaceResponse = await axios.get(`${API_URL}/marketplace`);
-        
+
         if (marketplaceResponse.data && Array.isArray(marketplaceResponse.data)) {
           // Get active listings count directly from API
           const activeListings = marketplaceResponse.data.length;
-          
+
           // Generate simulated stats as fallback
           const activeUsers = Math.max(25, Math.floor(activeListings * 1.2) + Math.floor(Math.random() * 5));
           const completedTrades = Math.floor(activeListings * 0.6) + Math.floor(Math.random() * 3);
-          
+
           setStats({
             items: activeListings,
             users: activeUsers,
@@ -545,19 +565,19 @@ const Home = () => {
       }
     }
   };
-  
+
   // Fetch featured items from the server
   const fetchFeaturedItems = async () => {
     try {
       setLoading(true);
-      
+
       // Direct API call to marketplace endpoint
       const response = await axios.get(`${API_URL}/marketplace`);
-      
+
       if (response.data && Array.isArray(response.data)) {
         // Set featured items directly from API
         setFeaturedItems(response.data);
-        
+
         // Update the items count at minimum
         setStats(prev => ({
           ...prev,
@@ -598,13 +618,13 @@ const Home = () => {
         ))}
       </div>
 
-      <HeroSection stats={stats} />
+      <HeroSection user={user} stats={stats} />
       <SearchSection />
       <FeaturedItemsSection loading={loading} featuredItems={featuredItems} />
       <TradingStatsSection />
       <FeaturesSection />
       <HowItWorksSection />
-      <FinalCTASection />
+      <FinalCTASection user={user} />
     </div>
   );
 };

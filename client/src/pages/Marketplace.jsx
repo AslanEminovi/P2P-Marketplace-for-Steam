@@ -9,10 +9,8 @@ import TradePanel from '../components/TradePanel';
 import ItemCard3D from '../components/ItemCard3D';
 import TradeUrlPrompt from '../components/TradeUrlPrompt';
 import { API_URL } from '../config/constants';
-import { useAuth } from '../context/AuthContext';
 
-function Marketplace() {
-  const { user } = useAuth();
+function Marketplace({ user }) {
   const [items, setItems] = useState([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
