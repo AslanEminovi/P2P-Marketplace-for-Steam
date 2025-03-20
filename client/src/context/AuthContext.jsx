@@ -11,9 +11,13 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [authInitialized, setAuthInitialized] = useState(false);
 
+  // Add debugging
+  console.log("AuthProvider mounting");
+
   // Check if user is authenticated
   const checkAuth = async () => {
     try {
+      console.log("Checking authentication status...");
       setLoading(true);
       
       // Get token from localStorage if available
@@ -32,8 +36,12 @@ export const AuthProvider = ({ children }) => {
         params: { auth_token: authToken }
       };
       
+      console.log("Making auth request to:", `${API_URL}/auth/me`);
+      
       // Make request to check authentication
       const response = await axios.get(`${API_URL}/auth/me`, config);
+      
+      console.log("Auth response received:", response.data);
       
       if (response.data && response.data.user) {
         console.log("User authenticated:", response.data.user);
@@ -57,6 +65,7 @@ export const AuthProvider = ({ children }) => {
 
   // Check for auth token in URL (after Steam login)
   const checkURLAuth = () => {
+    console.log("Checking URL for auth token...");
     const urlParams = new URLSearchParams(window.location.search);
     const authToken = urlParams.get('auth_token');
     
@@ -74,17 +83,20 @@ export const AuthProvider = ({ children }) => {
       checkAuth();
       return true;
     }
+    console.log("No auth token found in URL");
     return false;
   };
 
   // Handle logout
   const logout = () => {
+    console.log("Logging out user");
     localStorage.removeItem('auth_token');
     setUser(null);
   };
 
   // Initial auth check on mount
   useEffect(() => {
+    console.log("AuthProvider mounted, running initial auth check");
     const hasURLToken = checkURLAuth();
     if (!hasURLToken) {
       checkAuth();
@@ -113,6 +125,12 @@ export const AuthProvider = ({ children }) => {
     logout
   };
 
+  console.log("AuthProvider rendering with values:", { 
+    user: user ? 'User exists' : 'No user', 
+    loading, 
+    authInitialized 
+  });
+
   return (
     <AuthContext.Provider value={value}>
       {children}
@@ -124,6 +142,7 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === null) {
+    console.error("useAuth was called outside of AuthProvider!");
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

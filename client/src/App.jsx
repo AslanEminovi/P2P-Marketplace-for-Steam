@@ -71,10 +71,17 @@ const PageWrapper = ({ children }) => {
 };
 
 function App() {
-  const { user, loading, refreshWalletBalance } = useAuth();
+  const { user, loading, checkAuth } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
   const { t } = useTranslation();
+
+  // Function to refresh wallet balance
+  const refreshWalletBalance = () => {
+    console.log("Refreshing wallet balance");
+    // Call checkAuth to refresh the user data
+    checkAuth();
+  };
 
   // Configure Axios to include auth token with all requests
   useEffect(() => {
@@ -89,7 +96,7 @@ function App() {
       // If token exists, include it in query params
       if (token) {
         // Include token in URL if it's to our API
-        if (config.url.startsWith(API_URL)) {
+        if (config.url && config.url.startsWith(API_URL)) {
           // Initialize params object if not exists
           config.params = config.params || {};
           // Add token to params
@@ -168,7 +175,7 @@ function App() {
 
       const handleWalletUpdate = (walletData) => {
         console.log('Wallet update:', walletData);
-        // Update user's wallet balance through the AuthContext
+        // Update user's wallet balance
         refreshWalletBalance();
       };
 
@@ -199,7 +206,7 @@ function App() {
         socketService.disconnect();
       };
     }
-  }, [user, refreshWalletBalance]);
+  }, [user, refreshWalletBalance, checkAuth]);
 
   return (
     <div style={{
