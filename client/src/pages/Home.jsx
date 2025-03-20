@@ -705,11 +705,43 @@ const Home = ({ user }) => {
           setFeaturedItems(validItems);
         } else {
           console.error("Featured items response is not an array or is empty:", featuredResponse.data);
-          setFeaturedItems(getFallbackItems());
+          // Try fetching from marketplace endpoint directly instead of using fallback items
+          try {
+            const marketplaceResponse = await axios.get(`${API_URL}/marketplace?limit=6`);
+            if (Array.isArray(marketplaceResponse.data) && marketplaceResponse.data.length > 0) {
+              const marketplaceItems = marketplaceResponse.data.map(item => ({
+                ...item,
+                price: typeof item.price === 'number' ? item.price : 0,
+                priceGEL: typeof item.priceGEL === 'number' ? item.priceGEL : Math.round((item.price || 0) * 2.65)
+              }));
+              setFeaturedItems(marketplaceItems);
+            } else {
+              setFeaturedItems(getFallbackItems());
+            }
+          } catch (err) {
+            console.error("Error fetching from marketplace endpoint:", err);
+            setFeaturedItems(getFallbackItems());
+          }
         }
       } catch (error) {
         console.error("Error fetching featured items:", error);
-        setFeaturedItems(getFallbackItems());
+        // Try fetching from marketplace endpoint directly instead of using fallback items
+        try {
+          const marketplaceResponse = await axios.get(`${API_URL}/marketplace?limit=6`);
+          if (Array.isArray(marketplaceResponse.data) && marketplaceResponse.data.length > 0) {
+            const marketplaceItems = marketplaceResponse.data.map(item => ({
+              ...item,
+              price: typeof item.price === 'number' ? item.price : 0,
+              priceGEL: typeof item.priceGEL === 'number' ? item.priceGEL : Math.round((item.price || 0) * 2.65)
+            }));
+            setFeaturedItems(marketplaceItems);
+          } else {
+            setFeaturedItems(getFallbackItems());
+          }
+        } catch (err) {
+          console.error("Error fetching from marketplace endpoint:", err);
+          setFeaturedItems(getFallbackItems());
+        }
       }
       
       // ... other API calls (stats, etc.) ...

@@ -80,13 +80,13 @@
 
 .navbar-logo .georgian-text {
   font-size: 0.6em;
-  margin-top: -5px;
+  margin-top: 0;
   letter-spacing: 0.5px;
-  margin-left: 0;
-  position: absolute;
-  width: 100%;
-  text-align: center;
-  left: 0;
+  position: relative;
+  margin-left: 8px;
+  display: inline-block;
+  width: auto;
+  text-align: left;
 }
 
 .nav-text-container {

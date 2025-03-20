@@ -117,9 +117,11 @@ const Navbar = ({ user, onLogout }) => {
       <div className="navbar-container">
         <div className="navbar-left">
           <Link to="/" className="navbar-logo">
-            {/* Replace image with text-only logo */}
-            <span className="logo-text">CS2 Market</span>
-            <span className="georgian-text">საქართველო</span>
+            {/* Display logo text and Georgian text next to each other */}
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span className="logo-text">CS2 Market</span>
+              <span className="georgian-text">საქართველო</span>
+            </div>
           </Link>
           
           <div className="navbar-links desktop-only">
