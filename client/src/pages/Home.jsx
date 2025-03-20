@@ -25,6 +25,9 @@ const particles = generateParticles(30);
 // Hero Section Component
 const HeroSection = ({ user, stats, prevStats }) => {
   const { t } = useTranslation();
+  // Provide default empty stats object
+  const safeStats = stats || { items: 0, users: 0, trades: 0 };
+  
   const [animatedStats, setAnimatedStats] = useState({
     items: { value: 0, updating: false },
     users: { value: 0, updating: false },
@@ -33,32 +36,36 @@ const HeroSection = ({ user, stats, prevStats }) => {
 
   // Animate stats when they change
   useEffect(() => {
-    // First update the values without animation
+    // First update the values without animation - ensure they're numbers
     if (Object.values(animatedStats).every(stat => stat.value === 0)) {
       setAnimatedStats({
-        items: { value: stats.items || 0, updating: false },
-        users: { value: stats.users || 0, updating: false },
-        trades: { value: stats.trades || 0, updating: false }
+        items: { value: typeof safeStats.items === 'number' ? safeStats.items : 0, updating: false },
+        users: { value: typeof safeStats.users === 'number' ? safeStats.users : 0, updating: false },
+        trades: { value: typeof safeStats.trades === 'number' ? safeStats.trades : 0, updating: false }
       });
       return;
     }
 
-    // Next check what changed and animate those
+    // Next check what changed and animate those - ensure they're numbers
     const newAnimatedStats = { ...animatedStats };
     let hasChanges = false;
+    
+    const safeItemsValue = typeof safeStats.items === 'number' ? safeStats.items : 0;
+    const safeUsersValue = typeof safeStats.users === 'number' ? safeStats.users : 0;
+    const safeTradesValue = typeof safeStats.trades === 'number' ? safeStats.trades : 0;
 
-    if (stats.items !== animatedStats.items.value) {
-      newAnimatedStats.items = { value: stats.items, updating: true };
+    if (safeItemsValue !== animatedStats.items.value) {
+      newAnimatedStats.items = { value: safeItemsValue, updating: true };
       hasChanges = true;
     }
 
-    if (stats.users !== animatedStats.users.value) {
-      newAnimatedStats.users = { value: stats.users, updating: true };
+    if (safeUsersValue !== animatedStats.users.value) {
+      newAnimatedStats.users = { value: safeUsersValue, updating: true };
       hasChanges = true;
     }
 
-    if (stats.trades !== animatedStats.trades.value) {
-      newAnimatedStats.trades = { value: stats.trades, updating: true };
+    if (safeTradesValue !== animatedStats.trades.value) {
+      newAnimatedStats.trades = { value: safeTradesValue, updating: true };
       hasChanges = true;
     }
 
@@ -289,6 +296,17 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
 };
 
 const TradingStatsSection = ({ stats }) => {
+  // Ensure stats object exists
+  const safeStats = stats || {};
+  
+  // Safely extract and convert each stat value
+  const safeUsers = typeof safeStats.users === 'number' ? safeStats.users : 0;
+  const safeItems = typeof safeStats.items === 'number' ? safeStats.items : 0;
+  const safeTrades = typeof safeStats.trades === 'number' ? safeStats.trades : 0;
+  
+  // For successful trades percentage
+  const successRate = safeTrades > 0 ? '98.7%' : '0%';
+  
   return (
     <section className="trading-stats-section">
       <div className="section-title">
@@ -307,7 +325,7 @@ const TradingStatsSection = ({ stats }) => {
               <circle cx="12" cy="10" r="3"></circle>
             </svg>
           </div>
-          <div className="stat-value">{stats.users.toLocaleString()}</div>
+          <div className="stat-value">{safeUsers.toLocaleString()}</div>
           <div className="stat-label">Active Users</div>
           <p className="stat-description">People actively trading on our platform this month</p>
         </div>
@@ -320,7 +338,7 @@ const TradingStatsSection = ({ stats }) => {
               <line x1="12" y1="17" x2="12" y2="21"></line>
             </svg>
           </div>
-          <div className="stat-value">{stats.items.toLocaleString()}</div>
+          <div className="stat-value">{safeItems.toLocaleString()}</div>
           <div className="stat-label">Items Listed</div>
           <p className="stat-description">Total number of items listed on our marketplace</p>
         </div>
@@ -332,7 +350,7 @@ const TradingStatsSection = ({ stats }) => {
               <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
           </div>
-          <div className="stat-value">{stats.trades > 0 ? '98.7%' : '0%'}</div>
+          <div className="stat-value">{successRate}</div>
           <div className="stat-label">Successful Trades</div>
           <p className="stat-description">Percentage of completed trades with satisfied users</p>
         </div>
@@ -345,7 +363,7 @@ const TradingStatsSection = ({ stats }) => {
               <path d="M8 6l8 12"></path>
             </svg>
           </div>
-          <div className="stat-value">{stats.trades.toLocaleString()}</div>
+          <div className="stat-value">{safeTrades.toLocaleString()}</div>
           <div className="stat-label">Completed Trades</div>
           <p className="stat-description">Total number of successful trades on our platform</p>
         </div>
@@ -565,10 +583,15 @@ const Home = ({ user }) => {
   // Function to handle stats updates from socket
   const handleStatsUpdate = useCallback((statsData) => {
     console.log("Received real-time stats update:", statsData);
+    // Ensure values are numbers, not objects
+    const safeItems = typeof statsData.activeListings === 'number' ? statsData.activeListings : 0;
+    const safeUsers = typeof statsData.activeUsers === 'number' ? statsData.activeUsers : 0;
+    const safeTrades = typeof statsData.completedTrades === 'number' ? statsData.completedTrades : 0;
+    
     setStats({
-      items: statsData.activeListings || 0,
-      users: statsData.activeUsers || 0,
-      trades: statsData.completedTrades || 0
+      items: safeItems,
+      users: safeUsers,
+      trades: safeTrades
     });
   }, []);
 
