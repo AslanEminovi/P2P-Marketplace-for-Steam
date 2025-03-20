@@ -121,7 +121,7 @@ const Navbar = ({ user, onLogout }) => {
           <Link to="/" className="navbar-logo">
             {/* Replace image with text-only logo */}
             <span className="logo-text">CS2 Market</span>
-            <span className="geo-text">CS2 მარკეტპლეისი</span>
+            <span className="geo-text">საქართველო</span>
           </Link>
           
           <div className="navbar-links desktop-only">
