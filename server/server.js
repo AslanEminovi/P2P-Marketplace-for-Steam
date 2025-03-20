@@ -465,10 +465,74 @@ io.on("connection", (socket) => {
     });
   }
 
+  // Track this connection by updating connected users count
+  updateSiteStats();
+
+  // Handle individual socket events
+  socket.on("request_stats_update", async () => {
+    // Client is explicitly requesting fresh stats
+    await updateSiteStats();
+  });
+
   socket.on("disconnect", () => {
     console.log(`Client disconnected: ${socketId}`);
+    // Update connected users count on disconnect
+    setTimeout(updateSiteStats, 500); // Short delay to ensure disconnect is complete
   });
 });
+
+// Function to update site statistics and broadcast to all clients
+async function updateSiteStats() {
+  try {
+    const socketService = require("./services/socketService");
+    const connectedClients = socketService.getConnectedClientsCount();
+
+    // Get data from database
+    const Item = mongoose.model("Item");
+    const User = mongoose.model("User");
+    const Trade = mongoose.model("Trade");
+
+    // Get counts of active listings, users, and completed trades
+    const [activeListings, registeredUsers, completedTrades] =
+      await Promise.all([
+        Item.countDocuments({ isListed: true }),
+        User.countDocuments({
+          lastLogin: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        }),
+        Trade.countDocuments({ status: "completed" }),
+      ]);
+
+    // Use either the connected clients count or registered users count, whichever is higher
+    // This ensures we don't display "0 users" when there are clearly people using the site
+    const activeUsers = Math.max(connectedClients, registeredUsers);
+
+    // Create stats object
+    const stats = {
+      activeListings,
+      activeUsers,
+      completedTrades,
+      timestamp: new Date(),
+    };
+
+    // Update stats cache for the /marketplace/stats endpoint
+    const marketplaceRoutes = require("./routes/marketplaceRoutes");
+    if (marketplaceRoutes.statsCache) {
+      marketplaceRoutes.statsCache = {
+        data: stats,
+        timestamp: Date.now(),
+      };
+    }
+
+    // Broadcast to all connected clients
+    socketService.broadcastStats(stats);
+
+    console.log(
+      `Site stats updated and broadcast: ${activeUsers} active users, ${activeListings} listings`
+    );
+  } catch (error) {
+    console.error("Error updating site statistics:", error);
+  }
+}
 
 // Initialize socket service
 const socketService = require("./services/socketService");
@@ -476,6 +540,9 @@ socketService.init(io);
 
 // Export io instance for use in other files
 app.set("io", io);
+
+// Export the updateSiteStats function for use in controllers
+module.exports.updateSiteStats = updateSiteStats;
 
 // Error handling middleware
 app.use((err, req, res, next) => {

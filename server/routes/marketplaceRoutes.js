@@ -10,7 +10,7 @@ router.get("/featured", marketplaceController.getFeaturedItems);
 router.get("/item/:itemId", marketplaceController.getItemDetails);
 
 // Public statistics endpoint for homepage
-let statsCache = {
+const statsCache = {
   data: null,
   timestamp: null,
 };
@@ -52,10 +52,8 @@ router.get("/stats", async (req, res) => {
     };
 
     // Update cache
-    statsCache = {
-      data: stats,
-      timestamp: now,
-    };
+    statsCache.data = stats;
+    statsCache.timestamp = now;
 
     res.json(stats);
   } catch (error) {
@@ -83,4 +81,7 @@ router.put(
   marketplaceController.updatePrice
 );
 
+// Export router and statsCache for use in other files
 module.exports = router;
+// Export statsCache for use in server.js to update in real-time
+module.exports.statsCache = statsCache;

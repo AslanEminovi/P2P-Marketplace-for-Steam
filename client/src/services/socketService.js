@@ -1,335 +1,232 @@
-import { io } from "socket.io-client";
+import io from "socket.io-client";
 import { API_URL } from "../config/constants";
 
 class SocketService {
   constructor() {
     this.socket = null;
-    this.isConnected = false;
-    this.listeners = new Map();
+    this.connected = false;
+    this.connectionEvents = new Map();
+    this.events = new Map();
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 10;
+    this.maxReconnectAttempts = 5;
+    this.reconnectDelay = 2000;
     this.reconnectTimer = null;
-    this.autoReconnect = true;
+    this.connectedCallback = null;
+    this.disconnectedCallback = null;
   }
 
-  /**
-   * Initialize the socket connection to the server
-   */
-  init() {
-    if (this.socket && this.socket.connected) {
-      console.log("Socket already connected");
-      this._triggerListeners("connection_status", { connected: true });
-      return;
-    }
+  connect(token = null) {
+    console.log(
+      "[SocketService] Attempting to connect to socket server:",
+      API_URL
+    );
 
-    // Clean up existing socket if it exists but isn't connected
     if (this.socket) {
-      this.socket.removeAllListeners();
-      this.socket.disconnect();
-      this.socket = null;
+      console.log("[SocketService] Socket already exists, disconnecting first");
+      this.disconnect();
     }
 
-    console.log("Initializing socket connection to:", API_URL);
+    // Get token from localStorage if not provided
+    if (!token) {
+      token = localStorage.getItem("auth_token");
+      console.log(
+        "[SocketService] Using token from localStorage:",
+        token ? "Token exists" : "No token"
+      );
+    }
 
-    // Get authentication token if available
-    const authToken = localStorage.getItem("auth_token");
-    console.log("Socket auth token available:", !!authToken);
-
-    // Connect to the WebSocket server (use the same URL as the API)
+    // Initialize socket connection with auth token
     this.socket = io(API_URL, {
-      withCredentials: true,
+      query: token ? { token } : {},
+      transports: ["websocket", "polling"],
       reconnection: true,
-      reconnectionAttempts: this.maxReconnectAttempts,
+      reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
+      timeout: 10000,
       autoConnect: true,
-      forceNew: false,
-      transports: ["websocket", "polling"],
-      auth: {
-        token: authToken,
-      },
-      query: {
-        token: authToken,
-      },
-      extraHeaders: authToken
-        ? {
-            Authorization: `Bearer ${authToken}`,
-          }
-        : {},
     });
 
-    console.log("Socket options configured:", {
-      withCredentials: true,
-      url: API_URL,
-      reconnection: true,
-      transports: ["websocket", "polling"],
-      authAvailable: !!authToken,
-    });
-
-    // Setup event listeners
+    // Setup connection event handlers
     this.socket.on("connect", () => {
-      console.log("WebSocket connected successfully");
-      this.isConnected = true;
+      console.log("[SocketService] Connected to socket server!");
+      this.connected = true;
       this.reconnectAttempts = 0;
-      this._triggerListeners("connection_status", { connected: true });
 
-      // Clear any reconnect timers
-      if (this.reconnectTimer) {
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = null;
+      if (this.connectedCallback) {
+        this.connectedCallback();
       }
+
+      // Re-register all event listeners after reconnection
+      this.rebindEvents();
     });
 
     this.socket.on("connect_error", (error) => {
-      console.error("WebSocket connection error:", error.message);
-      this.isConnected = false;
-      this._triggerListeners("connection_status", { connected: false, error });
-
-      // Attempt reconnection with a slight delay if not already reconnecting
-      if (this.autoReconnect && !this.reconnectTimer) {
-        this.scheduleReconnect();
-      }
-    });
-
-    this.socket.on("connect_timeout", (timeout) => {
-      console.error("WebSocket connection timeout:", timeout);
-      this.isConnected = false;
-      this._triggerListeners("connection_status", {
-        connected: false,
-        reason: "timeout",
-      });
-    });
-
-    this.socket.on("connect_success", (data) => {
-      console.log("WebSocket connect success:", data);
-      this._triggerListeners("connect_success", data);
+      console.error("[SocketService] Connection error:", error);
+      this.handleConnectionFailure();
     });
 
     this.socket.on("disconnect", (reason) => {
-      console.log("WebSocket disconnected:", reason);
-      this.isConnected = false;
-      this._triggerListeners("connection_status", { connected: false, reason });
+      console.log(
+        "[SocketService] Disconnected from socket server, reason:",
+        reason
+      );
+      this.connected = false;
 
-      // Attempt to reconnect for certain disconnection reasons
-      if (
-        this.autoReconnect &&
-        !this.reconnectTimer &&
-        reason !== "io client disconnect" &&
-        reason !== "io server disconnect"
-      ) {
-        console.log("Scheduling reconnection after disconnect...");
+      if (this.disconnectedCallback) {
+        this.disconnectedCallback();
+      }
+
+      // Handle disconnect reason
+      if (reason === "io server disconnect") {
+        // Server disconnected the client, need to reconnect manually
         this.scheduleReconnect();
       }
     });
 
-    this.socket.on("reconnect", (attemptNumber) => {
-      console.log(`Socket reconnected after ${attemptNumber} attempts`);
-      this.isConnected = true;
-      this._triggerListeners("connection_status", { connected: true });
-    });
-
     this.socket.on("reconnect_attempt", (attemptNumber) => {
-      console.log(`Socket reconnection attempt #${attemptNumber}`);
-    });
-
-    this.socket.on("reconnect_error", (error) => {
-      console.error("Socket reconnection error:", error);
+      console.log(`[SocketService] Reconnection attempt #${attemptNumber}`);
     });
 
     this.socket.on("reconnect_failed", () => {
-      console.error("Socket reconnection failed after all attempts");
-      // Final connection status update
-      this._triggerListeners("connection_status", {
-        connected: false,
-        error: "Maximum reconnection attempts reached",
-      });
+      console.error("[SocketService] Failed to reconnect after max attempts");
+      this.handleConnectionFailure();
     });
 
-    this.socket.on("auth_error", (data) => {
-      console.error("WebSocket authentication error:", data);
-      this._triggerListeners("auth_error", data);
-    });
-
-    this.socket.on("error", (error) => {
-      console.error("WebSocket error:", error);
-      this._triggerListeners("error", error);
-    });
-
-    // Setup event listeners for application-specific events
-    this.socket.on("notification", (data) => {
-      console.log("Notification received:", data);
-      this._triggerListeners("notification", data);
-    });
-
-    this.socket.on("trade_update", (data) => {
-      console.log("Trade update received:", data);
-      this._triggerListeners("trade_update", data);
-    });
-
-    this.socket.on("market_update", (data) => {
-      console.log("Market update received:", data);
-      this._triggerListeners("market_update", data);
-    });
-
-    this.socket.on("inventory_update", (data) => {
-      console.log("Inventory update received:", data);
-      this._triggerListeners("inventory_update", data);
-    });
-
-    this.socket.on("wallet_update", (data) => {
-      console.log("Wallet update received:", data);
-      this._triggerListeners("wallet_update", data);
-    });
-
-    // Initial connection status (pre-connection)
-    this._triggerListeners("connection_status", {
-      connected: false,
-      connecting: true,
-    });
+    return this.socket;
   }
 
-  /**
-   * Schedule a reconnection attempt with exponential backoff
-   */
+  disconnect() {
+    if (this.socket) {
+      console.log("[SocketService] Disconnecting socket");
+      this.socket.disconnect();
+      this.socket = null;
+      this.connected = false;
+    }
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
+  reconnect() {
+    console.log("[SocketService] Manual reconnect requested");
+    this.reconnectAttempts = 0;
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    // Get the latest token in case it was updated
+    const token = localStorage.getItem("auth_token");
+    this.connect(token);
+  }
+
   scheduleReconnect() {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error("[SocketService] Max reconnect attempts reached");
+      return;
+    }
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
     }
 
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error("Maximum reconnection attempts reached");
-      this._triggerListeners("connection_status", {
-        connected: false,
-        error: "Maximum reconnection attempts reached",
-      });
-      return;
-    }
-
-    const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), 10000);
+    const delay = this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts);
     console.log(
-      `Scheduling reconnect in ${delay}ms (attempt ${
+      `[SocketService] Scheduling reconnect in ${delay}ms (attempt ${
         this.reconnectAttempts + 1
       }/${this.maxReconnectAttempts})`
     );
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempts++;
-      console.log(
-        `Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`
-      );
-
-      if (this.socket) {
-        this.socket.connect();
-      } else {
-        this.init();
-      }
-      this.reconnectTimer = null;
+      this.reconnect();
     }, delay);
   }
 
-  /**
-   * Reconnect to the WebSocket server
-   */
-  reconnect() {
-    // Force a reconnection
-    this.disconnect();
+  handleConnectionFailure() {
+    this.connected = false;
 
-    // Reset reconnect attempts to ensure we get a full set of retries
-    this.reconnectAttempts = 0;
-
-    // Schedule an immediate reconnect
-    setTimeout(() => {
-      console.log("Manual reconnection initiated");
-      this.init();
-    }, 100);
-  }
-
-  /**
-   * Disconnect from the WebSocket server
-   */
-  disconnect() {
-    // Cancel any pending reconnects
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
+    if (this.disconnectedCallback) {
+      this.disconnectedCallback();
     }
 
-    // Disable auto reconnect temporarily
-    this.autoReconnect = false;
-
-    if (this.socket) {
-      console.log("Disconnecting socket");
-      this.socket.disconnect();
-      this.isConnected = false;
-      // Update connection status immediately
-      this._triggerListeners("connection_status", {
-        connected: false,
-        reason: "manual disconnect",
-      });
-    }
-
-    // Re-enable auto reconnect after a short delay
-    setTimeout(() => {
-      this.autoReconnect = true;
-    }, 1000);
+    this.scheduleReconnect();
   }
 
-  /**
-   * Add an event listener for a specific event
-   * @param {string} event - The event name to listen for
-   * @param {Function} callback - The callback function when event is triggered
-   */
+  onConnected(callback) {
+    this.connectedCallback = callback;
+    return this;
+  }
+
+  onDisconnected(callback) {
+    this.disconnectedCallback = callback;
+    return this;
+  }
+
   on(event, callback) {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
+    if (!this.events.has(event)) {
+      this.events.set(event, []);
     }
 
-    this.listeners.get(event).push(callback);
-    return () => this.off(event, callback);
+    this.events.get(event).push(callback);
+
+    // If socket exists, bind immediately
+    if (this.socket) {
+      this.socket.on(event, callback);
+    }
+
+    return this;
   }
 
-  /**
-   * Remove an event listener
-   * @param {string} event - The event name
-   * @param {Function} callback - The callback function to remove
-   */
   off(event, callback) {
-    if (!this.listeners.has(event)) return;
+    if (this.events.has(event)) {
+      const callbacks = this.events.get(event);
+      const index = callbacks.indexOf(callback);
 
-    const callbacks = this.listeners.get(event);
-    const index = callbacks.indexOf(callback);
+      if (index !== -1) {
+        callbacks.splice(index, 1);
 
-    if (index !== -1) {
-      callbacks.splice(index, 1);
-    }
-  }
-
-  /**
-   * Check if the socket is currently connected
-   * @returns {boolean} Connection status
-   */
-  isSocketConnected() {
-    return this.isConnected;
-  }
-
-  /**
-   * Trigger all registered callbacks for an event
-   * @param {string} event - The event name
-   * @param {any} data - The data to pass to the callbacks
-   * @private
-   */
-  _triggerListeners(event, data) {
-    if (!this.listeners.has(event)) return;
-
-    const callbacks = this.listeners.get(event);
-    callbacks.forEach((callback) => {
-      try {
-        callback(data);
-      } catch (error) {
-        console.error(`Error in ${event} listener:`, error);
+        if (this.socket) {
+          this.socket.off(event, callback);
+        }
       }
+
+      if (callbacks.length === 0) {
+        this.events.delete(event);
+      }
+    }
+
+    return this;
+  }
+
+  emit(event, data, callback) {
+    if (!this.socket || !this.connected) {
+      console.warn(
+        `[SocketService] Cannot emit '${event}' - socket not connected`
+      );
+      return false;
+    }
+
+    console.log(`[SocketService] Emitting event: ${event}`, data);
+    this.socket.emit(event, data, callback);
+    return true;
+  }
+
+  rebindEvents() {
+    // Re-attach all event listeners
+    this.events.forEach((callbacks, event) => {
+      callbacks.forEach((callback) => {
+        console.log(`[SocketService] Rebinding event: ${event}`);
+        this.socket.on(event, callback);
+      });
     });
+  }
+
+  isConnected() {
+    return this.connected && this.socket && this.socket.connected;
   }
 }
 

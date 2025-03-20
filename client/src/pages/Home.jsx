@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { API_URL, getColorForRarity } from '../config/constants';
+import socketService from '../services/socketService';
 import './Home.css';
 
 // Generate random particles for background effect
@@ -492,7 +493,45 @@ const Home = ({ user }) => {
     trades: 0
   });
 
-  // Fetch marketplace stats and featured items
+  // Function to handle stats updates from socket
+  const handleStatsUpdate = useCallback((statsData) => {
+    console.log("Received real-time stats update:", statsData);
+    setStats({
+      items: statsData.activeListings || 0,
+      users: statsData.activeUsers || 0,
+      trades: statsData.completedTrades || 0
+    });
+  }, []);
+
+  // Initialize socket connection and set up listeners
+  useEffect(() => {
+    // Initialize socket service if it's not already
+    if (!socketService.isConnected) {
+      socketService.init();
+    }
+
+    // Set up listener for stats updates
+    socketService.on('stats_update', handleStatsUpdate);
+
+    // Set up listener for connection status changes
+    socketService.on('connection_status', (status) => {
+      console.log("Socket connection status:", status);
+      
+      // If we're connected, request a stats update
+      if (status.connected) {
+        console.log("Connected to server, requesting stats update");
+        socketService.socket.emit('request_stats_update');
+      }
+    });
+
+    // Clean up listeners when component unmounts
+    return () => {
+      socketService.off('stats_update', handleStatsUpdate);
+      socketService.off('connection_status');
+    };
+  }, [handleStatsUpdate]);
+
+  // Initial fetch of marketplace data
   useEffect(() => {
     const fetchMarketplaceData = async () => {
       setLoading(true);

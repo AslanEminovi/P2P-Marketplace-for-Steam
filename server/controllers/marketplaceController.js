@@ -116,6 +116,21 @@ exports.listItem = async (req, res) => {
       item: newItem,
     });
 
+    // Update site stats since we've added a new listing
+    if (server && typeof server.updateSiteStats === "function") {
+      server.updateSiteStats();
+    } else {
+      // Try to require server.js to access the function
+      try {
+        const server = require("../server");
+        if (typeof server.updateSiteStats === "function") {
+          server.updateSiteStats();
+        }
+      } catch (err) {
+        console.log("Could not trigger site stats update:", err.message);
+      }
+    }
+
     return res.status(201).json(newItem);
   } catch (err) {
     console.error(err);

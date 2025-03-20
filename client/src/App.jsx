@@ -22,6 +22,11 @@ import SteamSettings from './components/SteamSettings';
 import TradeHistory from './components/TradeHistory';
 import NotificationCenter from './components/NotificationCenter';
 import LanguageSwitcher from './components/LanguageSwitcher';
+import PageWrapper from './components/PageWrapper';
+import Notifications from './components/Notifications';
+import Trades from './pages/Trades';
+import UserProfile from './pages/UserProfile';
+import SocketConnectionIndicator from './components/SocketConnectionIndicator';
 
 // Import constants
 import { API_URL } from './config/constants';
@@ -79,68 +84,145 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [showConnectionIndicator, setShowConnectionIndicator] = useState(false);
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [showConnectionIndicator, setShowConnectionIndicator] = useState(true);
 
-  // Configure Axios to include auth token with all requests
+  // Function to show a notification
+  window.showNotification = (title, message, type = 'INFO', timeout = 5000) => {
+    const id = Date.now().toString();
+    const notification = { id, title, message, type, timeout };
+    setNotifications(prev => [...prev, notification]);
+    return id;
+  };
+
+  // Function to close a notification
+  window.closeNotification = (id) => {
+    setNotifications(prev => prev.filter(notification => notification.id !== id));
+  };
+
+  // Setup Axios interceptors
   useEffect(() => {
-    // Add request interceptor to include token with all requests
-    const interceptor = axios.interceptors.request.use(config => {
-      // Always include withCredentials for CORS
-      config.withCredentials = true;
-
-      // Get token from localStorage
-      const token = localStorage.getItem('auth_token');
-      console.log('Axios interceptor - token exists:', !!token);
-
-      // If token exists, include it ONLY in query params for Steam compatibility
-      if (token) {
-        // Initialize params object if not exists
-        config.params = config.params || {};
-        
-        // Add token to params for all requests
-        config.params.auth_token = token;
-        
-        // Don't add Authorization header for Steam auth - this can sometimes cause conflicts
-        // with how Steam's auth system works
-        
-        console.log('Added Steam auth token to request:', config.url);
-      } else {
-        console.log('No auth token available for request:', config.url);
-      }
-
-      return config;
-    }, error => {
-      console.error('Axios interceptor request error:', error);
-      return Promise.reject(error);
-    });
-
-    // Add response interceptor to handle auth errors
-    const responseInterceptor = axios.interceptors.response.use(
-      response => response,
-      error => {
-        console.error('API Error in response interceptor:', error.response?.status, error.response?.data);
-        
-        // If we get a 401 Unauthorized, the token might be invalid
-        if (error.response && error.response.status === 401) {
-          console.log('Received 401 Unauthorized - might need to re-authenticate with Steam');
-          console.log('Error details:', error.response.data);
+    // Request interceptor for API calls
+    const requestInterceptor = axios.interceptors.request.use(
+      config => {
+        // Only add token to requests to our API
+        if (config.url && config.url.startsWith(API_URL)) {
+          const token = localStorage.getItem('auth_token');
+          console.log("Axios interceptor - token exists:", !!token);
           
-          // Uncomment to clear token and redirect to login on 401 errors
-          // localStorage.removeItem('auth_token');
-          // window.location.href = `${API_URL}/auth/steam`;
+          if (token) {
+            // Set up query parameters if they don't exist
+            if (!config.params) {
+              config.params = {};
+            }
+            
+            // Add token to query params - this is the most reliable way to pass it
+            // especially for Steam-related authentication
+            config.params.auth_token = token;
+            
+            console.log("Added Steam auth token to request:", config.url);
+          } else {
+            console.log("No auth token available for request:", config.url);
+          }
+          
+          // Always ensure this is set for CORS
+          config.withCredentials = true;
         }
-        
+        return config;
+      },
+      error => {
+        console.error('Request interceptor error:', error);
         return Promise.reject(error);
       }
     );
 
-    // Remove interceptors on cleanup
+    // Response interceptor for API calls
+    const responseInterceptor = axios.interceptors.response.use(
+      response => {
+        return response;
+      },
+      async error => {
+        // Handle 401 Unauthorized errors, which might indicate an invalid token
+        if (error.response && error.response.status === 401) {
+          console.error('Authentication error (401):', error.response.data);
+          
+          // Check if this is the /auth/user endpoint
+          if (error.config.url && error.config.url.includes('/auth/user')) {
+            console.log('User not authenticated. Please log in with Steam.');
+          } else {
+            // Show error message for other endpoints
+            window.showNotification(
+              t('common.error'),
+              t('auth.sessionExpired'),
+              'ERROR'
+            );
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    // Initialize socket connection
+    if (!socketService.isConnected) {
+      socketService.init();
+    }
+
+    // Cleanup function to remove interceptors when component unmounts
     return () => {
-      axios.interceptors.request.eject(interceptor);
+      axios.interceptors.request.eject(requestInterceptor);
       axios.interceptors.response.eject(responseInterceptor);
     };
+  }, [t]);
+
+  // Handle socket connection status
+  useEffect(() => {
+    const handleConnectionStatus = (status) => {
+      console.log('Socket connection status update:', status);
+      setSocketConnected(status.connected);
+      
+      // Only show connection indicator when disconnected
+      if (!status.connected && !status.connecting) {
+        setShowConnectionIndicator(true);
+      } else if (status.connected) {
+        // Hide indicator after a delay when connected
+        setTimeout(() => {
+          setShowConnectionIndicator(false);
+        }, 3000);
+      }
+    };
+
+    // Set up socket notification listener
+    const handleNotification = (data) => {
+      if (data && data.title && data.message) {
+        window.showNotification(
+          data.title,
+          data.message,
+          data.type || 'INFO',
+          data.timeout || 5000
+        );
+      }
+    };
+
+    // Register listeners
+    socketService.on('connection_status', handleConnectionStatus);
+    socketService.on('notification', handleNotification);
+
+    // Initial connection if needed
+    if (!socketService.isConnected) {
+      socketService.init();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      socketService.off('connection_status', handleConnectionStatus);
+      socketService.off('notification', handleNotification);
+    };
+  }, []);
+
+  // Check authentication status on mount and when URL has auth token
+  useEffect(() => {
+    checkAuthStatus();
   }, []);
 
   const checkAuthStatus = async () => {
@@ -322,10 +404,6 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
-
   // Get wallet balance from API
   const refreshWalletBalance = async () => {
     if (user) {
@@ -343,126 +421,6 @@ function App() {
       }
     }
   };
-
-  // Initialize WebSocket connection when user is authenticated
-  useEffect(() => {
-    if (user) {
-      // Initialize WebSocket connection
-      socketService.init();
-
-      // Setup event listeners
-      const handleConnectionStatus = (status) => {
-        setSocketConnected(status.connected);
-        console.log('WebSocket connection status:', status);
-      };
-
-      const handleNotification = (notification) => {
-        // Add the notification to state
-        setNotifications(prevNotifications => [notification, ...prevNotifications]);
-
-        // Show notification UI if available
-        if (window.showNotification) {
-          window.showNotification(
-            notification.title,
-            notification.message,
-            notification.type === 'trade' ? 'INFO' : 'SUCCESS'
-          );
-        }
-      };
-
-      const handleTradeUpdate = (tradeData) => {
-        console.log('Trade update:', tradeData);
-
-        // Create a notification with a valid type
-        const notification = {
-          type: 'trade',
-          title: 'Trade Update',
-          message: `Your trade #${tradeData.tradeId} status has been updated to: ${tradeData.status}`,
-          read: false,
-          link: `/trades/${tradeData.tradeId}`,
-          createdAt: new Date()
-        };
-
-        // Add the notification to state
-        setNotifications(prevNotifications => [notification, ...prevNotifications]);
-
-        // Show notification UI if available
-        if (window.showNotification) {
-          window.showNotification(
-            notification.title,
-            notification.message,
-            'INFO'
-          );
-        }
-
-        // Implement trade update logic - you might need to update the trade list
-        // or refresh data in the current page if it's a trade page
-      };
-
-      const handleInventoryUpdate = (inventoryData) => {
-        console.log('Inventory update:', inventoryData);
-        // If user is on the inventory page, you might want to trigger a refresh
-      };
-
-      const handleWalletUpdate = (walletData) => {
-        console.log('Wallet update:', walletData);
-        // Update user's wallet balance
-        setUser(prevUser => ({
-          ...prevUser,
-          walletBalance: walletData.balance,
-          walletBalanceGEL: walletData.balanceGEL
-        }));
-      };
-
-      const handleMarketUpdate = (marketData) => {
-        console.log('Market update:', marketData);
-        // If user is on the marketplace page, you might want to trigger a refresh
-        // or update specific items in the list
-      };
-
-      // Register all event listeners
-      const unsubscribeConnectionStatus = socketService.on('connection_status', handleConnectionStatus);
-      const unsubscribeNotification = socketService.on('notification', handleNotification);
-      const unsubscribeTradeUpdate = socketService.on('trade_update', handleTradeUpdate);
-      const unsubscribeInventoryUpdate = socketService.on('inventory_update', handleInventoryUpdate);
-      const unsubscribeWalletUpdate = socketService.on('wallet_update', handleWalletUpdate);
-      const unsubscribeMarketUpdate = socketService.on('market_update', handleMarketUpdate);
-
-      // Add a heartbeat to check connection status periodically
-      const connectionCheckInterval = setInterval(() => {
-        const isConnected = socketService.isSocketConnected();
-        if (!isConnected) {
-          console.log('Connection check: WebSocket disconnected, attempting to reconnect...');
-          socketService.reconnect();
-        } else {
-          console.log('Connection check: WebSocket connected');
-        }
-      }, 30000); // Check every 30 seconds
-
-      // Clean up function to remove all listeners when component unmounts
-      return () => {
-        unsubscribeConnectionStatus();
-        unsubscribeNotification();
-        unsubscribeTradeUpdate();
-        unsubscribeInventoryUpdate();
-        unsubscribeWalletUpdate();
-        unsubscribeMarketUpdate();
-
-        // Clear the heartbeat interval
-        clearInterval(connectionCheckInterval);
-
-        // Disconnect socket when user logs out or component unmounts
-        socketService.disconnect();
-      };
-    }
-  }, [user]);
-
-  // Fetch wallet balance when user is loaded
-  useEffect(() => {
-    if (user) {
-      refreshWalletBalance();
-    }
-  }, [user]);
 
   return (
     <div style={{

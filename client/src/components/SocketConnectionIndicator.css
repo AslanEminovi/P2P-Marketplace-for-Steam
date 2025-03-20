@@ -1,0 +1,85 @@
+.socket-connection-indicator {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 10px 15px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  z-index: 1000;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  min-width: 220px;
+}
+
+.socket-connection-indicator.connected {
+  background-color: rgba(46, 49, 54, 0.9);
+  border: 1px solid #43b581;
+  animation: fadeIn 0.3s ease-in-out, fadeOut 0.3s ease-in-out 2.7s forwards;
+}
+
+.socket-connection-indicator.disconnected {
+  background-color: rgba(46, 49, 54, 0.9);
+  border: 1px solid #f04747;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-indicator.online {
+  background-color: #43b581;
+  box-shadow: 0 0 5px #43b581;
+}
+
+.status-indicator.offline {
+  background-color: #f04747;
+  box-shadow: 0 0 5px #f04747;
+}
+
+.status-text {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.reconnect-button {
+  background-color: #5865f2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 10px;
+  margin-left: 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.reconnect-button:hover {
+  background-color: #4752c4;
+}
+
+.reconnect-button:disabled {
+  background-color: #72767d;
+  cursor: not-allowed;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+} 
