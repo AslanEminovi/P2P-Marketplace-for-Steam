@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { API_URL } from '../config/constants';
 import './Navbar.css';
@@ -8,9 +7,9 @@ import './Navbar.css';
 // Remove logo import since it's not needed
 // import csLogo from '../assets/cs-logo.png';
 
-const Navbar = () => {
+// Navbar now receives user and onLogout as props
+const Navbar = ({ user, onLogout }) => {
   const { t } = useTranslation();
-  const [user, setUser] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -20,40 +19,6 @@ const Navbar = () => {
   // Refs for click outside detection
   const dropdownRef = useRef(null);
   const profileBtnRef = useRef(null);
-
-  // Check if user is authenticated
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        // Get token from localStorage if available
-        const authToken = localStorage.getItem('auth_token');
-        const config = {
-          withCredentials: true,
-          params: {}
-        };
-
-        // Include token in request if available
-        if (authToken) {
-          config.params.auth_token = authToken;
-          console.log("Including auth token in request:", authToken.substring(0, 4) + "...");
-        }
-
-        // Make request with proper configuration
-        const response = await axios.get(`${API_URL}/auth/me`, config);
-        console.log("Auth response:", response.data);
-
-        if (response.data && response.data.user) {
-          console.log("Setting user data from /auth/me:", response.data.user);
-          setUser(response.data.user);
-        }
-      } catch (error) {
-        console.error('Error checking auth status:', error);
-        setUser(null);
-      }
-    };
-
-    checkAuth();
-  }, []);
 
   // Handle scroll effects
   useEffect(() => {
@@ -138,19 +103,15 @@ const Navbar = () => {
     return (balance / 100).toFixed(2);
   };
 
-  // Create a proper logout function that handles redirection
+  // Use the logout handler from props
   const handleLogout = () => {
     // Close dropdown first
     setDropdownOpen(false);
-
-    // Clear local auth token
-    localStorage.removeItem('auth_token');
-
-    // Update user state to null
-    setUser(null);
-
-    // Navigate to homepage
-    window.location.href = '/';
+    
+    // Call the onLogout prop function
+    if (onLogout) {
+      onLogout();
+    }
   };
 
   return (
