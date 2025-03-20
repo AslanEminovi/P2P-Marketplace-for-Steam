@@ -367,15 +367,60 @@ exports.getFeaturedItems = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 8; // Default to 8 featured items
 
-    // Find items that are listed for sale with images and complete data
-    // Sort by most recently listed first
-    const items = await Item.find({
+    // First try to find items with images
+    let items = await Item.find({
       isListed: true,
       imageUrl: { $exists: true, $ne: null, $ne: "" }, // Ensure image exists
     })
       .sort({ createdAt: -1 })
       .limit(limit)
       .populate("owner", "displayName avatar");
+
+    // If no items with images are found, fall back to any listed items
+    if (items.length === 0) {
+      console.log(
+        "No featured items with images found, falling back to any listed items"
+      );
+      items = await Item.find({
+        isListed: true,
+      })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .populate("owner", "displayName avatar");
+    }
+
+    // Log how many items we're returning
+    console.log(`Returning ${items.length} featured items`);
+
+    // Add default image URLs for items without images
+    items = items.map((item) => {
+      if (!item.imageUrl || item.imageUrl === "") {
+        // Create a deep copy to avoid modifying the database document directly
+        const itemWithDefaultImage = item.toObject();
+
+        // Default image based on known CS2 weapon type if possible
+        const itemName = item.marketHashName
+          ? item.marketHashName.toLowerCase()
+          : "";
+        if (itemName.includes("knife")) {
+          itemWithDefaultImage.imageUrl =
+            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsXE1xNwVDv7WrFA5pnabNJGwSuN3gxtnawKOlMO6HzzhQucAm0uvFo4n0jgyx_0M-ZmilJNeLMlhpvs6G/";
+        } else if (
+          itemName.includes("rifle") ||
+          itemName.includes("ak-47") ||
+          itemName.includes("m4a")
+        ) {
+          itemWithDefaultImage.imageUrl =
+            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUznaCaJWVDvozlzdONwvKjYLiBk24IsZEl0uuYrNjw0A3n80JpZWzwIYeLMlhpXFSrhRw/";
+        } else {
+          itemWithDefaultImage.imageUrl =
+            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFrYQ2D_QDt/";
+        }
+
+        return itemWithDefaultImage;
+      }
+      return item;
+    });
 
     return res.json(items);
   } catch (err) {

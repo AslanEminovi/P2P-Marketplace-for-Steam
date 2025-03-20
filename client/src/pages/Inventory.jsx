@@ -212,40 +212,58 @@ function Inventory({ user }) {
         // Special handling for API errors
         console.error('API error when listing item:', apiError);
         
-        // Check if we actually received a 201 Created status or similar success response
-        // Some APIs return error objects even on success
+        // IMPORTANT FIX: Check first if the operation was actually successful 
+        // despite the error response - this happens with some APIs where the 
+        // item is listed but the request still returns as an error
+        
+        let isActuallySuccess = false;
+        
+        // Always treat any response with status 2xx as success
         if (apiError.response && (apiError.response.status >= 200 && apiError.response.status < 300)) {
           console.log('Despite error, received success status code:', apiError.response.status);
-          
-          // Treat as success
-          setShowSellModal(false);
-          setSelectedItem(null);
-          setLoading(false);
-          setMessage('Item listed for sale successfully!');
-          setMessageType('success');
-          
-          // Refresh inventory
-          fetchInventory().catch(e => console.error('Inventory refresh error:', e));
-          return;
+          isActuallySuccess = true;
+        }
+        
+        // Check response body for success indicators regardless of status code
+        if (apiError.response && apiError.response.data) {
+          const responseData = apiError.response.data;
+          // Check for success field or status field
+          if (
+            (responseData.success === true) || 
+            (typeof responseData.status === 'string' && responseData.status.toLowerCase().includes('success')) ||
+            (responseData.listed === true) ||
+            (responseData.message && (
+              responseData.message.toLowerCase().includes('success') || 
+              responseData.message.toLowerCase().includes('listed') ||
+              responseData.message.toLowerCase().includes('added to market')
+            ))
+          ) {
+            console.log('Despite error status code, response indicates success:', responseData);
+            isActuallySuccess = true;
+          }
         }
         
         // Get detailed error info
         const errorMsg = apiError.response?.data?.error || 
-                         apiError.response?.data?.message || 
-                         apiError.message || 
-                         'Failed to list item for sale.';
-                         
+                        apiError.response?.data?.message || 
+                        apiError.message || 
+                        'Failed to list item for sale.';
+                        
         // Check if the error message indicates the item was actually listed
-        if (errorMsg.includes('already listed') || errorMsg.includes('successfully')) {
-          // Item was actually listed despite the error
-          setShowSellModal(false);
-          setSelectedItem(null);
-          setLoading(false);
-          setMessage('Item listed for sale successfully!');
-          setMessageType('success');
-          
-          // Refresh inventory
-          fetchInventory().catch(e => console.error('Inventory refresh error:', e));
+        if (
+          errorMsg.toLowerCase().includes('already listed') || 
+          errorMsg.toLowerCase().includes('successfully') || 
+          errorMsg.toLowerCase().includes('success') || 
+          errorMsg.toLowerCase().includes('item listed') ||
+          errorMsg.toLowerCase().includes('added to market') ||
+          errorMsg.toLowerCase().includes('now for sale')
+        ) {
+          console.log('Error message actually indicates success:', errorMsg);
+          isActuallySuccess = true;
+        }
+        
+        if (isActuallySuccess) {
+          handleListingSuccess();
           return;
         }
         
@@ -298,6 +316,20 @@ function Inventory({ user }) {
         fetchInventory().catch(e => console.error('Inventory refresh error:', e));
       }, 1000);
     }
+  };
+
+  const handleListingSuccess = () => {
+    // Close modal first to prevent UI issues
+    setShowSellModal(false);
+    setSelectedItem(null);
+    setLoading(false);
+    
+    // Display success message
+    setMessage('Item listed for sale successfully!');
+    setMessageType('success');
+    
+    // Refresh inventory
+    fetchInventory().catch(e => console.error('Inventory refresh error:', e));
   };
 
   useEffect(() => {
