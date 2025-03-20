@@ -16,6 +16,7 @@
   --gaming-gradient-blue: linear-gradient(135deg, #3373F2, #00D2FF);
   --gaming-gradient-purple: linear-gradient(135deg, #8C5CF7, #F26FD3);
   --gaming-glow-effect: 0 0 10px rgba(0, 210, 255, 0.4), 0 0 20px rgba(51, 115, 242, 0.2);
+  --gaming-gradient-georgia: linear-gradient(135deg, #4CAF50, #2196F3);
 }
 
 /* MAIN NAVBAR CONTAINER */
@@ -49,6 +50,50 @@
   margin: 0 auto;
   position: relative;
   overflow: visible;
+}
+
+/* Georgian Text Styling */
+.georgian-text {
+  display: block;
+  font-size: 0.7em;
+  animation: geoGlow 3s infinite alternate;
+  background: linear-gradient(135deg,#2ecc71,#1abc9c,#3498db);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 600;
+  letter-spacing: .5px;
+  margin-top: -2px;
+  text-shadow: 0 0 10px #2ecc7180;
+}
+
+@keyframes geoGlow {
+  0% {
+    opacity: 0.7;
+    text-shadow: 0 0 5px #2ecc7160;
+  }
+  100% {
+    opacity: 1;
+    text-shadow: 0 0 10px #2ecc7180;
+  }
+}
+
+.navbar-logo .georgian-text {
+  font-size: 0.6em;
+  margin-top: -8px;
+  letter-spacing: 0.5px;
+  margin-left: .5rem;
+}
+
+.nav-text-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.2;
+}
+
+.nav-text-container span:first-child {
+  margin-bottom: 2px;
 }
 
 /* NAVBAR LOGO */

@@ -25,6 +25,7 @@
   --mx-ultra-gradient-stop-6: 100%;
   --gaming-gradient-ultra: linear-gradient(var(--mx-chip-gradient-angle), #FFF3E5 var(--mx-ultra-gradient-stop-1), #F6CFB4 var(--mx-ultra-gradient-stop-2), #EEA4BC var(--mx-ultra-gradient-stop-3), #A18CFF var(--mx-ultra-gradient-stop-4), #64A8FF var(--mx-ultra-gradient-stop-5), #C7F8FF var(--mx-ultra-gradient-stop-6));
   --gaming-gradient-modern: linear-gradient(97deg, #0096FF, #BB64FF 42%, #F2416B 74%, #EB7500);
+  --gaming-gradient-georgia: linear-gradient(135deg, #4CAF50, #2196F3);
 }
 
 /* MAIN CONTAINER */
@@ -101,9 +102,60 @@
   max-height: none;
 }
 
+/* Georgian Text Styling */
+.georgian-text {
+  display: block;
+  animation: geoGlow 3s infinite alternate;
+  background: linear-gradient(135deg,#2ecc71,#1abc9c,#3498db);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: .85rem;
+  font-weight: 600;
+  letter-spacing: .5px;
+  margin-left: .5rem;
+  text-shadow: 0 0 10px #2ecc7180;
+}
+
+@keyframes geoGlow {
+  0% {
+    opacity: 0.7;
+    text-shadow: 0 0 5px #2ecc7160;
+  }
+  100% {
+    opacity: 1;
+    text-shadow: 0 0 10px #2ecc7180;
+  }
+}
+
+.geo-title {
+  margin-top: -5px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.geo-title .georgian-text {
+  font-size: 1.5rem;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  margin-left: 0;
+}
+
+.hero-button .georgian-text.button-geo {
+  font-size: 0.7rem;
+  margin-top: 2px;
+  opacity: 0.9;
+}
+
+.hero-stat-label .georgian-text.stat-geo {
+  font-size: 0.8rem;
+  margin-top: 2px;
+  opacity: 0.9;
+}
+
 .hero-content {
   position: relative;
-  z-index: 2;
+  z-index: 10;
   max-width: 900px;
   margin: 0 auto;
 }
