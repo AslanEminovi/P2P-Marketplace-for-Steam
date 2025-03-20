@@ -217,6 +217,31 @@ function App() {
 
       // Also hide any socket connection indicators
       setShowConnectionIndicator(false);
+      
+      // Reset any stuck background styles
+      document.body.style.backgroundColor = '';
+      
+      // Remove any lingering modal-related classes from the body
+      document.body.classList.remove('modal-open');
+      
+      // Reset any overflow styles that might have been set by modals
+      document.body.style.overflow = '';
+      
+      // Clear any backdrop or overlay elements
+      const backdrops = document.querySelectorAll('.modal-backdrop, .overlay, .backdrop');
+      backdrops.forEach(backdrop => {
+        if (backdrop && backdrop.parentNode) {
+          backdrop.parentNode.removeChild(backdrop);
+        }
+      });
+      
+      // Reset any fixed positioning that was applied to the main content
+      const mainContent = document.querySelector('main');
+      if (mainContent) {
+        mainContent.style.position = '';
+        mainContent.style.top = '';
+        mainContent.style.width = '';
+      }
     };
 
     // Listen for navigation events - both History API events and direct clicks
@@ -239,28 +264,62 @@ function App() {
       attributes: true,
       attributeFilter: ['class', 'style'] 
     });
+    
+    // Add safety: call handleRouteChange immediately when component mounts
+    handleRouteChange();
+    
+    // Add click listener to detect navigation via direct link clicks
+    const handleDocumentClick = (e) => {
+      // Find closest anchor element
+      let element = e.target;
+      while (element && element.tagName !== 'A') {
+        element = element.parentElement;
+      }
+      
+      // If we found an anchor and it's an internal link
+      if (element && element.href && element.href.startsWith(window.location.origin)) {
+        // Schedule a handleRouteChange after the navigation occurs
+        setTimeout(handleRouteChange, 50);
+      }
+    };
+    
+    document.addEventListener('click', handleDocumentClick);
 
     return () => {
       window.removeEventListener('popstate', handleRouteChange);
+      document.removeEventListener('click', handleDocumentClick);
       observer.disconnect();
     };
   }, []);
 
   // Add a new useEffect to clear loading state periodically to prevent stuck states
   useEffect(() => {
-    // If loading has been true for more than 10 seconds, force reset it
-    // This is a safety measure to prevent loading states from getting stuck
-    let loadingTimeout;
-    
-    if (loading) {
-      loadingTimeout = setTimeout(() => {
-        console.log("Loading timeout reached, force resetting loading state");
+    // Safety timeout to reset loading state if it gets stuck
+    const safetyResetInterval = setInterval(() => {
+      if (loading) {
+        console.log("Safety mechanism: resetting stuck loading state");
         setLoading(false);
-      }, 10000); // 10 second timeout
-    }
+      }
+      
+      // Check for other stuck states
+      if (document.body.classList.contains('modal-open') && !document.querySelector('.modal.show')) {
+        console.log("Safety mechanism: removing stuck modal-open class");
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+      }
+      
+      // Check for lingering red background
+      const computedStyle = window.getComputedStyle(document.body);
+      if (computedStyle.backgroundColor === 'rgb(255, 0, 0)' || 
+          computedStyle.backgroundColor === 'red' ||
+          computedStyle.backgroundColor.includes('rgba(255, 0, 0')) {
+        console.log("Safety mechanism: resetting red background");
+        document.body.style.backgroundColor = '';
+      }
+    }, 10000); // 10 seconds interval
     
     return () => {
-      if (loadingTimeout) clearTimeout(loadingTimeout);
+      clearInterval(safetyResetInterval);
     };
   }, [loading]);
 

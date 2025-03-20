@@ -7,6 +7,7 @@ import socketService from '../services/socketService';
 function Inventory({ user }) {
   const [items, setItems] = useState([]);
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState(''); // 'success', 'error', or ''
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showSellModal, setShowSellModal] = useState(false);
@@ -54,9 +55,11 @@ function Inventory({ user }) {
       try {
         setLoading(true);
         setMessage('');
+        setMessageType('');
         
         if (!user) {
           setMessage('Please sign in through Steam to view your inventory.');
+          setMessageType('error');
           setLoading(false);
           return;
         }
@@ -94,19 +97,22 @@ function Inventory({ user }) {
         if (res.data && Array.isArray(res.data)) {
           if (res.data.length === 0) {
             // Only show empty inventory message if this isn't right after listing an item
-            const justListed = message && message.includes('listed for sale successfully');
+            const justListed = messageType === 'success';
             if (!justListed) {
               setMessage('Your CS2 inventory is empty or private. Please check your Steam inventory privacy settings.');
+              setMessageType('error');
             }
           } else {
             setItems(res.data);
             // Keep success message if it exists, otherwise clear
-            if (!message || !message.includes('success')) {
+            if (messageType !== 'success') {
               setMessage('');
+              setMessageType('');
             }
           }
         } else {
           setMessage('Failed to load inventory. Please try again later.');
+          setMessageType('error');
         }
       } catch (err) {
         console.error('Inventory fetch error:', err);
@@ -128,6 +134,7 @@ function Inventory({ user }) {
         
         const errorMessage = err.response?.data?.message || err.message;
         setMessage('Error fetching inventory: ' + errorMessage);
+        setMessageType('error');
       } finally {
         setLoading(false);
       }
@@ -194,6 +201,7 @@ function Inventory({ user }) {
         
         // Display success message that won't prevent inventory viewing
         setMessage('Item listed for sale successfully!');
+        setMessageType('success');
         
         // Refresh inventory without waiting
         fetchInventory().catch(error => {
@@ -214,6 +222,7 @@ function Inventory({ user }) {
           setSelectedItem(null);
           setLoading(false);
           setMessage('Item listed for sale successfully!');
+          setMessageType('success');
           
           // Refresh inventory
           fetchInventory().catch(e => console.error('Inventory refresh error:', e));
@@ -233,6 +242,7 @@ function Inventory({ user }) {
           setSelectedItem(null);
           setLoading(false);
           setMessage('Item listed for sale successfully!');
+          setMessageType('success');
           
           // Refresh inventory
           fetchInventory().catch(e => console.error('Inventory refresh error:', e));
@@ -251,32 +261,21 @@ function Inventory({ user }) {
         };
         
         // Set error message with retry option
-        setMessage(
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <span>Error: {errorMsg}</span>
-            <button 
-              onClick={() => {
-                // Attempt to retry the listing
-                if (window.lastFailedListing && window.lastFailedListing.item) {
-                  console.log('Retrying failed listing...');
-                  listItemForSale(window.lastFailedListing.item);
-                }
-              }}
-              style={{
-                background: 'linear-gradient(to right, #3b82f6, #8b5cf6)',
-                color: 'white',
-                border: 'none',
-                padding: '4px 10px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: '500',
-                fontSize: '14px'
-              }}
-            >
-              Retry
-            </button>
-          </div>
-        );
+        setMessage(`Error: ${errorMsg}`);
+        setMessageType('error');
+        
+        // Add retry button separately
+        setTimeout(() => {
+          const retryButton = document.getElementById('retry-listing-button');
+          if (retryButton) {
+            retryButton.addEventListener('click', () => {
+              if (window.lastFailedListing && window.lastFailedListing.item) {
+                console.log('Retrying failed listing...');
+                listItemForSale(window.lastFailedListing.item);
+              }
+            });
+          }
+        }, 100);
       }
     } catch (err) {
       // This handles any other errors outside the API call
@@ -291,6 +290,7 @@ function Inventory({ user }) {
       
       // Set error message
       setMessage('Unexpected error: ' + (err.message || 'Failed to list item'));
+      setMessageType('error');
       
       // Try to refresh inventory anyway - the item might have been listed despite the error
       setTimeout(() => {
@@ -337,8 +337,9 @@ function Inventory({ user }) {
           setItems(prevItems => [...prevItems, data.data.item]);
           
           // If we don't already have a success message, show this one
-          if (!message || !message.includes('success')) {
+          if (messageType !== 'success') {
             setMessage(`Item "${data.data.item.marketname || data.data.item.markethashname}" added to inventory`);
+            setMessageType('success');
           }
         } else if (data.type === 'item_removed' && data.data && data.data.itemId) {
           // Remove a single item from the inventory without a full refresh
@@ -351,8 +352,9 @@ function Inventory({ user }) {
             );
             
             // Show removal message if we don't already have a success message
-            if (removedItem && (!message || !message.includes('success'))) {
+            if (removedItem && messageType !== 'success') {
               setMessage(`Item "${removedItem.marketname || removedItem.markethashname}" removed from inventory`);
+              setMessageType('info');
             }
             
             return filteredItems;
@@ -360,8 +362,9 @@ function Inventory({ user }) {
         }
         
         // Only set message from socket event if it's not overriding a success message
-        if (data.message && (!message || !message.includes('success'))) {
+        if (data.message && messageType !== 'success') {
           setMessage(data.message);
+          setMessageType(data.type === 'error' ? 'error' : 'info');
         }
       } catch (error) {
         console.error('Error handling socket update:', error);
@@ -389,6 +392,7 @@ function Inventory({ user }) {
         console.log("Loading state timeout reached - force resetting loading state");
         setLoading(false);
         setMessage('Loading timed out. Your item may have been listed successfully. Please refresh the page.');
+        setMessageType('warning');
       }, 8000);
     }
 
@@ -453,7 +457,7 @@ function Inventory({ user }) {
     );
   }
 
-  if (message && !message.includes('success')) {
+  if (messageType === 'error') {
     return (
       <div style={{ 
         color: '#e2e8f0',
@@ -548,6 +552,26 @@ function Inventory({ user }) {
               </svg>
             </a>
           </div>
+          
+          {/* Add retry button for listing if needed */}
+          {window.lastFailedListing && window.lastFailedListing.item && (
+            <button 
+              id="retry-listing-button"
+              style={{
+                marginTop: '1rem',
+                background: 'linear-gradient(to right, #3b82f6, #8b5cf6)',
+                color: 'white',
+                border: 'none',
+                padding: '0.5rem 1rem',
+                borderRadius: '0.5rem',
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontSize: '0.875rem'
+              }}
+            >
+              Retry Listing
+            </button>
+          )}
         </div>
       </div>
     );
@@ -635,13 +659,17 @@ function Inventory({ user }) {
       {message && (
         <div style={{ 
           textAlign: 'center',
-          color: message.includes('success') ? '#4ade80' : '#ef4444',
+          color: messageType === 'success' ? '#4ade80' : messageType === 'error' ? '#ef4444' : '#93c5fd',
           margin: '1rem 0',
           padding: '1rem',
           borderRadius: '0.5rem',
           backgroundColor: 'rgba(45, 27, 105, 0.5)',
           backdropFilter: 'blur(10px)',
-          border: `1px solid ${message.includes('success') ? 'rgba(74, 222, 128, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+          border: `1px solid ${
+            messageType === 'success' ? 'rgba(74, 222, 128, 0.3)' : 
+            messageType === 'error' ? 'rgba(239, 68, 68, 0.3)' : 
+            'rgba(147, 197, 253, 0.3)'
+          }`,
           maxWidth: '600px',
           margin: '1rem auto',
           display: 'flex',
@@ -649,13 +677,19 @@ function Inventory({ user }) {
           justifyContent: 'center',
           gap: '0.5rem'
         }}>
-          {message.includes('success') ? (
+          {messageType === 'success' ? (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
               <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
-          ) : (
+          ) : messageType === 'error' ? (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="8" x2="12" y2="12"></line>
               <line x1="12" y1="16" x2="12.01" y2="16"></line>
@@ -665,11 +699,15 @@ function Inventory({ user }) {
           
           {/* Add dismiss button for messages */}
           <button 
-            onClick={() => setMessage('')}
+            onClick={() => {
+              setMessage('');
+              setMessageType('');
+            }}
             style={{
               background: 'transparent',
               border: 'none',
-              color: message.includes('success') ? '#4ade80' : '#ef4444',
+              color: messageType === 'success' ? '#4ade80' : 
+                    messageType === 'error' ? '#ef4444' : '#93c5fd',
               cursor: 'pointer',
               marginLeft: '10px',
               padding: '4px',

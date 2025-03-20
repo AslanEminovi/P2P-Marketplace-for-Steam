@@ -84,6 +84,19 @@ const SellModal = ({ item, onClose, onConfirm }) => {
     setCustomRate('');
     setIsSubmitting(false);
     
+    // Reset any modal-related styles on the body
+    document.body.style.overflow = '';
+    document.body.style.backgroundColor = '';
+    document.body.classList.remove('modal-open');
+    
+    // Make sure any backdrop elements are removed
+    const backdrops = document.querySelectorAll('.modal-backdrop, .overlay, .backdrop');
+    backdrops.forEach(backdrop => {
+      if (backdrop && backdrop.parentNode) {
+        backdrop.parentNode.removeChild(backdrop);
+      }
+    });
+
     // Call the parent's onClose function
     onClose();
   };
@@ -101,11 +114,37 @@ const SellModal = ({ item, onClose, onConfirm }) => {
       priceGEL: calculatePrice()
     };
     
-    // Slight delay to ensure UI state updates properly
-    setTimeout(() => {
+    try {
+      // Call the confirm function immediately
       onConfirm(itemData);
-    }, 50);
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      setIsSubmitting(false);
+      // Ensure we clean up even if an error occurs
+      handleClose();
+    }
   };
+
+  // Add cleanup effect when the component unmounts
+  useEffect(() => {
+    // Set up any necessary modal state
+    document.body.classList.add('modal-open');
+    
+    // Clean up when the component unmounts
+    return () => {
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = '';
+      document.body.style.backgroundColor = '';
+      
+      // Reset any fixed positioning that was applied
+      const mainContent = document.querySelector('main');
+      if (mainContent) {
+        mainContent.style.position = '';
+        mainContent.style.top = '';
+        mainContent.style.width = '';
+      }
+    };
+  }, []);
 
   // Handle escape key to close modal
   useEffect(() => {
