@@ -53,10 +53,10 @@
 
 /* NAVBAR LOGO */
 .navbar-logo {
-  font-size: 1.75rem;
-  font-weight: 800;
   text-decoration: none;
-  position: relative;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
   display: flex;
   align-items: center;
   margin-right: 1rem;
@@ -70,6 +70,34 @@
   position: relative;
   white-space: nowrap;
   /* Prevent text wrapping */
+}
+
+/* Georgian (GEO) text styling */
+.geo-text {
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+  background: linear-gradient(135deg, #2ecc71, #1abc9c, #3498db);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  position: relative;
+  white-space: nowrap;
+  font-weight: 600;
+  text-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+  animation: geoGlow 3s infinite alternate;
+  letter-spacing: 0.5px;
+}
+
+@keyframes geoGlow {
+  0% {
+    filter: drop-shadow(0 0 2px rgba(46, 204, 113, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 5px rgba(52, 152, 219, 0.7));
+  }
+  100% {
+    filter: drop-shadow(0 0 3px rgba(26, 188, 156, 0.6));
+  }
 }
 
 .logo-text::after {
