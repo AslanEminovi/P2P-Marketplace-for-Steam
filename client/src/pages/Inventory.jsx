@@ -4,11 +4,10 @@ import { API_URL } from '../config/constants';
 import SellModal from '../components/SellModal';
 import socketService from '../services/socketService';
 
-function Inventory() {
+function Inventory({ user }) {
   const [items, setItems] = useState([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showSellModal, setShowSellModal] = useState(false);
 
@@ -47,31 +46,14 @@ function Inventory() {
     return wearColors[wear] || '#b0c3d9';
   };
 
-  const checkAuthStatus = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/auth/user`, { withCredentials: true });
-      if (res.data.authenticated) {
-        setUser(res.data.user);
-        return true;
-      }
-      setMessage('Please sign in through Steam to view your inventory.');
-      return false;
-    } catch (err) {
-      console.error('Auth check error:', err);
-      setMessage('Failed to verify authentication status.');
-      return false;
-    }
-  };
-
   const fetchInventory = async () => {
     try {
       setLoading(true);
       setMessage('');
-      const isAuthenticated = await checkAuthStatus();
       
-      if (!isAuthenticated) {
+      if (!user) {
+        setMessage('Please sign in through Steam to view your inventory.');
         setLoading(false);
-        // Keep the message set by checkAuthStatus
         return;
       }
 
@@ -91,33 +73,11 @@ function Inventory() {
           setMessage('');
         }
       } else {
-        setMessage('No items found in inventory.');
-        setItems([]);
+        setMessage('Failed to load inventory. Please try again later.');
       }
     } catch (err) {
-      console.error('Inventory fetch error:', err.response || err);
-      
-      // Handle various error codes with specific messages
-      const errorCode = err.response?.data?.code;
-      const errorDetails = err.response?.data?.error || 'Failed to fetch inventory.';
-      
-      if (errorCode === 'MISSING_API_KEY') {
-        setMessage('Server configuration error. Please contact administrators.');
-      } else if (errorCode === 'API_AUTH_ERROR') {
-        setMessage('Steam API authentication failed. Please contact administrators.');
-      } else if (errorCode === 'RATE_LIMIT') {
-        setMessage('Rate limit exceeded. Please wait a few minutes and try again.');
-      } else if (errorCode === 'INVENTORY_NOT_FOUND') {
-        setMessage('Your Steam inventory appears to be private. Please check your Steam privacy settings and ensure your inventory is set to "Public".');
-      } else if (errorCode === 'TIMEOUT') {
-        setMessage('Connection timed out when fetching inventory. Steam servers might be busy, please try again later.');
-      } else if (errorCode === 'NETWORK_ERROR') {
-        setMessage('Network error when connecting to Steam. Please check your internet connection and try again.');
-      } else {
-        setMessage(errorDetails);
-      }
-      
-      setItems([]);
+      console.error('Inventory fetch error:', err);
+      setMessage('Error fetching inventory: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }

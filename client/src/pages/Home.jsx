@@ -489,29 +489,6 @@ const Home = () => {
   const [stats, setStats] = useState({ items: 0, users: 0, trades: 0 });
   const [animationActive, setAnimationActive] = useState(false);
 
-  // Check if user is authenticated
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const authToken = localStorage.getItem('auth_token');
-        if (authToken) {
-          const response = await axios.get(`${API_URL}/auth/me`, {
-            withCredentials: true,
-            params: { auth_token: authToken }
-          });
-          if (response.data && response.data.user) {
-            setUser(response.data.user);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking auth status:', error);
-        setUser(null);
-      }
-    };
-
-    checkAuth();
-  }, []);
-
   // Setup real-time stat updates
   useEffect(() => {
     // Initial fetch

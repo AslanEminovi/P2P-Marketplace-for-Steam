@@ -15,11 +15,20 @@ const Navbar = ({ user, onLogout }) => {
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-
+  
   // Refs for click outside detection
   const dropdownRef = useRef(null);
   const profileBtnRef = useRef(null);
-
+  
+  // Debug: Log user data for inspection
+  useEffect(() => {
+    console.log("Navbar received user data:", user);
+    if (user) {
+      console.log("User avatar:", user.avatar);
+      console.log("User display name:", user.displayName);
+    }
+  }, [user]);
+  
   // Handle scroll effects
   useEffect(() => {
     const handleScroll = () => {
@@ -29,25 +38,25 @@ const Navbar = ({ user, onLogout }) => {
         setScrolled(false);
       }
     };
-
+    
     window.addEventListener('scroll', handleScroll);
-
+    
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
-
+  
   // Handle dropdown visibility and outside clicks
   useEffect(() => {
     function handleClickOutside(event) {
       // Only handle outside clicks if dropdown is open
       if (!dropdownOpen) return;
-
+      
       // Don't close if clicking the profile button itself
       if (profileBtnRef.current && profileBtnRef.current.contains(event.target)) {
         return;
       }
-
+      
       // Don't close if clicking inside the dropdown menu
       if (dropdownRef.current && dropdownRef.current.contains(event.target)) {
         return;
@@ -56,53 +65,44 @@ const Navbar = ({ user, onLogout }) => {
       // Close dropdown for clicks outside both elements
       setDropdownOpen(false);
     }
-
+    
     // Use capture phase for better handling
     document.addEventListener("mousedown", handleClickOutside, true);
-
+    
     return () => {
       document.removeEventListener("mousedown", handleClickOutside, true);
     };
   }, [dropdownOpen]);
-
+  
   // Close mobile menu when changing routes
   useEffect(() => {
     setMobileOpen(false);
   }, [location]);
-
-  // Debug: Log user data for inspection
-  useEffect(() => {
-    console.log("Navbar received user data:", user);
-    if (user) {
-      console.log("User avatar:", user.avatar);
-      console.log("User display name:", user.displayName);
-    }
-  }, [user]);
-
+  
   // Simple toggle function - no prevent default to avoid issues
   const toggleDropdown = () => {
     setDropdownOpen(prev => !prev);
   };
-
+  
   // Get user initials for avatar placeholder
   const getUserInitials = () => {
     if (!user || !user.displayName) return '?';
-
+    
     const names = user.displayName.split(' ');
     if (names.length >= 2) {
       return `${names[0][0]}${names[1][0]}`.toUpperCase();
     }
-
+    
     return names[0][0].toUpperCase();
   };
-
+  
   // Format balance
   const formatBalance = (balance) => {
     if (!balance) return '0.00';
-
+    
     return (balance / 100).toFixed(2);
   };
-
+  
   // Use the logout handler from props
   const handleLogout = () => {
     // Close dropdown first
@@ -119,10 +119,10 @@ const Navbar = ({ user, onLogout }) => {
       <div className="navbar-container">
         <div className="navbar-left">
           <Link to="/" className="navbar-logo">
-            {/* Text-only logo on one line */}
+            {/* Replace image with text-only logo */}
             <span className="logo-text">CS2 Market</span>
           </Link>
-
+          
           <div className="navbar-links desktop-only">
             <NavLink to="/marketplace" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -161,7 +161,7 @@ const Navbar = ({ user, onLogout }) => {
             </NavLink>
           </div>
         </div>
-
+        
         <div className="navbar-right">
           <div className="social-links desktop-only">
             <a href="https://discord.gg/" target="_blank" rel="noopener noreferrer" className="social-link">
@@ -171,7 +171,7 @@ const Navbar = ({ user, onLogout }) => {
               <i className="fab fa-facebook"></i>
             </a>
           </div>
-
+          
           {user ? (
             <div className="user-section">
               <div className="balance-display">
@@ -180,13 +180,13 @@ const Navbar = ({ user, onLogout }) => {
                     <line x1="12" y1="1" x2="12" y2="23"></line>
                     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                   </svg>
-                </div>
+        </div>
                 <span className="balance-amount">{formatBalance(user.balance)} ₾</span>
                 <Link to="/add-funds" className="balance-add">+</Link>
-              </div>
+      </div>
 
               <div className="dropdown-wrapper">
-                <button
+                <button 
                   ref={profileBtnRef}
                   onClick={toggleDropdown}
                   className="profile-button"
@@ -194,9 +194,9 @@ const Navbar = ({ user, onLogout }) => {
                   <div className="user-avatar-container">
                     {user && (user.avatar || user.avatarUrl || user.avatarfull) ? (
                       <>
-                        <img
-                          src={user.avatar || user.avatarUrl || user.avatarfull}
-                          alt={user.displayName || 'User'}
+                        <img 
+                          src={user.avatar || user.avatarUrl || user.avatarfull} 
+                          alt={user.displayName || 'User'} 
                           onError={(e) => {
                             console.log("Avatar image failed to load:", e);
                             e.target.style.display = 'none';
@@ -211,24 +211,24 @@ const Navbar = ({ user, onLogout }) => {
                   </div>
                   <span className="desktop-only">{user.displayName}</span>
                   <div className={`dropdown-arrow ${dropdownOpen ? 'active' : ''}`}>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      width="18" 
+                      height="18" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
                       strokeLinejoin="round"
                     >
                       <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
+                  </svg>
                   </div>
                 </button>
-
+                
                 {dropdownOpen && (
-                  <div
+                  <div 
                     ref={dropdownRef}
                     className="user-dropdown"
                   >
@@ -236,47 +236,47 @@ const Navbar = ({ user, onLogout }) => {
                       <span className="dropdown-username">{user.displayName}</span>
                       <span className="dropdown-email">{user.email || 'No email provided'}</span>
                     </div>
-
+                    
                     <div className="dropdown-menu-items">
                       <NavLink to="/profile" className="dropdown-menu-item" onClick={() => setDropdownOpen(false)}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                           <circle cx="12" cy="7" r="4"></circle>
-                        </svg>
+                  </svg>
                         My Profile
                       </NavLink>
-
+                      
                       <NavLink to="/inventory" className="dropdown-menu-item" onClick={() => setDropdownOpen(false)}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                           <line x1="16" y1="8" x2="8" y2="8"></line>
                           <line x1="16" y1="12" x2="8" y2="12"></line>
                           <line x1="16" y1="16" x2="8" y2="16"></line>
-                        </svg>
+                  </svg>
                         My Inventory
                       </NavLink>
-
+                      
                       <NavLink to="/trades" className="dropdown-menu-item" onClick={() => setDropdownOpen(false)}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="17 1 21 5 17 9"></polyline>
                           <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
                           <polyline points="7 23 3 19 7 15"></polyline>
                           <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                        </svg>
+                  </svg>
                         My Trades
                       </NavLink>
-
+                      
                       <NavLink to="/settings" className="dropdown-menu-item" onClick={() => setDropdownOpen(false)}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="3"></circle>
                           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                        </svg>
+                  </svg>
                         Settings
                       </NavLink>
-
+                
                       <div className="dropdown-divider"></div>
-
-                      <button
+                
+                <button
                         onClick={handleLogout}
                         className="dropdown-menu-item logout"
                       >
@@ -284,15 +284,15 @@ const Navbar = ({ user, onLogout }) => {
                           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                           <polyline points="16 17 21 12 16 7"></polyline>
                           <line x1="21" y1="12" x2="9" y2="12"></line>
-                        </svg>
+                  </svg>
                         Log Out
-                      </button>
+                </button>
                     </div>
                   </div>
                 )}
               </div>
-            </div>
-          ) : (
+          </div>
+        ) : (
             <a href={`${API_URL}/auth/steam`} className="sign-in-button">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
@@ -302,9 +302,9 @@ const Navbar = ({ user, onLogout }) => {
               Sign in with Steam
             </a>
           )}
-
-          <button
-            className="mobile-menu-toggle"
+          
+          <button 
+            className="mobile-menu-toggle" 
             aria-label="Toggle mobile menu"
             onClick={() => setMobileOpen(!mobileOpen)}
           >
@@ -314,11 +314,11 @@ const Navbar = ({ user, onLogout }) => {
           </button>
         </div>
       </div>
-
+      
       {/* Mobile Menu */}
       <div className="mobile-menu">
         <div className="mobile-menu-links">
-          <NavLink to="/marketplace" className={({ isActive }) =>
+          <NavLink to="/marketplace" className={({ isActive }) => 
             isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
           }>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -328,9 +328,9 @@ const Navbar = ({ user, onLogout }) => {
             </svg>
             Marketplace
           </NavLink>
-
+          
           {/* Change mobile "Sell Items" to also link to inventory */}
-          <NavLink to="/inventory" className={({ isActive }) =>
+          <NavLink to="/inventory" className={({ isActive }) => 
             isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
           }>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -339,46 +339,46 @@ const Navbar = ({ user, onLogout }) => {
             </svg>
             Sell Items
           </NavLink>
-
+          
           {user && (
             <>
-              <NavLink to="/inventory" className={({ isActive }) =>
-                isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
-              }>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                  <line x1="16" y1="8" x2="8" y2="8"></line>
-                  <line x1="16" y1="12" x2="8" y2="12"></line>
-                  <line x1="16" y1="16" x2="8" y2="16"></line>
-                </svg>
-                My Inventory
-              </NavLink>
-
-              <NavLink to="/trades" className={({ isActive }) =>
-                isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
-              }>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="17 1 21 5 17 9"></polyline>
-                  <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                  <polyline points="7 23 3 19 7 15"></polyline>
-                  <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                </svg>
-                My Trades
-              </NavLink>
-
-              <NavLink to="/profile" className={({ isActive }) =>
-                isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
-              }>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-                My Profile
-              </NavLink>
-            </>
+              <NavLink to="/inventory" className={({ isActive }) => 
+              isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
+            }>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="8" x2="8" y2="8"></line>
+                <line x1="16" y1="12" x2="8" y2="12"></line>
+                <line x1="16" y1="16" x2="8" y2="16"></line>
+              </svg>
+              My Inventory
+            </NavLink>
+            
+            <NavLink to="/trades" className={({ isActive }) => 
+              isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
+            }>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="17 1 21 5 17 9"></polyline>
+                <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                <polyline points="7 23 3 19 7 15"></polyline>
+                <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+              </svg>
+              My Trades
+            </NavLink>
+            
+            <NavLink to="/profile" className={({ isActive }) => 
+              isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
+            }>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              My Profile
+            </NavLink>
+          </>
           )}
-
-          <NavLink to="/blog" className={({ isActive }) =>
+        
+          <NavLink to="/blog" className={({ isActive }) => 
             isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
           }>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -389,8 +389,8 @@ const Navbar = ({ user, onLogout }) => {
             </svg>
             Blog
           </NavLink>
-
-          <NavLink to="/faq" className={({ isActive }) =>
+          
+          <NavLink to="/faq" className={({ isActive }) => 
             isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
           }>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -400,7 +400,7 @@ const Navbar = ({ user, onLogout }) => {
             </svg>
             FAQ
           </NavLink>
-
+          
           {!user && (
             <a href={`${API_URL}/auth/steam`} className="mobile-menu-link steam-login">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -412,7 +412,7 @@ const Navbar = ({ user, onLogout }) => {
             </a>
           )}
         </div>
-
+        
         <div className="mobile-menu-social">
           <a href="https://discord.gg/" target="_blank" rel="noopener noreferrer" className="mobile-social-link">
             <i className="fab fa-discord"></i>
