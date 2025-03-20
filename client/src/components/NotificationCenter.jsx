@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from '../utils/languageUtils';
 import OfferActionMenu from './OfferActionMenu';
+import { API_URL } from '../config/constants';
 
 // Define notification types and their associated colors/icons
 const NOTIFICATION_TYPES = {
