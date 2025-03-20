@@ -63,23 +63,21 @@ function Inventory({ user }) {
       
       console.log('Using auth token:', token ? token.substring(0, 10) + '...' : 'No token found');
       console.log('Current API URL:', API_URL);
-      console.log('User object:', user);
+      console.log('User object:', JSON.stringify(user, null, 2));
       
       // Form the complete URL for debugging
       const requestUrl = `${API_URL}/inventory/my`;
       console.log('Request URL:', requestUrl);
       
-      // Print all request details for debugging
+      // Try a simpler approach - ONLY include the token in the URL query parameter
+      // This is how many Steam integrations expect authentication
       const requestConfig = { 
         withCredentials: true,
         timeout: 30000, // 30 second timeout
         params: {
-          auth_token: token // Adding as query param since server expects it here
-        },
-        headers: {
-          Authorization: token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json'
+          auth_token: token // Steam authentication typically uses query parameters
         }
+        // Removing the Authorization header to see if that's causing conflict
       };
       console.log('Request config:', JSON.stringify(requestConfig, null, 2));
       

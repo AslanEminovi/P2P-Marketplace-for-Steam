@@ -87,14 +87,14 @@ function App() {
   useEffect(() => {
     // Add request interceptor to include token with all requests
     const interceptor = axios.interceptors.request.use(config => {
-      // Always include withCredentials
+      // Always include withCredentials for CORS
       config.withCredentials = true;
 
       // Get token from localStorage
       const token = localStorage.getItem('auth_token');
       console.log('Axios interceptor - token exists:', !!token);
 
-      // If token exists, include it in query params and headers
+      // If token exists, include it ONLY in query params for Steam compatibility
       if (token) {
         // Initialize params object if not exists
         config.params = config.params || {};
@@ -102,11 +102,10 @@ function App() {
         // Add token to params for all requests
         config.params.auth_token = token;
         
-        // Also add token to Authorization header
-        config.headers = config.headers || {};
-        config.headers.Authorization = `Bearer ${token}`;
+        // Don't add Authorization header for Steam auth - this can sometimes cause conflicts
+        // with how Steam's auth system works
         
-        console.log('Added auth token to request:', config.url);
+        console.log('Added Steam auth token to request:', config.url);
       } else {
         console.log('No auth token available for request:', config.url);
       }
@@ -125,13 +124,12 @@ function App() {
         
         // If we get a 401 Unauthorized, the token might be invalid
         if (error.response && error.response.status === 401) {
-          console.log('Received 401 Unauthorized - clearing token');
+          console.log('Received 401 Unauthorized - might need to re-authenticate with Steam');
+          console.log('Error details:', error.response.data);
           
-          // Token might be invalid, clear it
+          // Uncomment to clear token and redirect to login on 401 errors
           // localStorage.removeItem('auth_token');
-          
-          // You might want to refresh the token or redirect to login here
-          // window.location.href = '/';
+          // window.location.href = `${API_URL}/auth/steam`;
         }
         
         return Promise.reject(error);
@@ -150,37 +148,36 @@ function App() {
       setLoading(true);
       console.log("Checking auth status, API URL:", API_URL);
 
-      // Check for auth token in URL
+      // Check for auth token in URL (Steam redirects with token in URL)
       const urlParams = new URLSearchParams(window.location.search);
       const authToken = urlParams.get('auth_token');
 
       if (authToken) {
-        console.log("Found auth token in URL, verifying...");
+        console.log("Found auth token in URL, storing it...");
+        // Store token immediately - Steam auth model typically trusts the redirect
+        localStorage.setItem('auth_token', authToken);
+        
         // Remove token from URL to prevent bookmarking with token
         window.history.replaceState({}, document.title, window.location.pathname);
 
         try {
-          // Verify token with backend
-          console.log("Verifying token with backend...");
-          const verifyResponse = await axios.post(
-            `${API_URL}/auth/verify-token`,
-            { token: authToken },
-            {
-              withCredentials: true,
-              timeout: 10000 // 10 second timeout for token verification
-            }
-          );
+          // Fetch user details with the token
+          console.log("Fetching user details with token...");
+          const userResponse = await axios.get(`${API_URL}/auth/user`, {
+            withCredentials: true,
+            params: {
+              auth_token: authToken
+            },
+            timeout: 10000
+          });
 
-          console.log("Token verification response:", verifyResponse.data);
+          console.log("User details response:", userResponse.data);
 
-          if (verifyResponse.data && verifyResponse.data.authenticated) {
-            console.log("Token verified, user authenticated:", verifyResponse.data.user);
-
-            // Store token in localStorage first
-            localStorage.setItem('auth_token', authToken);
-
-            // Then set user state
-            setUser(verifyResponse.data.user);
+          if (userResponse.data && userResponse.data.authenticated) {
+            console.log("User authenticated:", userResponse.data.user);
+            
+            // Set user state
+            setUser(userResponse.data.user);
 
             // Show success notification
             if (window.showNotification) {
@@ -194,102 +191,66 @@ function App() {
             setLoading(false);
             return;
           } else {
-            console.warn("Token verification failed, response:", verifyResponse.data);
-            // Token verification failed but still returned a response
+            console.warn("Authentication check failed, response:", userResponse.data);
             localStorage.removeItem('auth_token');
           }
         } catch (verifyError) {
-          console.error("Token verification request failed:", verifyError);
-
-          // If there was a network error, we can't be sure if the token is valid or not
-          // Store the token anyway and we'll verify it on the next page load
+          console.error("User details request failed:", verifyError);
+          
+          // If network error, keep the token for retry
           if (verifyError.code === 'ECONNABORTED' || !verifyError.response) {
-            console.log("Network error during verification, storing token for retry");
-            localStorage.setItem('auth_token', authToken);
-
-            // Force a page reload to retry with the stored token
-            console.log("Reloading page to retry authentication...");
-            window.location.reload();
-            return;
+            console.log("Network error, will retry on next load");
+          } else {
+            // If server rejected the token, remove it
+            localStorage.removeItem('auth_token');
           }
-
-          // Otherwise, clear the token
-          localStorage.removeItem('auth_token');
         }
       }
 
       // Check if we have a token in localStorage
       const storedToken = localStorage.getItem('auth_token');
       if (storedToken) {
-        console.log("Found stored token, verifying...");
+        console.log("Found stored token, fetching user details...");
 
         try {
-          console.log("Verifying stored token with backend...");
-          const verifyResponse = await axios.post(
-            `${API_URL}/auth/verify-token`,
-            { token: storedToken },
-            {
-              withCredentials: true,
-              timeout: 10000 // 10 second timeout for token verification
-            }
-          );
+          // Use existing token to get user details
+          const userResponse = await axios.get(`${API_URL}/auth/user`, {
+            withCredentials: true,
+            params: {
+              auth_token: storedToken
+            },
+            timeout: 10000
+          });
 
-          console.log("Stored token verification response:", verifyResponse.data);
+          console.log("Stored token user check response:", userResponse.data);
 
-          if (verifyResponse.data && verifyResponse.data.authenticated) {
-            console.log("Stored token verified, user authenticated:", verifyResponse.data.user);
-            setUser(verifyResponse.data.user);
+          if (userResponse.data && userResponse.data.authenticated) {
+            console.log("User authenticated with stored token:", userResponse.data.user);
+            setUser(userResponse.data.user);
             setLoading(false);
             return;
           } else {
-            // Token is invalid, remove it
             console.log("Stored token is invalid, removing...");
             localStorage.removeItem('auth_token');
           }
         } catch (error) {
-          console.error("Stored token verification failed:", error);
+          console.error("Stored token check failed:", error);
 
-          // Only remove the token if we got a clear rejection from the server
-          if (error.response && error.response.status >= 400) {
+          // Keep token on network errors, remove on auth rejection
+          if (error.response && error.response.status === 401) {
+            console.log("Server rejected stored token, removing");
             localStorage.removeItem('auth_token');
-          } else {
-            // For network errors, we'll try the session-based auth as fallback
-            console.log("Network error during stored token verification, trying session auth...");
           }
         }
       }
 
-      // If we reach here, try the regular session-based auth as fallback
-      try {
-        console.log("Trying session-based auth as fallback...");
-        const res = await axios.get(`${API_URL}/auth/user`, {
-          withCredentials: true,
-          timeout: 10000 // 10 second timeout
-        });
-
-        console.log("Auth response:", res.data);
-
-        if (res.data && res.data.authenticated) {
-          console.log("User authenticated via session:", res.data.user);
-          // Make sure avatar property is available for the Navbar component
-          const userData = {
-            ...res.data.user,
-            // Add any missing properties if needed
-          };
-          console.log("Setting user data:", userData);
-          setUser(userData);
-        } else {
-          console.log("User not authenticated");
-          setUser(null);
-        }
-      } catch (err) {
-        console.error("Session auth check failed:", err);
-        setUser(null);
-      }
+      // If we reach here, no valid token was found
+      console.log("No valid token found, user is not authenticated");
+      setUser(null);
+      setLoading(false);
     } catch (err) {
       console.error('Auth check error:', err);
       setUser(null);
-    } finally {
       setLoading(false);
     }
   };
@@ -305,7 +266,7 @@ function App() {
       console.log("Disconnecting websockets...");
       socketService.disconnect();
 
-      // Clear all auth tokens from localStorage
+      // Clear auth token from localStorage
       console.log("Clearing localStorage tokens...");
       localStorage.removeItem('auth_token');
 
@@ -346,9 +307,6 @@ function App() {
       console.error('Logout error:', err);
 
       // Even if there's an error, still force logout
-      console.log("Disconnecting websockets due to error...");
-      socketService.disconnect();
-
       localStorage.removeItem('auth_token');
       setUser(null);
 
