@@ -1,6 +1,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import socketService from './services/socketService';
 import { Toaster } from 'react-hot-toast';
 import AdminTools from './pages/AdminTools';
@@ -75,33 +76,8 @@ function App() {
   const [notifications, setNotifications] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
   const [showConnectionIndicator, setShowConnectionIndicator] = useState(false);
-  const [renderError, setRenderError] = useState(null);
   const navigate = useNavigate();
-
-  // Safety wrapper for components that might cause rendering issues
-  const SafeRender = ({ children, fallback = null }) => {
-    try {
-      return children;
-    } catch (error) {
-      console.error("Render error caught in SafeRender:", error);
-      return fallback || <div className="error-fallback">Component Error</div>;
-    }
-  };
-
-  // Function to safely access user properties
-  const safeUser = user ? {
-    ...user,
-    displayName: user.displayName || 'User',
-    balance: typeof user.balance === 'number' ? user.balance : 0,
-    avatar: user.avatar || user.avatarUrl || null,
-    isAdmin: !!user.isAdmin,
-  } : null;
-  
-  // Function to handle rendering errors
-  const handleRenderError = (error) => {
-    console.error("Critical render error:", error);
-    setRenderError(error);
-  };
+  const { t } = useTranslation();
 
   // Function to show a notification
   window.showNotification = (title, message, type = 'INFO', timeout = 5000) => {
@@ -168,8 +144,8 @@ function App() {
           } else {
             // Show error message for other endpoints
             window.showNotification(
-              'Error',
-              'Session expired. Please log in again.',
+              t('common.error'),
+              t('auth.sessionExpired'),
               'ERROR'
             );
           }
@@ -188,7 +164,7 @@ function App() {
       axios.interceptors.request.eject(requestInterceptor);
       axios.interceptors.response.eject(responseInterceptor);
     };
-  }, []);
+  }, [t]);
 
   // Handle socket connection status
   useEffect(() => {
@@ -394,8 +370,8 @@ function App() {
             // Show success notification
             if (window.showNotification) {
               window.showNotification(
-                'Sign In',
-                'Success',
+                t('common.signIn'),
+                t('common.success'),
                 'SUCCESS'
               );
             }
@@ -502,8 +478,8 @@ function App() {
       // Show notification
       if (window.showNotification) {
         window.showNotification(
-          'Sign Out',
-          'Success',
+          t('common.signOut'),
+          t('common.success'),
           'SUCCESS'
         );
       }
@@ -555,13 +531,12 @@ function App() {
   return (
     <div style={{
       minHeight: '100vh',
-      width: '100%',
-      background: !renderError ? 'linear-gradient(45deg, #581845 0%, #900C3F 100%)' : '#121212',
+      background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
       position: 'relative',
       overflow: 'hidden',
       transition: 'background 0.5s ease-out'
     }}>
-      <Navbar user={safeUser} onLogout={handleLogout} />
+      <Navbar user={user} onLogout={handleLogout} />
 
       {/* Toast notifications */}
       <Toaster
@@ -641,8 +616,8 @@ function App() {
             z-index: 9999;
             display: flex;
             flex-direction: column;
-            alignItems: center;
-            justifyContent: center;
+            align-items: center;
+            justify-content: center;
             transition: opacity 0.5s ease-in-out; /* Longer transition */
           }
         `}
@@ -700,7 +675,7 @@ function App() {
               letterSpacing: '0.05em',
               textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
             }}>
-              Loading...
+              {t('common.loading')}
             </p>
           </div>
         </div>
@@ -766,67 +741,67 @@ function App() {
                 textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
               }}
             >
-              Loading...
+              {t('common.loading')}
             </p>
           </div>
         ) : (
           <Routes>
             <Route path="/" element={
               <PageWrapper key="home">
-                <Home user={safeUser} />
+                <Home user={user} />
               </PageWrapper>
             } />
 
             <Route path="/inventory" element={
-              <ProtectedRoute user={safeUser}>
+              <ProtectedRoute user={user}>
                 <PageWrapper key="inventory">
-                  <Inventory user={safeUser} />
+                  <Inventory user={user} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
 
             <Route path="/marketplace" element={
               <PageWrapper key="marketplace">
-                <Marketplace user={safeUser} />
+                <Marketplace user={user} />
               </PageWrapper>
             } />
 
             <Route path="/my-listings" element={
-              <ProtectedRoute user={safeUser}>
+              <ProtectedRoute user={user}>
                 <PageWrapper key="my-listings">
-                  <MyListings user={safeUser} />
+                  <MyListings user={user} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
 
             <Route path="/settings/steam" element={
-              <ProtectedRoute user={safeUser}>
+              <ProtectedRoute user={user}>
                 <PageWrapper key="steam-settings">
-                  <SteamSettings user={safeUser} />
+                  <SteamSettings user={user} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
 
             <Route path="/trades" element={
-              <ProtectedRoute user={safeUser}>
+              <ProtectedRoute user={user}>
                 <PageWrapper key="trades">
-                  <TradeHistory user={safeUser} />
+                  <TradeHistory user={user} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
 
             <Route path="/trades/:tradeId" element={
-              <ProtectedRoute user={safeUser}>
+              <ProtectedRoute user={user}>
                 <PageWrapper key="trade-detail">
-                  <TradeDetailPage user={safeUser} />
+                  <TradeDetailPage user={user} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
 
             <Route path="/profile" element={
-              <ProtectedRoute user={safeUser}>
+              <ProtectedRoute user={user}>
                 <PageWrapper key="profile">
-                  <Profile user={safeUser} onBalanceUpdate={refreshWalletBalance} />
+                  <Profile user={user} onBalanceUpdate={refreshWalletBalance} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
@@ -838,7 +813,7 @@ function App() {
             } />
 
             <Route path="/admin/tools" element={
-              <AdminRoute user={safeUser}>
+              <AdminRoute user={user}>
                 <PageWrapper key="admin-tools">
                   <AdminTools />
                 </PageWrapper>

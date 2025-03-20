@@ -6,61 +6,6 @@ import { API_URL, getColorForRarity } from '../config/constants';
 import socketService from '../services/socketService';
 import './Home.css';
 
-// Error Boundary Component to catch rendering errors
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
-  }
-  
-  static getDerivedStateFromError(error) {
-    return { hasError: true };
-  }
-  
-  componentDidCatch(error, errorInfo) {
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
-    this.setState({
-      error: error,
-      errorInfo: errorInfo
-    });
-  }
-  
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="error-container" style={{
-          padding: '20px',
-          margin: '20px',
-          backgroundColor: '#1F2B45',
-          borderRadius: '8px',
-          color: 'white',
-          border: '1px solid #3373F2',
-          boxShadow: '0 0 10px rgba(51, 115, 242, 0.4)'
-        }}>
-          <h2 style={{ color: '#00D2FF' }}>Something went wrong</h2>
-          <p>We apologize for the inconvenience. Please try refreshing the page.</p>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              background: 'linear-gradient(135deg, #3373F2, #00D2FF)', 
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '4px',
-              color: 'white',
-              cursor: 'pointer',
-              marginTop: '10px'
-            }}
-          >
-            Refresh Page
-          </button>
-        </div>
-      );
-    }
-    
-    return this.props.children;
-  }
-}
-
 // Generate random particles for background effect
 const generateParticles = (count) => {
   const particles = [];
@@ -80,9 +25,6 @@ const particles = generateParticles(30);
 // Hero Section Component
 const HeroSection = ({ user, stats, prevStats }) => {
   const { t } = useTranslation();
-  // Provide default empty stats object
-  const safeStats = stats || { items: 0, users: 0, trades: 0 };
-  
   const [animatedStats, setAnimatedStats] = useState({
     items: { value: 0, updating: false },
     users: { value: 0, updating: false },
@@ -91,36 +33,32 @@ const HeroSection = ({ user, stats, prevStats }) => {
 
   // Animate stats when they change
   useEffect(() => {
-    // First update the values without animation - ensure they're numbers
+    // First update the values without animation
     if (Object.values(animatedStats).every(stat => stat.value === 0)) {
       setAnimatedStats({
-        items: { value: typeof safeStats.items === 'number' ? safeStats.items : 0, updating: false },
-        users: { value: typeof safeStats.users === 'number' ? safeStats.users : 0, updating: false },
-        trades: { value: typeof safeStats.trades === 'number' ? safeStats.trades : 0, updating: false }
+        items: { value: stats.items || 0, updating: false },
+        users: { value: stats.users || 0, updating: false },
+        trades: { value: stats.trades || 0, updating: false }
       });
       return;
     }
 
-    // Next check what changed and animate those - ensure they're numbers
+    // Next check what changed and animate those
     const newAnimatedStats = { ...animatedStats };
     let hasChanges = false;
-    
-    const safeItemsValue = typeof safeStats.items === 'number' ? safeStats.items : 0;
-    const safeUsersValue = typeof safeStats.users === 'number' ? safeStats.users : 0;
-    const safeTradesValue = typeof safeStats.trades === 'number' ? safeStats.trades : 0;
 
-    if (safeItemsValue !== animatedStats.items.value) {
-      newAnimatedStats.items = { value: safeItemsValue, updating: true };
+    if (stats.items !== animatedStats.items.value) {
+      newAnimatedStats.items = { value: stats.items, updating: true };
       hasChanges = true;
     }
 
-    if (safeUsersValue !== animatedStats.users.value) {
-      newAnimatedStats.users = { value: safeUsersValue, updating: true };
+    if (stats.users !== animatedStats.users.value) {
+      newAnimatedStats.users = { value: stats.users, updating: true };
       hasChanges = true;
     }
 
-    if (safeTradesValue !== animatedStats.trades.value) {
-      newAnimatedStats.trades = { value: safeTradesValue, updating: true };
+    if (stats.trades !== animatedStats.trades.value) {
+      newAnimatedStats.trades = { value: stats.trades, updating: true };
       hasChanges = true;
     }
 
@@ -148,7 +86,7 @@ const HeroSection = ({ user, stats, prevStats }) => {
           The Ultimate <span className="gradient-text" data-text="CS2 Marketplace">CS2 Marketplace</span> for Game Items
           </h1>
           <div className="geo-title">
-            <span className="geo-text">{"იყიდე და გაყიდე CS2 ნივთები პირველ ქართულ მარკეტპლეისზე"}</span>
+            <span className="geo-text">ითამაშე და ივაჭრე საუკეთესო ნივთებით</span>
           </div>
         <p className="hero-description">
           Buy and sell CS2 skins with confidence on our secure P2P marketplace.
@@ -264,11 +202,11 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
           </div>
       </div>
         
-          {loading ? (
-            <div className="loading-items">
+      {loading ? (
+        <div className="loading-items">
           <div className="spinner"></div>
           <p>Loading featured items...</p>
-            </div>
+        </div>
       ) : featuredItems && featuredItems.length > 0 ? (
         <>
           <div className="featured-grid">
@@ -290,8 +228,8 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
                       />
                     ) : (
                       <div className="no-image-placeholder">No Image Available</div>
-          )}
-        </div>
+                    )}
+                  </div>
                   <div className="item-card-content">
                     <h3 className="item-name">{item.marketHashName || 'Unknown Item'}</h3>
                     <span className="item-rarity" style={{
@@ -328,7 +266,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
           </div>
           <div className="view-all-container">
             <Link to="/marketplace" className="view-all-button" onClick={handleViewAllClick}>
-            View All Items
+              View All Items
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
@@ -351,17 +289,6 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
 };
 
 const TradingStatsSection = ({ stats }) => {
-  // Ensure stats object exists
-  const safeStats = stats || {};
-  
-  // Safely extract and convert each stat value
-  const safeUsers = typeof safeStats.users === 'number' ? safeStats.users : 0;
-  const safeItems = typeof safeStats.items === 'number' ? safeStats.items : 0;
-  const safeTrades = typeof safeStats.trades === 'number' ? safeStats.trades : 0;
-  
-  // For successful trades percentage
-  const successRate = safeTrades > 0 ? '98.7%' : '0%';
-  
   return (
     <section className="trading-stats-section">
       <div className="section-title">
@@ -380,7 +307,7 @@ const TradingStatsSection = ({ stats }) => {
               <circle cx="12" cy="10" r="3"></circle>
             </svg>
           </div>
-          <div className="stat-value">{safeUsers.toLocaleString()}</div>
+          <div className="stat-value">{stats.users.toLocaleString()}</div>
           <div className="stat-label">Active Users</div>
           <p className="stat-description">People actively trading on our platform this month</p>
         </div>
@@ -393,7 +320,7 @@ const TradingStatsSection = ({ stats }) => {
               <line x1="12" y1="17" x2="12" y2="21"></line>
             </svg>
           </div>
-          <div className="stat-value">{safeItems.toLocaleString()}</div>
+          <div className="stat-value">{stats.items.toLocaleString()}</div>
           <div className="stat-label">Items Listed</div>
           <p className="stat-description">Total number of items listed on our marketplace</p>
         </div>
@@ -405,7 +332,7 @@ const TradingStatsSection = ({ stats }) => {
               <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
           </div>
-          <div className="stat-value">{successRate}</div>
+          <div className="stat-value">{stats.trades > 0 ? '98.7%' : '0%'}</div>
           <div className="stat-label">Successful Trades</div>
           <p className="stat-description">Percentage of completed trades with satisfied users</p>
         </div>
@@ -418,7 +345,7 @@ const TradingStatsSection = ({ stats }) => {
               <path d="M8 6l8 12"></path>
             </svg>
           </div>
-          <div className="stat-value">{safeTrades.toLocaleString()}</div>
+          <div className="stat-value">{stats.trades.toLocaleString()}</div>
           <div className="stat-label">Completed Trades</div>
           <p className="stat-description">Total number of successful trades on our platform</p>
         </div>
@@ -437,7 +364,7 @@ const FeaturesSection = () => {
           <div className="title-decoration"></div>
         </div>
       </div>
-      
+
       <div className="features-grid">
         <div className="feature-card">
           <div className="feature-icon">
@@ -488,7 +415,7 @@ const FeaturesSection = () => {
           <h3 className="feature-title">Real-time Updates</h3>
           <p className="feature-description">Get instant notifications for new listings, price changes, trade offers, and more with our real-time update system.</p>
         </div>
-        
+
         <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -500,7 +427,7 @@ const FeaturesSection = () => {
           <h3 className="feature-title">Global Marketplace</h3>
           <p className="feature-description">Connect with buyers and sellers from all around the world, expanding your trading opportunities beyond borders.</p>
         </div>
-        
+
         <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -638,15 +565,10 @@ const Home = ({ user }) => {
   // Function to handle stats updates from socket
   const handleStatsUpdate = useCallback((statsData) => {
     console.log("Received real-time stats update:", statsData);
-    // Ensure values are numbers, not objects
-    const safeItems = typeof statsData.activeListings === 'number' ? statsData.activeListings : 0;
-    const safeUsers = typeof statsData.activeUsers === 'number' ? statsData.activeUsers : 0;
-    const safeTrades = typeof statsData.completedTrades === 'number' ? statsData.completedTrades : 0;
-    
     setStats({
-      items: safeItems,
-      users: safeUsers,
-      trades: safeTrades
+      items: statsData.activeListings || 0,
+      users: statsData.activeUsers || 0,
+      trades: statsData.completedTrades || 0
     });
   }, []);
 
@@ -807,53 +729,46 @@ const Home = ({ user }) => {
   }, []);
 
   return (
-    <ErrorBoundary>
-      <div className="home-container">
-        {/* Particles Background */}
-        <div className="game-particles">
-          {particles.map(particle => (
-            <div
-              key={particle.id}
-              className="particle"
-              style={{
-                left: `${particle.x}%`,
-                top: `${particle.y}%`,
-                width: `${particle.size}px`,
-                height: `${particle.size}px`,
-                animationDelay: `${Math.random() * 5}s`,
-                animationDuration: `${15 + Math.random() * 10}s`
-              }}
-            />
-          ))}
-        </div>
-        
-        {/* Hero Section */}
-        <HeroSection user={user} stats={stats} prevStats={stats} />
-
-        {/* Search Section */}
-        <SearchSection />
-
-        {/* Featured Items Section */}
-        <FeaturedItemsSection loading={loading} featuredItems={featuredItems} />
-
-        {/* Trading Stats Section - pass stats to the component */}
-        <TradingStatsSection stats={stats} />
-
-        {/* Features Section */}
-        <FeaturesSection />
-
-        {/* How It Works Section */}
-        <HowItWorksSection />
-
-        {/* Final CTA Section */}
-        <FinalCTASection user={user} />
-
-        {/* Footer stays at bottom */}
-        <footer className="home-footer">
-          <p>© 2023 CS2 Marketplace. All rights reserved.</p>
-        </footer>
+    <div className="home-container">
+      {/* Particles Background */}
+      <div className="game-particles">
+        {particles.map(particle => (
+          <div
+            key={particle.id}
+            className="particle"
+            style={{
+              left: `${particle.x}%`,
+              top: `${particle.y}%`,
+              width: `${particle.size}px`,
+              height: `${particle.size}px`,
+              animationDelay: `${Math.random() * 5}s`,
+              animationDuration: `${15 + Math.random() * 10}s`
+            }}
+          />
+        ))}
       </div>
-    </ErrorBoundary>
+
+      {/* Hero Section */}
+      <HeroSection user={user} stats={stats} />
+
+      {/* Search Section */}
+      <SearchSection />
+
+      {/* Featured Items Section */}
+      <FeaturedItemsSection loading={loading} featuredItems={featuredItems} />
+
+      {/* Trading Stats Section - pass stats to the component */}
+      <TradingStatsSection stats={stats} />
+
+      {/* Features Section */}
+      <FeaturesSection />
+
+      {/* How It Works Section */}
+      <HowItWorksSection />
+
+      {/* Final CTA Section */}
+      <FinalCTASection user={user} />
+    </div>
   );
 };
 
