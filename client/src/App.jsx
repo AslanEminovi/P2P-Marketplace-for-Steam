@@ -77,7 +77,17 @@ function App() {
   const [socketConnected, setSocketConnected] = useState(false);
   const [showConnectionIndicator, setShowConnectionIndicator] = useState(false);
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  
+  // Safe translation function that won't crash the app
+  const { t: rawT } = useTranslation();
+  const t = (key, options) => {
+    try {
+      return rawT(key, options);
+    } catch (e) {
+      console.error('Translation error for key:', key, e);
+      return key.split('.').pop(); // Return the last part of the key as fallback
+    }
+  };
 
   // Function to show a notification
   window.showNotification = (title, message, type = 'INFO', timeout = 5000) => {
@@ -297,6 +307,14 @@ function App() {
 
   // Add a new useEffect to clear loading state periodically to prevent stuck states
   useEffect(() => {
+    // Immediately clear loading state for initial render
+    const initialLoadingClear = setTimeout(() => {
+      if (loading) {
+        console.log("Initial safety: forcing loading state to false");
+        setLoading(false);
+      }
+    }, 3000); // Give it 3 seconds on first load
+    
     // Safety timeout to reset loading state if it gets stuck
     const safetyResetInterval = setInterval(() => {
       if (loading) {
@@ -319,9 +337,10 @@ function App() {
         console.log("Safety mechanism: resetting red background");
         document.body.style.backgroundColor = '';
       }
-    }, 10000); // 10 seconds interval
+    }, 5000); // Reduce to 5 seconds for faster recovery
     
     return () => {
+      clearTimeout(initialLoadingClear);
       clearInterval(safetyResetInterval);
     };
   }, [loading]);
@@ -336,106 +355,122 @@ function App() {
       setLoading(true);
       console.log("Checking auth status, API URL:", API_URL);
 
-      // Check for auth token in URL (Steam redirects with token in URL)
-      const urlParams = new URLSearchParams(window.location.search);
-      const authToken = urlParams.get('auth_token');
+      // Maximum time to wait for auth check
+      const authCheckTimeout = setTimeout(() => {
+        console.log("Auth check timeout - forcing loading to false");
+        setLoading(false);
+      }, 5000);
 
-      if (authToken) {
-        console.log("Found auth token in URL, storing it...");
-        // Store token immediately - Steam auth model typically trusts the redirect
-        localStorage.setItem('auth_token', authToken);
+      try {
+        // Check for auth token in URL (Steam redirects with token in URL)
+        const urlParams = new URLSearchParams(window.location.search);
+        const authToken = urlParams.get('auth_token');
 
-        // Remove token from URL to prevent bookmarking with token
-        window.history.replaceState({}, document.title, window.location.pathname);
+        if (authToken) {
+          console.log("Found auth token in URL, storing it...");
+          // Store token immediately - Steam auth model typically trusts the redirect
+          localStorage.setItem('auth_token', authToken);
 
-        try {
-          // Fetch user details with the token
-          console.log("Fetching user details with token...");
-          const userResponse = await axios.get(`${API_URL}/auth/user`, {
-            withCredentials: true,
-            params: {
-              auth_token: authToken
-            },
-            timeout: 10000
-          });
+          // Remove token from URL to prevent bookmarking with token
+          window.history.replaceState({}, document.title, window.location.pathname);
 
-          console.log("User details response:", userResponse.data);
+          try {
+            // Fetch user details with the token
+            console.log("Fetching user details with token...");
+            const userResponse = await axios.get(`${API_URL}/auth/user`, {
+              withCredentials: true,
+              params: {
+                auth_token: authToken
+              },
+              timeout: 5000 // Shorter timeout
+            });
 
-          if (userResponse.data && userResponse.data.authenticated) {
-            console.log("User authenticated:", userResponse.data.user);
+            console.log("User details response:", userResponse.data);
 
-            // Set user state
-            setUser(userResponse.data.user);
+            if (userResponse.data && userResponse.data.authenticated) {
+              console.log("User authenticated:", userResponse.data.user);
 
-            // Show success notification
-            if (window.showNotification) {
-              window.showNotification(
-                t('common.signIn'),
-                t('common.success'),
-                'SUCCESS'
-              );
+              // Set user state
+              setUser(userResponse.data.user);
+
+              // Show success notification
+              if (window.showNotification) {
+                window.showNotification(
+                  'Sign In',
+                  'Success',
+                  'SUCCESS'
+                );
+              }
+
+              clearTimeout(authCheckTimeout);
+              setLoading(false);
+              return;
+            } else {
+              console.warn("Authentication check failed, response:", userResponse.data);
+              localStorage.removeItem('auth_token');
             }
+          } catch (verifyError) {
+            console.error("User details request failed:", verifyError);
 
-            setLoading(false);
-            return;
-          } else {
-            console.warn("Authentication check failed, response:", userResponse.data);
-            localStorage.removeItem('auth_token');
-          }
-        } catch (verifyError) {
-          console.error("User details request failed:", verifyError);
-
-          // If network error, keep the token for retry
-          if (verifyError.code === 'ECONNABORTED' || !verifyError.response) {
-            console.log("Network error, will retry on next load");
-          } else {
-            // If server rejected the token, remove it
-            localStorage.removeItem('auth_token');
+            // If network error, keep the token for retry
+            if (verifyError.code === 'ECONNABORTED' || !verifyError.response) {
+              console.log("Network error, will retry on next load");
+            } else {
+              // If server rejected the token, remove it
+              localStorage.removeItem('auth_token');
+            }
           }
         }
-      }
 
-      // Check if we have a token in localStorage
-      const storedToken = localStorage.getItem('auth_token');
-      if (storedToken) {
-        console.log("Found stored token, fetching user details...");
+        // Check if we have a token in localStorage
+        const storedToken = localStorage.getItem('auth_token');
+        if (storedToken) {
+          console.log("Found stored token, fetching user details...");
 
-        try {
-          // Use existing token to get user details
-          const userResponse = await axios.get(`${API_URL}/auth/user`, {
-            withCredentials: true,
-            params: {
-              auth_token: storedToken
-            },
-            timeout: 10000
-          });
+          try {
+            // Use existing token to get user details
+            const userResponse = await axios.get(`${API_URL}/auth/user`, {
+              withCredentials: true,
+              params: {
+                auth_token: storedToken
+              },
+              timeout: 5000 // Shorter timeout
+            });
 
-          console.log("Stored token user check response:", userResponse.data);
+            console.log("Stored token user check response:", userResponse.data);
 
-          if (userResponse.data && userResponse.data.authenticated) {
-            console.log("User authenticated with stored token:", userResponse.data.user);
-            setUser(userResponse.data.user);
-            setLoading(false);
-            return;
-          } else {
-            console.log("Stored token is invalid, removing...");
-            localStorage.removeItem('auth_token');
-          }
-        } catch (error) {
-          console.error("Stored token check failed:", error);
+            if (userResponse.data && userResponse.data.authenticated) {
+              console.log("User authenticated with stored token:", userResponse.data.user);
+              setUser(userResponse.data.user);
+              clearTimeout(authCheckTimeout);
+              setLoading(false);
+              return;
+            } else {
+              console.log("Stored token is invalid, removing...");
+              localStorage.removeItem('auth_token');
+            }
+          } catch (error) {
+            console.error("Stored token check failed:", error);
 
-          // Keep token on network errors, remove on auth rejection
-          if (error.response && error.response.status === 401) {
-            console.log("Server rejected stored token, removing");
-            localStorage.removeItem('auth_token');
+            // Keep token on network errors, remove on auth rejection
+            if (error.response && error.response.status === 401) {
+              console.log("Server rejected stored token, removing");
+              localStorage.removeItem('auth_token');
+            }
           }
         }
-      }
 
-      // If we reach here, no valid token was found
-      console.log("No valid token found, user is not authenticated");
-      setUser(null);
-      setLoading(false);
+        // If we reach here, no valid token was found
+        console.log("No valid token found, user is not authenticated");
+        setUser(null);
+        clearTimeout(authCheckTimeout);
+        setLoading(false);
+      } catch (innerErr) {
+        console.error('Inner auth check error:', innerErr);
+        setUser(null);
+        clearTimeout(authCheckTimeout);
+        setLoading(false);
+      }
     } catch (err) {
       console.error('Auth check error:', err);
       setUser(null);
@@ -616,8 +651,8 @@ function App() {
             z-index: 9999;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            alignItems: center;
+            justifyContent: center;
             transition: opacity 0.5s ease-in-out; /* Longer transition */
           }
         `}

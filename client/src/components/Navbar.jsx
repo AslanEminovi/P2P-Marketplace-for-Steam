@@ -9,7 +9,17 @@ import './Navbar.css';
 
 // Navbar now receives user and onLogout as props
 const Navbar = ({ user, onLogout }) => {
-  const { t } = useTranslation();
+  // Safe translation function that won't crash the app
+  const { t: rawT } = useTranslation();
+  const t = (key, options) => {
+    try {
+      return rawT(key, options);
+    } catch (e) {
+      console.error('Navbar translation error for key:', key, e);
+      return key.split('.').pop(); // Return the last part of the key as fallback
+    }
+  };
+  
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
