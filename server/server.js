@@ -502,9 +502,28 @@ async function updateSiteStats() {
         Trade.countDocuments({ status: "completed" }),
       ]);
 
-    // Use either the connected clients count or registered users count, whichever is higher
-    // This ensures we don't display "0 users" when there are clearly people using the site
-    const activeUsers = Math.max(connectedClients, registeredUsers);
+    // To avoid fluctuations, store the highest active user count in memory
+    if (
+      !global.highestActiveUsers ||
+      connectedClients > global.highestActiveUsers
+    ) {
+      global.highestActiveUsers = connectedClients;
+    }
+
+    // Gradually decay the highest count (every hour reduce by 1 if no new high is reached)
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    if (!global.lastUserCountReset || global.lastUserCountReset < oneHourAgo) {
+      global.lastUserCountReset = Date.now();
+      if (global.highestActiveUsers > connectedClients) {
+        global.highestActiveUsers = Math.max(
+          connectedClients,
+          global.highestActiveUsers - 1
+        );
+      }
+    }
+
+    // Use either the highest recorded clients count or registered users count
+    const activeUsers = Math.max(global.highestActiveUsers, registeredUsers);
 
     // Create stats object
     const stats = {

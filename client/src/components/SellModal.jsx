@@ -12,6 +12,12 @@ const SellModal = ({ item, onClose, onConfirm }) => {
     setShowCustom(false);
     setCustomRate('');
     setIsSubmitting(false);
+    
+    // Pre-cache the image to reduce rendering delays
+    if (item && item.image) {
+      const img = new Image();
+      img.src = item.image;
+    }
   }, [item?.assetid, item?.asset_id]);
   
   const usdToGel = 2.79; // Current USD to GEL exchange rate
@@ -114,15 +120,18 @@ const SellModal = ({ item, onClose, onConfirm }) => {
       priceGEL: calculatePrice()
     };
     
-    try {
-      // Call the confirm function immediately
-      onConfirm(itemData);
-    } catch (error) {
-      console.error('Error submitting form:', error);
-      setIsSubmitting(false);
-      // Ensure we clean up even if an error occurs
-      handleClose();
-    }
+    // Add a small delay to ensure UI updates before potentially heavy operations
+    setTimeout(() => {
+      try {
+        // Call the confirm function
+        onConfirm(itemData);
+      } catch (error) {
+        console.error('Error submitting form:', error);
+        setIsSubmitting(false);
+        // Ensure we clean up even if an error occurs
+        handleClose();
+      }
+    }, 50); // Small delay allows UI to update
   };
 
   // Add cleanup effect when the component unmounts
@@ -143,6 +152,9 @@ const SellModal = ({ item, onClose, onConfirm }) => {
         mainContent.style.top = '';
         mainContent.style.width = '';
       }
+      
+      // Additional cleanup for potential memory leaks
+      setIsSubmitting(false);
     };
   }, []);
 

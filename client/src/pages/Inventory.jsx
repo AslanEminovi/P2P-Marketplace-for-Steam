@@ -230,6 +230,7 @@ function Inventory({ user }) {
           // Check for success field or status field
           if (
             (responseData.success === true) || 
+            (responseData._id) || // If server returned an item ID, it likely succeeded
             (typeof responseData.status === 'string' && responseData.status.toLowerCase().includes('success')) ||
             (responseData.listed === true) ||
             (responseData.message && (
@@ -256,7 +257,9 @@ function Inventory({ user }) {
           errorMsg.toLowerCase().includes('success') || 
           errorMsg.toLowerCase().includes('item listed') ||
           errorMsg.toLowerCase().includes('added to market') ||
-          errorMsg.toLowerCase().includes('now for sale')
+          errorMsg.toLowerCase().includes('now for sale') ||
+          errorMsg.toLowerCase().includes('item is now') ||
+          errorMsg.toLowerCase().includes('listing created')
         ) {
           console.log('Error message actually indicates success:', errorMsg);
           isActuallySuccess = true;
@@ -489,7 +492,7 @@ function Inventory({ user }) {
     );
   }
 
-  if (messageType === 'error') {
+  if (messageType === 'error' && !message.includes('successfully')) {
     return (
       <div style={{ 
         color: '#e2e8f0',
