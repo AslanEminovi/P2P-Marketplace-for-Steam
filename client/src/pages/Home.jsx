@@ -168,11 +168,11 @@ const SearchSection = () => {
           </button>
         </div>
         <div className="search-tags">
-          <Link to="/marketplace?category=rifle" className="search-tag gradient-text">Rifles</Link>
-          <Link to="/marketplace?category=knife" className="search-tag gradient-text">Knives</Link>
-          <Link to="/marketplace?category=pistol" className="search-tag gradient-text">Pistols</Link>
-          <Link to="/marketplace?category=glove" className="search-tag gradient-text">Gloves</Link>
-          <Link to="/marketplace?category=case" className="search-tag gradient-text">Cases</Link>
+          <Link to="/marketplace?category=rifle" className="search-tag">Rifles</Link>
+          <Link to="/marketplace?category=knife" className="search-tag">Knives</Link>
+          <Link to="/marketplace?category=pistol" className="search-tag">Pistols</Link>
+          <Link to="/marketplace?category=glove" className="search-tag">Gloves</Link>
+          <Link to="/marketplace?category=case" className="search-tag">Cases</Link>
         </div>
       </div>
     </section>
@@ -212,7 +212,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
               console.log(`Featured item ${index}:`, item);
               
               return (
-                <div key={item._id || index} className="item-card">
+                <div key={item._id || index} className="item-card featured-item">
                   <div className="item-card-image">
                     {item.imageUrl ? (
                       <img 
@@ -228,7 +228,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
                     )}
                   </div>
                   <div className="item-card-content">
-                    <h3 className="item-name gradient-text">{item.marketHashName || 'Unknown Item'}</h3>
+                    <h3 className="item-name">{item.marketHashName || 'Unknown Item'}</h3>
                     <span className="item-rarity" style={{
                       backgroundColor: getColorForRarity(item.rarity || 'Consumer Grade')
                     }}>
@@ -236,8 +236,8 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
                     </span>
                     <div className="item-meta">
                       <div className="item-price">
-                        <span className="price-tag-currency gradient-text">$</span>
-                        <span className="price-tag-amount gradient-text">
+                        <span className="price-tag-currency">$</span>
+                        <span className="price-tag-amount">
                           {typeof item.price === 'number' ? item.price.toFixed(2) : '0.00'}
                         </span>
                       </div>

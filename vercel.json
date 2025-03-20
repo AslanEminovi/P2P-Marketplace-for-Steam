@@ -3,10 +3,15 @@
   "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/build",
   "routes": [
-    { "handle": "filesystem" },
-    { "src": "/[^.]+", "dest": "/index.html" }
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/[^.]+",
+      "dest": "/index.html"
+    }
   ],
   "github": {
     "silent": false
   }
-} 
+}

@@ -371,30 +371,23 @@
 }
 
 .search-tag {
-  background: rgba(31, 43, 69, 0.4);
-  padding: 0.6rem 1.25rem;
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
   border-radius: 8px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: all 0.3s ease;
+  margin-right: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  background-color: var(--gaming-bg-light);
+  color: var(--gaming-text-bright);
   border: 1px solid var(--gaming-border-light);
-  color: var(--gaming-text-medium);
-  font-size: 0.95rem;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.search-tag.gradient-text {
-  background-image: var(--gaming-gradient-modern);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 
 .search-tag:hover {
-  transform: translateY(-2px);
-  background: rgba(31, 43, 69, 0.7);
+  background-color: rgba(51, 115, 242, 0.15);
+  box-shadow: 0 0 10px rgba(51, 115, 242, 0.2);
   border-color: var(--gaming-accent-blue);
-  box-shadow: var(--gaming-shadow-blue);
+  transform: translateY(-2px);
 }
 
 /* FEATURED ITEMS SECTION */
@@ -429,6 +422,9 @@
 
 .section-title h2 .gradient-text {
   background-image: var(--gaming-gradient-modern);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .section-title p {
@@ -1227,4 +1223,58 @@
 .home-container > section:last-of-type {
   margin-bottom: 0;
   padding-bottom: 80px;
+}
+
+/* GRADIENT TEXT - ONLY FOR SPECIAL ELEMENTS */
+/* Only apply gradient text to specific elements, not everything */
+.gradient-text-heading {
+  background-image: var(--gaming-gradient-modern);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  display: inline-block;
+}
+
+/* Restore normal styling for price text */
+.price-tag-amount,
+.price-tag-currency {
+  color: var(--gaming-text-bright);
+  background: none;
+  -webkit-text-fill-color: initial;
+  background-clip: initial;
+  -webkit-background-clip: initial;
+}
+
+/* Only apply gradient to section title, not all text */
+.section-title h2 .gradient-text {
+  background-image: var(--gaming-gradient-modern);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Reset normal styling for general text */
+.item-name {
+  color: var(--gaming-text-bright);
+  font-weight: 600;
+  background: none;
+  -webkit-text-fill-color: initial;
+}
+
+/* Only keep gradient for specific item names that need emphasis */
+.featured-item .item-name.gradient-emphasis {
+  background-image: var(--gaming-gradient-modern);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Final CTA should keep gradient title */
+.final-cta-title .gradient-text {
+  background-image: var(--gaming-gradient-modern);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
