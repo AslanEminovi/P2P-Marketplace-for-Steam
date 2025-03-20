@@ -1,15 +1,17 @@
-"footer": {
-  "about": "About Us",
-  "aboutDescription": "CS2 Marketplace is the leading platform for buying and selling Counter-Strike 2 items in Georgia with secure transactions and fair prices.",
-  "links": "Quick Links",
-  "marketplace": "Marketplace",
-  "inventory": "Inventory",
-  "trades": "Trades",
-  "faq": "FAQ",
-  "support": "Support",
-  "contact": "Contact Us",
-  "terms": "Terms of Service",
-  "privacy": "Privacy Policy",
-  "allRightsReserved": "All rights reserved.",
-  "disclaimer": "This site is not affiliated with Valve Corporation. All game assets belong to their respective owners."
+{
+  "footer": {
+    "about": "About Us",
+    "aboutDescription": "CS2 Marketplace is the leading platform for buying and selling Counter-Strike 2 items in Georgia with secure transactions and fair prices.",
+    "links": "Quick Links",
+    "marketplace": "Marketplace",
+    "inventory": "Inventory",
+    "trades": "Trades",
+    "faq": "FAQ",
+    "support": "Support",
+    "contact": "Contact Us",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "allRightsReserved": "All rights reserved.",
+    "disclaimer": "This site is not affiliated with Valve Corporation. All game assets belong to their respective owners."
+  }
 } 
