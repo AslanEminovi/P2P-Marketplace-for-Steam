@@ -270,10 +270,8 @@ function App() {
       setLoading(true);
       
       // Disconnect all websockets first
-      if (socket) {
-        console.log("Disconnecting websockets...");
-        socket.disconnect();
-      }
+      console.log("Disconnecting websockets...");
+      socketService.disconnect();
       
       // Clear all auth tokens from localStorage
       console.log("Clearing localStorage tokens...");
@@ -316,9 +314,9 @@ function App() {
       console.error('Logout error:', err);
       
       // Even if there's an error, still force logout
-      if (socket) {
-        socket.disconnect();
-      }
+      console.log("Disconnecting websockets due to error...");
+      socketService.disconnect();
+      
       localStorage.removeItem('auth_token');
       setUser(null);
       
