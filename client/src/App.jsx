@@ -99,7 +99,10 @@ const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   
   if (loading) {
-    return <div>Loading authentication status...</div>;
+    return <div className="auth-loading-container">
+      <div className="auth-loading-spinner"></div>
+      <p>Verifying your access...</p>
+    </div>;
   }
   
   if (!user) {
@@ -114,18 +117,16 @@ const AdminRoute = ({ children }) => {
   const { user, loading } = useAuth();
   
   if (loading) {
-    return <div>Loading authentication status...</div>;
+    return <div className="auth-loading-container">
+      <div className="auth-loading-spinner"></div>
+      <p>Verifying admin access...</p>
+    </div>;
   }
   
-  console.log("AdminRoute check - User:", user);
-  console.log("AdminRoute check - isAdmin:", user?.isAdmin);
-
   if (!user || !user.isAdmin) {
-    console.log("AdminRoute - Access denied, redirecting to home");
     return <Navigate to="/" replace />;
   }
   
-  console.log("AdminRoute - Access granted");
   return children;
 };
 
@@ -151,7 +152,8 @@ const DebugInfo = ({ apiUrl, auth }) => {
       borderRadius: '5px',
       fontSize: '12px',
       maxWidth: '300px',
-      zIndex: 10000
+      zIndex: 10000,
+      display: 'none' // Hide for now
     }}>
       <h4 style={{ margin: '0 0 5px 0' }}>Debug Info</h4>
       <p style={{ margin: '0 0 5px 0' }}>API URL: {apiUrl || 'Not set'}</p>
@@ -163,13 +165,12 @@ const DebugInfo = ({ apiUrl, auth }) => {
 
 function App() {
   console.log("[App] Initializing App component");
-  const auth = useAuth();
-  const { user, loading, checkAuth, authError } = auth;
+  const { user, loading, checkAuth } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
   const { t } = useTranslation();
 
-  console.log("[App] Auth state:", { user: user ? 'exists' : 'null', loading, authError });
+  console.log("[App] Auth state:", { user: user ? 'exists' : 'null', loading });
 
   // Function to refresh wallet balance
   const refreshWalletBalance = useCallback(() => {
@@ -203,8 +204,6 @@ function App() {
 
         return config;
       });
-
-      console.log("[App] Axios interceptor set up successfully");
 
       // Remove interceptor on cleanup
       return () => {
@@ -267,9 +266,6 @@ function App() {
               'INFO'
             );
           }
-
-          // Implement trade update logic - you might need to update the trade list
-          // or refresh data in the current page if it's a trade page
         };
 
         const handleInventoryUpdate = (inventoryData) => {
@@ -318,325 +314,198 @@ function App() {
   console.log("[App] Rendering App component");
 
   return (
-    <AppErrorBoundary>
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        <DebugInfo apiUrl={API_URL} auth={auth} />
-        <Navbar />
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      <Navbar />
 
-        {/* Toast notifications */}
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            success: {
-              duration: 3000,
-              style: {
-                background: '#166534',
-                color: '#fff',
-              },
+      {/* Toast notifications */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          success: {
+            duration: 3000,
+            style: {
+              background: '#166534',
+              color: '#fff',
             },
-            error: {
-              duration: 4000,
-              style: {
-                background: '#991b1b',
-                color: '#fff',
-              },
+          },
+          error: {
+            duration: 4000,
+            style: {
+              background: '#991b1b',
+              color: '#fff',
             },
-            warning: {
-              duration: 4000,
-              style: {
-                background: '#854d0e',
-                color: '#fff',
-              },
+          },
+          warning: {
+            duration: 4000,
+            style: {
+              background: '#854d0e',
+              color: '#fff',
             },
-          }}
-        />
+          },
+        }}
+      />
 
-        {/* WebSocket connection indicator */}
-        {user && (
-          <div
-            style={{
-              position: 'fixed',
-              bottom: '10px',
-              right: '10px',
-              width: '10px',
-              height: '10px',
-              borderRadius: '50%',
-              backgroundColor: socketConnected ? '#4ade80' : '#ef4444',
-              boxShadow: `0 0 10px ${socketConnected ? 'rgba(74, 222, 128, 0.6)' : 'rgba(239, 68, 68, 0.6)'}`,
-              zIndex: 1000,
-              transition: 'all 0.3s ease'
-            }}
-            title={socketConnected ? 'Real-time connection active' : 'Real-time connection inactive'}
-          />
-        )}
-
-        {/* Background patterns */}
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundImage: 'radial-gradient(circle at 15% 50%, rgba(74, 222, 128, 0.05) 0%, transparent 60%), radial-gradient(circle at 85% 30%, rgba(56, 189, 248, 0.05) 0%, transparent 60%)',
-          pointerEvents: 'none',
-          zIndex: 0
-        }} />
-
-        {/* CSS for spinner animation */}
-        <style>
-          {`
-            @keyframes spin {
-              to { transform: rotate(360deg); }
-            }
-            .spinner {
-              animation: spin 1s linear infinite;
-            }
-            @keyframes pulse {
-              0%, 100% { opacity: 0.6; transform: scale(0.98); }
-              50% { opacity: 1; transform: scale(1); }
-            }
-            @keyframes gradientFlow {
-              0% { background-position: 0% 50%; }
-              50% { background-position: 100% 50%; }
-              100% { background-position: 0% 50%; }
-            }
-            .loading-text {
-              animation: pulse 2s ease-in-out infinite;
-            }
-            .loading-screen-background {
-              background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95)), 
-                        repeating-linear-gradient(45deg, rgba(99, 102, 241, 0.05) 0px, rgba(99, 102, 241, 0.05) 1px, transparent 1px, transparent 10px);
-            }
-            .loading-logo {
-              animation: pulse 2s ease-in-out infinite;
-            }
-            .gradient-border {
-              position: relative;
-            }
-            .gradient-border::before {
-              content: '';
-              position: absolute;
-              top: -2px;
-              left: -2px;
-              right: -2px;
-              bottom: -2px;
-              background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #C026D3 100%);
-              border-radius: 50%;
-              z-index: -1;
-              animation: gradientFlow 3s ease infinite;
-              background-size: 200% 200%;
-            }
-          `}
-        </style>
-
-        <Suspense fallback={
-          <div className="loading-screen-background" style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '100vh',
-            width: '100%',
+      {/* WebSocket connection indicator */}
+      {user && (
+        <div
+          style={{
             position: 'fixed',
-            top: 0,
-            left: 0,
-            zIndex: 9999
-          }}>
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '30px'
-            }}>
-              <div className="gradient-border" style={{
-                width: '80px',
-                height: '80px',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                padding: '15px',
-                borderRadius: '50%',
-                background: '#0F172A'
-              }}>
-                <div
-                  className="spinner"
-                  style={{
-                    width: '60px',
-                    height: '60px',
-                    border: '4px solid rgba(255,255,255,0.1)',
-                    borderRadius: '50%',
-                    borderTopColor: '#4ade80',
-                    borderRightColor: 'rgba(124, 58, 237, 0.7)',
-                    boxShadow: '0 0 15px rgba(124, 58, 237, 0.3)'
-                  }}
-                />
-              </div>
-              <p className="loading-text" style={{
-                color: '#e2e8f0',
-                fontSize: '1.2rem',
-                fontWeight: '600',
-                letterSpacing: '0.05em',
-                textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
-              }}>
-                {t('common.loading')}
-              </p>
-            </div>
-          </div>
-        }>
-          {/* Modified to continue showing content while loading auth */}
-          {loading && (
-            <div className="loading-screen-background" style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              height: '100vh',
-              width: '100%',
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              zIndex: 9998, /* Lower z-index so it doesn't block UI interactions */
-              flexDirection: 'column',
-              gap: '30px',
-              pointerEvents: 'none'
-            }}>
-              <div className="loading-logo" style={{
-                fontSize: '2.5rem',
-                fontWeight: '800',
-                marginBottom: '20px',
-                background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #C026D3 100%)',
-                WebkitBackgroundClip: 'text',
-                backgroundClip: 'text',
-                color: 'transparent',
-                textShadow: '0 0 20px rgba(124, 58, 237, 0.3)'
-              }}>
-                CS2 Marketplace
-              </div>
-              <div className="gradient-border" style={{
-                width: '90px',
-                height: '90px',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                padding: '15px',
-                borderRadius: '50%',
-                background: '#0F172A'
-              }}>
-                <div
-                  className="spinner"
-                  style={{
-                    width: '70px',
-                    height: '70px',
-                    border: '4px solid rgba(255,255,255,0.1)',
-                    borderRadius: '50%',
-                    borderTopColor: '#4ade80',
-                    borderRightColor: 'rgba(124, 58, 237, 0.7)',
-                    borderBottomColor: 'rgba(6, 182, 212, 0.5)',
-                    boxShadow: '0 0 20px rgba(124, 58, 237, 0.3)'
-                  }}
-                />
-              </div>
-              <p className="loading-text"
-                style={{
-                  color: '#e2e8f0',
-                  fontSize: '1.5rem',
-                  fontWeight: '600',
-                  letterSpacing: '0.05em',
-                  textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
-                }}
-              >
-                {t('common.loading')}
-              </p>
-            </div>
-          )}
-          
-          {/* Always render routes regardless of loading state */}
-          <Routes>
-            <Route path="/" element={
-              <PageWrapper key="home">
-                <Home />
+            bottom: '10px',
+            right: '10px',
+            width: '10px',
+            height: '10px',
+            borderRadius: '50%',
+            backgroundColor: socketConnected ? '#4ade80' : '#ef4444',
+            boxShadow: `0 0 10px ${socketConnected ? 'rgba(74, 222, 128, 0.6)' : 'rgba(239, 68, 68, 0.6)'}`,
+            zIndex: 1000,
+            transition: 'all 0.3s ease'
+          }}
+          title={socketConnected ? 'Real-time connection active' : 'Real-time connection inactive'}
+        />
+      )}
+
+      {/* Background patterns */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundImage: 'radial-gradient(circle at 15% 50%, rgba(74, 222, 128, 0.05) 0%, transparent 60%), radial-gradient(circle at 85% 30%, rgba(56, 189, 248, 0.05) 0%, transparent 60%)',
+        pointerEvents: 'none',
+        zIndex: 0
+      }} />
+
+      {/* CSS for spinner animation */}
+      <style>
+        {`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+          .spinner {
+            animation: spin 1s linear infinite;
+          }
+          .auth-loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 2rem;
+          }
+          .auth-loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border-top-color: #4ade80;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+          }
+        `}
+      </style>
+
+      <Suspense fallback={
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh'
+        }}>
+          <div className="spinner" style={{
+            width: '50px',
+            height: '50px',
+            border: '4px solid rgba(255,255,255,0.1)',
+            borderRadius: '50%',
+            borderTopColor: '#4ade80'
+          }} />
+        </div>
+      }>
+        <Routes>
+          <Route path="/" element={
+            <PageWrapper key="home">
+              <Home />
+            </PageWrapper>
+          } />
+
+          <Route path="/inventory" element={
+            <ProtectedRoute>
+              <PageWrapper key="inventory">
+                <Inventory />
               </PageWrapper>
-            } />
+            </ProtectedRoute>
+          } />
 
-            <Route path="/inventory" element={
-              <ProtectedRoute>
-                <PageWrapper key="inventory">
-                  <Inventory />
-                </PageWrapper>
-              </ProtectedRoute>
-            } />
+          <Route path="/marketplace" element={
+            <PageWrapper key="marketplace">
+              <Marketplace />
+            </PageWrapper>
+          } />
 
-            <Route path="/marketplace" element={
-              <PageWrapper key="marketplace">
-                <Marketplace />
+          <Route path="/my-listings" element={
+            <ProtectedRoute>
+              <PageWrapper key="my-listings">
+                <MyListings />
               </PageWrapper>
-            } />
+            </ProtectedRoute>
+          } />
 
-            <Route path="/my-listings" element={
-              <ProtectedRoute>
-                <PageWrapper key="my-listings">
-                  <MyListings />
-                </PageWrapper>
-              </ProtectedRoute>
-            } />
+          <Route path="/settings/steam" element={
+            <ProtectedRoute>
+              <PageWrapper key="steam-settings">
+                <SteamSettings />
+              </PageWrapper>
+            </ProtectedRoute>
+          } />
 
-            <Route path="/settings/steam" element={
-              <ProtectedRoute>
-                <PageWrapper key="steam-settings">
-                  <SteamSettings />
-                </PageWrapper>
-              </ProtectedRoute>
-            } />
+          <Route path="/trades" element={
+            <ProtectedRoute>
+              <PageWrapper key="trades">
+                <TradeHistory />
+              </PageWrapper>
+            </ProtectedRoute>
+          } />
 
-            <Route path="/trades" element={
-              <ProtectedRoute>
-                <PageWrapper key="trades">
-                  <TradeHistory />
-                </PageWrapper>
-              </ProtectedRoute>
-            } />
+          <Route path="/trades/:tradeId" element={
+            <ProtectedRoute>
+              <PageWrapper key="trade-detail">
+                <TradeDetailPage />
+              </PageWrapper>
+            </ProtectedRoute>
+          } />
 
-            <Route path="/trades/:tradeId" element={
-              <ProtectedRoute>
-                <PageWrapper key="trade-detail">
-                  <TradeDetailPage />
-                </PageWrapper>
-              </ProtectedRoute>
-            } />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <PageWrapper key="profile">
+                <Profile onBalanceUpdate={refreshWalletBalance} />
+              </PageWrapper>
+            </ProtectedRoute>
+          } />
 
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <PageWrapper key="profile">
-                  <Profile onBalanceUpdate={refreshWalletBalance} />
-                </PageWrapper>
-              </ProtectedRoute>
-            } />
+          <Route path="/steam-settings" element={
+            <ProtectedRoute>
+              <SteamSettingsPage />
+            </ProtectedRoute>
+          } />
 
-            <Route path="/steam-settings" element={
-              <ProtectedRoute>
-                <SteamSettingsPage />
-              </ProtectedRoute>
-            } />
+          <Route path="/admin/tools" element={
+            <AdminRoute>
+              <PageWrapper key="admin-tools">
+                <AdminTools />
+              </PageWrapper>
+            </AdminRoute>
+          } />
 
-            <Route path="/admin/tools" element={
-              <AdminRoute>
-                <PageWrapper key="admin-tools">
-                  <AdminTools />
-                </PageWrapper>
-              </AdminRoute>
-            } />
-
-            {/* Catch-all route */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-
-        {/* Audio elements will be added later */}
-      </div>
-    </AppErrorBoundary>
+          {/* Catch-all route */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    </div>
   );
 }
 

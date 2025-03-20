@@ -2,51 +2,31 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config/constants';
 
-// Create auth context with a default value to prevent null context issues
-const AuthContext = createContext({
-  user: null,
-  loading: true,
-  authInitialized: false,
-  checkAuth: () => {},
-  logout: () => {}
-});
+// Create auth context
+const AuthContext = createContext();
 
 // Auth provider component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [authInitialized, setAuthInitialized] = useState(false);
-  const [authError, setAuthError] = useState(null);
 
-  // Add debugging - always log to console AND to document body for visibility
-  const debugLog = (message, data) => {
-    console.log(`[AuthContext] ${message}`, data || '');
-    
-    // Also log to the document for visibility in case console isn't open
-    if (typeof document !== 'undefined') {
-      const debugElement = document.getElementById('error-display');
-      if (debugElement) {
-        debugElement.style.display = 'block';
-        debugElement.textContent += `[AuthContext] ${message} ${data ? JSON.stringify(data) : ''}\n`;
-      }
-    }
+  // Simple console logging for debugging
+  const logDebug = (message) => {
+    console.log(`[Auth] ${message}`);
   };
 
   // Check if user is authenticated
   const checkAuth = async () => {
     try {
-      debugLog("Checking authentication status...");
-      setLoading(true);
-      setAuthError(null);
+      logDebug("Checking authentication...");
       
-      // Get token from localStorage if available
+      // Get token from localStorage
       const authToken = localStorage.getItem('auth_token');
       
       if (!authToken) {
-        debugLog("No auth token found in localStorage");
+        logDebug("No auth token found in localStorage");
         setUser(null);
         setLoading(false);
-        setAuthInitialized(true);
         return;
       }
       
@@ -56,161 +36,96 @@ export const AuthProvider = ({ children }) => {
         params: { auth_token: authToken }
       };
       
-      debugLog("API URL for auth request:", API_URL);
-      
-      // Make request to check authentication
-      debugLog("Making auth request to:", `${API_URL}/auth/me`);
-      
-      // Set a timeout to ensure we don't get stuck in loading state
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Auth request timed out')), 5000);
-      });
-      
-      // Race between the actual request and the timeout
-      const response = await Promise.race([
-        axios.get(`${API_URL}/auth/me`, config),
-        timeoutPromise
-      ]);
-      
-      debugLog("Auth response received:", response.data);
+      logDebug("Making auth request");
+      const response = await axios.get(`${API_URL}/auth/me`, config);
       
       if (response.data && response.data.user) {
-        debugLog("User authenticated:", response.data.user);
+        logDebug("User authenticated successfully");
         setUser(response.data.user);
       } else {
-        debugLog("Auth response invalid:", response.data);
+        logDebug("Invalid auth response");
         setUser(null);
-        setAuthError("Invalid authentication response");
       }
     } catch (error) {
       console.error('Error checking auth status:', error);
-      debugLog("Authentication error:", error.message);
       
-      // Log more details about the error
-      if (error.response) {
-        debugLog("Error response:", { 
-          status: error.response.status,
-          data: error.response.data
-        });
-      } else if (error.request) {
-        debugLog("No response received:", {
-          request: "Request was made but no response was received"
-        });
-      }
-      
-      // Clear invalid token if there was an error
+      // Clear invalid token if unauthorized
       if (error.response && error.response.status === 401) {
         localStorage.removeItem('auth_token');
-        debugLog("Removed invalid auth token");
       }
       
       setUser(null);
-      setAuthError(error.message);
     } finally {
       setLoading(false);
-      setAuthInitialized(true);
     }
   };
 
-  // Emergency override to unstick loading state
-  useEffect(() => {
-    // If loading state persists for more than 10 seconds, force it to false
-    const timer = setTimeout(() => {
-      if (loading) {
-        debugLog("EMERGENCY: Forcing loading state to false after timeout");
-        setLoading(false);
-        setAuthInitialized(true);
-      }
-    }, 10000);
-    
-    return () => clearTimeout(timer);
-  }, [loading]);
-
   // Check for auth token in URL (after Steam login)
   const checkURLAuth = () => {
-    debugLog("Checking URL for auth token...");
-    
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const authToken = urlParams.get('auth_token');
       
       if (authToken) {
-        debugLog("Auth token found in URL, setting in localStorage");
+        logDebug("Found auth token in URL, saving to localStorage");
         localStorage.setItem('auth_token', authToken);
         
         // Clean up URL
         if (window.history && window.history.replaceState) {
           const cleanURL = window.location.pathname;
           window.history.replaceState({}, document.title, cleanURL);
-          debugLog("Cleaned auth token from URL");
         }
         
-        // Force auth check
-        checkAuth();
         return true;
       }
       
-      debugLog("No auth token found in URL");
       return false;
     } catch (error) {
       console.error("Error in checkURLAuth:", error);
-      debugLog("Error checking URL auth:", error.message);
       return false;
     }
   };
 
   // Handle logout
   const logout = () => {
-    debugLog("Logging out user");
+    logDebug("Logging out user");
     localStorage.removeItem('auth_token');
     setUser(null);
   };
 
-  // Initial auth check on mount
+  // Initial auth check on component mount
   useEffect(() => {
-    let isMounted = true;
-    debugLog("AuthProvider mounted, running initial auth check");
-    
-    const performInitialCheck = async () => {
+    async function initialize() {
       try {
+        // First check URL for token (for Steam login redirect)
         const hasURLToken = checkURLAuth();
-        if (!hasURLToken) {
-          await checkAuth();
-        }
-      } catch (error) {
-        console.error("Error in initial auth check:", error);
-        debugLog("Initial auth check error:", error.message);
         
-        if (isMounted) {
-          setLoading(false);
-          setAuthInitialized(true);
-          setAuthError(error.message);
-        }
-      }
-    };
-    
-    performInitialCheck();
-    
-    // Add a fallback timeout to ensure we don't get stuck in loading state
-    const fallbackTimer = setTimeout(() => {
-      if (isMounted && loading) {
-        debugLog("Fallback timer triggered - forcing auth state resolution");
+        // Then check auth status
+        await checkAuth();
+      } catch (error) {
+        console.error("Auth initialization error:", error);
         setLoading(false);
-        setAuthInitialized(true);
+      }
+    }
+    
+    initialize();
+    
+    // Failsafe to prevent infinite loading
+    const timer = setTimeout(() => {
+      if (loading) {
+        console.warn("Auth loading timeout triggered");
+        setLoading(false);
       }
     }, 5000);
     
-    return () => {
-      isMounted = false;
-      clearTimeout(fallbackTimer);
-    };
+    return () => clearTimeout(timer);
   }, []);
 
   // Listen for localStorage changes (for cross-tab login/logout)
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (e.key === 'auth_token') {
-        debugLog("Auth token changed in localStorage, refreshing auth state");
+        logDebug("Auth token changed in another tab");
         checkAuth();
       }
     };
@@ -223,22 +138,9 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     loading,
-    authInitialized,
-    authError,
     checkAuth,
     logout
   };
-
-  debugLog("AuthProvider rendering with values:", { 
-    user: user ? 'User exists' : 'No user', 
-    loading, 
-    authInitialized,
-    hasError: authError ? true : false
-  });
-
-  // Force the app to render even if authentication is still loading
-  // This prevents the blank screen issue
-  const shouldRenderChildren = true; // Always render children regardless of loading state
 
   return (
     <AuthContext.Provider value={value}>
@@ -249,21 +151,13 @@ export const AuthProvider = ({ children }) => {
 
 // Custom hook to use the auth context
 export const useAuth = () => {
-  try {
-    const context = useContext(AuthContext);
-    return context;
-  } catch (error) {
-    console.error("Error using AuthContext:", error);
-    // Return the default context value to prevent crashes
-    return {
-      user: null,
-      loading: false,
-      authInitialized: true,
-      authError: "Failed to access AuthContext: " + error.message,
-      checkAuth: () => {},
-      logout: () => {}
-    };
+  const context = useContext(AuthContext);
+  
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
   }
+  
+  return context;
 };
 
 export default AuthContext; 
