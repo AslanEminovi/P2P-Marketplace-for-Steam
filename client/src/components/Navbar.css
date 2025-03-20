@@ -92,11 +92,9 @@
   0% {
     filter: drop-shadow(0 0 2px rgba(46, 204, 113, 0.5));
   }
-
   50% {
     filter: drop-shadow(0 0 5px rgba(52, 152, 219, 0.7));
   }
-
   100% {
     filter: drop-shadow(0 0 3px rgba(26, 188, 156, 0.6));
   }
