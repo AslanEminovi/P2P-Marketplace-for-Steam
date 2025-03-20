@@ -75,30 +75,30 @@ const HeroSection = ({ user, stats, prevStats }) => {
       }, 1000);
     }
   }, [stats]);
-
+  
   return (
     <section className="hero-section-container">
       <div className="hero-decoration top-left"></div>
       <div className="hero-decoration bottom-right"></div>
 
-      <div className="hero-content">
-        <h1 className="hero-title">
+        <div className="hero-content">
+          <h1 className="hero-title">
           The Ultimate <span className="gradient-text" data-text="CS2 Marketplace">CS2 Marketplace</span> for Game Items
-        </h1>
+          </h1>
         <p className="hero-description">
           Buy and sell CS2 skins with confidence on our secure P2P marketplace.
           Trade directly with other players, no bots, no scams - just safe, fast, and reliable transactions.
         </p>
-
-        <div className="hero-cta">
+          
+          <div className="hero-cta">
           <Link to="/marketplace" className="hero-button primary">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="9" cy="21" r="1"></circle>
               <circle cx="20" cy="21" r="1"></circle>
               <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
             </svg>
-            Browse Marketplace
-          </Link>
+                Browse Marketplace
+              </Link>
 
           {!user && (
             <a href={`${API_URL}/auth/steam`} className="hero-button secondary">
@@ -106,10 +106,10 @@ const HeroSection = ({ user, stats, prevStats }) => {
                 <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
                 <polyline points="10 17 15 12 10 7"></polyline>
                 <line x1="15" y1="12" x2="3" y2="12"></line>
-              </svg>
-              Sign in with Steam
-            </a>
-          )}
+                </svg>
+                Sign in with Steam
+              </a>
+            )}
 
           {user && (
             <Link to="/sell" className="hero-button secondary">
@@ -121,7 +121,7 @@ const HeroSection = ({ user, stats, prevStats }) => {
             </Link>
           )}
         </div>
-
+        
         <div className="hero-stats">
           <div className="hero-stat">
             <div className={`hero-stat-value count-animation ${animatedStats.items.updating ? 'updating' : ''}`}>
@@ -156,8 +156,8 @@ const SearchSection = () => {
     <section className="search-section-container">
       <div className="search-section">
         <div className="search-container">
-          <input
-            type="text"
+          <input 
+            type="text" 
             className="search-input"
             placeholder="Search for skins, weapons, cases..."
           />
@@ -183,18 +183,18 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
   return (
     <section className="featured-section-container">
       <div className="section-title">
-        <div className="section-title-content">
+          <div className="section-title-content">
           <h2>Featured <span className="gradient-text">Items</span></h2>
           <p>Explore our selection of popular CS2 items available for trade</p>
-          <div className="title-decoration"></div>
-        </div>
+            <div className="title-decoration"></div>
+          </div>
       </div>
-
-      {loading ? (
-        <div className="loading-items">
+        
+          {loading ? (
+            <div className="loading-items">
           <div className="spinner"></div>
           <p>Loading featured items...</p>
-        </div>
+            </div>
       ) : featuredItems && featuredItems.length > 0 ? (
         <>
           <div className="featured-grid">
@@ -205,8 +205,8 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
                     <img src={item.imageUrl} alt={item.marketHashName || 'CS2 Item'} />
                   ) : (
                     <div className="no-image-placeholder">No Image Available</div>
-                  )}
-                </div>
+          )}
+        </div>
                 <div className="item-card-content">
                   <h3 className="item-name gradient-text">{item.marketHashName || 'Unknown Item'}</h3>
                   <span className="item-rarity" style={{
@@ -240,9 +240,9 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
               </div>
             ))}
           </div>
-          <div className="featured-cta">
-            <Link to="/marketplace" className="view-all-button">
-              View All Items
+        <div className="featured-cta">
+          <Link to="/marketplace" className="view-all-button">
+            View All Items
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
@@ -332,7 +332,7 @@ const FeaturesSection = () => {
           <div className="title-decoration"></div>
         </div>
       </div>
-
+      
       <div className="features-grid">
         <div className="feature-card">
           <div className="feature-icon">
@@ -346,7 +346,7 @@ const FeaturesSection = () => {
           <h3 className="feature-title">P2P Trading</h3>
           <p className="feature-description">Trade directly with other players without middlemen. Secure, fast, and reliable transactions every time.</p>
         </div>
-
+        
         <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -357,7 +357,7 @@ const FeaturesSection = () => {
           <h3 className="feature-title">Secure Escrow</h3>
           <p className="feature-description">All trades are protected by our escrow system. Your money is safe until you receive your items.</p>
         </div>
-
+        
         <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -368,7 +368,7 @@ const FeaturesSection = () => {
           <h3 className="feature-title">Instant Inventory</h3>
           <p className="feature-description">Connect your Steam account and instantly list your CS2 items for sale with just a few clicks.</p>
         </div>
-
+        
         <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -397,28 +397,28 @@ const HowItWorksSection = () => {
         </div>
 
         <div className="steps-connection"></div>
-
+        
         <div className="steps-timeline">
           <div className="step-card">
-            <div className="step-number">1</div>
+              <div className="step-number">1</div>
             <h3 className="step-title">Connect Your Account</h3>
             <p className="step-description">Sign in using your Steam account to access your inventory and trading features</p>
           </div>
-
+          
           <div className="step-card">
-            <div className="step-number">2</div>
+              <div className="step-number">2</div>
             <h3 className="step-title">Browse or List Items</h3>
             <p className="step-description">Find items to buy or list your own items for sale with competitive prices</p>
           </div>
-
+          
           <div className="step-card">
-            <div className="step-number">3</div>
+              <div className="step-number">3</div>
             <h3 className="step-title">Secure Payment</h3>
             <p className="step-description">Use our secure payment system to purchase items or receive funds for your sales</p>
           </div>
-
+          
           <div className="step-card">
-            <div className="step-number">4</div>
+              <div className="step-number">4</div>
             <h3 className="step-title">Trade & Delivery</h3>
             <p className="step-description">Complete the trade and receive your items directly in your Steam inventory</p>
           </div>
@@ -463,7 +463,7 @@ const FinalCTASection = ({ user }) => {
                   <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
                 </svg>
                 Browse Marketplace
-              </Link>
+            </Link>
             </>
           ) : (
             <>
@@ -756,7 +756,7 @@ const Home = ({ user }) => {
             <h3 className="feature-title">Secure Trading</h3>
             <p className="feature-description">Our escrow system ensures that all trades are secure and that both parties receive exactly what they agreed upon.</p>
           </div>
-
+          
           <div className="feature-card">
             <div className="feature-icon">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -765,8 +765,8 @@ const Home = ({ user }) => {
             </div>
             <h3 className="feature-title">Low Fees</h3>
             <p className="feature-description">We charge one of the lowest fees in the industry, allowing you to maximize your profits when selling items.</p>
-          </div>
-
+            </div>
+            
           <div className="feature-card">
             <div className="feature-icon">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -777,8 +777,8 @@ const Home = ({ user }) => {
             </div>
             <h3 className="feature-title">Easy to Use</h3>
             <p className="feature-description">Our platform is designed to be intuitive and easy to use, with a clean interface that makes trading a breeze.</p>
-          </div>
-
+            </div>
+            
           <div className="feature-card">
             <div className="feature-icon">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
