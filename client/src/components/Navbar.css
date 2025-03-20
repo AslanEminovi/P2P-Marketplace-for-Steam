@@ -68,7 +68,8 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
   position: relative;
-  white-space: nowrap; /* Prevent text wrapping */
+  white-space: nowrap;
+  /* Prevent text wrapping */
 }
 
 .logo-text::after {
@@ -130,7 +131,8 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  white-space: nowrap; /* Prevent text wrapping */
+  white-space: nowrap;
+  /* Prevent text wrapping */
 }
 
 .navbar-link::before {
@@ -309,7 +311,8 @@
   border: 1px solid #3373F2;
   border-radius: 12px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(51, 115, 242, 0.2);
-  z-index: 1500; /* Higher than any other element */
+  z-index: 1500;
+  /* Higher than any other element */
   overflow: hidden;
   animation: dropdownFadeIn 0.25s ease;
 }
@@ -319,6 +322,7 @@
     opacity: 0;
     transform: translateY(-8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -439,7 +443,8 @@
   background: var(--gaming-bg-dark);
   overflow: hidden;
   transition: height 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-  z-index: 990; /* Lower than dropdown and navbar */
+  z-index: 990;
+  /* Lower than dropdown and navbar */
   border-bottom: 0 solid var(--gaming-border-glow);
   box-shadow: none;
 }
@@ -577,7 +582,8 @@
   overflow: hidden;
   letter-spacing: 0.5px;
   border: none;
-  white-space: nowrap; /* Ensure text stays on one line */
+  white-space: nowrap;
+  /* Ensure text stays on one line */
 }
 
 .sign-in-button::before {
@@ -658,16 +664,16 @@
   .desktop-only {
     display: none;
   }
-  
+
   .mobile-menu-toggle {
     display: flex;
   }
-  
+
   .navbar-right {
     display: flex;
     align-items: center;
   }
-  
+
   .navbar-container {
     padding: 0 1.25rem;
   }
@@ -683,32 +689,32 @@
   .navbar-container {
     padding: 0 1rem;
   }
-  
+
   .navbar-logo {
     font-size: 1.5rem;
   }
-  
+
   .sign-in-button {
     padding: 0.6rem 1rem;
     font-size: 0.9rem;
   }
-  
+
   .balance-display {
     padding: 0.5rem 0.75rem;
   }
-  
+
   .balance-amount {
     font-size: 0.9rem;
   }
-  
+
   .mobile-menu-link {
     padding: 0.875rem 1.25rem;
   }
 }
 
 /* Ensure all parent containers have the right overflow and z-index setting */
-.navbar-container, 
-.navbar-right, 
+.navbar-container,
+.navbar-right,
 .user-section,
 .dropdown-wrapper {
   position: relative;
@@ -725,10 +731,12 @@
   border: 1px solid #3373F2;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
-  z-index: 1500; /* Higher than any other element */
+  z-index: 1500;
+  /* Higher than any other element */
 }
 
 /* Fix the mobile menu z-index to be lower than dropdown but higher than content */
 .mobile-menu {
-  z-index: 990; /* Lower than dropdown and navbar */
-} 
+  z-index: 990;
+  /* Lower than dropdown and navbar */
+}
