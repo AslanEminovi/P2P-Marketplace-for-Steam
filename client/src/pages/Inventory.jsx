@@ -47,60 +47,93 @@ function Inventory({ user }) {
   };
 
   const fetchInventory = async () => {
-    try {
-      setLoading(true);
-      setMessage('');
-      
-      if (!user) {
-        setMessage('Please sign in through Steam to view your inventory.');
-        setLoading(false);
-        return;
-      }
+    let retryCount = 0;
+    const maxRetries = 2;
+    
+    const attemptFetch = async () => {
+      try {
+        setLoading(true);
+        setMessage('');
+        
+        if (!user) {
+          setMessage('Please sign in through Steam to view your inventory.');
+          setLoading(false);
+          return;
+        }
 
-      console.log('Fetching inventory...');
-      // Get the auth token from localStorage with the correct key
-      const token = localStorage.getItem('auth_token');
-      
-      console.log('Using auth token:', token ? token.substring(0, 10) + '...' : 'No token found');
-      console.log('Current API URL:', API_URL);
-      console.log('User object:', JSON.stringify(user, null, 2));
-      
-      // Form the complete URL for debugging
-      const requestUrl = `${API_URL}/inventory/my`;
-      console.log('Request URL:', requestUrl);
-      
-      // Try a simpler approach - ONLY include the token in the URL query parameter
-      // This is how many Steam integrations expect authentication
-      const requestConfig = { 
-        withCredentials: true,
-        timeout: 30000, // 30 second timeout
-        params: {
-          auth_token: token // Steam authentication typically uses query parameters
-        }
-        // Removing the Authorization header to see if that's causing conflict
-      };
-      console.log('Request config:', JSON.stringify(requestConfig, null, 2));
-      
-      const res = await axios.get(requestUrl, requestConfig);
-      
-      console.log('Inventory response:', res.data);
-      
-      if (res.data && Array.isArray(res.data)) {
-        if (res.data.length === 0) {
-          setMessage('Your CS2 inventory is empty or private. Please check your Steam inventory privacy settings.');
+        console.log('Fetching inventory...');
+        // Get the auth token from localStorage with the correct key
+        const token = localStorage.getItem('auth_token');
+        
+        console.log('Using auth token:', token ? token.substring(0, 10) + '...' : 'No token found');
+        console.log('Current API URL:', API_URL);
+        console.log('User object:', JSON.stringify(user, null, 2));
+        
+        // Form the complete URL for debugging
+        const requestUrl = `${API_URL}/inventory/my`;
+        console.log('Request URL:', requestUrl);
+        
+        // Try a simpler approach - ONLY include the token in the URL query parameter
+        // This is how many Steam integrations expect authentication
+        const requestConfig = { 
+          withCredentials: true,
+          timeout: 30000, // 30 second timeout
+          params: {
+            auth_token: token, // Steam authentication typically uses query parameters
+            // Add cache-busting parameter to avoid stale cache issues
+            _t: new Date().getTime()
+          }
+          // Removing the Authorization header to see if that's causing conflict
+        };
+        console.log('Request config:', JSON.stringify(requestConfig, null, 2));
+        
+        const res = await axios.get(requestUrl, requestConfig);
+        
+        console.log('Inventory response:', res.data);
+        
+        if (res.data && Array.isArray(res.data)) {
+          if (res.data.length === 0) {
+            // Only show empty inventory message if this isn't right after listing an item
+            const justListed = message && message.includes('listed for sale successfully');
+            if (!justListed) {
+              setMessage('Your CS2 inventory is empty or private. Please check your Steam inventory privacy settings.');
+            }
+          } else {
+            setItems(res.data);
+            // Keep success message if it exists, otherwise clear
+            if (!message || !message.includes('success')) {
+              setMessage('');
+            }
+          }
         } else {
-          setItems(res.data);
-          setMessage('');
+          setMessage('Failed to load inventory. Please try again later.');
         }
-      } else {
-        setMessage('Failed to load inventory. Please try again later.');
+      } catch (err) {
+        console.error('Inventory fetch error:', err);
+        
+        // Check if we should retry
+        if (retryCount < maxRetries && (
+            !err.response || // Network error
+            err.response.status >= 500 || // Server error
+            err.response.status === 429 || // Rate limit
+            err.code === 'ECONNABORTED' // Timeout
+          )) {
+          console.log(`Retrying inventory fetch (${retryCount + 1}/${maxRetries})...`);
+          retryCount++;
+          
+          // Wait briefly before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return attemptFetch();
+        }
+        
+        const errorMessage = err.response?.data?.message || err.message;
+        setMessage('Error fetching inventory: ' + errorMessage);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Inventory fetch error:', err);
-      setMessage('Error fetching inventory: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setLoading(false);
-    }
+    };
+    
+    return attemptFetch();
   };
 
   const handleSellClick = (item) => {
@@ -128,30 +161,142 @@ function Inventory({ user }) {
       // Calculate price in USD based on selected currency rate
       const priceUSD = itemData.pricelatest || itemData.pricereal || 1;
 
-      await axios.post(`${API_URL}/marketplace/list`, {
+      console.log('Listing item for sale:', {
         steamItemId: itemData.classid,
         assetId: itemData.assetid || itemData.asset_id,
-        marketHashName: itemData.markethashname,
-        price: priceUSD,
-        imageUrl: itemData.image,
-        wear: itemWear,
-        currencyRate: itemData.currencyRate || 1.8,
-        priceGEL: itemData.priceGEL || (priceUSD * 1.8).toFixed(2)
-      }, { withCredentials: true });
+        marketHashName: itemData.markethashname
+      });
+
+      // Make the API call to list the item
+      try {
+        const response = await axios.post(`${API_URL}/marketplace/list`, {
+          steamItemId: itemData.classid,
+          assetId: itemData.assetid || itemData.asset_id,
+          marketHashName: itemData.markethashname,
+          price: priceUSD,
+          imageUrl: itemData.image,
+          wear: itemWear,
+          currencyRate: itemData.currencyRate || 1.8,
+          priceGEL: itemData.priceGEL || (priceUSD * 1.8).toFixed(2)
+        }, { 
+          withCredentials: true,
+          timeout: 30000 // 30 second timeout
+        });
+        
+        console.log('Item listed successfully:', response.data);
+        
+        // Close modal first to prevent UI issues
+        setShowSellModal(false);
+        setSelectedItem(null);
+        
+        // Always set loading to false before setting the message
+        setLoading(false);
+        
+        // Display success message that won't prevent inventory viewing
+        setMessage('Item listed for sale successfully!');
+        
+        // Refresh inventory without waiting
+        fetchInventory().catch(error => {
+          console.error('Error refreshing inventory after success:', error);
+          // Even if refresh fails, user already sees success message and can manually refresh
+        });
+      } catch (apiError) {
+        // Special handling for API errors
+        console.error('API error when listing item:', apiError);
+        
+        // Check if we actually received a 201 Created status or similar success response
+        // Some APIs return error objects even on success
+        if (apiError.response && (apiError.response.status >= 200 && apiError.response.status < 300)) {
+          console.log('Despite error, received success status code:', apiError.response.status);
+          
+          // Treat as success
+          setShowSellModal(false);
+          setSelectedItem(null);
+          setLoading(false);
+          setMessage('Item listed for sale successfully!');
+          
+          // Refresh inventory
+          fetchInventory().catch(e => console.error('Inventory refresh error:', e));
+          return;
+        }
+        
+        // Get detailed error info
+        const errorMsg = apiError.response?.data?.error || 
+                         apiError.response?.data?.message || 
+                         apiError.message || 
+                         'Failed to list item for sale.';
+                         
+        // Check if the error message indicates the item was actually listed
+        if (errorMsg.includes('already listed') || errorMsg.includes('successfully')) {
+          // Item was actually listed despite the error
+          setShowSellModal(false);
+          setSelectedItem(null);
+          setLoading(false);
+          setMessage('Item listed for sale successfully!');
+          
+          // Refresh inventory
+          fetchInventory().catch(e => console.error('Inventory refresh error:', e));
+          return;
+        }
+        
+        // Handle genuine error
+        setShowSellModal(false);
+        setSelectedItem(null);
+        setLoading(false);
+        
+        // Save item data for retry functionality
+        window.lastFailedListing = {
+          item: itemData,
+          timestamp: Date.now()
+        };
+        
+        // Set error message with retry option
+        setMessage(
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span>Error: {errorMsg}</span>
+            <button 
+              onClick={() => {
+                // Attempt to retry the listing
+                if (window.lastFailedListing && window.lastFailedListing.item) {
+                  console.log('Retrying failed listing...');
+                  listItemForSale(window.lastFailedListing.item);
+                }
+              }}
+              style={{
+                background: 'linear-gradient(to right, #3b82f6, #8b5cf6)',
+                color: 'white',
+                border: 'none',
+                padding: '4px 10px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontSize: '14px'
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        );
+      }
+    } catch (err) {
+      // This handles any other errors outside the API call
+      console.error('Unexpected error in listItemForSale:', err);
       
-      setMessage('Item listed for sale successfully!');
+      // Close modal even on error
       setShowSellModal(false);
       setSelectedItem(null);
       
-      // Instead of immediately calling fetchInventory which can create a race condition,
-      // set a small delay to ensure UI states are updated first
+      // Always reset loading state
+      setLoading(false);
+      
+      // Set error message
+      setMessage('Unexpected error: ' + (err.message || 'Failed to list item'));
+      
+      // Try to refresh inventory anyway - the item might have been listed despite the error
       setTimeout(() => {
-        fetchInventory(); // Refresh inventory after listing
-      }, 300);
-    } catch (err) {
-      console.error('List item error:', err);
-      setMessage(err.response?.data?.error || 'Failed to list item for sale.');
-      setLoading(false); // Ensure loading is turned off on error
+        console.log('Attempting inventory refresh after error');
+        fetchInventory().catch(e => console.error('Inventory refresh error:', e));
+      }, 1000);
     }
   };
 
@@ -177,23 +322,49 @@ function Inventory({ user }) {
       
       console.log('Inventory update received in component:', data);
       
-      // Check the type of update and handle accordingly
-      if (data.type === 'refresh' || data.type === 'item_added' || data.type === 'item_removed') {
-        // Refresh the entire inventory
-        fetchInventory();
-      } else if (data.type === 'item_added' && data.data && data.data.item) {
-        // Add a single item to the inventory
-        setItems(prevItems => [...prevItems, data.data.item]);
-      } else if (data.type === 'item_removed' && data.data && data.data.itemId) {
-        // Remove a single item from the inventory
-        setItems(prevItems => prevItems.filter(item => 
-          item._id !== data.data.itemId && item.assetId !== data.data.assetId
-        ));
-      }
+      // Ensure we're not in a loading state when processing socket updates
+      setLoading(false);
       
-      // Display success message for inventory updates
-      if (data.message) {
-        setMessage(data.message);
+      try {
+        // Check the type of update and handle accordingly
+        if (data.type === 'refresh' || data.type === 'item_added' || data.type === 'item_removed') {
+          // For full refresh events, use fetchInventory which handles its own loading state
+          fetchInventory().catch(err => {
+            console.error('Error refreshing inventory after socket update:', err);
+          });
+        } else if (data.type === 'item_added' && data.data && data.data.item) {
+          // Add a single item to the inventory without a full refresh
+          setItems(prevItems => [...prevItems, data.data.item]);
+          
+          // If we don't already have a success message, show this one
+          if (!message || !message.includes('success')) {
+            setMessage(`Item "${data.data.item.marketname || data.data.item.markethashname}" added to inventory`);
+          }
+        } else if (data.type === 'item_removed' && data.data && data.data.itemId) {
+          // Remove a single item from the inventory without a full refresh
+          setItems(prevItems => {
+            const removedItem = prevItems.find(item => 
+              item._id === data.data.itemId || item.assetId === data.data.assetId
+            );
+            const filteredItems = prevItems.filter(item => 
+              item._id !== data.data.itemId && item.assetId !== data.data.assetId
+            );
+            
+            // Show removal message if we don't already have a success message
+            if (removedItem && (!message || !message.includes('success'))) {
+              setMessage(`Item "${removedItem.marketname || removedItem.markethashname}" removed from inventory`);
+            }
+            
+            return filteredItems;
+          });
+        }
+        
+        // Only set message from socket event if it's not overriding a success message
+        if (data.message && (!message || !message.includes('success'))) {
+          setMessage(data.message);
+        }
+      } catch (error) {
+        console.error('Error handling socket update:', error);
       }
     };
     
@@ -207,6 +378,26 @@ function Inventory({ user }) {
       socketService.off('inventory_update', handleInventoryUpdate);
     };
   }, []);
+
+  // Add safety mechanism to reset loading state if it gets stuck
+  useEffect(() => {
+    // If loading has been true for more than 8 seconds, force reset it
+    let loadingTimeoutId = null;
+
+    if (loading) {
+      loadingTimeoutId = setTimeout(() => {
+        console.log("Loading state timeout reached - force resetting loading state");
+        setLoading(false);
+        setMessage('Loading timed out. Your item may have been listed successfully. Please refresh the page.');
+      }, 8000);
+    }
+
+    return () => {
+      if (loadingTimeoutId) {
+        clearTimeout(loadingTimeoutId);
+      }
+    };
+  }, [loading]);
 
   if (loading) {
     return (
@@ -262,7 +453,7 @@ function Inventory({ user }) {
     );
   }
 
-  if (message) {
+  if (message && !message.includes('success')) {
     return (
       <div style={{ 
         color: '#e2e8f0',
@@ -439,8 +630,10 @@ function Inventory({ user }) {
           }} />
         </button>
       </div>
+      
+      {/* Display message as notification without preventing inventory display */}
       {message && (
-        <p style={{ 
+        <div style={{ 
           textAlign: 'center',
           color: message.includes('success') ? '#4ade80' : '#ef4444',
           margin: '1rem 0',
@@ -448,13 +641,52 @@ function Inventory({ user }) {
           borderRadius: '0.5rem',
           backgroundColor: 'rgba(45, 27, 105, 0.5)',
           backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          maxWidth: '400px',
-          margin: '1rem auto'
+          border: `1px solid ${message.includes('success') ? 'rgba(74, 222, 128, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+          maxWidth: '600px',
+          margin: '1rem auto',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem'
         }}>
+          {message.includes('success') ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          )}
           {message}
-        </p>
+          
+          {/* Add dismiss button for messages */}
+          <button 
+            onClick={() => setMessage('')}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: message.includes('success') ? '#4ade80' : '#ef4444',
+              cursor: 'pointer',
+              marginLeft: '10px',
+              padding: '4px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
       )}
+      
       <div style={{ 
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
