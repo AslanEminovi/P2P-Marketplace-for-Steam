@@ -2,31 +2,51 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config/constants';
 
-// Create auth context
-const AuthContext = createContext(null);
+// Create auth context with a default value to prevent null context issues
+const AuthContext = createContext({
+  user: null,
+  loading: true,
+  authInitialized: false,
+  checkAuth: () => {},
+  logout: () => {}
+});
 
 // Auth provider component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authInitialized, setAuthInitialized] = useState(false);
+  const [authError, setAuthError] = useState(null);
 
-  // Add debugging
-  console.log("AuthProvider mounting");
+  // Add debugging - always log to console AND to document body for visibility
+  const debugLog = (message, data) => {
+    console.log(`[AuthContext] ${message}`, data || '');
+    
+    // Also log to the document for visibility in case console isn't open
+    if (typeof document !== 'undefined') {
+      const debugElement = document.getElementById('error-display');
+      if (debugElement) {
+        debugElement.style.display = 'block';
+        debugElement.textContent += `[AuthContext] ${message} ${data ? JSON.stringify(data) : ''}\n`;
+      }
+    }
+  };
 
   // Check if user is authenticated
   const checkAuth = async () => {
     try {
-      console.log("Checking authentication status...");
+      debugLog("Checking authentication status...");
       setLoading(true);
+      setAuthError(null);
       
       // Get token from localStorage if available
       const authToken = localStorage.getItem('auth_token');
       
       if (!authToken) {
-        console.log("No auth token found in localStorage");
+        debugLog("No auth token found in localStorage");
         setUser(null);
         setLoading(false);
+        setAuthInitialized(true);
         return;
       }
       
@@ -36,27 +56,47 @@ export const AuthProvider = ({ children }) => {
         params: { auth_token: authToken }
       };
       
-      console.log("Making auth request to:", `${API_URL}/auth/me`);
+      debugLog("API URL for auth request:", API_URL);
       
       // Make request to check authentication
+      debugLog("Making auth request to:", `${API_URL}/auth/me`);
+      
       const response = await axios.get(`${API_URL}/auth/me`, config);
       
-      console.log("Auth response received:", response.data);
+      debugLog("Auth response received:", response.data);
       
       if (response.data && response.data.user) {
-        console.log("User authenticated:", response.data.user);
+        debugLog("User authenticated:", response.data.user);
         setUser(response.data.user);
       } else {
-        console.log("Auth response invalid:", response.data);
+        debugLog("Auth response invalid:", response.data);
         setUser(null);
+        setAuthError("Invalid authentication response");
       }
     } catch (error) {
       console.error('Error checking auth status:', error);
+      debugLog("Authentication error:", error.message);
+      
+      // Log more details about the error
+      if (error.response) {
+        debugLog("Error response:", { 
+          status: error.response.status,
+          data: error.response.data
+        });
+      } else if (error.request) {
+        debugLog("No response received:", {
+          request: "Request was made but no response was received"
+        });
+      }
+      
       // Clear invalid token if there was an error
       if (error.response && error.response.status === 401) {
         localStorage.removeItem('auth_token');
+        debugLog("Removed invalid auth token");
       }
+      
       setUser(null);
+      setAuthError(error.message);
     } finally {
       setLoading(false);
       setAuthInitialized(true);
@@ -65,41 +105,58 @@ export const AuthProvider = ({ children }) => {
 
   // Check for auth token in URL (after Steam login)
   const checkURLAuth = () => {
-    console.log("Checking URL for auth token...");
-    const urlParams = new URLSearchParams(window.location.search);
-    const authToken = urlParams.get('auth_token');
+    debugLog("Checking URL for auth token...");
     
-    if (authToken) {
-      console.log("Auth token found in URL, setting in localStorage");
-      localStorage.setItem('auth_token', authToken);
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const authToken = urlParams.get('auth_token');
       
-      // Clean up URL
-      if (window.history && window.history.replaceState) {
-        const cleanURL = window.location.pathname;
-        window.history.replaceState({}, document.title, cleanURL);
+      if (authToken) {
+        debugLog("Auth token found in URL, setting in localStorage");
+        localStorage.setItem('auth_token', authToken);
+        
+        // Clean up URL
+        if (window.history && window.history.replaceState) {
+          const cleanURL = window.location.pathname;
+          window.history.replaceState({}, document.title, cleanURL);
+          debugLog("Cleaned auth token from URL");
+        }
+        
+        // Force auth check
+        checkAuth();
+        return true;
       }
       
-      // Force auth check
-      checkAuth();
-      return true;
+      debugLog("No auth token found in URL");
+      return false;
+    } catch (error) {
+      console.error("Error in checkURLAuth:", error);
+      debugLog("Error checking URL auth:", error.message);
+      return false;
     }
-    console.log("No auth token found in URL");
-    return false;
   };
 
   // Handle logout
   const logout = () => {
-    console.log("Logging out user");
+    debugLog("Logging out user");
     localStorage.removeItem('auth_token');
     setUser(null);
   };
 
   // Initial auth check on mount
   useEffect(() => {
-    console.log("AuthProvider mounted, running initial auth check");
-    const hasURLToken = checkURLAuth();
-    if (!hasURLToken) {
-      checkAuth();
+    debugLog("AuthProvider mounted, running initial auth check");
+    try {
+      const hasURLToken = checkURLAuth();
+      if (!hasURLToken) {
+        checkAuth();
+      }
+    } catch (error) {
+      console.error("Error in initial auth check:", error);
+      debugLog("Initial auth check error:", error.message);
+      setLoading(false);
+      setAuthInitialized(true);
+      setAuthError(error.message);
     }
   }, []);
 
@@ -107,7 +164,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (e.key === 'auth_token') {
-        console.log("Auth token changed in localStorage, refreshing auth state");
+        debugLog("Auth token changed in localStorage, refreshing auth state");
         checkAuth();
       }
     };
@@ -121,14 +178,16 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     authInitialized,
+    authError,
     checkAuth,
     logout
   };
 
-  console.log("AuthProvider rendering with values:", { 
+  debugLog("AuthProvider rendering with values:", { 
     user: user ? 'User exists' : 'No user', 
     loading, 
-    authInitialized 
+    authInitialized,
+    hasError: authError ? true : false
   });
 
   return (
@@ -140,12 +199,21 @@ export const AuthProvider = ({ children }) => {
 
 // Custom hook to use the auth context
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === null) {
-    console.error("useAuth was called outside of AuthProvider!");
-    throw new Error('useAuth must be used within an AuthProvider');
+  try {
+    const context = useContext(AuthContext);
+    return context;
+  } catch (error) {
+    console.error("Error using AuthContext:", error);
+    // Return the default context value to prevent crashes
+    return {
+      user: null,
+      loading: false,
+      authInitialized: true,
+      authError: "Failed to access AuthContext: " + error.message,
+      checkAuth: () => {},
+      logout: () => {}
+    };
   }
-  return context;
 };
 
 export default AuthContext; 

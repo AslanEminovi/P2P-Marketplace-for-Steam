@@ -12,11 +12,93 @@
     <!-- Google Fonts - Gaming Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <title>CS2 Marketplace Georgia</title>
+    <style>
+      .fallback-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        background: linear-gradient(45deg, #581845 0%, #900C3F 100%);
+        color: white;
+        font-family: 'Outfit', sans-serif;
+        text-align: center;
+        padding: 20px;
+      }
+      .fallback-content h1 {
+        font-size: 32px;
+        margin-bottom: 20px;
+      }
+      .fallback-content p {
+        font-size: 18px;
+        max-width: 600px;
+        margin-bottom: 30px;
+      }
+      .console-instructions {
+        background: rgba(0,0,0,0.3);
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        text-align: left;
+        width: 100%;
+        max-width: 600px;
+      }
+      #error-display {
+        background: rgba(200,0,0,0.2);
+        padding: 15px;
+        border-radius: 8px;
+        color: #ffcccc;
+        margin-top: 20px;
+        display: none;
+        max-width: 600px;
+        width: 100%;
+        text-align: left;
+        white-space: pre-wrap;
+        font-family: monospace;
+      }
+    </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <div id="root">
+      <div class="fallback-content">
+        <h1>CS2 Marketplace Georgia</h1>
+        <p>If you're seeing this message, the React application is not loading correctly.</p>
+        <div class="console-instructions">
+          <p><strong>To check for errors:</strong></p>
+          <p>1. Right-click on this page and select "Inspect" or press F12</p>
+          <p>2. Click on the "Console" tab to see error messages</p>
+        </div>
+        <div id="error-display"></div>
+      </div>
+    </div>
+    
     <!-- AOS Animation Library -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    
+    <!-- Error catcher script -->
+    <script>
+      window.addEventListener('error', function(event) {
+        var errorDisplay = document.getElementById('error-display');
+        if (errorDisplay) {
+          errorDisplay.style.display = 'block';
+          errorDisplay.textContent += event.message + '\n' + (event.error ? event.error.stack : '');
+        }
+        console.error('Caught by error listener:', event);
+      });
+      
+      // Check if React mounts within 5 seconds
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && root.children.length === 1 && root.children[0].className === 'fallback-content') {
+          console.error('React did not mount within 5 seconds');
+          var errorDisplay = document.getElementById('error-display');
+          if (errorDisplay) {
+            errorDisplay.style.display = 'block';
+            errorDisplay.textContent += 'React application failed to mount within 5 seconds.\nCheck console for errors.';
+          }
+        }
+      }, 5000);
+    </script>
   </body>
 </html>
