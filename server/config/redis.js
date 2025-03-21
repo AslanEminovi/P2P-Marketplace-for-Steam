@@ -1,25 +1,31 @@
 const Redis = require("ioredis");
 
-// Ensure we're using rediss:// for SSL connection
+// Redis Cloud configuration
 const REDIS_URL =
   process.env.REDIS_URL ||
   "rediss://default:11WgxZSKixv1GTDx6apIlZhK0KWyErR4@redis-13632.c55.eu-central-1-1.ec2.redns.redis-cloud.com:13632";
 
 function createRedisClient() {
-  // Ensure URL uses SSL
-  const url = REDIS_URL.startsWith("rediss://")
-    ? REDIS_URL
-    : REDIS_URL.replace("redis://", "rediss://");
+  // Parse the Redis URL
+  const url = new URL(REDIS_URL);
+
+  // Force SSL by ensuring rediss:// protocol
+  url.protocol = "rediss:";
+
+  // Log sanitized URL
   console.log(
     "Creating Redis client with URL:",
-    url.replace(/\/\/[^@]+@/, "//*****@")
+    url.toString().replace(/\/\/[^@]+@/, "//*****@")
   );
 
-  const client = new Redis(url, {
+  const client = new Redis({
+    host: url.hostname,
+    port: parseInt(url.port) || 13632,
+    username: url.username || "default",
+    password: url.password,
     tls: {
       rejectUnauthorized: false,
-      // Add required TLS options for Redis Cloud
-      servername: url.split("@")[1].split(":")[0],
+      servername: url.hostname,
     },
     retryStrategy(times) {
       const delay = Math.min(times * 1000, 60000);
@@ -38,6 +44,9 @@ function createRedisClient() {
     connectTimeout: 20000,
     lazyConnect: false,
     showFriendlyErrorStack: true,
+    enableTLSForSentinelMode: true,
+    sentinels: null, // Disable sentinel mode
+    natMap: null, // Disable NAT mapping
   });
 
   client.on("connect", () => {
