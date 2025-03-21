@@ -8,10 +8,12 @@ import './Home.css';
 
 // Login Modal Component
 const LoginModal = ({ isOpen, onClose }) => {
+  console.log("LoginModal render - isOpen:", isOpen);
+  
   if (!isOpen) return null;
 
   return (
-    <div className="login-modal-overlay">
+    <div className="login-modal-overlay" style={{ zIndex: 9999 }}>
       <div className="login-modal">
         <button className="close-modal" onClick={onClose}>×</button>
         <h2>Sign In Required</h2>
@@ -19,11 +21,15 @@ const LoginModal = ({ isOpen, onClose }) => {
         <div className="modal-buttons">
           <a href={`${API_URL}/auth/steam`} className="modal-button primary">
             <img 
-              src="Steam-Emblem.png" 
+              src="/Steam-Emblem.png" 
               alt="Steam" 
               className="steam-icon" 
               width="24" 
               height="24" 
+              onError={(e) => {
+                console.log("Steam icon failed to load");
+                e.target.style.display = 'none';
+              }}
             />
             Sign in with Steam
           </a>
@@ -92,6 +98,11 @@ const HeroSection = ({ user, stats, prevStats }) => {
     trades: { value: 0, updating: false }
   });
   const [showModal, setShowModal] = useState(false);
+
+  // Debugging effect to monitor modal state changes
+  useEffect(() => {
+    console.log("HeroSection modal state changed:", showModal);
+  }, [showModal]);
 
   // Animate stats when they change
   useEffect(() => {
@@ -183,7 +194,10 @@ const HeroSection = ({ user, stats, prevStats }) => {
               Sell Your Items
             </Link>
           ) : (
-            <button onClick={() => setShowModal(true)} className="hero-button secondary">
+            <button onClick={() => {
+              console.log("Hero section 'Sell Your Items' clicked, setting showModal to true");
+              setShowModal(true);
+            }} className="hero-button secondary">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -563,6 +577,11 @@ const HowItWorksSection = () => {
 const FinalCTASection = ({ user }) => {
   const [showModal, setShowModal] = useState(false);
   
+  // Debugging effect to monitor modal state changes
+  useEffect(() => {
+    console.log("FinalCTASection modal state changed:", showModal);
+  }, [showModal]);
+  
   return (
     <section className="final-cta-section">
       <div className="final-cta-background"></div>
@@ -590,7 +609,10 @@ const FinalCTASection = ({ user }) => {
                 Live Trades
               </a>
 
-              <button onClick={() => setShowModal(true)} className="hero-button secondary">
+              <button onClick={() => {
+                console.log("Final CTA section 'Sell Your Items' clicked, setting showModal to true");
+                setShowModal(true);
+              }} className="hero-button secondary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
