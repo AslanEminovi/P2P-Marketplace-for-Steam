@@ -1,0 +1,124 @@
+.marketplace-item {
+  width: 100%;
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out;
+}
+
+.marketplace-item:hover {
+  transform: translateY(-4px);
+}
+
+.item-container {
+  background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+  border-radius: 8px;
+  padding: 12px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.item-container:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--rarity-color, #fff), transparent);
+  opacity: 0.5;
+}
+
+/* Rarity colors */
+.item-container.consumer:before { --rarity-color: #b0c3d9; }
+.item-container.industrial:before { --rarity-color: #5e98d9; }
+.item-container.mil-spec:before { --rarity-color: #4b69ff; }
+.item-container.restricted:before { --rarity-color: #8847ff; }
+.item-container.classified:before { --rarity-color: #d32ce6; }
+.item-container.covert:before { --rarity-color: #eb4b4b; }
+
+.item-image-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+.item-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.stat-trak-badge,
+.souvenir-badge {
+  position: absolute;
+  top: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.stat-trak-badge {
+  left: 8px;
+  background-color: #cf6a32;
+  color: white;
+}
+
+.souvenir-badge {
+  right: 8px;
+  background-color: #ffd700;
+  color: black;
+}
+
+.item-info {
+  color: #fff;
+}
+
+.item-name {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.wear-tag,
+.float-value,
+.pattern-id {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #ccc;
+}
+
+.item-price {
+  font-size: 18px;
+  font-weight: 600;
+  color: #43cea2;
+}
+
+@media (max-width: 768px) {
+  .item-name {
+    font-size: 14px;
+  }
+  
+  .item-details {
+    font-size: 11px;
+  }
+  
+  .item-price {
+    font-size: 16px;
+  }
+} 
