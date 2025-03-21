@@ -202,12 +202,11 @@ const isUserOnline = (userId) => {
 };
 
 // Helper functions to fetch counts (you'll need to implement these based on your data models)
+const Item = require("../models/Item");
+
 const getActiveListingsCount = async () => {
-  // Implement based on your database structure
-  // Example: return await ListingModel.countDocuments({ status: 'active' });
   try {
-    const MarketplaceItem = require("../models/MarketplaceItem");
-    return await MarketplaceItem.countDocuments({ isForSale: true });
+    return await Item.countDocuments({ isListed: true });
   } catch (error) {
     console.error("Error getting active listings count:", error);
     return 0;

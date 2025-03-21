@@ -146,6 +146,19 @@ const TOKEN_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours for token cache
 
 // Middleware to check for token authentication
 app.use(async (req, res, next) => {
+  // Skip authentication check for public routes
+  const publicRoutes = [
+    "/marketplace",
+    "/marketplace/featured",
+    "/stats",
+    "/auth/steam",
+    "/auth/steam/return",
+  ];
+
+  if (publicRoutes.some((route) => req.path.startsWith(route))) {
+    return next();
+  }
+
   // Skip if user is already authenticated via session
   if (req.isAuthenticated()) {
     return next();
@@ -158,7 +171,6 @@ app.use(async (req, res, next) => {
       // Check token cache first
       const cachedUser = tokenCache.get(token);
       if (cachedUser) {
-        // Token found in cache, use it
         req.login(cachedUser, (err) => {
           if (err) {
             console.error("Token login error (from cache):", err);
@@ -175,38 +187,30 @@ app.use(async (req, res, next) => {
         return next();
       }
 
-      // Token not in cache, verify by looking up user by ID from the JWT
       const User = require("./models/User");
       const userId = decoded.id;
-      console.log(`Looking up user with ID: ${userId} from token`);
       const user = await User.findById(userId);
 
       if (user) {
-        // Add to cache with TTL
         tokenCache.set(token, user);
         setTimeout(() => {
           tokenCache.delete(token);
         }, TOKEN_CACHE_TTL);
 
-        // Log the user in
         req.login(user, (err) => {
           if (err) {
             console.error("Token login error:", err);
-          } else {
-            console.log(`User authenticated via token: ${user._id}`);
           }
           next();
         });
         return;
-      } else {
-        console.log(`User with ID ${userId} not found`);
       }
     } catch (error) {
       console.error("Token authentication error:", error);
     }
   }
 
-  // Continue without authentication
+  // Continue without authentication for public routes
   next();
 });
 
@@ -396,7 +400,7 @@ const updateSiteStats = async () => {
     const activeUsers = await realtimeService.getOnlineUsersCount();
 
     // Broadcast updated stats to all connected clients
-    io.emit("site_stats_update", {
+    io.emit("stats_update", {
       activeListings,
       activeUsers,
       completedTrades,

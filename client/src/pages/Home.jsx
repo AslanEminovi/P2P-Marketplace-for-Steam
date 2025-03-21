@@ -660,13 +660,19 @@ const Home = ({ user }) => {
   });
 
   // Function to handle stats updates from socket
-  const handleStatsUpdate = useCallback((statsData) => {
-    console.log("Received real-time stats update:", statsData);
-    setStats({
-      items: statsData.activeListings || 0,
-      users: statsData.activeUsers || 0,
-      trades: statsData.completedTrades || 0
-    });
+  const handleStatsUpdate = useCallback((newStats) => {
+    console.log("Received stats update:", newStats);
+    if (newStats && typeof newStats === 'object') {
+      // Ensure we have valid numbers, defaulting to 0 if undefined
+      const processedStats = {
+        activeListings: parseInt(newStats.activeListings) || 0,
+        activeUsers: parseInt(newStats.activeUsers) || 0,
+        completedTrades: parseInt(newStats.completedTrades) || 0,
+        timestamp: newStats.timestamp || new Date(),
+      };
+      console.log("Processed stats:", processedStats);
+      setStats(processedStats);
+    }
   }, []);
 
   // Fallback function to provide default items when API fails
@@ -734,87 +740,64 @@ const Home = ({ user }) => {
   const fetchMarketplaceData = useCallback(async () => {
     try {
       setLoading(true);
+      console.log("Fetching marketplace data...");
 
-      // Featured items
-      try {
-        console.log("Fetching featured items");
-        // Always try the regular marketplace endpoint first for non-authenticated users
-        let itemsResponse;
-
+      // Featured items - try marketplace endpoint first
+      const fetchItems = async () => {
         try {
-          console.log("Trying marketplace endpoint for items");
-          itemsResponse = await axios.get(`${API_URL}/marketplace?limit=6`);
-          console.log("Marketplace response:", itemsResponse.data);
-        } catch (err) {
-          console.error("Error fetching from marketplace endpoint:", err);
-          itemsResponse = { data: [] };
-        }
-
-        if (Array.isArray(itemsResponse.data) && itemsResponse.data.length > 0) {
-          console.log("Successfully retrieved items from marketplace endpoint");
-          const marketplaceItems = itemsResponse.data.map(item => ({
-            ...item,
-            price: typeof item.price === 'number' ? item.price : 0,
-            priceGEL: typeof item.priceGEL === 'number' ? item.priceGEL : Math.round((item.price || 0) * 2.65)
-          }));
-          setFeaturedItems(marketplaceItems);
-        } else {
-          console.log("No items found in marketplace endpoint, trying featured endpoint");
-
-          // Then try featured endpoint as backup
-          try {
-            const featuredResponse = await axios.get(`${API_URL}/marketplace/featured?limit=6`);
-            console.log("Featured items response:", featuredResponse.data);
-
-            if (Array.isArray(featuredResponse.data) && featuredResponse.data.length > 0) {
-              const validItems = featuredResponse.data.map(item => {
-                const processedItem = { ...item };
-
-                if (!processedItem.imageUrl || processedItem.imageUrl === '') {
-                  processedItem.imageUrl = "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot621FAR17PLfYQJD_9W7m5a0mvLwOq7c2DJTv8Qg2LqXrI2l2QTj_kVvZz_1JNKQcQY5YFjS-1TokOq515fvuoOJlyW3Wr66DQ/";
-                }
-
-                if (!processedItem.marketHashName || processedItem.marketHashName === '') {
-                  processedItem.marketHashName = "CS2 Item";
-                }
-
-                if (typeof processedItem.price !== 'number') {
-                  processedItem.price = 0;
-                }
-
-                if (typeof processedItem.priceGEL !== 'number') {
-                  processedItem.priceGEL = Math.round(processedItem.price * 2.65);
-                }
-
-                return processedItem;
-              });
-
-              setFeaturedItems(validItems);
-            } else {
-              console.log("No items found in featured endpoint, using fallbacks");
-              setFeaturedItems(getFallbackItems());
+          // First try to get active listings from marketplace
+          const marketplaceResponse = await axios.get(`${API_URL}/marketplace`, {
+            params: {
+              limit: 6,
+              sort: 'createdAt',
+              order: 'desc',
+              isListed: true
             }
-          } catch (featErr) {
-            console.error("Error fetching from featured endpoint:", featErr);
-            setFeaturedItems(getFallbackItems());
-          }
-        }
-      } catch (error) {
-        console.error("Error in featured items fetch flow:", error);
-        setFeaturedItems(getFallbackItems());
-      }
+          });
 
-      // Also request updated stats
+          if (Array.isArray(marketplaceResponse.data) && marketplaceResponse.data.length > 0) {
+            console.log("Successfully retrieved items from marketplace");
+            return marketplaceResponse.data.map(item => ({
+              ...item,
+              price: typeof item.price === 'number' ? item.price : 0,
+              priceGEL: typeof item.priceGEL === 'number' ? item.priceGEL : Math.round((item.price || 0) * 2.65)
+            }));
+          }
+
+          // If no marketplace items, try featured endpoint
+          const featuredResponse = await axios.get(`${API_URL}/marketplace/featured`, {
+            params: { limit: 6 }
+          });
+
+          if (Array.isArray(featuredResponse.data) && featuredResponse.data.length > 0) {
+            console.log("Successfully retrieved items from featured endpoint");
+            return featuredResponse.data.map(item => ({
+              ...item,
+              price: typeof item.price === 'number' ? item.price : 0,
+              priceGEL: typeof item.priceGEL === 'number' ? item.priceGEL : Math.round((item.price || 0) * 2.65)
+            }));
+          }
+
+          throw new Error("No items found in both endpoints");
+        } catch (error) {
+          console.error("Error fetching items:", error);
+          return getFallbackItems();
+        }
+      };
+
+      // Fetch items and update state
+      const items = await fetchItems();
+      setFeaturedItems(items);
+
+      // Request stats update if socket is connected
       if (socketService.isConnected && socketService.socket) {
         console.log("Requesting stats update from server");
         socketService.socket.emit('request_stats_update');
-      } else {
-        console.log("Socket not connected, cannot request stats");
       }
 
       setLoading(false);
     } catch (error) {
-      console.error("Error fetching marketplace data:", error);
+      console.error("Error in fetchMarketplaceData:", error);
       setFeaturedItems(getFallbackItems());
       setLoading(false);
     }

@@ -44,20 +44,18 @@ passport.deserializeUser(async (id, done) => {
 
 // Get config based on environment
 const isProduction = process.env.NODE_ENV === "production";
-const callbackUrl =
-  process.env.CALLBACK_URL ||
-  (isProduction
-    ? "https://p2p-marketplace-for-steam.onrender.com/auth/steam/return"
-    : "http://localhost:5001/auth/steam/return");
+const CALLBACK_URL = isProduction
+  ? "https://p2p-marketplace-for-steam.onrender.com/auth/steam/return"
+  : "http://localhost:5001/auth/steam/return";
 
 console.log("Steam authentication configuration:");
-console.log("- CALLBACK_URL:", callbackUrl);
+console.log("- CALLBACK_URL:", CALLBACK_URL);
 console.log("- NODE_ENV:", process.env.NODE_ENV);
 console.log(
   "- STEAM API KEY:",
-  process.env.STEAMWEBAPI_KEY
-    ? `${process.env.STEAMWEBAPI_KEY.substring(0, 4)}...`
-    : "Not set"
+  process.env.STEAM_API_KEY
+    ? process.env.STEAM_API_KEY.substring(0, 4) + "..."
+    : "not set"
 );
 
 // The official Steam API key is required for passport-steam
@@ -72,11 +70,11 @@ if (!steamApiKey) {
 passport.use(
   new SteamStrategy(
     {
-      returnURL: callbackUrl,
+      returnURL: CALLBACK_URL,
       realm: isProduction
-        ? callbackUrl.split("/auth/steam/return")[0] + "/"
-        : "http://localhost:" + (process.env.PORT || 5001) + "/",
-      apiKey: steamApiKey, // Use the official Steam API key for authentication
+        ? "https://p2p-marketplace-for-steam.onrender.com/"
+        : "http://localhost:5001/",
+      apiKey: process.env.STEAM_API_KEY,
     },
     async (identifier, profile, done) => {
       try {

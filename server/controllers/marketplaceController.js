@@ -363,20 +363,52 @@ exports.buyItem = async (req, res) => {
   }
 };
 
-// GET /marketplace/
+// GET /marketplace
 exports.getAllItems = async (req, res) => {
   try {
-    // Return all items that are listed for sale
-    const items = await Item.find({ isListed: true }).populate(
-      "owner",
-      "displayName avatar"
-    );
-    return res.json(items);
+    console.log("Fetching all marketplace items");
+
+    // Get query parameters for filtering and sorting
+    const {
+      sort = "createdAt",
+      order = "desc",
+      limit = 50,
+      page = 1,
+    } = req.query;
+
+    // Build query
+    const query = { isListed: true };
+
+    // Count total documents for pagination
+    const total = await Item.countDocuments(query);
+
+    // Build sort object
+    const sortObj = {};
+    sortObj[sort] = order === "desc" ? -1 : 1;
+
+    // Calculate skip value for pagination
+    const skip = (page - 1) * limit;
+
+    // Fetch items with pagination and sorting
+    const items = await Item.find(query)
+      .sort(sortObj)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate("owner", "username steamName avatar");
+
+    console.log(`Found ${items.length} items`);
+
+    return res.json({
+      items,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / limit),
+      },
+    });
   } catch (err) {
-    console.error(err);
-    return res
-      .status(500)
-      .json({ error: "Failed to retrieve marketplace items." });
+    console.error("Error fetching marketplace items:", err);
+    return res.status(500).json({ error: "Failed to fetch marketplace items" });
   }
 };
 
