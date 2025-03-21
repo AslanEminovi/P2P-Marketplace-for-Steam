@@ -153,7 +153,7 @@ function App() {
     );
 
     // Initialize socket connection
-    if (!socketService.isConnected) {
+    if (!socketService.isConnected()) {
       socketService.init();
     }
 
@@ -199,7 +199,7 @@ function App() {
 
     // Initial connection if needed
     if (!socketService.isConnected()) {
-      socketService.connect();
+      socketService.init();
     }
 
     // Cleanup on unmount
