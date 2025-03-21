@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from '../utils/languageUtils';
-import { API_URL, getColorForRarity } from '../config/constants';
+import { API_URL, getColorForRarity, getRarityGradient } from '../config/constants';
 import socketService from '../services/socketService';
 import './Home.css';
 
@@ -233,7 +233,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
                   <div className="item-card-content">
                     <h3 className="item-name">{item.marketHashName || 'Unknown Item'}</h3>
                     <span className="item-rarity" style={{
-                      backgroundColor: getColorForRarity(item.rarity || 'Consumer Grade')
+                      background: getRarityGradient(item.rarity || 'Consumer Grade')
                     }}>
                       {item.rarity || 'Standard'} {item.wear && `• ${item.wear}`}
                     </span>
@@ -246,7 +246,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
                       </div>
                       {item.priceGEL !== undefined && (
                         <div className="item-price-gel">
-                          <span className="price-tag-currency">GEL</span>
+                          <span className="price-tag-currency">₾</span>
                           <span className="price-tag-amount">
                             {typeof item.priceGEL === 'number' ? item.priceGEL.toFixed(2) : '0.00'}
                           </span>
