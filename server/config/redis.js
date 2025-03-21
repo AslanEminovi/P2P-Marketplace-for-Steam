@@ -1,86 +1,65 @@
 const Redis = require("ioredis");
+const url = require("url");
 
 // Redis Cloud configuration
 const REDIS_URL =
   process.env.REDIS_URL ||
   "rediss://default:11WgxZSKixv1GTDx6apIlZhK0KWyErR4@redis-13632.c55.eu-central-1-1.ec2.redns.redis-cloud.com:13632";
 
-function createRedisClient() {
-  // Parse the Redis URL
-  const url = new URL(REDIS_URL);
+const createRedisClient = () => {
+  try {
+    // Parse Redis URL from environment
+    const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+    const parsedUrl = url.parse(redisUrl);
 
-  // Force SSL by ensuring rediss:// protocol
-  url.protocol = "rediss:";
+    // Ensure we're using SSL for non-localhost connections
+    const isLocalhost = parsedUrl.hostname === "localhost";
 
-  // Log sanitized URL
-  console.log(
-    "Creating Redis client with URL:",
-    url.toString().replace(/\/\/[^@]+@/, "//*****@")
-  );
+    const redisConfig = {
+      host: parsedUrl.hostname,
+      port: parseInt(parsedUrl.port, 10),
+      username: parsedUrl.auth ? parsedUrl.auth.split(":")[0] : undefined,
+      password: parsedUrl.auth ? parsedUrl.auth.split(":")[1] : undefined,
+      retryStrategy: (times) => Math.min(times * 50, 2000),
+      maxRetriesPerRequest: 5,
+      enableReadyCheck: true,
+      showFriendlyErrorStack: true,
+    };
 
-  const client = new Redis({
-    host: url.hostname,
-    port: parseInt(url.port) || 13632,
-    username: url.username || "default",
-    password: url.password,
-    tls: {
-      rejectUnauthorized: false,
-      servername: url.hostname,
-    },
-    retryStrategy(times) {
-      const delay = Math.min(times * 1000, 60000);
-      console.log(`Retrying Redis connection in ${delay}ms...`);
-      return delay;
-    },
-    maxRetriesPerRequest: 3,
-    enableReadyCheck: true,
-    reconnectOnError(err) {
-      const targetError = "READONLY";
-      if (err.message.includes(targetError)) {
-        return true;
-      }
-      return false;
-    },
-    connectTimeout: 20000,
-    lazyConnect: false,
-    showFriendlyErrorStack: true,
-    enableTLSForSentinelMode: true,
-    sentinels: null, // Disable sentinel mode
-    natMap: null, // Disable NAT mapping
-  });
+    // Add TLS options for non-localhost connections
+    if (!isLocalhost) {
+      redisConfig.tls = {
+        // Explicitly set TLS version
+        secureProtocol: "TLSv1_2_method",
+        rejectUnauthorized: false,
+        // Add these if still having issues
+        minVersion: "TLSv1.2",
+        maxVersion: "TLSv1.3",
+      };
+    }
 
-  client.on("connect", () => {
-    console.log("Successfully connected to Redis Cloud");
-  });
+    console.log(
+      `Connecting to Redis at ${parsedUrl.hostname}:${parsedUrl.port} with ${
+        !isLocalhost ? "TLS" : "no TLS"
+      }`
+    );
 
-  client.on("error", (err) => {
-    console.error("Redis Client Error:", err);
-  });
+    const client = new Redis(redisConfig);
 
-  client.on("ready", () => {
-    console.log("Redis client ready and connected");
-  });
-
-  client.on("reconnecting", () => {
-    console.log("Redis client reconnecting...");
-  });
-
-  client.on("end", () => {
-    console.log("Redis connection ended");
-  });
-
-  // Test the connection
-  client
-    .ping()
-    .then(() => {
-      console.log("Redis connection test successful");
-    })
-    .catch((err) => {
-      console.error("Redis connection test failed:", err);
+    client.on("connect", () => {
+      console.log("Successfully connected to Redis");
     });
 
-  return client;
-}
+    client.on("error", (err) => {
+      console.error("Redis connection error:", err);
+    });
+
+    return client;
+  } catch (error) {
+    console.error("Error creating Redis client:", error);
+    throw error;
+  }
+};
 
 module.exports = {
   createRedisClient,

@@ -11,6 +11,7 @@ const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const RealtimeService = require("./services/realtime/socketService");
 const { createRedisClient, REDIS_URL } = require("./config/redis");
+const { createAdapter } = require("socket.io-redis");
 
 // Determine environment
 const isProduction = process.env.NODE_ENV === "production";
@@ -245,6 +246,27 @@ const io = new Server(server, {
   },
   transports: ["websocket", "polling"],
 });
+
+// Initialize Redis client
+let redisClient;
+try {
+  redisClient = createRedisClient();
+  console.log("Redis client initialized");
+} catch (error) {
+  console.error("Failed to initialize Redis client:", error);
+  // Continue without Redis - the app will use in-memory fallback
+}
+
+// When setting up socket.io, use Redis adapter only if Redis is available
+if (redisClient) {
+  try {
+    io.adapter(createAdapter(redisClient, redisClient.duplicate()));
+    console.log("Socket.IO Redis adapter initialized");
+  } catch (error) {
+    console.error("Failed to initialize Socket.IO Redis adapter:", error);
+    // Will automatically fall back to in-memory adapter
+  }
+}
 
 // Initialize Realtime Service
 const realtimeService = new RealtimeService(io);
