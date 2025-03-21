@@ -57,44 +57,28 @@
   display: block;
   font-size: 0.7em;
   animation: geoGlow 3s infinite alternate;
-  background: linear-gradient(135deg, #4CAF50, #2196F3);
+  background: linear-gradient(135deg, #2ecc71, #1abc9c, #3498db);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: .5px;
   margin-top: -2px;
-  text-shadow: 
-    0 0 10px rgba(46, 204, 113, 1), 
-    0 0 20px rgba(52, 152, 219, 0.9),
-    0 0 30px rgba(26, 188, 156, 0.8),
-    0 0 40px rgba(33, 150, 243, 0.5);
+  text-shadow: 0 0 10px rgba(46, 204, 113, 0.8), 0 0 20px rgba(52, 152, 219, 0.6);
 }
 
 @keyframes geoGlow {
   0% {
-    opacity: 0.9;
-    text-shadow: 
-      0 0 5px rgba(46, 204, 113, 1), 
-      0 0 10px rgba(52, 152, 219, 0.9),
-      0 0 15px rgba(76, 175, 80, 0.8);
+    opacity: 0.8;
+    text-shadow: 0 0 5px rgba(46, 204, 113, 0.7), 0 0 10px rgba(52, 152, 219, 0.5);
   }
-
   50% {
     opacity: 1;
-    text-shadow: 
-      0 0 15px rgba(46, 204, 113, 1), 
-      0 0 30px rgba(52, 152, 219, 1), 
-      0 0 45px rgba(33, 150, 243, 0.9),
-      0 0 60px rgba(26, 188, 156, 0.7);
+    text-shadow: 0 0 15px rgba(46, 204, 113, 0.8), 0 0 30px rgba(52, 152, 219, 0.7), 0 0 45px rgba(26, 188, 156, 0.3);
   }
-
   100% {
-    opacity: 0.95;
-    text-shadow: 
-      0 0 10px rgba(46, 204, 113, 1), 
-      0 0 20px rgba(52, 152, 219, 0.9),
-      0 0 35px rgba(76, 175, 80, 0.7);
+    opacity: 0.9;
+    text-shadow: 0 0 10px rgba(46, 204, 113, 0.9), 0 0 20px rgba(52, 152, 219, 0.6);
   }
 }
 
@@ -201,8 +185,6 @@
   display: flex;
   gap: 2rem;
   margin-left: 1.5rem;
-  position: relative;
-  z-index: 10;
 }
 
 .navbar-left {
@@ -229,13 +211,12 @@
   font-size: 1rem;
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   white-space: nowrap;
-  z-index: 5;
-  cursor: pointer;
+  /* Prevent text wrapping */
 }
 
 .navbar-link::before {
@@ -248,7 +229,6 @@
   height: 2px;
   background: var(--gaming-gradient-blue);
   transition: width 0.3s ease;
-  z-index: 1;
 }
 
 .navbar-link svg {
@@ -258,16 +238,10 @@
 
 .navbar-link:hover {
   color: var(--gaming-text-bright);
-  transform: translateY(-2px);
 }
 
 .navbar-link:hover::before {
   width: 70%;
-}
-
-.navbar-link:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(0, 210, 255, 0.3);
 }
 
 .navbar-link.active {
@@ -543,133 +517,109 @@
   margin: 8px 0;
 }
 
-/* MOBILE MENU */
+/* Ensure mobile menu doesn't block dropdowns */
 .mobile-menu {
   position: fixed;
-  top: 70px;
+  top: 80px;
   left: 0;
   width: 100%;
-  height: calc(100vh - 70px);
-  background-color: rgba(10, 14, 23, 0.98);
-  transform: translateX(-100%);
-  transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-  z-index: 999;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  overflow-y: auto;
-  backdrop-filter: blur(10px);
-  border-top: 1px solid var(--gaming-border-glow);
-  box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.2);
+  height: 0;
+  background: var(--gaming-bg-dark);
+  overflow: hidden;
+  transition: height 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  z-index: 990;
+  /* Lower than dropdown and navbar */
+  border-bottom: 0 solid var(--gaming-border-glow);
+  box-shadow: none;
 }
 
 .navbar.mobile-open .mobile-menu {
-  transform: translateX(0);
+  height: calc(100vh - 80px);
+  overflow-y: auto;
+  border-bottom: 1px solid var(--gaming-border-glow);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), var(--gaming-shadow-blue);
 }
 
 .mobile-menu-links {
   display: flex;
   flex-direction: column;
-  padding: 2rem 1.5rem;
-  gap: 1rem;
+  padding: 1.5rem;
 }
 
 .mobile-menu-link {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+  padding: 1rem 1.5rem;
+  margin-bottom: 0.5rem;
   color: var(--gaming-text-medium);
   text-decoration: none;
+  border-radius: 10px;
+  transition: all 0.3s ease;
   font-weight: 600;
-  padding: 1rem 1.5rem;
-  border-radius: 8px;
-  background-color: rgba(31, 43, 69, 0.3);
-  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
-  position: relative;
-  z-index: 5;
-  cursor: pointer;
-}
-
-.mobile-menu-link::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 4px;
-  height: 100%;
-  background: var(--gaming-gradient-blue);
-  transform: translateX(-4px);
-  transition: transform 0.2s ease;
-  z-index: 1;
-}
-
-.mobile-menu-link:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #FFFFFF;
-  transform: translateX(5px);
-}
-
-.mobile-menu-link:hover::before {
-  transform: translateX(0);
-}
-
-.mobile-menu-link:active {
-  transform: scale(0.98) translateX(5px);
-}
-
-.mobile-menu-link.active {
-  background-color: rgba(51, 115, 242, 0.15);
-  color: var(--gaming-text-bright);
-  transform: translateX(5px);
-}
-
-.mobile-menu-link.active::before {
-  transform: translateX(0);
+  background: rgba(31, 43, 69, 0.3);
+  border: 1px solid rgba(51, 115, 242, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .mobile-menu-link svg {
   width: 20px;
   height: 20px;
-  flex-shrink: 0;
+  stroke: var(--gaming-text-dim);
+  transition: all 0.3s ease;
 }
 
-/* Mobile Menu Social Links */
+.mobile-menu-link:hover,
+.mobile-menu-link.active {
+  background: rgba(51, 115, 242, 0.15);
+  color: var(--gaming-text-bright);
+  border-color: rgba(51, 115, 242, 0.3);
+}
+
+.mobile-menu-link:hover svg,
+.mobile-menu-link.active svg {
+  stroke: var(--gaming-accent-cyan);
+}
+
+.mobile-menu-link.steam-login {
+  background: var(--gaming-gradient-blue);
+  color: white;
+  margin-top: 1rem;
+  justify-content: center;
+  box-shadow: var(--gaming-shadow-blue);
+  border: none;
+}
+
+.mobile-menu-link.steam-login:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--gaming-shadow-cyan);
+}
+
 .mobile-menu-social {
   display: flex;
+  padding: 1rem 1.5rem;
+  gap: 1rem;
   justify-content: center;
-  padding: 2rem;
-  gap: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  margin-top: auto;
+  margin-top: 1rem;
 }
 
 .mobile-social-link {
+  color: var(--gaming-text-dim);
+  font-size: 1.25rem;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 50px;
-  height: 50px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  background: rgba(31, 43, 69, 0.5);
-  color: var(--gaming-text-medium);
-  transition: all 0.3s ease;
-  position: relative;
-  z-index: 5;
+  background: rgba(31, 43, 69, 0.3);
 }
 
 .mobile-social-link:hover {
-  background: rgba(51, 115, 242, 0.2);
-  color: var(--gaming-text-bright);
-  transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-}
-
-.mobile-social-link svg {
-  filter: drop-shadow(0 0 5px rgba(46, 204, 113, 0.4)) drop-shadow(0 0 8px rgba(52, 152, 219, 0.3));
-}
-
-.mobile-social-link:hover svg {
-  filter: drop-shadow(0 0 8px rgba(46, 204, 113, 0.6)) drop-shadow(0 0 12px rgba(52, 152, 219, 0.5));
+  color: var(--gaming-accent-cyan);
+  background: rgba(31, 43, 69, 0.8);
+  transform: translateY(-2px);
+  box-shadow: var(--gaming-shadow-cyan);
 }
 
 /* SOCIAL LINKS */
@@ -873,24 +823,4 @@
 .mobile-menu {
   z-index: 990;
   /* Lower than dropdown and navbar */
-}
-
-/* Special styling for the Steam login button in mobile menu */
-.mobile-menu-link.steam-login {
-  background: var(--gaming-gradient-blue);
-  color: white;
-  margin-top: 1rem;
-  justify-content: center;
-  box-shadow: var(--gaming-shadow-blue);
-  border: none;
-}
-
-.mobile-menu-link.steam-login:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--gaming-shadow-cyan);
-  background: var(--gaming-gradient-blue);
-}
-
-.mobile-menu-link.steam-login::before {
-  display: none;
 }

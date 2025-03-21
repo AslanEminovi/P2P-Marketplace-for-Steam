@@ -116,7 +116,7 @@ const HeroSection = ({ user, stats, prevStats }) => {
 
         <div className="hero-content">
           <h1 className="hero-title">
-          The Ultimate <span className="gradient-text" data-text="Georgian Marketplace">Georgian Marketplace</span> for <span className="gradient-text" data-text="CS2">CS2</span> Items
+          The Ultimate <span className="gradient-text" data-text="CS2 Marketplace">CS2 Marketplace</span> for Game Items
           </h1>
         <div className="geo-title">
           <span className="georgian-text">ითამაშე და ივაჭრე საუკეთესო ნივთებით</span>
