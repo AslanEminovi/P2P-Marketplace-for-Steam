@@ -9,18 +9,10 @@ const path = require("path");
 const http = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
-const RealtimeService = require("./services/realtime/socketService");
-const { createRedisClient, REDIS_URL } = require("./config/redis");
 
 // Determine environment
 const isProduction = process.env.NODE_ENV === "production";
 console.log(`Running in ${isProduction ? "production" : "development"} mode`);
-
-// Log Redis configuration
-console.log(
-  "Redis URL configured:",
-  REDIS_URL.replace(/\/\/[^@]+@/, "//*****@")
-);
 
 // Validate essential API keys
 if (!process.env.STEAMWEBAPI_KEY) {
@@ -55,8 +47,6 @@ const config = isProduction
   : {
       PORT: process.env.PORT || 5001,
       CLIENT_URL: process.env.CLIENT_URL || "http://localhost:3000",
-      MONGODB_URI:
-        process.env.MONGODB_URI || "mongodb://localhost:27017/cs2-marketplace",
     };
 
 // Suppress the Mongoose strictQuery warning for Mongoose 7
@@ -155,19 +145,6 @@ const TOKEN_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours for token cache
 
 // Middleware to check for token authentication
 app.use(async (req, res, next) => {
-  // Skip authentication check for public routes
-  const publicRoutes = [
-    "/marketplace",
-    "/marketplace/featured",
-    "/stats",
-    "/auth/steam",
-    "/auth/steam/return",
-  ];
-
-  if (publicRoutes.some((route) => req.path.startsWith(route))) {
-    return next();
-  }
-
   // Skip if user is already authenticated via session
   if (req.isAuthenticated()) {
     return next();
@@ -180,6 +157,7 @@ app.use(async (req, res, next) => {
       // Check token cache first
       const cachedUser = tokenCache.get(token);
       if (cachedUser) {
+        // Token found in cache, use it
         req.login(cachedUser, (err) => {
           if (err) {
             console.error("Token login error (from cache):", err);
@@ -196,30 +174,38 @@ app.use(async (req, res, next) => {
         return next();
       }
 
+      // Token not in cache, verify by looking up user by ID from the JWT
       const User = require("./models/User");
       const userId = decoded.id;
+      console.log(`Looking up user with ID: ${userId} from token`);
       const user = await User.findById(userId);
 
       if (user) {
+        // Add to cache with TTL
         tokenCache.set(token, user);
         setTimeout(() => {
           tokenCache.delete(token);
         }, TOKEN_CACHE_TTL);
 
+        // Log the user in
         req.login(user, (err) => {
           if (err) {
             console.error("Token login error:", err);
+          } else {
+            console.log(`User authenticated via token: ${user._id}`);
           }
           next();
         });
         return;
+      } else {
+        console.log(`User with ID ${userId} not found`);
       }
     } catch (error) {
       console.error("Token authentication error:", error);
     }
   }
 
-  // Continue without authentication for public routes
+  // Continue without authentication
   next();
 });
 
@@ -233,76 +219,19 @@ app.use("/wallet", walletRoutes);
 app.use("/user", userRoutes);
 app.use("/admin", adminRoutes);
 
-// Create HTTP server
-const server = http.createServer(app);
-
-// Initialize Redis client
-let redisClient;
-try {
-  redisClient = createRedisClient();
-  console.log("Redis client initialized");
-} catch (error) {
-  console.error("Failed to initialize Redis client:", error);
-  // Continue without Redis - the app will use in-memory fallback
-}
-
-// Initialize Socket.IO with CORS settings
-const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-  transports: ["websocket", "polling"],
-  // Add adapter options
-  adapter: {
-    pingTimeout: 60000,
-    pingInterval: 25000,
-  },
-});
-
-// Set up Redis adapter for Socket.IO if Redis is available
-if (redisClient) {
-  try {
-    const { createAdapter } = require("socket.io-redis");
-    const pubClient = redisClient;
-    const subClient = redisClient.duplicate();
-
-    Promise.all([pubClient.connect(), subClient.connect()])
-      .then(() => {
-        io.adapter(createAdapter(pubClient, subClient));
-        console.log("Socket.IO Redis adapter initialized");
-      })
-      .catch((error) => {
-        console.error("Failed to initialize Socket.IO Redis adapter:", error);
-        console.log("Using default in-memory adapter");
-      });
-  } catch (error) {
-    console.error("Error setting up Socket.IO Redis adapter:", error);
-    console.log("Using default in-memory adapter");
-  }
-} else {
-  console.log("Redis not available, using in-memory adapter");
-}
-
-// Initialize Realtime Service
-const realtimeService = new RealtimeService(io);
-
-// Make realtimeService available to routes
-app.set("realtimeService", realtimeService);
-
-// Update the stats endpoint to use real-time data
+// Public stats endpoint for homepage
 app.get("/stats", async (req, res) => {
   try {
     const Item = mongoose.model("Item");
+    const User = mongoose.model("User");
     const Trade = mongoose.model("Trade");
 
-    // Get counts of active listings and completed trades
+    // Get counts of active listings, users, and completed trades
     const activeListings = await Item.countDocuments({ isListed: true });
+    const activeUsers = await User.countDocuments({
+      lastActive: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+    });
     const completedTrades = await Trade.countDocuments({ status: "completed" });
-
-    // Get real-time online users count
-    const activeUsers = await realtimeService.getOnlineUsersCount();
 
     res.json({
       activeListings,
@@ -380,6 +309,20 @@ if (isProduction) {
   console.log(`Frontend client URL: ${config.CLIENT_URL}`);
 }
 
+// Create HTTP server and integrate with Express
+const server = http.createServer(app);
+
+// Set up Socket.io with CORS and connection settings
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+  pingTimeout: 60000,
+  transports: ["websocket", "polling"],
+});
+
 // Socket middleware for authentication
 io.use(async (socket, next) => {
   try {
@@ -434,39 +377,6 @@ setInterval(async () => {
 // Export io instance for use in other files
 app.set("io", io);
 
-// Define updateSiteStats function
-const updateSiteStats = async () => {
-  try {
-    const Item = mongoose.model("Item");
-    const Trade = mongoose.model("Trade");
-
-    // Get counts of active listings and completed trades
-    const activeListings = await Item.countDocuments({ isListed: true });
-    const completedTrades = await Trade.countDocuments({ status: "completed" });
-
-    // Get real-time online users count
-    const activeUsers = await realtimeService.getOnlineUsersCount();
-
-    // Broadcast updated stats to all connected clients
-    io.emit("stats_update", {
-      activeListings,
-      activeUsers,
-      completedTrades,
-      timestamp: new Date(),
-    });
-
-    return {
-      activeListings,
-      activeUsers,
-      completedTrades,
-      timestamp: new Date(),
-    };
-  } catch (error) {
-    console.error("Error updating site stats:", error);
-    throw error;
-  }
-};
-
 // Export the updateSiteStats function for use in controllers
 module.exports.updateSiteStats = updateSiteStats;
 
@@ -481,7 +391,7 @@ app.use((err, req, res, next) => {
 
 // Start the server
 server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
   console.log(`WebSocket server initialized`);
   console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
 
@@ -513,12 +423,14 @@ server.on("error", (err) => {
 });
 
 // Graceful shutdown
-process.on("SIGTERM", async () => {
-  console.log("SIGTERM signal received: closing HTTP server");
-  await realtimeService.cleanup();
+process.on("SIGTERM", () => {
+  console.log("SIGTERM received, shutting down gracefully");
   server.close(() => {
-    console.log("HTTP server closed");
-    process.exit(0);
+    console.log("Server closed");
+    mongoose.connection.close(false, () => {
+      console.log("MongoDB connection closed");
+      process.exit(0);
+    });
   });
 });
 

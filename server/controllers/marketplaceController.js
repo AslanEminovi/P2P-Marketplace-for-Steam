@@ -116,12 +116,19 @@ exports.listItem = async (req, res) => {
       item: newItem,
     });
 
-    // Update site stats after successful listing
-    try {
-      await socketService.updateStats();
-    } catch (error) {
-      console.error("Failed to update site stats:", error);
-      // Don't fail the request if stats update fails
+    // Update site stats since we've added a new listing
+    if (server && typeof server.updateSiteStats === "function") {
+      server.updateSiteStats();
+    } else {
+      // Try to require server.js to access the function
+      try {
+        const server = require("../server");
+        if (typeof server.updateSiteStats === "function") {
+          server.updateSiteStats();
+        }
+      } catch (err) {
+        console.log("Could not trigger site stats update:", err.message);
+      }
     }
 
     // Emit socket event for new listing
@@ -356,72 +363,96 @@ exports.buyItem = async (req, res) => {
   }
 };
 
-// GET /marketplace
+// GET /marketplace/
 exports.getAllItems = async (req, res) => {
   try {
-    const {
-      limit = 10,
-      sort = "createdAt",
-      order = "desc",
-      isListed,
-    } = req.query;
-
-    // Build query
-    const query = {};
-    if (typeof isListed !== "undefined") {
-      query.isListed = isListed === "true";
-    }
-
-    // Get items with pagination and sorting
-    const items = await Item.find(query)
-      .sort({ [sort]: order === "desc" ? -1 : 1 })
-      .limit(parseInt(limit))
-      .populate("owner", "displayName avatarUrl steamId")
-      .lean();
-
-    // Ensure we always return an array
-    const safeItems = items || [];
-
-    console.log(`Retrieved ${safeItems.length} items from marketplace`);
-
-    // Update stats after fetching items
-    try {
-      await socketService.updateStats();
-    } catch (error) {
-      console.error("Failed to update site stats:", error);
-      // Don't fail the request if stats update fails
-    }
-
-    res.json(safeItems);
-  } catch (error) {
-    console.error("Error in getAllItems:", error);
-    res.status(500).json({
-      message: "Error fetching marketplace items",
-      error: error.message,
-    });
+    // Return all items that are listed for sale
+    const items = await Item.find({ isListed: true }).populate(
+      "owner",
+      "displayName avatar"
+    );
+    return res.json(items);
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json({ error: "Failed to retrieve marketplace items." });
   }
 };
 
 // GET /marketplace/featured
 exports.getFeaturedItems = async (req, res) => {
   try {
-    const { limit = 6 } = req.query;
+    const limit = parseInt(req.query.limit) || 8; // Default to 8 featured items
+    console.log(`Getting up to ${limit} featured items`);
 
-    // Get featured items (currently just getting the most recent listed items)
-    const items = await Item.find({ isListed: true })
+    // First try to find items with images
+    let items = await Item.find({
+      isListed: true,
+    })
       .sort({ createdAt: -1 })
-      .limit(parseInt(limit))
-      .populate("owner", "displayName avatarUrl steamId")
-      .lean();
+      .limit(limit * 2) // Fetch more items initially to ensure we have enough valid ones
+      .populate("owner", "displayName avatar");
 
-    // Ensure we always return an array
-    const safeItems = items || [];
+    console.log(`Found ${items.length} potential featured items`);
 
-    console.log(`Retrieved ${safeItems.length} featured items`);
-    res.json(safeItems);
+    // Process items to ensure they have required fields
+    const processedItems = items.map((item) => {
+      // Create a plain JS object from the Mongoose document
+      const processedItem = item.toObject();
+
+      // Ensure marketHashName exists
+      if (
+        !processedItem.marketHashName ||
+        processedItem.marketHashName === ""
+      ) {
+        processedItem.marketHashName = processedItem.name || "CS2 Item";
+      }
+
+      // Ensure imageUrl exists
+      if (!processedItem.imageUrl || processedItem.imageUrl === "") {
+        // Set default image based on item type hints in name
+        if (processedItem.marketHashName.toLowerCase().includes("knife")) {
+          processedItem.imageUrl =
+            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpovbSsLQJf1ObcTjxP09i5hJCHkuXLI7PQhW4F18l4jeHVyoD0mlOx5RZrYWnwIdWRdQdvMFGB-FDsl7jt05S-75ydnXNr7CkrstPUmEe0n1gSORnDKQIj/";
+        } else if (
+          processedItem.marketHashName.toLowerCase().includes("rifle")
+        ) {
+          processedItem.imageUrl =
+            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot7HxfDhjxszJemkV09O3h5OOhOPLMbTDk2pd18l4jeHVyoD0mlOx5Uo_MGjwcYSQclU-MgmGrwC8wO7r08K87p7IzCRnvCcht37UmxG1gBpKaONu1PSACQLJAFGtYaE/";
+        } else {
+          processedItem.imageUrl =
+            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot621FAR17PLfYQJD_9W7m5a0mvLwOq7c2DJTv8Qg2LqXrI2l2QTj_kVvZz_1JNKQcQY5YFjS-1TokOq515fvuoOJlyW3Wr66DQ/";
+        }
+      }
+
+      // Ensure price exists
+      if (!processedItem.price) {
+        processedItem.price = 0;
+      }
+
+      // Calculate GEL price if missing
+      if (!processedItem.priceGEL) {
+        processedItem.priceGEL = Math.round(processedItem.price * 2.65);
+      }
+
+      return processedItem;
+    });
+
+    // Filter out any items that still don't have required fields
+    const validItems = processedItems
+      .filter(
+        (item) =>
+          item.marketHashName && item.imageUrl && item.price !== undefined
+      )
+      .slice(0, limit); // Take only up to the required limit
+
+    console.log(`Returning ${validItems.length} valid featured items`);
+
+    return res.json(validItems);
   } catch (error) {
-    console.error("Error in getFeaturedItems:", error);
-    res
+    console.error("Error fetching featured items:", error);
+    return res
       .status(500)
       .json({ message: "Error fetching featured items", error: error.message });
   }
