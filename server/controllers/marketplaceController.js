@@ -116,19 +116,12 @@ exports.listItem = async (req, res) => {
       item: newItem,
     });
 
-    // Update site stats since we've added a new listing
-    if (server && typeof server.updateSiteStats === "function") {
-      server.updateSiteStats();
-    } else {
-      // Try to require server.js to access the function
-      try {
-        const server = require("../server");
-        if (typeof server.updateSiteStats === "function") {
-          server.updateSiteStats();
-        }
-      } catch (err) {
-        console.log("Could not trigger site stats update:", err.message);
-      }
+    // Update site stats after successful listing
+    try {
+      await socketService.updateStats();
+    } catch (error) {
+      console.error("Failed to update site stats:", error);
+      // Don't fail the request if stats update fails
     }
 
     // Emit socket event for new listing
@@ -390,15 +383,22 @@ exports.getAllItems = async (req, res) => {
     const safeItems = items || [];
 
     console.log(`Retrieved ${safeItems.length} items from marketplace`);
+
+    // Update stats after fetching items
+    try {
+      await socketService.updateStats();
+    } catch (error) {
+      console.error("Failed to update site stats:", error);
+      // Don't fail the request if stats update fails
+    }
+
     res.json(safeItems);
   } catch (error) {
     console.error("Error in getAllItems:", error);
-    res
-      .status(500)
-      .json({
-        message: "Error fetching marketplace items",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Error fetching marketplace items",
+      error: error.message,
+    });
   }
 };
 

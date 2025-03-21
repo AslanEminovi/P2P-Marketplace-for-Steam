@@ -1,5 +1,6 @@
 const { createAdapter } = require("@socket.io/redis-adapter");
 const { createRedisClient } = require("../../config/redis");
+const Item = require("../../models/Item");
 
 class RealtimeService {
   constructor(io) {
@@ -29,11 +30,8 @@ class RealtimeService {
       this.io.adapter(createAdapter(this.redisPub, this.redisClient));
       console.log("Socket.IO Redis adapter configured successfully");
 
-      // Track connected users and their socket IDs
-      this.connectedUsers = new Map();
-
-      // Initialize socket event handlers
-      this.initializeSocketEvents();
+      // Initialize Redis-backed user tracking
+      this.initializeUserTracking();
     } catch (error) {
       console.error("Failed to initialize Redis:", error);
       // Continue without Redis - fallback to in-memory
@@ -41,9 +39,60 @@ class RealtimeService {
       this.redisClient = null;
       this.redisPub = null;
 
-      // Still initialize socket events even without Redis
+      // Initialize in-memory user tracking
       this.connectedUsers = new Map();
-      this.initializeSocketEvents();
+    }
+
+    // Initialize socket events regardless of Redis status
+    this.initializeSocketEvents();
+  }
+
+  async initializeUserTracking() {
+    if (!this.redisClient) return;
+
+    // Clear existing online users on startup
+    await this.redisClient.del("online_users");
+
+    // Set up periodic cleanup of inactive users
+    setInterval(async () => {
+      const now = Date.now();
+      const users = await this.redisClient.hgetall("online_users");
+
+      for (const [userId, timestamp] of Object.entries(users)) {
+        if (now - parseInt(timestamp) > 30000) {
+          // 30 seconds timeout
+          await this.redisClient.hdel("online_users", userId);
+          await this.updateStats();
+        }
+      }
+    }, 10000); // Run every 10 seconds
+  }
+
+  async updateStats() {
+    try {
+      // Get active listings count
+      const activeListings = await Item.countDocuments({ isListed: true });
+
+      // Get online users count
+      let onlineUsers = 0;
+      if (this.redisClient) {
+        onlineUsers = await this.redisClient.hlen("online_users");
+      } else {
+        onlineUsers = this.connectedUsers.size;
+      }
+
+      const stats = {
+        activeListings,
+        onlineUsers,
+        timestamp: Date.now(),
+      };
+
+      // Emit with consistent event name
+      this.io.emit("stats_update", stats);
+
+      return stats;
+    } catch (error) {
+      console.error("Error updating stats:", error);
     }
   }
 
