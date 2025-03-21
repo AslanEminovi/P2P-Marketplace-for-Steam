@@ -9,6 +9,7 @@ const path = require("path");
 const http = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
+const RealtimeService = require("./services/realtime/socketService");
 
 // Determine environment
 const isProduction = process.env.NODE_ENV === "production";
@@ -219,19 +220,37 @@ app.use("/wallet", walletRoutes);
 app.use("/user", userRoutes);
 app.use("/admin", adminRoutes);
 
-// Public stats endpoint for homepage
+// Create HTTP server
+const server = http.createServer(app);
+
+// Initialize Socket.IO with CORS settings
+const io = new Server(server, {
+  cors: {
+    origin: config.CLIENT_URL,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+  transports: ["websocket", "polling"],
+});
+
+// Initialize Realtime Service
+const realtimeService = new RealtimeService(io);
+
+// Make realtimeService available to routes
+app.set("realtimeService", realtimeService);
+
+// Update the stats endpoint to use real-time data
 app.get("/stats", async (req, res) => {
   try {
     const Item = mongoose.model("Item");
-    const User = mongoose.model("User");
     const Trade = mongoose.model("Trade");
 
-    // Get counts of active listings, users, and completed trades
+    // Get counts of active listings and completed trades
     const activeListings = await Item.countDocuments({ isListed: true });
-    const activeUsers = await User.countDocuments({
-      lastActive: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-    });
     const completedTrades = await Trade.countDocuments({ status: "completed" });
+
+    // Get real-time online users count
+    const activeUsers = await realtimeService.getOnlineUsersCount();
 
     res.json({
       activeListings,
@@ -309,20 +328,6 @@ if (isProduction) {
   console.log(`Frontend client URL: ${config.CLIENT_URL}`);
 }
 
-// Create HTTP server and integrate with Express
-const server = http.createServer(app);
-
-// Set up Socket.io with CORS and connection settings
-const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-  pingTimeout: 60000,
-  transports: ["websocket", "polling"],
-});
-
 // Socket middleware for authentication
 io.use(async (socket, next) => {
   try {
@@ -391,7 +396,7 @@ app.use((err, req, res, next) => {
 
 // Start the server
 server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
   console.log(`WebSocket server initialized`);
   console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
 
@@ -423,14 +428,12 @@ server.on("error", (err) => {
 });
 
 // Graceful shutdown
-process.on("SIGTERM", () => {
-  console.log("SIGTERM received, shutting down gracefully");
+process.on("SIGTERM", async () => {
+  console.log("SIGTERM signal received: closing HTTP server");
+  await realtimeService.cleanup();
   server.close(() => {
-    console.log("Server closed");
-    mongoose.connection.close(false, () => {
-      console.log("MongoDB connection closed");
-      process.exit(0);
-    });
+    console.log("HTTP server closed");
+    process.exit(0);
   });
 });
 

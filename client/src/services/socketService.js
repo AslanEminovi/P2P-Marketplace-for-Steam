@@ -5,228 +5,181 @@ class SocketService {
   constructor() {
     this.socket = null;
     this.connected = false;
-    this.connectionEvents = new Map();
     this.events = new Map();
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 2000;
     this.reconnectTimer = null;
-    this.connectedCallback = null;
-    this.disconnectedCallback = null;
+    this.handlers = {
+      onConnect: new Set(),
+      onDisconnect: new Set(),
+      onReconnect: new Set(),
+      onError: new Set(),
+    };
   }
 
-  connect(token = null) {
+  init() {
+    if (this.socket) {
+      console.log("[SocketService] Socket already initialized");
+      return;
+    }
+
+    const token = localStorage.getItem("auth_token");
     console.log(
-      "[SocketService] Attempting to connect to socket server:",
-      API_URL
+      "[SocketService] Initializing with token:",
+      token ? "Present" : "None"
     );
 
-    if (this.socket) {
-      console.log("[SocketService] Socket already exists, disconnecting first");
-      this.disconnect();
-    }
-
-    // Get token from localStorage if not provided
-    if (!token) {
-      token = localStorage.getItem("auth_token");
-      console.log(
-        "[SocketService] Using token from localStorage:",
-        token ? "Token exists" : "No token"
-      );
-    }
-
-    // Initialize socket connection with auth token
     this.socket = io(API_URL, {
-      query: token ? { token } : {},
       transports: ["websocket", "polling"],
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      timeout: 10000,
-      autoConnect: true,
+      reconnectionAttempts: this.maxReconnectAttempts,
+      reconnectionDelay: this.reconnectDelay,
+      query: token ? { token } : {},
+      auth: {
+        token,
+      },
     });
 
-    // Setup connection event handlers
+    this.setupEventHandlers();
+  }
+
+  setupEventHandlers() {
+    // Connection events
     this.socket.on("connect", () => {
-      console.log("[SocketService] Connected to socket server!");
+      console.log("[SocketService] Connected to server");
       this.connected = true;
       this.reconnectAttempts = 0;
+      this.handlers.onConnect.forEach((handler) => handler());
 
-      if (this.connectedCallback) {
-        this.connectedCallback();
+      // Authenticate after connection
+      const token = localStorage.getItem("auth_token");
+      if (token) {
+        this.socket.emit("authenticate", { token });
       }
+    });
 
-      // Re-register all event listeners after reconnection
-      this.rebindEvents();
+    this.socket.on("disconnect", (reason) => {
+      console.log("[SocketService] Disconnected:", reason);
+      this.connected = false;
+      this.handlers.onDisconnect.forEach((handler) => handler(reason));
     });
 
     this.socket.on("connect_error", (error) => {
       console.error("[SocketService] Connection error:", error);
-      this.handleConnectionFailure();
+      this.handlers.onError.forEach((handler) => handler(error));
     });
 
-    this.socket.on("disconnect", (reason) => {
+    this.socket.on("reconnect", (attemptNumber) => {
       console.log(
-        "[SocketService] Disconnected from socket server, reason:",
-        reason
+        "[SocketService] Reconnected after",
+        attemptNumber,
+        "attempts"
       );
-      this.connected = false;
-
-      if (this.disconnectedCallback) {
-        this.disconnectedCallback();
-      }
-
-      // Handle disconnect reason
-      if (reason === "io server disconnect") {
-        // Server disconnected the client, need to reconnect manually
-        this.scheduleReconnect();
-      }
+      this.handlers.onReconnect.forEach((handler) => handler(attemptNumber));
     });
 
-    this.socket.on("reconnect_attempt", (attemptNumber) => {
-      console.log(`[SocketService] Reconnection attempt #${attemptNumber}`);
+    // Authentication events
+    this.socket.on("auth_error", (error) => {
+      console.error("[SocketService] Authentication error:", error);
+      this.handlers.onError.forEach((handler) => handler(error));
     });
 
-    this.socket.on("reconnect_failed", () => {
-      console.error("[SocketService] Failed to reconnect after max attempts");
-      this.handleConnectionFailure();
+    this.socket.on("connection_established", (data) => {
+      console.log("[SocketService] Connection established:", data);
     });
 
-    return this.socket;
+    // Trade events
+    this.socket.on("trade_update", (data) => {
+      console.log("[SocketService] Trade update received:", data);
+      this.emit("trade_update", data);
+    });
+
+    // Marketplace events
+    this.socket.on("marketplace_update", (data) => {
+      console.log("[SocketService] Marketplace update received:", data);
+      this.emit("marketplace_update", data);
+    });
+
+    // User status events
+    this.socket.on("user_status", (data) => {
+      console.log("[SocketService] User status update:", data);
+      this.emit("user_status", data);
+    });
+
+    // Notification events
+    this.socket.on("notification", (data) => {
+      console.log("[SocketService] Notification received:", data);
+      this.emit("notification", data);
+    });
   }
 
-  disconnect() {
-    if (this.socket) {
-      console.log("[SocketService] Disconnecting socket");
-      this.socket.disconnect();
-      this.socket = null;
-      this.connected = false;
+  // Room management
+  joinTradeRoom(tradeId) {
+    if (this.isConnected()) {
+      console.log("[SocketService] Joining trade room:", tradeId);
+      this.socket.emit("join_trade", tradeId);
     }
+  }
 
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
+  leaveTradeRoom(tradeId) {
+    if (this.isConnected()) {
+      console.log("[SocketService] Leaving trade room:", tradeId);
+      this.socket.emit("leave_trade", tradeId);
     }
   }
 
-  reconnect() {
-    console.log("[SocketService] Manual reconnect requested");
-    this.reconnectAttempts = 0;
-
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
+  joinMarketplace() {
+    if (this.isConnected()) {
+      console.log("[SocketService] Joining marketplace room");
+      this.socket.emit("join_marketplace");
     }
-
-    // Get the latest token in case it was updated
-    const token = localStorage.getItem("auth_token");
-    this.connect(token);
   }
 
-  scheduleReconnect() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error("[SocketService] Max reconnect attempts reached");
-      return;
-    }
-
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-    }
-
-    const delay = this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts);
-    console.log(
-      `[SocketService] Scheduling reconnect in ${delay}ms (attempt ${
-        this.reconnectAttempts + 1
-      }/${this.maxReconnectAttempts})`
-    );
-
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectAttempts++;
-      this.reconnect();
-    }, delay);
-  }
-
-  handleConnectionFailure() {
-    this.connected = false;
-
-    if (this.disconnectedCallback) {
-      this.disconnectedCallback();
-    }
-
-    this.scheduleReconnect();
-  }
-
-  onConnected(callback) {
-    this.connectedCallback = callback;
-    return this;
-  }
-
-  onDisconnected(callback) {
-    this.disconnectedCallback = callback;
-    return this;
-  }
-
+  // Event handling
   on(event, callback) {
     if (!this.events.has(event)) {
-      this.events.set(event, []);
+      this.events.set(event, new Set());
     }
-
-    this.events.get(event).push(callback);
-
-    // If socket exists, bind immediately
-    if (this.socket) {
-      this.socket.on(event, callback);
-    }
-
-    return this;
+    this.events.get(event).add(callback);
+    return () => this.off(event, callback);
   }
 
   off(event, callback) {
     if (this.events.has(event)) {
-      const callbacks = this.events.get(event);
-      const index = callbacks.indexOf(callback);
-
-      if (index !== -1) {
-        callbacks.splice(index, 1);
-
-        if (this.socket) {
-          this.socket.off(event, callback);
-        }
-      }
-
-      if (callbacks.length === 0) {
-        this.events.delete(event);
-      }
+      this.events.get(event).delete(callback);
     }
-
-    return this;
   }
 
-  emit(event, data, callback) {
-    if (!this.socket || !this.connected) {
-      console.warn(
-        `[SocketService] Cannot emit '${event}' - socket not connected`
-      );
-      return false;
+  emit(event, data) {
+    if (this.events.has(event)) {
+      this.events.get(event).forEach((callback) => callback(data));
     }
-
-    console.log(`[SocketService] Emitting event: ${event}`, data);
-    this.socket.emit(event, data, callback);
-    return true;
   }
 
-  rebindEvents() {
-    // Re-attach all event listeners
-    this.events.forEach((callbacks, event) => {
-      callbacks.forEach((callback) => {
-        console.log(`[SocketService] Rebinding event: ${event}`);
-        this.socket.on(event, callback);
-      });
-    });
+  // Connection management
+  addConnectionHandler(type, handler) {
+    if (this.handlers[type]) {
+      this.handlers[type].add(handler);
+      return () => this.handlers[type].delete(handler);
+    }
+  }
+
+  disconnect() {
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+      this.connected = false;
+    }
+  }
+
+  reconnect() {
+    this.disconnect();
+    this.init();
   }
 
   isConnected() {
-    return this.connected && this.socket && this.socket.connected;
+    return this.connected && this.socket?.connected;
   }
 }
 
