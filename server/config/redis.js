@@ -1,12 +1,13 @@
 const Redis = require("ioredis");
 
 const redisConfig = {
-  host: "redis-13632.c55.eu-central-1-1.ec2.redns.redis-cloud.com",
-  port: 13632,
-  username: "default",
-  password: "11WgxZSKixv1GTDx6apIlZhK0KWyErR4",
+  // Use full Redis URL with credentials
+  url: "rediss://default:11WgxZSKixv1GTDx6apIlZhK0KWyErR4@redis-13632.c55.eu-central-1-1.ec2.redns.redis-cloud.com:13632",
+  tls: {
+    rejectUnauthorized: false, // Required for some Redis Cloud certificates
+  },
   retryStrategy: (times) => {
-    const maxRetryTime = 1000 * 60 * 60; // 1 hour
+    const maxRetryTime = 1000 * 60; // 1 minute max
     const delay = Math.min(times * 1000, maxRetryTime);
     console.log(`Retrying Redis connection in ${delay}ms...`);
     return delay;
@@ -15,13 +16,8 @@ const redisConfig = {
   enableReadyCheck: true,
   reconnectOnError: (err) => {
     console.log("Redis reconnect on error:", err);
-    const targetError = "READONLY";
-    if (err.message.includes(targetError)) {
-      return true;
-    }
-    return false;
+    return true; // Always try to reconnect
   },
-  tls: {}, // Enable TLS/SSL for Redis Cloud
   lazyConnect: true, // Only connect when needed
 };
 
