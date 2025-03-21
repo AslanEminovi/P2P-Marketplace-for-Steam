@@ -202,11 +202,11 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
           </div>
       </div>
         
-      {loading ? (
-        <div className="loading-items">
+          {loading ? (
+            <div className="loading-items">
           <div className="spinner"></div>
           <p>Loading featured items...</p>
-        </div>
+            </div>
       ) : featuredItems && featuredItems.length > 0 ? (
         <>
           <div className="featured-grid">
@@ -228,8 +228,8 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
                       />
                     ) : (
                       <div className="no-image-placeholder">No Image Available</div>
-                    )}
-                  </div>
+          )}
+        </div>
                   <div className="item-card-content">
                     <h3 className="item-name">{item.marketHashName || 'Unknown Item'}</h3>
                     <span className="item-rarity" style={{
@@ -266,7 +266,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
           </div>
           <div className="view-all-container">
             <Link to="/marketplace" className="view-all-button" onClick={handleViewAllClick}>
-              View All Items
+            View All Items
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
@@ -364,7 +364,7 @@ const FeaturesSection = () => {
           <div className="title-decoration"></div>
         </div>
       </div>
-
+      
       <div className="features-grid">
         <div className="feature-card">
           <div className="feature-icon">
@@ -415,7 +415,7 @@ const FeaturesSection = () => {
           <h3 className="feature-title">Real-time Updates</h3>
           <p className="feature-description">Get instant notifications for new listings, price changes, trade offers, and more with our real-time update system.</p>
         </div>
-
+        
         <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -427,7 +427,7 @@ const FeaturesSection = () => {
           <h3 className="feature-title">Global Marketplace</h3>
           <p className="feature-description">Connect with buyers and sellers from all around the world, expanding your trading opportunities beyond borders.</p>
         </div>
-
+        
         <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -524,7 +524,7 @@ const FinalCTASection = ({ user }) => {
                   <line x1="8" y1="12" x2="16" y2="12"></line>
                 </svg>
                 Browse Marketplace
-              </Link>
+            </Link>
             </>
           ) : (
             <>
@@ -593,15 +593,39 @@ const Home = ({ user }) => {
       }
     });
 
+    // Add event listeners for page visibility and focus changes
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log("Page became visible again, refreshing data");
+        fetchMarketplaceData();
+        if (socketService.isConnected) {
+          socketService.socket.emit('request_stats_update');
+        }
+      }
+    };
+
+    const handleFocus = () => {
+      console.log("Window regained focus, refreshing data");
+      fetchMarketplaceData();
+      if (socketService.isConnected) {
+        socketService.socket.emit('request_stats_update');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
     // Clean up listeners when component unmounts
     return () => {
       socketService.off('stats_update', handleStatsUpdate);
       socketService.off('connection_status');
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
-  }, [handleStatsUpdate]);
+  }, [handleStatsUpdate, fetchMarketplaceData]);
 
   // Fallback function to provide default items when API fails
-  const getFallbackItems = () => {
+  const getFallbackItems = useCallback(() => {
     console.log("Using fallback featured items");
     return [
       {
@@ -659,16 +683,17 @@ const Home = ({ user }) => {
         imageUrl: "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUznaCaJWVDvozlzdONwvKjYLiBk24IsZEl0uuYrNjw0A3n80JpZWzwIYWLMlhpLvhcskA/",
       }
     ];
-  };
+  }, []);
 
   // Fetch data from API endpoints
-  const fetchMarketplaceData = async () => {
+  const fetchMarketplaceData = useCallback(async () => {
     try {
       setLoading(true);
       
       // Featured items
       try {
         console.log("Fetching featured items");
+        // First try the featured API endpoint
         const featuredResponse = await axios.get(`${API_URL}/marketplace/featured?limit=6`);
         console.log("Featured items response:", featuredResponse.data);
         
@@ -704,31 +729,12 @@ const Home = ({ user }) => {
           
           setFeaturedItems(validItems);
         } else {
-          console.error("Featured items response is not an array or is empty:", featuredResponse.data);
-          // Try fetching from marketplace endpoint directly instead of using fallback items
-          try {
-            const marketplaceResponse = await axios.get(`${API_URL}/marketplace?limit=6`);
-            if (Array.isArray(marketplaceResponse.data) && marketplaceResponse.data.length > 0) {
-              const marketplaceItems = marketplaceResponse.data.map(item => ({
-                ...item,
-                price: typeof item.price === 'number' ? item.price : 0,
-                priceGEL: typeof item.priceGEL === 'number' ? item.priceGEL : Math.round((item.price || 0) * 2.65)
-              }));
-              setFeaturedItems(marketplaceItems);
-            } else {
-              setFeaturedItems(getFallbackItems());
-            }
-          } catch (err) {
-            console.error("Error fetching from marketplace endpoint:", err);
-            setFeaturedItems(getFallbackItems());
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching featured items:", error);
-        // Try fetching from marketplace endpoint directly instead of using fallback items
-        try {
+          // If featured endpoint fails, try the regular marketplace endpoint for all users
+          console.log("Featured items endpoint returned no data, trying regular marketplace endpoint");
           const marketplaceResponse = await axios.get(`${API_URL}/marketplace?limit=6`);
+          
           if (Array.isArray(marketplaceResponse.data) && marketplaceResponse.data.length > 0) {
+            console.log("Successfully retrieved items from marketplace endpoint:", marketplaceResponse.data);
             const marketplaceItems = marketplaceResponse.data.map(item => ({
               ...item,
               price: typeof item.price === 'number' ? item.price : 0,
@@ -736,6 +742,26 @@ const Home = ({ user }) => {
             }));
             setFeaturedItems(marketplaceItems);
           } else {
+            console.log("No items found in marketplace endpoint, using fallbacks");
+            setFeaturedItems(getFallbackItems());
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching featured items:", error);
+        // Try fetching from marketplace endpoint directly instead of using fallback items
+        try {
+          console.log("Trying marketplace endpoint as fallback");
+          const marketplaceResponse = await axios.get(`${API_URL}/marketplace?limit=6`);
+          if (Array.isArray(marketplaceResponse.data) && marketplaceResponse.data.length > 0) {
+            console.log("Successfully retrieved items from marketplace endpoint as fallback");
+            const marketplaceItems = marketplaceResponse.data.map(item => ({
+              ...item,
+              price: typeof item.price === 'number' ? item.price : 0,
+              priceGEL: typeof item.priceGEL === 'number' ? item.priceGEL : Math.round((item.price || 0) * 2.65)
+            }));
+            setFeaturedItems(marketplaceItems);
+          } else {
+            console.log("No items found in marketplace endpoint fallback, using hardcoded fallbacks");
             setFeaturedItems(getFallbackItems());
           }
         } catch (err) {
@@ -744,16 +770,19 @@ const Home = ({ user }) => {
         }
       }
       
-      // ... other API calls (stats, etc.) ...
+      // Also request updated stats
+      if (socketService.isConnected) {
+        console.log("Requesting stats update from server");
+        socketService.socket.emit('request_stats_update');
+      }
       
       setLoading(false);
     } catch (error) {
       console.error("Error fetching marketplace data:", error);
       setFeaturedItems(getFallbackItems());
-      // ... handle other errors ...
       setLoading(false);
     }
-  };
+  }, [getFallbackItems]);
 
   // Initial fetch of marketplace data
   useEffect(() => {
@@ -778,8 +807,8 @@ const Home = ({ user }) => {
             }}
           />
         ))}
-      </div>
-
+        </div>
+        
       {/* Hero Section */}
       <HeroSection user={user} stats={stats} />
 

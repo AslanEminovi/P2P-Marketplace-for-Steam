@@ -55,6 +55,14 @@ const translations = {
     "notifications.markRead": "Mark as read",
     "notifications.markAllRead": "Mark all as read",
 
+    // Activity Feed
+    "activity.live_activity": "Live Activity",
+    "activity.no_activities": "No recent activities",
+    "activity.user_joined": "joined the marketplace",
+    "activity.item_listed": "listed an item for sale",
+    "activity.item_purchased": "purchased an item",
+    "activity.trade_completed": "completed a trade",
+
     // Marketplace
     "marketplace.actions.buy": "Buy Now",
     "marketplace.actions.offer": "Make Offer",
