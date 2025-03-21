@@ -109,37 +109,33 @@
   align-items: center;
   justify-content: center;
   color: var(--gaming-text-medium);
-  background: rgba(46, 204, 113, 0.1);
-  border: 1px solid rgba(52, 152, 219, 0.2);
+  background: rgba(31, 43, 69, 0.3);
+  border: 1px solid rgba(51, 115, 242, 0.2);
   border-radius: 8px;
-  padding: 6px;
+  padding: 8px;
   width: 32px;
   height: 32px;
-  transition: all 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+  transition: all 0.3s ease;
   opacity: 0.8;
-  transform: translateZ(0); /* Hardware acceleration */
-  will-change: transform, opacity, box-shadow;
 }
 
 .logo-social-link:hover {
   color: var(--gaming-text-bright);
-  transform: translateY(-2px) scale(1.05);
+  transform: translateY(-2px);
   opacity: 1;
-  background: rgba(46, 204, 113, 0.15);
-  border-color: rgba(52, 152, 219, 0.5);
-  box-shadow: 0 0 15px rgba(46, 204, 113, 0.4), 0 0 25px rgba(52, 152, 219, 0.2);
+  background: rgba(31, 43, 69, 0.6);
+  border-color: rgba(51, 115, 242, 0.4);
+  box-shadow: 0 0 15px rgba(0, 210, 255, 0.3);
 }
 
 .logo-social-link svg {
-  filter: drop-shadow(0 0 3px rgba(46, 204, 113, 0.4));
   width: 18px;
   height: 18px;
-  transition: filter 0.2s ease, transform 0.2s ease;
+  transition: filter 0.3s ease;
 }
 
 .logo-social-link:hover svg {
-  filter: drop-shadow(0 0 5px rgba(46, 204, 113, 0.6)) drop-shadow(0 0 8px rgba(52, 152, 219, 0.5));
-  transform: scale(1.1);
+  filter: drop-shadow(0 0 5px rgba(0, 210, 255, 0.5));
 }
 
 .nav-text-container {
@@ -227,50 +223,47 @@
   position: relative;
   color: var(--gaming-text-medium);
   text-decoration: none;
-  font-weight: 500;
-  font-size: 14px;
-  padding: 0.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0.5rem 0.75rem;
   display: flex;
   align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: color 0.2s ease-in-out;
-  /* Add hardware acceleration */
-  transform: translateZ(0);
-  will-change: color;
+  gap: 0.5rem;
+  white-space: nowrap; /* Ensure text stays on one line */
 }
 
 .navbar-link::before {
   content: '';
   position: absolute;
   bottom: -4px;
-  left: 50%;
-  transform: translateX(-50%) translateZ(0);
-  width: 0;
+  left: 0;
+  width: 100%;
   height: 2px;
   background: var(--gaming-gradient-blue);
-  transition: width 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
-  will-change: width;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
 }
 
 .navbar-link svg {
   width: 18px;
   height: 18px;
-  fill: var(--text-secondary);
-  transition: fill 0.2s ease-in-out;
-  will-change: fill;
 }
 
 .navbar-link:hover {
-  color: var(--accent-color);
+  color: var(--gaming-text-bright);
 }
 
 .navbar-link:hover::before {
-  width: 70%;
+  transform: scaleX(1);
 }
 
 .navbar-link.active {
-  color: var(--accent-color);
+  color: var(--gaming-text-bright);
+}
+
+.navbar-link.active::before {
+  transform: scaleX(1);
 }
 
 /* USER SECTION & BALANCE */
