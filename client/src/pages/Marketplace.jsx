@@ -76,16 +76,28 @@ function Marketplace({ user }) {
         ...(activeFilters.length > 0 && { categories: activeFilters.join(',') })
       });
 
-      const res = await axios.get(`${API_URL}/marketplace?${params}`, {
-        withCredentials: true
-      });
+      // Don't send credentials for public marketplace view
+      const res = await axios.get(`${API_URL}/marketplace?${params}`);
 
-      if (Array.isArray(res.data)) {
-        setItems(res.data);
-        setFilteredItems(res.data);
+      if (Array.isArray(res.data.items)) {
+        setItems(res.data.items);
+        setFilteredItems(res.data.items);
+        
+        // Update market stats if available
+        if (res.data.stats) {
+          setMarketStats(res.data.stats);
+        }
       }
     } catch (err) {
       console.error('Error fetching items:', err);
+      // Show error notification if available
+      if (window.showNotification) {
+        window.showNotification(
+          'Error',
+          'Failed to load marketplace items',
+          'ERROR'
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -294,11 +306,12 @@ function Marketplace({ user }) {
       return (
         <div className="loading-state">
           <div className="loading-spinner" />
+          <p>Loading marketplace items...</p>
         </div>
       );
     }
 
-    if (filteredItems.length === 0) {
+    if (!items || items.length === 0) {
       return (
         <div className="empty-state">
           <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -307,6 +320,11 @@ function Marketplace({ user }) {
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
           <p>No items found matching your criteria</p>
+          {!user && (
+            <p className="empty-state-subtitle">
+              Sign in with Steam to list your items for sale
+            </p>
+          )}
         </div>
       );
     }
@@ -318,6 +336,7 @@ function Marketplace({ user }) {
             key={item._id}
             item={item}
             view={itemView}
+            isAuthenticated={!!user}
             onSelect={() => {
               setSelectedItemId(item._id);
               setItemDetailsOpen(true);

@@ -363,53 +363,112 @@ exports.buyItem = async (req, res) => {
   }
 };
 
-// GET /marketplace/
+// GET /marketplace
 exports.getAllItems = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 20; // Default to 20 items
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12;
     const sort = req.query.sort || "latest";
+    const search = req.query.search || "";
+    const categories = req.query.categories
+      ? req.query.categories.split(",")
+      : [];
 
-    // Build query for listed items only
-    const query = { isListed: true };
+    // Build query
+    const query = {
+      isListed: true,
+    };
+
+    // Add search filter if provided
+    if (search) {
+      query.marketHashName = { $regex: search, $options: "i" };
+    }
+
+    // Add category filter if provided
+    if (categories.length > 0) {
+      query.category = { $in: categories };
+    }
 
     // Build sort options
     let sortOptions = {};
-    if (sort === "latest") {
-      sortOptions.createdAt = -1;
-    } else if (sort === "price_asc") {
-      sortOptions.price = 1;
-    } else if (sort === "price_desc") {
-      sortOptions.price = -1;
+    switch (sort) {
+      case "price_asc":
+        sortOptions.price = 1;
+        break;
+      case "price_desc":
+        sortOptions.price = -1;
+        break;
+      case "popular":
+        sortOptions.views = -1;
+        break;
+      case "latest":
+      default:
+        sortOptions.createdAt = -1;
     }
 
-    // Return all items that are listed for sale
+    // Calculate skip value for pagination
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination
+    const totalItems = await Item.countDocuments(query);
+
+    // Fetch items with pagination and sorting
     const items = await Item.find(query)
       .sort(sortOptions)
+      .skip(skip)
       .limit(limit)
-      .populate("owner", "displayName avatar");
+      .populate("owner", "displayName avatar steamId")
+      .lean();
 
-    // Format the response
-    const formattedItems = items.map((item) => ({
-      _id: item._id,
-      marketHashName: item.marketHashName,
-      price: item.price,
-      priceGEL: item.priceGEL,
-      imageUrl: item.imageUrl,
-      wear: item.wear,
-      rarity: item.rarity,
-      owner: {
-        displayName: item.owner?.displayName || "Anonymous",
-        avatar: item.owner?.avatar,
+    // Get market statistics
+    const stats = await getMarketStats();
+
+    // Return response with items and metadata
+    return res.json({
+      items,
+      stats,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalItems / limit),
+        totalItems,
+        hasMore: skip + items.length < totalItems,
       },
-      createdAt: item.createdAt,
-    }));
-
-    return res.json(formattedItems);
+    });
   } catch (err) {
-    console.error("Error in getAllItems:", err);
+    console.error("Error fetching marketplace items:", err);
     return res
       .status(500)
-      .json({ error: "Failed to retrieve marketplace items." });
+      .json({ error: "Failed to fetch marketplace items." });
+  }
+};
+
+// Helper function to get market statistics
+const getMarketStats = async () => {
+  try {
+    const [totalListings, totalVolume, averagePrice] = await Promise.all([
+      Item.countDocuments({ isListed: true }),
+      Item.aggregate([
+        { $match: { isListed: true } },
+        { $group: { _id: null, total: { $sum: "$price" } } },
+      ]),
+      Item.aggregate([
+        { $match: { isListed: true } },
+        { $group: { _id: null, avg: { $avg: "$price" } } },
+      ]),
+    ]);
+
+    return {
+      totalListings,
+      totalVolume: totalVolume[0]?.total || 0,
+      averagePrice: averagePrice[0]?.avg || 0,
+    };
+  } catch (err) {
+    console.error("Error calculating market stats:", err);
+    return {
+      totalListings: 0,
+      totalVolume: 0,
+      averagePrice: 0,
+    };
   }
 };
 
