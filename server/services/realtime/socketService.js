@@ -1,5 +1,5 @@
 const Redis = require("ioredis");
-const { createAdapter } = require("socket.io-redis");
+const { createAdapter } = require("@socket.io/redis-adapter");
 
 class RealtimeService {
   constructor(io) {
@@ -13,7 +13,7 @@ class RealtimeService {
       tls: process.env.REDIS_TLS === "true" ? {} : undefined,
     };
 
-    // Create Redis clients
+    // Create Redis clients for pub/sub
     this.redisClient = new Redis(redisConfig);
     this.redisPub = new Redis(redisConfig);
 
@@ -31,11 +31,13 @@ class RealtimeService {
       console.log("Successfully connected to Redis Cloud");
     });
 
-    // Set up Socket.IO Redis adapter with TLS options
-    const pubClient = this.redisPub;
-    const subClient = this.redisClient;
-
-    io.adapter(createAdapter({ pubClient, subClient }));
+    // Set up Socket.IO Redis adapter
+    try {
+      io.adapter(createAdapter(this.redisPub, this.redisClient));
+      console.log("Socket.IO Redis adapter configured successfully");
+    } catch (error) {
+      console.error("Failed to set up Socket.IO Redis adapter:", error);
+    }
 
     // Track connected users and their socket IDs
     this.connectedUsers = new Map();
