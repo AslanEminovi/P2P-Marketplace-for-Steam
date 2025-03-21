@@ -133,28 +133,15 @@ const HeroSection = ({ user, stats, prevStats }) => {
               <circle cx="20" cy="21" r="1"></circle>
               <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
             </svg>
-                Browse Marketplace
-              </a>
-              
-          <a href="#" className="hero-button secondary">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-            </svg>
-            Price Checker
+            Browse Marketplace
           </a>
-
-          {!user && (
-            <a href={`${API_URL}/auth/steam`} className="hero-button primary">
-              <img 
-                src="Steam-Emblem.png" 
-                alt="Steam" 
-                className="steam-icon" 
-                width="24" 
-                height="24" 
-              />
-              Sign in with Steam
-            </a>
-          )}
+              
+          <a href="/marketplace?category=knife" className="hero-button secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+            </svg>
+            Browse Knives
+          </a>
 
           {user && (
             <Link to="/sell" className="hero-button secondary">
@@ -213,11 +200,11 @@ const SearchSection = () => {
           </button>
         </div>
         <div className="search-tags">
-          <Link to="/marketplace?category=rifle" className="search-tag">Rifles</Link>
-          <Link to="/marketplace?category=knife" className="search-tag">Knives</Link>
-          <Link to="/marketplace?category=pistol" className="search-tag">Pistols</Link>
-          <Link to="/marketplace?category=glove" className="search-tag">Gloves</Link>
-          <Link to="/marketplace?category=case" className="search-tag">Cases</Link>
+          <a href="/marketplace?category=rifle" className="search-tag">Rifles</a>
+          <a href="/marketplace?category=knife" className="search-tag">Knives</a>
+          <a href="/marketplace?category=pistol" className="search-tag">Pistols</a>
+          <a href="/marketplace?category=glove" className="search-tag">Gloves</a>
+          <a href="/marketplace?category=case" className="search-tag">Cases</a>
         </div>
       </div>
     </section>
@@ -294,12 +281,12 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
                           </span>
                         </div>
                       )}
-                      <Link to={`/marketplace?item=${encodeURIComponent(item.marketHashName || '')}`} className="buy-now-button" onClick={handleViewAllClick}>
+                      <a href={`/marketplace?item=${encodeURIComponent(item.marketHashName || '')}`} className="buy-now-button" onClick={handleViewAllClick}>
                         View Item
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M5 12h14M12 5l7 7-7 7" />
                         </svg>
-                      </Link>
+                      </a>
                     </div>
                   </div>
                 </div>
@@ -550,15 +537,11 @@ const FinalCTASection = ({ user }) => {
         <div className="final-cta-buttons">
           {!user ? (
             <>
-              <a href={`${API_URL}/auth/steam`} className="hero-button primary">
-                <img 
-                  src="Steam-Emblem.png" 
-                  alt="Steam" 
-                  className="steam-icon" 
-                  width="24" 
-                  height="24" 
-                />
-                Sign in with Steam
+              <a href="/marketplace?category=knife" className="hero-button primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                </svg>
+                Browse Knives
               </a>
 
               <a href="/marketplace" className="hero-button secondary">
