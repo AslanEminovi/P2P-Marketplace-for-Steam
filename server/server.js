@@ -309,18 +309,41 @@ if (isProduction) {
   console.log(`Frontend client URL: ${config.CLIENT_URL}`);
 }
 
-// Create HTTP server and integrate with Express
+// Function to update site statistics
+const updateSiteStats = async () => {
+  try {
+    const Item = mongoose.model("Item");
+    const User = mongoose.model("User");
+    const Trade = mongoose.model("Trade");
+
+    const activeListings = await Item.countDocuments({ isListed: true });
+    const activeUsers = await User.countDocuments({
+      lastActive: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+    });
+    const completedTrades = await Trade.countDocuments({ status: "completed" });
+
+    return {
+      activeListings,
+      activeUsers,
+      completedTrades,
+      timestamp: new Date(),
+    };
+  } catch (error) {
+    console.error("Error updating site stats:", error);
+    return null;
+  }
+};
+
+// Create HTTP server
 const server = http.createServer(app);
 
 // Set up Socket.io with CORS and connection settings
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: config.CLIENT_URL,
     methods: ["GET", "POST"],
     credentials: true,
   },
-  pingTimeout: 60000,
-  transports: ["websocket", "polling"],
 });
 
 // Socket middleware for authentication
@@ -377,8 +400,11 @@ setInterval(async () => {
 // Export io instance for use in other files
 app.set("io", io);
 
-// Export the updateSiteStats function for use in controllers
-module.exports.updateSiteStats = updateSiteStats;
+// Export the updateSiteStats function along with the server
+module.exports = {
+  server,
+  updateSiteStats,
+};
 
 // Error handling middleware
 app.use((err, req, res, next) => {
