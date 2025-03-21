@@ -57,24 +57,28 @@
   display: block;
   font-size: 0.7em;
   animation: geoGlow 3s infinite alternate;
-  background: linear-gradient(135deg,#2ecc71,#1abc9c,#3498db);
+  background: linear-gradient(135deg, #2ecc71, #1abc9c, #3498db);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   font-weight: 600;
   letter-spacing: .5px;
   margin-top: -2px;
-  text-shadow: 0 0 10px #2ecc7180;
+  text-shadow: 0 0 10px rgba(46, 204, 113, 0.8), 0 0 20px rgba(52, 152, 219, 0.6);
 }
 
 @keyframes geoGlow {
   0% {
-    opacity: 0.7;
-    text-shadow: 0 0 5px #2ecc7160;
+    opacity: 0.8;
+    text-shadow: 0 0 5px rgba(46, 204, 113, 0.7), 0 0 10px rgba(52, 152, 219, 0.5);
+  }
+  50% {
+    opacity: 1;
+    text-shadow: 0 0 15px rgba(46, 204, 113, 0.8), 0 0 30px rgba(52, 152, 219, 0.7), 0 0 45px rgba(26, 188, 156, 0.3);
   }
   100% {
-    opacity: 1;
-    text-shadow: 0 0 10px #2ecc7180;
+    opacity: 0.9;
+    text-shadow: 0 0 10px rgba(46, 204, 113, 0.9), 0 0 20px rgba(52, 152, 219, 0.6);
   }
 }
 
@@ -87,6 +91,37 @@
   display: inline-block;
   width: auto;
   text-align: left;
+}
+
+/* Logo Social Links */
+.logo-social-links {
+  display: flex;
+  align-items: center;
+  margin-left: 12px;
+  gap: 8px;
+}
+
+.logo-social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gaming-text-medium);
+  transition: all 0.2s ease;
+  opacity: 0.7;
+}
+
+.logo-social-link:hover {
+  color: var(--gaming-text-bright);
+  transform: translateY(-2px);
+  opacity: 1;
+}
+
+.logo-social-link svg {
+  filter: drop-shadow(0 0 3px rgba(46, 204, 113, 0.4)) drop-shadow(0 0 5px rgba(52, 152, 219, 0.3));
+}
+
+.logo-social-link:hover svg {
+  filter: drop-shadow(0 0 5px rgba(46, 204, 113, 0.6)) drop-shadow(0 0 8px rgba(52, 152, 219, 0.5));
 }
 
 .nav-text-container {
