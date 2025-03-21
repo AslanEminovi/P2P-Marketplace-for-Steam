@@ -840,9 +840,10 @@
 
 .steam-icon {
   margin-right: 8px;
-  filter: brightness(0) invert(1);
+  width: 24px;
+  height: 24px;
 }
 
 .sign-in-button:hover .steam-icon {
-  filter: brightness(0) invert(1) drop-shadow(0 0 3px rgba(255, 255, 255, 0.7));
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.7));
 }
