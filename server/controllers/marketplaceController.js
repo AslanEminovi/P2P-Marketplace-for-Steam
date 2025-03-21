@@ -369,7 +369,7 @@ exports.getAllItems = async (req, res) => {
     const limit = parseInt(req.query.limit) || 20; // Default to 20 items
     const sort = req.query.sort || "latest";
 
-    // Build query
+    // Build query for listed items only
     const query = { isListed: true };
 
     // Build sort options
@@ -388,9 +388,25 @@ exports.getAllItems = async (req, res) => {
       .limit(limit)
       .populate("owner", "displayName avatar");
 
-    return res.json({ items });
+    // Format the response
+    const formattedItems = items.map((item) => ({
+      _id: item._id,
+      marketHashName: item.marketHashName,
+      price: item.price,
+      priceGEL: item.priceGEL,
+      imageUrl: item.imageUrl,
+      wear: item.wear,
+      rarity: item.rarity,
+      owner: {
+        displayName: item.owner?.displayName || "Anonymous",
+        avatar: item.owner?.avatar,
+      },
+      createdAt: item.createdAt,
+    }));
+
+    return res.json(formattedItems);
   } catch (err) {
-    console.error(err);
+    console.error("Error in getAllItems:", err);
     return res
       .status(500)
       .json({ error: "Failed to retrieve marketplace items." });
