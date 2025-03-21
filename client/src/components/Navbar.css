@@ -266,6 +266,10 @@
   transform: scaleX(1);
 }
 
+.navbar-link:last-child {
+  margin-right: 20px; /* Add space after the last navbar link (FAQ) */
+}
+
 /* USER SECTION & BALANCE */
 .user-section {
   display: flex;
@@ -681,6 +685,7 @@
   border: none;
   white-space: nowrap;
   /* Ensure text stays on one line */
+  margin-left: 15px; /* Add additional space before the sign-in button */
 }
 
 .sign-in-button::before {
