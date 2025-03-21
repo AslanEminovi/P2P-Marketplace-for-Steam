@@ -246,41 +246,43 @@ try {
   // Continue without Redis - the app will use in-memory fallback
 }
 
-// When setting up socket.io, use Redis adapter if available
-let io;
-try {
-  const { createAdapter } = require("socket.io-redis");
+// Initialize Socket.IO with CORS settings
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+  transports: ["websocket", "polling"],
+  // Add adapter options
+  adapter: {
+    pingTimeout: 60000,
+    pingInterval: 25000,
+  },
+});
 
-  io = new Server(server, {
-    cors: {
-      origin: process.env.CLIENT_URL || "http://localhost:3000",
-      methods: ["GET", "POST"],
-      credentials: true,
-    },
-    transports: ["websocket", "polling"],
-  });
+// Set up Redis adapter for Socket.IO if Redis is available
+if (redisClient) {
+  try {
+    const { createAdapter } = require("socket.io-redis");
+    const pubClient = redisClient;
+    const subClient = redisClient.duplicate();
 
-  if (redisClient) {
-    io.adapter(createAdapter(redisClient, redisClient.duplicate()));
-    console.log("Socket.IO Redis adapter initialized");
-  } else {
-    console.log("Using default in-memory adapter for Socket.IO");
+    Promise.all([pubClient.connect(), subClient.connect()])
+      .then(() => {
+        io.adapter(createAdapter(pubClient, subClient));
+        console.log("Socket.IO Redis adapter initialized");
+      })
+      .catch((error) => {
+        console.error("Failed to initialize Socket.IO Redis adapter:", error);
+        console.log("Using default in-memory adapter");
+      });
+  } catch (error) {
+    console.error("Error setting up Socket.IO Redis adapter:", error);
+    console.log("Using default in-memory adapter");
   }
-} catch (error) {
-  console.log(
-    "Socket.IO Redis adapter not available, using in-memory adapter:",
-    error.message
-  );
-
-  // Initialize Socket.IO without Redis adapter
-  io = new Server(server, {
-    cors: {
-      origin: process.env.CLIENT_URL || "http://localhost:3000",
-      methods: ["GET", "POST"],
-      credentials: true,
-    },
-    transports: ["websocket", "polling"],
-  });
+} else {
+  console.log("Redis not available, using in-memory adapter");
 }
 
 // Initialize Realtime Service

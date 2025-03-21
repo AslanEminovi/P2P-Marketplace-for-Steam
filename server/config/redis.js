@@ -24,17 +24,15 @@ const createRedisClient = () => {
       maxRetriesPerRequest: 5,
       enableReadyCheck: true,
       showFriendlyErrorStack: true,
+      lazyConnect: true, // Add lazy connect to prevent immediate connection attempts
     };
 
     // Add TLS options for non-localhost connections
     if (!isLocalhost) {
       redisConfig.tls = {
-        // Explicitly set TLS version
-        secureProtocol: "TLSv1_2_method",
-        rejectUnauthorized: false,
-        // Add these if still having issues
+        // Remove secureProtocol and use only minVersion
         minVersion: "TLSv1.2",
-        maxVersion: "TLSv1.3",
+        rejectUnauthorized: false,
       };
     }
 
@@ -46,12 +44,24 @@ const createRedisClient = () => {
 
     const client = new Redis(redisConfig);
 
+    // Add more detailed error handling
     client.on("connect", () => {
       console.log("Successfully connected to Redis");
     });
 
     client.on("error", (err) => {
       console.error("Redis connection error:", err);
+      if (err.code === "ECONNREFUSED") {
+        console.log("Attempting to reconnect to Redis...");
+      }
+    });
+
+    client.on("ready", () => {
+      console.log("Redis client is ready");
+    });
+
+    client.on("reconnecting", (ms) => {
+      console.log(`Reconnecting to Redis in ${ms}ms...`);
     });
 
     return client;
