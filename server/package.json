@@ -23,7 +23,8 @@
     "mongoose": "^6.9.0",
     "passport": "^0.6.0",
     "passport-steam": "^1.0.10",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.7.4",
+    "socket.io-redis": "^6.1.1"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

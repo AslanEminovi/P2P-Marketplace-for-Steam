@@ -11,7 +11,6 @@ const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const RealtimeService = require("./services/realtime/socketService");
 const { createRedisClient, REDIS_URL } = require("./config/redis");
-const { createAdapter } = require("socket.io-redis");
 
 // Determine environment
 const isProduction = process.env.NODE_ENV === "production";
@@ -237,16 +236,6 @@ app.use("/admin", adminRoutes);
 // Create HTTP server
 const server = http.createServer(app);
 
-// Initialize Socket.IO with CORS settings
-const io = new Server(server, {
-  cors: {
-    origin: config.CLIENT_URL,
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-  transports: ["websocket", "polling"],
-});
-
 // Initialize Redis client
 let redisClient;
 try {
@@ -257,15 +246,41 @@ try {
   // Continue without Redis - the app will use in-memory fallback
 }
 
-// When setting up socket.io, use Redis adapter only if Redis is available
-if (redisClient) {
-  try {
+// When setting up socket.io, use Redis adapter if available
+let io;
+try {
+  const { createAdapter } = require("socket.io-redis");
+
+  io = new Server(server, {
+    cors: {
+      origin: process.env.CLIENT_URL || "http://localhost:3000",
+      methods: ["GET", "POST"],
+      credentials: true,
+    },
+    transports: ["websocket", "polling"],
+  });
+
+  if (redisClient) {
     io.adapter(createAdapter(redisClient, redisClient.duplicate()));
     console.log("Socket.IO Redis adapter initialized");
-  } catch (error) {
-    console.error("Failed to initialize Socket.IO Redis adapter:", error);
-    // Will automatically fall back to in-memory adapter
+  } else {
+    console.log("Using default in-memory adapter for Socket.IO");
   }
+} catch (error) {
+  console.log(
+    "Socket.IO Redis adapter not available, using in-memory adapter:",
+    error.message
+  );
+
+  // Initialize Socket.IO without Redis adapter
+  io = new Server(server, {
+    cors: {
+      origin: process.env.CLIENT_URL || "http://localhost:3000",
+      methods: ["GET", "POST"],
+      credentials: true,
+    },
+    transports: ["websocket", "polling"],
+  });
 }
 
 // Initialize Realtime Service
