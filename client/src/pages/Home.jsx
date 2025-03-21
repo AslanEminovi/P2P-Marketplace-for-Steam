@@ -114,6 +114,22 @@ const HeroSection = ({ user, stats, prevStats }) => {
       <div className="hero-decoration top-left"></div>
       <div className="hero-decoration bottom-right"></div>
       <div className="cs-logo-decoration"></div>
+      {/* Fallback image in case CSS background doesn't work */}
+      <img 
+        src="cs.png" 
+        alt="CS2 Logo"
+        style={{
+          position: 'absolute',
+          top: '20%',
+          right: '10%',
+          width: '350px',
+          height: '350px',
+          opacity: 0.4,
+          zIndex: 0,
+          pointerEvents: 'none',
+          objectFit: 'contain'
+        }}
+      />
 
         <div className="hero-content">
           <h1 className="hero-title">
@@ -140,7 +156,7 @@ const HeroSection = ({ user, stats, prevStats }) => {
           {!user && (
             <a href={`${API_URL}/auth/steam`} className="hero-button primary">
               <img 
-                src="/Steam-Emblem.png" 
+                src="Steam-Emblem.png" 
                 alt="Steam" 
                 className="steam-icon" 
                 width="24" 
@@ -546,7 +562,7 @@ const FinalCTASection = ({ user }) => {
             <>
               <a href={`${API_URL}/auth/steam`} className="hero-button primary">
                 <img 
-                  src="/Steam-Emblem.png" 
+                  src="Steam-Emblem.png" 
                   alt="Steam" 
                   className="steam-icon" 
                   width="24" 

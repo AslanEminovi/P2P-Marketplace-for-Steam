@@ -291,7 +291,7 @@ const Navbar = ({ user, onLogout }) => {
         ) : (
             <a href={`${API_URL}/auth/steam`} className="sign-in-button">
               <img 
-                src="/Steam-Emblem.png" 
+                src="Steam-Emblem.png" 
                 alt="Steam" 
                 className="steam-icon" 
                 width="24" 
@@ -390,7 +390,7 @@ const Navbar = ({ user, onLogout }) => {
           {!user && (
             <a href={`${API_URL}/auth/steam`} className="mobile-menu-link steam-login">
               <img 
-                src="/Steam-Emblem.png" 
+                src="Steam-Emblem.png" 
                 alt="Steam" 
                 className="steam-icon" 
                 width="24" 
