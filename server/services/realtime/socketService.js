@@ -1,82 +1,72 @@
-const Redis = require("ioredis");
 const { createAdapter } = require("@socket.io/redis-adapter");
+const { createRedisClient } = require("../../config/redis");
 
 class RealtimeService {
   constructor(io) {
     this.io = io;
+    this.initializeRedis();
+  }
 
-    // Redis Cloud Configuration with retry strategy
-    const redisConfig = {
-      ...(process.env.REDIS_URL
-        ? { url: process.env.REDIS_URL }
-        : {
-            host: process.env.REDIS_HOST,
-            port: process.env.REDIS_PORT,
-            password: process.env.REDIS_PASSWORD,
-            tls: process.env.REDIS_TLS === "true" ? {} : undefined,
-          }),
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      maxRetriesPerRequest: 3,
-    };
-
-    // Create Redis clients for pub/sub with reconnection handling
-    this.redisClient = new Redis(redisConfig);
-    this.redisPub = new Redis(redisConfig);
-
-    // Error handling for Redis connections
-    this.redisClient.on("error", (err) => {
-      console.error("Redis Client Error:", err);
-      // Attempt to reconnect after a delay
-      setTimeout(() => {
-        console.log("Attempting to reconnect Redis client...");
-        this.redisClient.connect();
-      }, 5000);
-    });
-
-    this.redisPub.on("error", (err) => {
-      console.error("Redis Pub Error:", err);
-      // Attempt to reconnect after a delay
-      setTimeout(() => {
-        console.log("Attempting to reconnect Redis pub client...");
-        this.redisPub.connect();
-      }, 5000);
-    });
-
-    // Connection success logging
-    this.redisClient.on("connect", () => {
-      console.log("Successfully connected to Redis Cloud");
-    });
-
-    this.redisPub.on("connect", () => {
-      console.log("Successfully connected Redis pub client");
-    });
-
-    // Set up Socket.IO Redis adapter with error handling
+  async initializeRedis() {
     try {
-      io.adapter(createAdapter(this.redisPub, this.redisClient));
+      // Create Redis clients for pub/sub
+      this.redisClient = createRedisClient();
+      this.redisPub = createRedisClient();
+
+      // Wait for both clients to be ready
+      await Promise.all([
+        new Promise((resolve, reject) => {
+          this.redisClient.once("ready", resolve);
+          this.redisClient.once("error", reject);
+        }),
+        new Promise((resolve, reject) => {
+          this.redisPub.once("ready", resolve);
+          this.redisPub.once("error", reject);
+        }),
+      ]);
+
+      // Set up Socket.IO Redis adapter
+      this.io.adapter(createAdapter(this.redisPub, this.redisClient));
       console.log("Socket.IO Redis adapter configured successfully");
+
+      // Track connected users and their socket IDs
+      this.connectedUsers = new Map();
+
+      // Initialize socket event handlers
+      this.initializeSocketEvents();
     } catch (error) {
-      console.error("Failed to set up Socket.IO Redis adapter:", error);
-      // Fallback to in-memory adapter
+      console.error("Failed to initialize Redis:", error);
+      // Continue without Redis - fallback to in-memory
       console.log("Falling back to in-memory adapter");
+      this.redisClient = null;
+      this.redisPub = null;
+
+      // Still initialize socket events even without Redis
+      this.connectedUsers = new Map();
+      this.initializeSocketEvents();
     }
+  }
 
-    // Track connected users and their socket IDs
-    this.connectedUsers = new Map();
-
-    // Initialize socket event handlers with reconnection logic
-    this.initializeSocketEvents();
+  // Helper method to safely interact with Redis
+  async safeRedisOperation(operation) {
+    if (!this.redisClient) {
+      console.log("Redis not available, skipping operation");
+      return null;
+    }
+    try {
+      return await operation();
+    } catch (error) {
+      console.error("Redis operation failed:", error);
+      return null;
+    }
   }
 
   initializeSocketEvents() {
     this.io.on("connection", (socket) => {
       console.log(`Client connected: ${socket.id}`);
 
-      // Set up ping/pong for connection monitoring
-      const pingInterval = setInterval(() => {
+      // Set up heartbeat
+      const heartbeat = setInterval(() => {
         socket.emit("ping");
       }, 25000);
 
@@ -84,34 +74,21 @@ class RealtimeService {
         socket.isAlive = true;
       });
 
-      // Handle authentication with retry logic
+      // Handle authentication
       socket.on("authenticate", async (userData) => {
-        let retries = 3;
-        const attemptAuth = async () => {
-          try {
-            const userId = userData.id;
-            await this.handleUserConnection(socket, userId);
-          } catch (error) {
-            console.error("Authentication error:", error);
-            if (retries > 0) {
-              retries--;
-              console.log(
-                `Retrying authentication, ${retries} attempts remaining`
-              );
-              setTimeout(attemptAuth, 1000);
-            } else {
-              socket.emit("auth_error", {
-                message: "Authentication failed after retries",
-              });
-            }
-          }
-        };
-        attemptAuth();
+        try {
+          const userId = userData.id;
+          await this.handleUserConnection(socket, userId);
+          socket.emit("auth_success", { userId });
+        } catch (error) {
+          console.error("Authentication error:", error);
+          socket.emit("auth_error", { message: "Authentication failed" });
+        }
       });
 
-      // Handle disconnection cleanup
+      // Handle disconnection
       socket.on("disconnect", () => {
-        clearInterval(pingInterval);
+        clearInterval(heartbeat);
         this.handleDisconnection(socket);
       });
 
@@ -169,14 +146,16 @@ class RealtimeService {
     // Join user's personal room for direct messages
     socket.join(`user:${userId}`);
 
-    // Store user data in Redis
-    await this.redisClient.hset(
-      `user:${userId}`,
-      "lastSeen",
-      Date.now(),
-      "socketId",
-      socket.id
-    );
+    // Store user data in Redis if available
+    await this.safeRedisOperation(async () => {
+      await this.redisClient.hset(
+        `user:${userId}`,
+        "lastSeen",
+        Date.now(),
+        "socketId",
+        socket.id
+      );
+    });
 
     // Broadcast user online status
     this.io.emit("user_status", {
@@ -201,7 +180,13 @@ class RealtimeService {
         if (sockets.size === 0) {
           this.connectedUsers.delete(userId);
           // Update user's last seen in Redis
-          this.redisClient.hset(`user:${userId}`, "lastSeen", Date.now());
+          this.safeRedisOperation(async () => {
+            await this.redisClient.hset(
+              `user:${userId}`,
+              "lastSeen",
+              Date.now()
+            );
+          });
           // Broadcast user offline status
           this.io.emit("user_status", {
             userId: userId,
@@ -221,15 +206,17 @@ class RealtimeService {
     });
 
     // Store trade update in Redis for history
-    await this.redisClient.lpush(
-      `trade_updates:${tradeId}`,
-      JSON.stringify({
-        ...updateData,
-        timestamp: Date.now(),
-      })
-    );
-    // Keep only last 100 updates
-    await this.redisClient.ltrim(`trade_updates:${tradeId}`, 0, 99);
+    await this.safeRedisOperation(async () => {
+      await this.redisClient.lpush(
+        `trade_updates:${tradeId}`,
+        JSON.stringify({
+          ...updateData,
+          timestamp: Date.now(),
+        })
+      );
+      // Keep only last 100 updates
+      await this.redisClient.ltrim(`trade_updates:${tradeId}`, 0, 99);
+    });
   }
 
   // Broadcast marketplace updates
@@ -248,15 +235,17 @@ class RealtimeService {
     });
 
     // Store notification in Redis
-    await this.redisClient.lpush(
-      `notifications:${userId}`,
-      JSON.stringify({
-        ...notification,
-        timestamp: Date.now(),
-      })
-    );
-    // Keep only last 50 notifications
-    await this.redisClient.ltrim(`notifications:${userId}`, 0, 49);
+    await this.safeRedisOperation(async () => {
+      await this.redisClient.lpush(
+        `notifications:${userId}`,
+        JSON.stringify({
+          ...notification,
+          timestamp: Date.now(),
+        })
+      );
+      // Keep only last 50 notifications
+      await this.redisClient.ltrim(`notifications:${userId}`, 0, 49);
+    });
   }
 
   // Get online users count
@@ -271,8 +260,10 @@ class RealtimeService {
 
   // Clean up resources
   async cleanup() {
-    await this.redisClient.quit();
-    await this.redisPub.quit();
+    await this.safeRedisOperation(async () => {
+      await this.redisClient.quit();
+      await this.redisPub.quit();
+    });
   }
 }
 
