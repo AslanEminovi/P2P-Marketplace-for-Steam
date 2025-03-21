@@ -20,7 +20,40 @@ const generateParticles = (count) => {
   return particles;
 };
 
+// Generate random shooting stars for background effect
+const generateShootingStars = (count) => {
+  const stars = [];
+  for (let i = 0; i < count; i++) {
+    stars.push({
+      id: i,
+      top: Math.random() * 100,
+      left: Math.random() * 100,
+      delay: Math.random() * 15,
+      duration: 5 + Math.random() * 10
+    });
+  }
+  return stars;
+};
+
+// Generate floating hexagons for background effect
+const generateFloatingHexagons = (count) => {
+  const hexagons = [];
+  for (let i = 0; i < count; i++) {
+    hexagons.push({
+      id: i,
+      left: Math.random() * 100,
+      size: Math.random() * 40 + 20,
+      delay: Math.random() * 20,
+      duration: 15 + Math.random() * 20,
+      opacity: 0.03 + Math.random() * 0.08
+    });
+  }
+  return hexagons;
+};
+
 const particles = generateParticles(30);
+const shootingStars = generateShootingStars(8);
+const floatingHexagons = generateFloatingHexagons(12);
 
 // Hero Section Component
 const HeroSection = ({ user, stats, prevStats }) => {
@@ -798,7 +831,37 @@ const Home = ({ user }) => {
             }}
           />
         ))}
-        </div>
+        
+        {/* Shooting Stars */}
+        {shootingStars.map(star => (
+          <div
+            key={`star-${star.id}`}
+            className="shooting-star"
+            style={{
+              top: `${star.top}%`,
+              left: `${star.left}%`,
+              animationDelay: `${star.delay}s`,
+              animationDuration: `${star.duration}s`
+            }}
+          />
+        ))}
+        
+        {/* Floating Hexagons */}
+        {floatingHexagons.map(hex => (
+          <div
+            key={`hex-${hex.id}`}
+            className="floating-hex"
+            style={{
+              left: `${hex.left}%`,
+              width: `${hex.size}px`,
+              height: `${hex.size * 0.866}px`, // Height of hexagon based on width
+              opacity: hex.opacity,
+              animationDelay: `${hex.delay}s`,
+              animationDuration: `${hex.duration}s`
+            }}
+          />
+        ))}
+      </div>
         
       {/* Hero Section */}
       <HeroSection user={user} stats={stats} />
