@@ -133,6 +133,69 @@ function Marketplace({ user }) {
     setFilteredItems(filtered);
   }, [items, searchQuery, activeFilters]);
 
+  // Fetch user profile
+  const fetchUserProfile = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const response = await axios.get(`${API_URL}/user/profile`, {
+        withCredentials: true
+      });
+      
+      setUserProfile(response.data);
+      
+      // Show trade URL prompt if it's missing
+      if (!response.data.tradeUrl) {
+        setShowTradeUrlPrompt(true);
+      }
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+    }
+  }, [user]);
+
+  // Handle trade URL save
+  const handleTradeUrlSave = async (tradeUrl) => {
+    try {
+      const response = await axios.put(
+        `${API_URL}/user/profile/trade-url`,
+        { tradeUrl },
+        { withCredentials: true }
+      );
+
+      setUserProfile(prev => ({
+        ...prev,
+        tradeUrl
+      }));
+
+      setShowTradeUrlPrompt(false);
+
+      // Show success notification if available
+      if (window.showNotification) {
+        window.showNotification(
+          'Success',
+          'Trade URL has been updated successfully',
+          'SUCCESS'
+        );
+      }
+    } catch (err) {
+      console.error('Error updating trade URL:', err);
+      
+      // Show error notification if available
+      if (window.showNotification) {
+        window.showNotification(
+          'Error',
+          'Failed to update trade URL',
+          'ERROR'
+        );
+      }
+    }
+  };
+
+  // Check user profile on mount and when user changes
+  useEffect(() => {
+    fetchUserProfile();
+  }, [fetchUserProfile]);
+
   // Render functions
   const renderHeader = () => (
     <header className="marketplace-header">
