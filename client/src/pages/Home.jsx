@@ -571,59 +571,7 @@ const Home = ({ user }) => {
       trades: statsData.completedTrades || 0
     });
   }, []);
-
-  // Initialize socket connection and set up listeners
-  useEffect(() => {
-    // Initialize socket service if it's not already
-    if (!socketService.isConnected) {
-      socketService.init();
-    }
-
-    // Set up listener for stats updates
-    socketService.on('stats_update', handleStatsUpdate);
-
-    // Set up listener for connection status changes
-    socketService.on('connection_status', (status) => {
-      console.log("Socket connection status:", status);
-      
-      // If we're connected, request a stats update
-      if (status.connected) {
-        console.log("Connected to server, requesting stats update");
-        socketService.socket.emit('request_stats_update');
-      }
-    });
-
-    // Add event listeners for page visibility and focus changes
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        console.log("Page became visible again, refreshing data");
-        fetchMarketplaceData();
-        if (socketService.isConnected) {
-          socketService.socket.emit('request_stats_update');
-        }
-      }
-    };
-
-    const handleFocus = () => {
-      console.log("Window regained focus, refreshing data");
-      fetchMarketplaceData();
-      if (socketService.isConnected) {
-        socketService.socket.emit('request_stats_update');
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-
-    // Clean up listeners when component unmounts
-    return () => {
-      socketService.off('stats_update', handleStatsUpdate);
-      socketService.off('connection_status');
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [handleStatsUpdate, fetchMarketplaceData]);
-
+  
   // Fallback function to provide default items when API fails
   const getFallbackItems = useCallback(() => {
     console.log("Using fallback featured items");
@@ -693,87 +641,78 @@ const Home = ({ user }) => {
       // Featured items
       try {
         console.log("Fetching featured items");
-        // First try the featured API endpoint
-        const featuredResponse = await axios.get(`${API_URL}/marketplace/featured?limit=6`);
-        console.log("Featured items response:", featuredResponse.data);
+        // Always try the regular marketplace endpoint first for non-authenticated users
+        let itemsResponse;
         
-        // Validate response
-        if (Array.isArray(featuredResponse.data) && featuredResponse.data.length > 0) {
-          // Additional client-side validation
-          const validItems = featuredResponse.data.map(item => {
-            // Create a deep copy to avoid modifying original
-            const processedItem = {...item};
-            
-            // Ensure required fields
-            if (!processedItem.imageUrl || processedItem.imageUrl === '') {
-              console.log("Missing imageUrl, adding default");
-              processedItem.imageUrl = "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot621FAR17PLfYQJD_9W7m5a0mvLwOq7c2DJTv8Qg2LqXrI2l2QTj_kVvZz_1JNKQcQY5YFjS-1TokOq515fvuoOJlyW3Wr66DQ/";
-            }
-            
-            if (!processedItem.marketHashName || processedItem.marketHashName === '') {
-              console.log("Missing marketHashName, adding default");
-              processedItem.marketHashName = "CS2 Item";
-            }
-            
-            // Ensure price values are numbers
-            if (typeof processedItem.price !== 'number') {
-              processedItem.price = 0;
-            }
-            
-            if (typeof processedItem.priceGEL !== 'number') {
-              processedItem.priceGEL = Math.round(processedItem.price * 2.65);
-            }
-            
-            return processedItem;
-          });
-          
-          setFeaturedItems(validItems);
+        try {
+          console.log("Trying marketplace endpoint for items");
+          itemsResponse = await axios.get(`${API_URL}/marketplace?limit=6`);
+          console.log("Marketplace response:", itemsResponse.data);
+        } catch (err) {
+          console.error("Error fetching from marketplace endpoint:", err);
+          itemsResponse = { data: [] };
+        }
+        
+        if (Array.isArray(itemsResponse.data) && itemsResponse.data.length > 0) {
+          console.log("Successfully retrieved items from marketplace endpoint");
+          const marketplaceItems = itemsResponse.data.map(item => ({
+            ...item,
+            price: typeof item.price === 'number' ? item.price : 0,
+            priceGEL: typeof item.priceGEL === 'number' ? item.priceGEL : Math.round((item.price || 0) * 2.65)
+          }));
+          setFeaturedItems(marketplaceItems);
         } else {
-          // If featured endpoint fails, try the regular marketplace endpoint for all users
-          console.log("Featured items endpoint returned no data, trying regular marketplace endpoint");
-          const marketplaceResponse = await axios.get(`${API_URL}/marketplace?limit=6`);
+          console.log("No items found in marketplace endpoint, trying featured endpoint");
           
-          if (Array.isArray(marketplaceResponse.data) && marketplaceResponse.data.length > 0) {
-            console.log("Successfully retrieved items from marketplace endpoint:", marketplaceResponse.data);
-            const marketplaceItems = marketplaceResponse.data.map(item => ({
-              ...item,
-              price: typeof item.price === 'number' ? item.price : 0,
-              priceGEL: typeof item.priceGEL === 'number' ? item.priceGEL : Math.round((item.price || 0) * 2.65)
-            }));
-            setFeaturedItems(marketplaceItems);
-          } else {
-            console.log("No items found in marketplace endpoint, using fallbacks");
+          // Then try featured endpoint as backup
+          try {
+            const featuredResponse = await axios.get(`${API_URL}/marketplace/featured?limit=6`);
+            console.log("Featured items response:", featuredResponse.data);
+            
+            if (Array.isArray(featuredResponse.data) && featuredResponse.data.length > 0) {
+              const validItems = featuredResponse.data.map(item => {
+                const processedItem = {...item};
+                
+                if (!processedItem.imageUrl || processedItem.imageUrl === '') {
+                  processedItem.imageUrl = "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot621FAR17PLfYQJD_9W7m5a0mvLwOq7c2DJTv8Qg2LqXrI2l2QTj_kVvZz_1JNKQcQY5YFjS-1TokOq515fvuoOJlyW3Wr66DQ/";
+                }
+                
+                if (!processedItem.marketHashName || processedItem.marketHashName === '') {
+                  processedItem.marketHashName = "CS2 Item";
+                }
+                
+                if (typeof processedItem.price !== 'number') {
+                  processedItem.price = 0;
+                }
+                
+                if (typeof processedItem.priceGEL !== 'number') {
+                  processedItem.priceGEL = Math.round(processedItem.price * 2.65);
+                }
+                
+                return processedItem;
+              });
+              
+              setFeaturedItems(validItems);
+            } else {
+              console.log("No items found in featured endpoint, using fallbacks");
+              setFeaturedItems(getFallbackItems());
+            }
+          } catch (featErr) {
+            console.error("Error fetching from featured endpoint:", featErr);
             setFeaturedItems(getFallbackItems());
           }
         }
       } catch (error) {
-        console.error("Error fetching featured items:", error);
-        // Try fetching from marketplace endpoint directly instead of using fallback items
-        try {
-          console.log("Trying marketplace endpoint as fallback");
-          const marketplaceResponse = await axios.get(`${API_URL}/marketplace?limit=6`);
-          if (Array.isArray(marketplaceResponse.data) && marketplaceResponse.data.length > 0) {
-            console.log("Successfully retrieved items from marketplace endpoint as fallback");
-            const marketplaceItems = marketplaceResponse.data.map(item => ({
-              ...item,
-              price: typeof item.price === 'number' ? item.price : 0,
-              priceGEL: typeof item.priceGEL === 'number' ? item.priceGEL : Math.round((item.price || 0) * 2.65)
-            }));
-            setFeaturedItems(marketplaceItems);
-          } else {
-            console.log("No items found in marketplace endpoint fallback, using hardcoded fallbacks");
-            setFeaturedItems(getFallbackItems());
-          }
-        } catch (err) {
-          console.error("Error fetching from marketplace endpoint:", err);
-          setFeaturedItems(getFallbackItems());
-        }
+        console.error("Error in featured items fetch flow:", error);
+        setFeaturedItems(getFallbackItems());
       }
       
       // Also request updated stats
-      if (socketService.isConnected) {
+      if (socketService.isConnected && socketService.socket) {
         console.log("Requesting stats update from server");
         socketService.socket.emit('request_stats_update');
+      } else {
+        console.log("Socket not connected, cannot request stats");
       }
       
       setLoading(false);
@@ -784,10 +723,62 @@ const Home = ({ user }) => {
     }
   }, [getFallbackItems]);
 
+  // Initialize socket connection and set up listeners
+  useEffect(() => {
+    // Initialize socket service if it's not already
+    if (!socketService.isConnected) {
+      socketService.init();
+    }
+
+    // Set up listener for stats updates
+    socketService.on('stats_update', handleStatsUpdate);
+
+    // Set up listener for connection status changes
+    socketService.on('connection_status', (status) => {
+      console.log("Socket connection status:", status);
+      
+      // If we're connected, request a stats update
+      if (status.connected) {
+        console.log("Connected to server, requesting stats update");
+        socketService.socket.emit('request_stats_update');
+      }
+    });
+
+    // Add event listeners for page visibility and focus changes
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log("Page became visible again, refreshing data");
+        fetchMarketplaceData();
+        if (socketService.isConnected && socketService.socket) {
+          socketService.socket.emit('request_stats_update');
+        }
+      }
+    };
+
+    const handleFocus = () => {
+      console.log("Window regained focus, refreshing data");
+      fetchMarketplaceData();
+      if (socketService.isConnected && socketService.socket) {
+        socketService.socket.emit('request_stats_update');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    // Clean up listeners when component unmounts
+    return () => {
+      socketService.off('stats_update', handleStatsUpdate);
+      socketService.off('connection_status');
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [handleStatsUpdate, fetchMarketplaceData]);
+
   // Initial fetch of marketplace data
   useEffect(() => {
     fetchMarketplaceData();
-  }, []);
+  }, [fetchMarketplaceData]);
 
   return (
     <div className="home-container">
