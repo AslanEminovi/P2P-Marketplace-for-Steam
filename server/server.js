@@ -10,10 +10,17 @@ const http = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const RealtimeService = require("./services/realtime/socketService");
+const { createRedisClient, REDIS_URL } = require("./config/redis");
 
 // Determine environment
 const isProduction = process.env.NODE_ENV === "production";
 console.log(`Running in ${isProduction ? "production" : "development"} mode`);
+
+// Log Redis configuration
+console.log(
+  "Redis URL configured:",
+  REDIS_URL.replace(/\/\/[^@]+@/, "//*****@")
+);
 
 // Validate essential API keys
 if (!process.env.STEAMWEBAPI_KEY) {
@@ -48,6 +55,8 @@ const config = isProduction
   : {
       PORT: process.env.PORT || 5001,
       CLIENT_URL: process.env.CLIENT_URL || "http://localhost:3000",
+      MONGODB_URI:
+        process.env.MONGODB_URI || "mongodb://localhost:27017/cs2-marketplace",
     };
 
 // Suppress the Mongoose strictQuery warning for Mongoose 7

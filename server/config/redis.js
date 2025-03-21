@@ -1,35 +1,37 @@
 const Redis = require("ioredis");
 
-const redisConfig = {
-  // Use full Redis URL with credentials
-  url:
-    process.env.REDIS_URL ||
-    "rediss://default:11WgxZSKixv1GTDx6apIlZhK0KWyErR4@redis-13632.c55.eu-central-1-1.ec2.redns.redis-cloud.com:13632",
-  tls: {
-    rejectUnauthorized: false, // Required for Redis Cloud certificates
-  },
-  retryStrategy: (times) => {
-    const maxRetryTime = 1000 * 60; // 1 minute max
-    const delay = Math.min(times * 1000, maxRetryTime);
-    console.log(`Retrying Redis connection in ${delay}ms...`);
-    return delay;
-  },
-  maxRetriesPerRequest: 3, // Limit retries per request
-  enableReadyCheck: true,
-  reconnectOnError: (err) => {
-    const targetError = "READONLY";
-    if (err.message.includes(targetError)) {
-      // Only reconnect on specific errors
-      return true;
-    }
-    return false;
-  },
-  lazyConnect: true, // Only connect when needed
-  showFriendlyErrorStack: true, // Better error messages
-};
+const REDIS_URL =
+  process.env.REDIS_URL ||
+  "rediss://default:11WgxZSKixv1GTDx6apIlZhK0KWyErR4@redis-13632.c55.eu-central-1-1.ec2.redns.redis-cloud.com:13632";
 
 function createRedisClient() {
-  const client = new Redis(redisConfig);
+  console.log(
+    "Creating Redis client with URL:",
+    REDIS_URL.replace(/\/\/[^@]+@/, "//*****@")
+  ); // Log URL with hidden credentials
+
+  const client = new Redis(REDIS_URL, {
+    tls: {
+      rejectUnauthorized: false,
+    },
+    retryStrategy(times) {
+      const delay = Math.min(times * 1000, 60000);
+      console.log(`Retrying Redis connection in ${delay}ms...`);
+      return delay;
+    },
+    maxRetriesPerRequest: 3,
+    enableReadyCheck: true,
+    reconnectOnError(err) {
+      const targetError = "READONLY";
+      if (err.message.includes(targetError)) {
+        return true;
+      }
+      return false;
+    },
+    connectTimeout: 20000,
+    lazyConnect: false,
+    showFriendlyErrorStack: true,
+  });
 
   client.on("connect", () => {
     console.log("Successfully connected to Redis Cloud");
@@ -47,6 +49,10 @@ function createRedisClient() {
     console.log("Redis client reconnecting...");
   });
 
+  client.on("end", () => {
+    console.log("Redis connection ended");
+  });
+
   // Test the connection
   client
     .ping()
@@ -62,5 +68,5 @@ function createRedisClient() {
 
 module.exports = {
   createRedisClient,
-  redisConfig,
+  REDIS_URL,
 };
