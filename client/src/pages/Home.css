@@ -130,49 +130,66 @@
   box-shadow: 0 0 15px rgba(0, 210, 255, 0.5);
 }
 
-/* Add shooting stars */
-.shooting-star {
+/* Replace shooting stars with energy orbs */
+.energy-orb {
   position: absolute;
-  width: 4px;
-  height: 4px;
-  background-color: #fff;
+  width: 6px;
+  height: 6px;
+  background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(0,210,255,0.6) 50%, rgba(51,115,242,0) 100%);
   border-radius: 50%;
-  box-shadow: 0 0 20px 4px rgba(0, 210, 255, 0.8),
-              0 0 30px 8px rgba(51, 115, 242, 0.4);
-  animation: shooting 5s linear infinite;
-  opacity: 0;
+  filter: blur(1px);
+  box-shadow: 
+    0 0 10px 5px rgba(0, 210, 255, 0.3),
+    0 0 20px 10px rgba(51, 115, 242, 0.2);
+  animation: pulseOrb 3s ease-in-out infinite;
+  z-index: 1;
 }
 
-.shooting-star::after {
+.energy-orb::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100px;
-  height: 1px;
-  background: linear-gradient(to right, rgba(255, 255, 255, 0.8), transparent);
-  transform: translateX(-100%) rotate(0deg);
-  transform-origin: right center;
+  top: 50%;
+  left: 50%;
+  width: 150%;
+  height: 150%;
+  background: radial-gradient(circle, rgba(0,210,255,0.3) 0%, rgba(51,115,242,0) 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: orbGlow 4s ease-in-out infinite;
 }
 
-@keyframes shooting {
-  0% {
-    transform: translate(0, 0) rotate(215deg) scale(0);
-    opacity: 0;
+.energy-orb::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(140,92,247,0.2) 0%, rgba(51,115,242,0) 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: orbGlow 5s ease-in-out infinite reverse;
+}
+
+@keyframes pulseOrb {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.7;
   }
-  1% {
+  50% {
+    transform: scale(1.5);
     opacity: 1;
   }
-  10% {
-    transform: translate(-500px, 500px) rotate(215deg) scale(1);
-    opacity: 0.8;
+}
+
+@keyframes orbGlow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: translate(-50%, -50%) scale(1);
   }
-  15% {
-    opacity: 0;
-  }
-  100% {
-    transform: translate(-500px, 500px) rotate(215deg) scale(1);
-    opacity: 0;
+  50% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(1.3);
   }
 }
 

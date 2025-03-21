@@ -20,19 +20,19 @@ const generateParticles = (count) => {
   return particles;
 };
 
-// Generate random shooting stars for background effect
-const generateShootingStars = (count) => {
-  const stars = [];
+// Generate energy orbs for background effect
+const generateEnergyOrbs = (count) => {
+  const orbs = [];
   for (let i = 0; i < count; i++) {
-    stars.push({
+    orbs.push({
       id: i,
-      top: Math.random() * 100,
-      left: Math.random() * 100,
-      delay: Math.random() * 15,
-      duration: 5 + Math.random() * 10
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      delay: Math.random() * 10,
+      size: Math.random() * 0.5 + 0.8 // Size multiplier between 0.8 and 1.3
     });
   }
-  return stars;
+  return orbs;
 };
 
 // Generate floating hexagons for background effect
@@ -52,7 +52,7 @@ const generateFloatingHexagons = (count) => {
 };
 
 const particles = generateParticles(30);
-const shootingStars = generateShootingStars(8);
+const energyOrbs = generateEnergyOrbs(15);
 const floatingHexagons = generateFloatingHexagons(12);
 
 // Hero Section Component
@@ -108,33 +108,33 @@ const HeroSection = ({ user, stats, prevStats }) => {
       }, 1000);
     }
   }, [stats]);
-  
+
   return (
     <section className="hero-section-container">
       <div className="hero-decoration top-left"></div>
       <div className="hero-decoration bottom-right"></div>
 
-        <div className="hero-content">
-          <h1 className="hero-title">
+      <div className="hero-content">
+        <h1 className="hero-title">
           The Ultimate <span className="gradient-text" data-text="CS2 Marketplace">CS2 Marketplace</span> for Game Items
-          </h1>
-          <div className="geo-title">
-            <span className="georgian-text">ითამაშე და ივაჭრე საუკეთესო ნივთებით</span>
-          </div>
+        </h1>
+        <div className="geo-title">
+          <span className="georgian-text">ითამაშე და ივაჭრე საუკეთესო ნივთებით</span>
+        </div>
         <p className="hero-description">
           Buy and sell CS2 skins with confidence on our secure P2P marketplace.
           Trade directly with other players, no bots, no scams - just safe, fast, and reliable transactions.
         </p>
-          
-          <div className="hero-cta">
+
+        <div className="hero-cta">
           <Link to="/marketplace" className="hero-button primary">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="9" cy="21" r="1"></circle>
               <circle cx="20" cy="21" r="1"></circle>
               <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
             </svg>
-                Browse Marketplace
-              </Link>
+            Browse Marketplace
+          </Link>
 
           {!user && (
             <a href={`${API_URL}/auth/steam`} className="hero-button secondary">
@@ -142,10 +142,10 @@ const HeroSection = ({ user, stats, prevStats }) => {
                 <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
                 <polyline points="10 17 15 12 10 7"></polyline>
                 <line x1="15" y1="12" x2="3" y2="12"></line>
-                </svg>
-                Sign in with Steam
-              </a>
-            )}
+              </svg>
+              Sign in with Steam
+            </a>
+          )}
 
           {user && (
             <Link to="/sell" className="hero-button secondary">
@@ -157,7 +157,7 @@ const HeroSection = ({ user, stats, prevStats }) => {
             </Link>
           )}
         </div>
-        
+
         <div className="hero-stats">
           <div className="hero-stat">
             <div className={`hero-stat-value count-animation ${animatedStats.items.updating ? 'updating' : ''}`}>
@@ -192,8 +192,8 @@ const SearchSection = () => {
     <section className="search-section-container">
       <div className="search-section">
         <div className="search-container">
-          <input 
-            type="text" 
+          <input
+            type="text"
             className="search-input"
             placeholder="Search for skins, weapons, cases..."
           />
@@ -218,42 +218,42 @@ const SearchSection = () => {
 const FeaturedItemsSection = ({ loading, featuredItems }) => {
   // Add debug logging for featured items to see what we're working with
   console.log("Rendering featured items:", featuredItems);
-  
+
   // Function to handle clicking "View All Items" - scroll to top before navigating
   const handleViewAllClick = (e) => {
     // Scroll to top of the page
     window.scrollTo(0, 0);
   };
-  
+
   return (
     <section className="featured-section-container">
       <div className="section-title">
-          <div className="section-title-content">
+        <div className="section-title-content">
           <h2>Featured <span className="gradient-text">Items</span></h2>
           <p>Explore our selection of popular CS2 items available for trade</p>
-            <div className="title-decoration"></div>
-          </div>
+          <div className="title-decoration"></div>
+        </div>
       </div>
-        
-          {loading ? (
-            <div className="loading-items">
+
+      {loading ? (
+        <div className="loading-items">
           <div className="spinner"></div>
           <p>Loading featured items...</p>
-            </div>
+        </div>
       ) : featuredItems && featuredItems.length > 0 ? (
         <>
           <div className="featured-grid">
             {featuredItems.map((item, index) => {
               // Log each item to debug
               console.log(`Featured item ${index}:`, item);
-              
+
               return (
                 <div key={item._id || index} className="item-card featured-item">
                   <div className="item-card-image">
                     {item.imageUrl ? (
-                      <img 
-                        src={item.imageUrl} 
-                        alt={item.marketHashName || 'CS2 Item'} 
+                      <img
+                        src={item.imageUrl}
+                        alt={item.marketHashName || 'CS2 Item'}
                         onError={(e) => {
                           console.log("Image failed to load, using fallback");
                           e.target.src = "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot621FAR17PLfYQJD_9W7m5a0mvLwOq7c2DJTv8Qg2LqXrI2l2QTj_kVvZz_1JNKQcQY5YFjS-1TokOq515fvuoOJlyW3Wr66DQ/";
@@ -261,8 +261,8 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
                       />
                     ) : (
                       <div className="no-image-placeholder">No Image Available</div>
-          )}
-        </div>
+                    )}
+                  </div>
                   <div className="item-card-content">
                     <h3 className="item-name">{item.marketHashName || 'Unknown Item'}</h3>
                     <span className="item-rarity" style={{
@@ -299,7 +299,7 @@ const FeaturedItemsSection = ({ loading, featuredItems }) => {
           </div>
           <div className="view-all-container">
             <Link to="/marketplace" className="view-all-button" onClick={handleViewAllClick}>
-            View All Items
+              View All Items
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
@@ -397,7 +397,7 @@ const FeaturesSection = () => {
           <div className="title-decoration"></div>
         </div>
       </div>
-      
+
       <div className="features-grid">
         <div className="feature-card">
           <div className="feature-icon">
@@ -409,7 +409,7 @@ const FeaturesSection = () => {
           <h3 className="feature-title">Secure Trading</h3>
           <p className="feature-description">Our escrow system ensures that all trades are secure and that both parties receive exactly what they agreed upon.</p>
         </div>
-        
+
         <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -419,7 +419,7 @@ const FeaturesSection = () => {
           <h3 className="feature-title">Low Fees</h3>
           <p className="feature-description">We charge one of the lowest fees in the industry, allowing you to maximize your profits when selling items.</p>
         </div>
-            
+
         <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -431,7 +431,7 @@ const FeaturesSection = () => {
           <h3 className="feature-title">Easy to Use</h3>
           <p className="feature-description">Our platform is designed to be intuitive and easy to use, with a clean interface that makes trading a breeze.</p>
         </div>
-            
+
         <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -448,7 +448,7 @@ const FeaturesSection = () => {
           <h3 className="feature-title">Real-time Updates</h3>
           <p className="feature-description">Get instant notifications for new listings, price changes, trade offers, and more with our real-time update system.</p>
         </div>
-        
+
         <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -460,7 +460,7 @@ const FeaturesSection = () => {
           <h3 className="feature-title">Global Marketplace</h3>
           <p className="feature-description">Connect with buyers and sellers from all around the world, expanding your trading opportunities beyond borders.</p>
         </div>
-        
+
         <div className="feature-card">
           <div className="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -491,28 +491,28 @@ const HowItWorksSection = () => {
         </div>
 
         <div className="steps-connection"></div>
-        
+
         <div className="steps-timeline">
           <div className="step-card">
-              <div className="step-number">1</div>
+            <div className="step-number">1</div>
             <h3 className="step-title">Connect Your Account</h3>
             <p className="step-description">Sign in using your Steam account to access your inventory and trading features</p>
           </div>
-          
+
           <div className="step-card">
-              <div className="step-number">2</div>
+            <div className="step-number">2</div>
             <h3 className="step-title">Browse or List Items</h3>
             <p className="step-description">Find items to buy or list your own items for sale with competitive prices</p>
           </div>
-          
+
           <div className="step-card">
-              <div className="step-number">3</div>
+            <div className="step-number">3</div>
             <h3 className="step-title">Secure Payment</h3>
             <p className="step-description">Use our secure payment system to purchase items or receive funds for your sales</p>
           </div>
-          
+
           <div className="step-card">
-              <div className="step-number">4</div>
+            <div className="step-number">4</div>
             <h3 className="step-title">Trade & Delivery</h3>
             <p className="step-description">Complete the trade and receive your items directly in your Steam inventory</p>
           </div>
@@ -557,7 +557,7 @@ const FinalCTASection = ({ user }) => {
                   <line x1="8" y1="12" x2="16" y2="12"></line>
                 </svg>
                 Browse Marketplace
-            </Link>
+              </Link>
             </>
           ) : (
             <>
@@ -604,7 +604,7 @@ const Home = ({ user }) => {
       trades: statsData.completedTrades || 0
     });
   }, []);
-  
+
   // Fallback function to provide default items when API fails
   const getFallbackItems = useCallback(() => {
     console.log("Using fallback featured items");
@@ -670,13 +670,13 @@ const Home = ({ user }) => {
   const fetchMarketplaceData = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       // Featured items
       try {
         console.log("Fetching featured items");
         // Always try the regular marketplace endpoint first for non-authenticated users
         let itemsResponse;
-        
+
         try {
           console.log("Trying marketplace endpoint for items");
           itemsResponse = await axios.get(`${API_URL}/marketplace?limit=6`);
@@ -685,7 +685,7 @@ const Home = ({ user }) => {
           console.error("Error fetching from marketplace endpoint:", err);
           itemsResponse = { data: [] };
         }
-        
+
         if (Array.isArray(itemsResponse.data) && itemsResponse.data.length > 0) {
           console.log("Successfully retrieved items from marketplace endpoint");
           const marketplaceItems = itemsResponse.data.map(item => ({
@@ -696,35 +696,35 @@ const Home = ({ user }) => {
           setFeaturedItems(marketplaceItems);
         } else {
           console.log("No items found in marketplace endpoint, trying featured endpoint");
-          
+
           // Then try featured endpoint as backup
           try {
             const featuredResponse = await axios.get(`${API_URL}/marketplace/featured?limit=6`);
             console.log("Featured items response:", featuredResponse.data);
-            
+
             if (Array.isArray(featuredResponse.data) && featuredResponse.data.length > 0) {
               const validItems = featuredResponse.data.map(item => {
-                const processedItem = {...item};
-                
+                const processedItem = { ...item };
+
                 if (!processedItem.imageUrl || processedItem.imageUrl === '') {
                   processedItem.imageUrl = "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot621FAR17PLfYQJD_9W7m5a0mvLwOq7c2DJTv8Qg2LqXrI2l2QTj_kVvZz_1JNKQcQY5YFjS-1TokOq515fvuoOJlyW3Wr66DQ/";
                 }
-                
+
                 if (!processedItem.marketHashName || processedItem.marketHashName === '') {
                   processedItem.marketHashName = "CS2 Item";
                 }
-                
+
                 if (typeof processedItem.price !== 'number') {
                   processedItem.price = 0;
                 }
-                
+
                 if (typeof processedItem.priceGEL !== 'number') {
                   processedItem.priceGEL = Math.round(processedItem.price * 2.65);
                 }
-                
+
                 return processedItem;
               });
-              
+
               setFeaturedItems(validItems);
             } else {
               console.log("No items found in featured endpoint, using fallbacks");
@@ -739,7 +739,7 @@ const Home = ({ user }) => {
         console.error("Error in featured items fetch flow:", error);
         setFeaturedItems(getFallbackItems());
       }
-      
+
       // Also request updated stats
       if (socketService.isConnected && socketService.socket) {
         console.log("Requesting stats update from server");
@@ -747,7 +747,7 @@ const Home = ({ user }) => {
       } else {
         console.log("Socket not connected, cannot request stats");
       }
-      
+
       setLoading(false);
     } catch (error) {
       console.error("Error fetching marketplace data:", error);
@@ -769,7 +769,7 @@ const Home = ({ user }) => {
     // Set up listener for connection status changes
     socketService.on('connection_status', (status) => {
       console.log("Socket connection status:", status);
-      
+
       // If we're connected, request a stats update
       if (status.connected) {
         console.log("Connected to server, requesting stats update");
@@ -831,21 +831,22 @@ const Home = ({ user }) => {
             }}
           />
         ))}
-        
-        {/* Shooting Stars */}
-        {shootingStars.map(star => (
+
+        {/* Energy Orbs */}
+        {energyOrbs.map(orb => (
           <div
-            key={`star-${star.id}`}
-            className="shooting-star"
+            key={`orb-${orb.id}`}
+            className="energy-orb"
             style={{
-              top: `${star.top}%`,
-              left: `${star.left}%`,
-              animationDelay: `${star.delay}s`,
-              animationDuration: `${star.duration}s`
+              left: `${orb.x}%`,
+              top: `${orb.y}%`,
+              width: `${orb.size}px`,
+              height: `${orb.size}px`,
+              animationDelay: `${orb.delay}s`
             }}
           />
         ))}
-        
+
         {/* Floating Hexagons */}
         {floatingHexagons.map(hex => (
           <div
@@ -862,7 +863,7 @@ const Home = ({ user }) => {
           />
         ))}
       </div>
-        
+
       {/* Hero Section */}
       <HeroSection user={user} stats={stats} />
 
