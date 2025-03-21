@@ -113,23 +113,6 @@ const HeroSection = ({ user, stats, prevStats }) => {
     <section className="hero-section-container">
       <div className="hero-decoration top-left"></div>
       <div className="hero-decoration bottom-right"></div>
-      <div className="cs-logo-decoration"></div>
-      {/* Fallback image in case CSS background doesn't work */}
-      <img 
-        src="cs.png" 
-        alt="CS2 Logo"
-        style={{
-          position: 'absolute',
-          top: '20%',
-          right: '10%',
-          width: '350px',
-          height: '350px',
-          opacity: 0.4,
-          zIndex: 0,
-          pointerEvents: 'none',
-          objectFit: 'contain'
-        }}
-      />
 
         <div className="hero-content">
           <h1 className="hero-title">

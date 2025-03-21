@@ -1656,31 +1656,3 @@
   font-size: 1.2rem;
   color: var(--gaming-text-medium);
 }
-
-.cs-logo-decoration {
-  position: absolute;
-  top: 20%; 
-  right: 10%;
-  width: 350px;
-  height: 350px;
-  background-image: url('cs.png');
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-  opacity: 0.4;
-  z-index: 0;
-  pointer-events: none;
-}
-
-@media (max-width: 1200px) {
-  .cs-logo-decoration {
-    width: 250px;
-    height: 250px;
-  }
-}
-
-@media (max-width: 768px) {
-  .cs-logo-decoration {
-    display: none;
-  }
-}
