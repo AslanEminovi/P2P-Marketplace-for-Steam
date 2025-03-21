@@ -1,18 +1,25 @@
 const Redis = require("ioredis");
 
+// Ensure we're using rediss:// for SSL connection
 const REDIS_URL =
   process.env.REDIS_URL ||
   "rediss://default:11WgxZSKixv1GTDx6apIlZhK0KWyErR4@redis-13632.c55.eu-central-1-1.ec2.redns.redis-cloud.com:13632";
 
 function createRedisClient() {
+  // Ensure URL uses SSL
+  const url = REDIS_URL.startsWith("rediss://")
+    ? REDIS_URL
+    : REDIS_URL.replace("redis://", "rediss://");
   console.log(
     "Creating Redis client with URL:",
-    REDIS_URL.replace(/\/\/[^@]+@/, "//*****@")
-  ); // Log URL with hidden credentials
+    url.replace(/\/\/[^@]+@/, "//*****@")
+  );
 
-  const client = new Redis(REDIS_URL, {
+  const client = new Redis(url, {
     tls: {
       rejectUnauthorized: false,
+      // Add required TLS options for Redis Cloud
+      servername: url.split("@")[1].split(":")[0],
     },
     retryStrategy(times) {
       const delay = Math.min(times * 1000, 60000);
