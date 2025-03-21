@@ -366,12 +366,29 @@ exports.buyItem = async (req, res) => {
 // GET /marketplace/
 exports.getAllItems = async (req, res) => {
   try {
+    const limit = parseInt(req.query.limit) || 20; // Default to 20 items
+    const sort = req.query.sort || "latest";
+
+    // Build query
+    const query = { isListed: true };
+
+    // Build sort options
+    let sortOptions = {};
+    if (sort === "latest") {
+      sortOptions.createdAt = -1;
+    } else if (sort === "price_asc") {
+      sortOptions.price = 1;
+    } else if (sort === "price_desc") {
+      sortOptions.price = -1;
+    }
+
     // Return all items that are listed for sale
-    const items = await Item.find({ isListed: true }).populate(
-      "owner",
-      "displayName avatar"
-    );
-    return res.json(items);
+    const items = await Item.find(query)
+      .sort(sortOptions)
+      .limit(limit)
+      .populate("owner", "displayName avatar");
+
+    return res.json({ items });
   } catch (err) {
     console.error(err);
     return res
@@ -383,73 +400,19 @@ exports.getAllItems = async (req, res) => {
 // GET /marketplace/featured
 exports.getFeaturedItems = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 8; // Default to 8 featured items
+    const limit = parseInt(req.query.limit) || 8;
     console.log(`Getting up to ${limit} featured items`);
 
-    // First try to find items with images
-    let items = await Item.find({
+    // Find items that are listed for sale
+    const items = await Item.find({
       isListed: true,
     })
       .sort({ createdAt: -1 })
-      .limit(limit * 2) // Fetch more items initially to ensure we have enough valid ones
+      .limit(limit)
       .populate("owner", "displayName avatar");
 
-    console.log(`Found ${items.length} potential featured items`);
-
-    // Process items to ensure they have required fields
-    const processedItems = items.map((item) => {
-      // Create a plain JS object from the Mongoose document
-      const processedItem = item.toObject();
-
-      // Ensure marketHashName exists
-      if (
-        !processedItem.marketHashName ||
-        processedItem.marketHashName === ""
-      ) {
-        processedItem.marketHashName = processedItem.name || "CS2 Item";
-      }
-
-      // Ensure imageUrl exists
-      if (!processedItem.imageUrl || processedItem.imageUrl === "") {
-        // Set default image based on item type hints in name
-        if (processedItem.marketHashName.toLowerCase().includes("knife")) {
-          processedItem.imageUrl =
-            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpovbSsLQJf1ObcTjxP09i5hJCHkuXLI7PQhW4F18l4jeHVyoD0mlOx5RZrYWnwIdWRdQdvMFGB-FDsl7jt05S-75ydnXNr7CkrstPUmEe0n1gSORnDKQIj/";
-        } else if (
-          processedItem.marketHashName.toLowerCase().includes("rifle")
-        ) {
-          processedItem.imageUrl =
-            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot7HxfDhjxszJemkV09O3h5OOhOPLMbTDk2pd18l4jeHVyoD0mlOx5Uo_MGjwcYSQclU-MgmGrwC8wO7r08K87p7IzCRnvCcht37UmxG1gBpKaONu1PSACQLJAFGtYaE/";
-        } else {
-          processedItem.imageUrl =
-            "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot621FAR17PLfYQJD_9W7m5a0mvLwOq7c2DJTv8Qg2LqXrI2l2QTj_kVvZz_1JNKQcQY5YFjS-1TokOq515fvuoOJlyW3Wr66DQ/";
-        }
-      }
-
-      // Ensure price exists
-      if (!processedItem.price) {
-        processedItem.price = 0;
-      }
-
-      // Calculate GEL price if missing
-      if (!processedItem.priceGEL) {
-        processedItem.priceGEL = Math.round(processedItem.price * 2.65);
-      }
-
-      return processedItem;
-    });
-
-    // Filter out any items that still don't have required fields
-    const validItems = processedItems
-      .filter(
-        (item) =>
-          item.marketHashName && item.imageUrl && item.price !== undefined
-      )
-      .slice(0, limit); // Take only up to the required limit
-
-    console.log(`Returning ${validItems.length} valid featured items`);
-
-    return res.json(validItems);
+    console.log(`Found ${items.length} featured items`);
+    return res.json(items);
   } catch (error) {
     console.error("Error fetching featured items:", error);
     return res

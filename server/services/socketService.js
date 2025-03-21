@@ -5,6 +5,9 @@
 
 let io = null;
 let activeSockets = new Map(); // Map of userId -> socket.id
+let anonymousSockets = new Set(); // Set to track anonymous connections
+let lastStatsUpdate = null;
+const STATS_UPDATE_INTERVAL = 10000; // 10 seconds
 
 /**
  * Initialize the socket service with the io instance
@@ -13,87 +16,116 @@ let activeSockets = new Map(); // Map of userId -> socket.id
 const init = (ioInstance) => {
   io = ioInstance;
 
-  // Setup global connection events if needed
-  io.on("connection", (socket) => {
+  // Setup global connection events
+  io.on("connection", async (socket) => {
+    console.log("New socket connection:", socket.id);
+
     // We'll get the userId from the socket handshake auth in server.js
     const userId = socket.userId;
 
     if (userId) {
-      // Store socket association
+      // Store socket association for authenticated users
       activeSockets.set(userId, socket.id);
+      socket.join(`user:${userId}`); // Join user-specific room
 
       // Emit user activity
       emitUserActivity({
         action: "join",
         user: socket.username || "A user",
       });
+    } else {
+      // Track anonymous connections
+      anonymousSockets.add(socket.id);
+    }
 
-      // Handle disconnection
-      socket.on("disconnect", () => {
+    // Send initial stats to the new connection
+    const stats = await getLatestStats();
+    socket.emit("stats_update", stats);
+
+    // Handle stats request
+    socket.on("request_stats_update", async () => {
+      const stats = await getLatestStats();
+      socket.emit("stats_update", stats);
+    });
+
+    // Handle disconnection
+    socket.on("disconnect", () => {
+      if (userId) {
         activeSockets.delete(userId);
-
-        // Emit user activity
         emitUserActivity({
           action: "logout",
           user: socket.username || "A user",
         });
+      } else {
+        anonymousSockets.delete(socket.id);
+      }
 
-        // Update active users count
-        broadcastStats();
-      });
-    }
+      // Broadcast updated stats after disconnection
+      broadcastStats();
+    });
+
+    // Update stats for all clients
+    broadcastStats();
   });
+
+  // Set up periodic stats broadcasting
+  setInterval(async () => {
+    await broadcastStats();
+  }, STATS_UPDATE_INTERVAL);
 };
 
 /**
- * Send a notification to a specific user
- * @param {string} userId - The user to notify
- * @param {Object} notification - The notification object
+ * Get the latest statistics
  */
-const sendNotification = (userId, notification) => {
-  if (!io) return;
+const getLatestStats = async () => {
+  try {
+    const Item = require("../models/Item");
+    const User = require("../models/User");
+    const Trade = require("../models/Trade");
 
-  const socketId = activeSockets.get(userId);
-  if (socketId) {
-    io.to(socketId).emit("notification", notification);
+    const [activeListings, activeUsers, completedTrades] = await Promise.all([
+      Item.countDocuments({ isListed: true }),
+      User.countDocuments({
+        lastActive: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+      }),
+      Trade.countDocuments({ status: "completed" }),
+    ]);
+
+    const stats = {
+      activeListings,
+      activeUsers: activeUsers + anonymousSockets.size, // Include anonymous users
+      completedTrades,
+      onlineUsers: activeSockets.size + anonymousSockets.size,
+      timestamp: new Date(),
+    };
+
+    lastStatsUpdate = stats;
+    return stats;
+  } catch (error) {
+    console.error("Error getting latest stats:", error);
+    return (
+      lastStatsUpdate || {
+        activeListings: 0,
+        activeUsers: 0,
+        completedTrades: 0,
+        onlineUsers: 0,
+        timestamp: new Date(),
+      }
+    );
   }
 };
 
 /**
  * Broadcast marketplace statistics to all connected clients
- * @param {Object} stats - Optional stats object to broadcast
  */
-const broadcastStats = async (stats) => {
+const broadcastStats = async () => {
   if (!io) return;
 
   try {
-    // If stats not provided, fetch them
-    if (!stats) {
-      // Get counts from database or services
-      const activeListings = await getActiveListingsCount();
-      const activeTrades = await getActiveTradesCount();
-      const activeUsers = getConnectedClientsCount();
-
-      stats = { activeListings, activeTrades, activeUsers };
-    }
-
+    const stats = await getLatestStats();
     io.emit("stats_update", stats);
   } catch (error) {
     console.error("Error broadcasting stats:", error);
-  }
-};
-
-/**
- * Send a trade update to a specific user
- * @param {string} userId - The user to notify
- * @param {Object} update - The trade update object
- */
-const sendTradeUpdate = (userId, update) => {
-  if (!io) return;
-
-  const socketId = activeSockets.get(userId);
-  if (socketId) {
-    io.to(socketId).emit("trade_update", update);
   }
 };
 
@@ -105,22 +137,15 @@ const sendTradeUpdate = (userId, update) => {
 const sendMarketUpdate = (update, userId = null) => {
   if (!io) return;
 
-  // Enrich the update with additional information if needed
   const enrichedUpdate = {
     ...update,
     timestamp: new Date().toISOString(),
   };
 
   if (userId) {
-    const socketId = activeSockets.get(userId);
-    if (socketId) {
-      io.to(socketId).emit("market_update", enrichedUpdate);
-    }
+    io.to(`user:${userId}`).emit("market_update", enrichedUpdate);
   } else {
     io.emit("market_update", enrichedUpdate);
-
-    // Log market activity for all users to see
-    // This is useful for the live activity feed
     emitMarketActivity(enrichedUpdate);
   }
 };
@@ -132,13 +157,15 @@ const sendMarketUpdate = (update, userId = null) => {
 const emitMarketActivity = (activity) => {
   if (!io) return;
 
-  io.emit("market_update", {
+  const activityData = {
     type: activity.type || "listing",
     itemName: activity.itemName || activity.item?.marketHashName || "an item",
     price: activity.price || activity.item?.price,
     user: activity.userName || activity.user || "Anonymous",
     timestamp: activity.timestamp || new Date().toISOString(),
-  });
+  };
+
+  io.emit("market_activity", activityData);
 };
 
 /**
@@ -148,96 +175,30 @@ const emitMarketActivity = (activity) => {
 const emitUserActivity = (activity) => {
   if (!io) return;
 
-  io.emit("user_activity", {
+  const activityData = {
     action: activity.action,
     user: activity.user || "Anonymous",
-    timestamp: activity.timestamp || new Date().toISOString(),
-  });
+    timestamp: new Date().toISOString(),
+  };
+
+  io.emit("user_activity", activityData);
+  broadcastStats(); // Update stats when user activity occurs
 };
 
 /**
- * Send an inventory update to a specific user
- * @param {string} userId - The user to update
- * @param {Object} update - The inventory update object
- */
-const sendInventoryUpdate = (userId, update) => {
-  if (!io) return;
-
-  const socketId = activeSockets.get(userId);
-  if (socketId) {
-    io.to(socketId).emit("inventory_update", update);
-  }
-};
-
-/**
- * Send a wallet update to a specific user
- * @param {string} userId - The user to update
- * @param {Object} update - The wallet update object
- */
-const sendWalletUpdate = (userId, update) => {
-  if (!io) return;
-
-  const socketId = activeSockets.get(userId);
-  if (socketId) {
-    io.to(socketId).emit("wallet_update", update);
-  }
-};
-
-/**
- * Get the count of currently connected clients
+ * Get the total count of connected clients (both authenticated and anonymous)
  * @returns {number} The number of connected clients
  */
 const getConnectedClientsCount = () => {
   if (!io) return 0;
-  return activeSockets.size;
-};
-
-/**
- * Check if a user is online
- * @param {string} userId - The user to check
- * @returns {boolean} Whether the user is online
- */
-const isUserOnline = (userId) => {
-  return activeSockets.has(userId);
-};
-
-// Helper functions to fetch counts (you'll need to implement these based on your data models)
-const getActiveListingsCount = async () => {
-  // Implement based on your database structure
-  // Example: return await ListingModel.countDocuments({ status: 'active' });
-  try {
-    const MarketplaceItem = require("../models/MarketplaceItem");
-    return await MarketplaceItem.countDocuments({ isForSale: true });
-  } catch (error) {
-    console.error("Error getting active listings count:", error);
-    return 0;
-  }
-};
-
-const getActiveTradesCount = async () => {
-  // Implement based on your database structure
-  // Example: return await TradeModel.countDocuments({ status: 'active' });
-  try {
-    const Trade = require("../models/Trade");
-    return await Trade.countDocuments({
-      status: { $nin: ["completed", "cancelled"] },
-    });
-  } catch (error) {
-    console.error("Error getting active trades count:", error);
-    return 0;
-  }
+  return activeSockets.size + anonymousSockets.size;
 };
 
 module.exports = {
   init,
-  sendNotification,
   broadcastStats,
-  sendTradeUpdate,
   sendMarketUpdate,
-  sendInventoryUpdate,
-  sendWalletUpdate,
   getConnectedClientsCount,
-  isUserOnline,
   emitMarketActivity,
   emitUserActivity,
 };
