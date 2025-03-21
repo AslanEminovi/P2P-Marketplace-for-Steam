@@ -676,11 +676,18 @@ const Home = ({ user }) => {
 
       // Featured items
       try {
-        console.log("Fetching featured items");
-        const itemsResponse = await axios.get(`${API_URL}/marketplace?limit=6&sort=latest`);
-        console.log("Marketplace response:", itemsResponse.data);
+        console.log("Fetching featured items from:", `${API_URL}/marketplace?limit=6&sort=latest`);
+        const itemsResponse = await axios.get(`${API_URL}/marketplace?limit=6&sort=latest`, {
+          withCredentials: true,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log("Marketplace response:", itemsResponse);
 
-        if (Array.isArray(itemsResponse.data) && itemsResponse.data.length > 0) {
+        if (Array.isArray(itemsResponse.data)) {
           console.log("Successfully retrieved items from marketplace endpoint");
           const marketplaceItems = itemsResponse.data.map(item => ({
             ...item,
@@ -689,20 +696,25 @@ const Home = ({ user }) => {
           }));
           setFeaturedItems(marketplaceItems);
         } else {
-          console.log("No items found in marketplace");
+          console.warn("Response data is not an array:", itemsResponse.data);
           setFeaturedItems([]);
         }
       } catch (error) {
-        console.error("Error in featured items fetch:", error);
+        console.error("Error in featured items fetch:", error.response || error);
+        if (error.response) {
+          console.error("Error response data:", error.response.data);
+          console.error("Error response status:", error.response.status);
+        }
         setFeaturedItems([]);
       }
 
       // Request updated stats
-      if (socketService.isConnected && socketService.socket) {
+      if (socketService.isConnected()) {
         console.log("Requesting stats update from server");
-        socketService.socket.emit('request_stats_update');
+        socketService.emit('request_stats_update');
       } else {
-        console.log("Socket not connected, cannot request stats");
+        console.log("Socket not connected, attempting to reconnect");
+        socketService.reconnect();
       }
 
       setLoading(false);

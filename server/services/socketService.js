@@ -7,7 +7,9 @@ let io = null;
 let activeSockets = new Map(); // Map of userId -> socket.id
 let anonymousSockets = new Set(); // Set to track anonymous connections
 let lastStatsUpdate = null;
+let activeUsers = new Map(); // Map to track user activity timestamps
 const STATS_UPDATE_INTERVAL = 10000; // 10 seconds
+const USER_ACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Initialize the socket service with the io instance
@@ -27,6 +29,9 @@ const init = (ioInstance) => {
       // Store socket association for authenticated users
       activeSockets.set(userId, socket.id);
       socket.join(`user:${userId}`); // Join user-specific room
+
+      // Update user activity timestamp
+      activeUsers.set(userId, Date.now());
 
       // Emit user activity
       emitUserActivity({
@@ -48,14 +53,28 @@ const init = (ioInstance) => {
       socket.emit("stats_update", stats);
     });
 
+    // Handle user activity
+    socket.on("user_active", () => {
+      if (userId) {
+        activeUsers.set(userId, Date.now());
+      }
+    });
+
     // Handle disconnection
     socket.on("disconnect", () => {
       if (userId) {
         activeSockets.delete(userId);
-        emitUserActivity({
-          action: "logout",
-          user: socket.username || "A user",
-        });
+        // Don't immediately remove from activeUsers to allow for reconnection
+        setTimeout(() => {
+          // Only remove if they haven't reconnected
+          if (!activeSockets.has(userId)) {
+            activeUsers.delete(userId);
+            emitUserActivity({
+              action: "logout",
+              user: socket.username || "A user",
+            });
+          }
+        }, 5000); // 5 second grace period for reconnection
       } else {
         anonymousSockets.delete(socket.id);
       }
@@ -72,6 +91,25 @@ const init = (ioInstance) => {
   setInterval(async () => {
     await broadcastStats();
   }, STATS_UPDATE_INTERVAL);
+
+  // Set up periodic cleanup of inactive users
+  setInterval(() => {
+    const now = Date.now();
+    for (const [userId, lastActive] of activeUsers.entries()) {
+      if (now - lastActive > USER_ACTIVITY_TIMEOUT) {
+        activeUsers.delete(userId);
+        if (activeSockets.has(userId)) {
+          const socketId = activeSockets.get(userId);
+          const socket = io.sockets.sockets.get(socketId);
+          if (socket) {
+            socket.disconnect(true);
+          }
+          activeSockets.delete(userId);
+        }
+      }
+    }
+    broadcastStats();
+  }, USER_ACTIVITY_TIMEOUT);
 };
 
 /**
@@ -83,19 +121,30 @@ const getLatestStats = async () => {
     const User = require("../models/User");
     const Trade = require("../models/Trade");
 
-    const [activeListings, activeUsers, completedTrades] = await Promise.all([
-      Item.countDocuments({ isListed: true }),
-      User.countDocuments({
-        lastActive: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-      }),
-      Trade.countDocuments({ status: "completed" }),
-    ]);
+    const [activeListings, registeredUsers, completedTrades] =
+      await Promise.all([
+        Item.countDocuments({ isListed: true }),
+        User.countDocuments({
+          lastActive: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        }),
+        Trade.countDocuments({ status: "completed" }),
+      ]);
+
+    // Calculate real active users (both authenticated and anonymous)
+    const authenticatedActiveUsers = activeUsers.size;
+    const anonymousActiveUsers = anonymousSockets.size;
+    const totalActiveUsers = authenticatedActiveUsers + anonymousActiveUsers;
 
     const stats = {
       activeListings,
-      activeUsers: activeUsers + anonymousSockets.size, // Include anonymous users
+      activeUsers: totalActiveUsers,
+      registeredUsers,
       completedTrades,
-      onlineUsers: activeSockets.size + anonymousSockets.size,
+      onlineUsers: {
+        total: totalActiveUsers,
+        authenticated: authenticatedActiveUsers,
+        anonymous: anonymousActiveUsers,
+      },
       timestamp: new Date(),
     };
 
@@ -107,8 +156,13 @@ const getLatestStats = async () => {
       lastStatsUpdate || {
         activeListings: 0,
         activeUsers: 0,
+        registeredUsers: 0,
         completedTrades: 0,
-        onlineUsers: 0,
+        onlineUsers: {
+          total: 0,
+          authenticated: 0,
+          anonymous: 0,
+        },
         timestamp: new Date(),
       }
     );
