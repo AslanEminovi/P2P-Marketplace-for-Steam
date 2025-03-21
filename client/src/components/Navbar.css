@@ -113,8 +113,8 @@
   border: 1px solid rgba(51, 115, 242, 0.2);
   border-radius: 8px;
   padding: 8px;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   transition: all 0.3s ease;
   opacity: 0.8;
 }
@@ -124,18 +124,18 @@
   transform: translateY(-2px);
   opacity: 1;
   background: rgba(31, 43, 69, 0.6);
-  border-color: rgba(51, 115, 242, 0.4);
-  box-shadow: 0 0 15px rgba(0, 210, 255, 0.3);
+  border-color: var(--gaming-accent-purple);
+  box-shadow: 0 0 15px rgba(140, 92, 247, 0.5);
 }
 
 .logo-social-link svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   transition: filter 0.3s ease;
 }
 
 .logo-social-link:hover svg {
-  filter: drop-shadow(0 0 5px rgba(0, 210, 255, 0.5));
+  filter: drop-shadow(0 0 5px rgba(140, 92, 247, 0.7));
 }
 
 .nav-text-container {
@@ -836,4 +836,13 @@
 .mobile-menu {
   z-index: 990;
   /* Lower than dropdown and navbar */
+}
+
+.steam-icon {
+  margin-right: 8px;
+  filter: brightness(0) invert(1);
+}
+
+.sign-in-button:hover .steam-icon {
+  filter: brightness(0) invert(1) drop-shadow(0 0 3px rgba(255, 255, 255, 0.7));
 }

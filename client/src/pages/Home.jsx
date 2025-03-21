@@ -113,6 +113,7 @@ const HeroSection = ({ user, stats, prevStats }) => {
     <section className="hero-section-container">
       <div className="hero-decoration top-left"></div>
       <div className="hero-decoration bottom-right"></div>
+      <div className="cs-logo-decoration"></div>
 
         <div className="hero-content">
           <h1 className="hero-title">
@@ -137,15 +138,17 @@ const HeroSection = ({ user, stats, prevStats }) => {
               </Link>
 
           {!user && (
-            <a href={`${API_URL}/auth/steam`} className="hero-button secondary">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
-                <polyline points="10 17 15 12 10 7"></polyline>
-                <line x1="15" y1="12" x2="3" y2="12"></line>
-                </svg>
-                Sign in with Steam
-              </a>
-            )}
+            <a href={`${API_URL}/auth/steam`} className="hero-button primary">
+              <img 
+                src="/Steam-Emblem.png" 
+                alt="Steam" 
+                className="steam-icon" 
+                width="24" 
+                height="24" 
+              />
+              Sign in with Steam
+            </a>
+          )}
 
           {user && (
             <Link to="/sell" className="hero-button secondary">
@@ -542,11 +545,13 @@ const FinalCTASection = ({ user }) => {
           {!user ? (
             <>
               <a href={`${API_URL}/auth/steam`} className="hero-button primary">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
-                  <polyline points="10 17 15 12 10 7"></polyline>
-                  <line x1="15" y1="12" x2="3" y2="12"></line>
-                </svg>
+                <img 
+                  src="/Steam-Emblem.png" 
+                  alt="Steam" 
+                  className="steam-icon" 
+                  width="24" 
+                  height="24" 
+                />
                 Sign in with Steam
               </a>
 
