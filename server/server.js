@@ -382,6 +382,39 @@ setInterval(async () => {
 // Export io instance for use in other files
 app.set("io", io);
 
+// Define updateSiteStats function
+const updateSiteStats = async () => {
+  try {
+    const Item = mongoose.model("Item");
+    const Trade = mongoose.model("Trade");
+
+    // Get counts of active listings and completed trades
+    const activeListings = await Item.countDocuments({ isListed: true });
+    const completedTrades = await Trade.countDocuments({ status: "completed" });
+
+    // Get real-time online users count
+    const activeUsers = await realtimeService.getOnlineUsersCount();
+
+    // Broadcast updated stats to all connected clients
+    io.emit("site_stats_update", {
+      activeListings,
+      activeUsers,
+      completedTrades,
+      timestamp: new Date(),
+    });
+
+    return {
+      activeListings,
+      activeUsers,
+      completedTrades,
+      timestamp: new Date(),
+    };
+  } catch (error) {
+    console.error("Error updating site stats:", error);
+    throw error;
+  }
+};
+
 // Export the updateSiteStats function for use in controllers
 module.exports.updateSiteStats = updateSiteStats;
 
