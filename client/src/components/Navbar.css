@@ -199,10 +199,10 @@
 /* NAVIGATION LINKS */
 .navbar-links {
   display: flex;
-  gap: 2rem;
-  margin-left: 1.5rem;
-  position: relative;
-  z-index: 10;
+  align-items: center;
+  gap: 30px;
+  margin-right: auto;
+  margin-left: 20px;
 }
 
 .navbar-left {
@@ -223,60 +223,39 @@
 
 .navbar-link {
   position: relative;
-  color: var(--gaming-text-medium);
+  color: var(--text-color);
+  font-size: 14px;
+  font-weight: 500;
   text-decoration: none;
-  font-weight: 600;
-  font-size: 1rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  padding: 0.5rem;
+  transition: color 0.2s ease-in-out;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  white-space: nowrap;
-  z-index: 5;
-  cursor: pointer;
-}
-
-.navbar-link::before {
-  content: '';
-  position: absolute;
-  bottom: -4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 2px;
-  background: var(--gaming-gradient-blue);
-  transition: width 0.3s ease;
-  z-index: 1;
+  gap: 8px;
 }
 
 .navbar-link svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
+  transition: fill 0.2s ease-in-out;
+  fill: var(--text-secondary);
 }
 
 .navbar-link:hover {
-  color: var(--gaming-text-bright);
-  transform: translateY(-2px);
+  color: var(--accent-color);
 }
 
-.navbar-link:hover::before {
-  width: 70%;
-}
-
-.navbar-link:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(0, 210, 255, 0.3);
+.navbar-link:hover svg {
+  fill: var(--accent-color);
 }
 
 .navbar-link.active {
-  color: var(--gaming-text-bright);
-  background-color: rgba(51, 115, 242, 0.1);
+  color: var(--accent-color);
 }
 
-.navbar-link.active::before {
-  width: 70%;
+.navbar-link.active svg {
+  fill: var(--accent-color);
 }
 
 /* USER SECTION & BALANCE */

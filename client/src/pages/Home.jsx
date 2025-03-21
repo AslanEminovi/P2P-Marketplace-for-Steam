@@ -115,11 +115,13 @@ const HeroSection = ({ user, stats, prevStats }) => {
       <div className="hero-decoration bottom-right"></div>
 
       <div className="hero-content">
-        <h1 className="hero-title">
-          The Ultimate <span className="gradient-text" data-text="Georgian Marketplace">Georgian Marketplace</span> for <span className="gradient-text" data-text="CS2">CS2</span> Items
-        </h1>
-        <div className="geo-title">
-          <span className="georgian-text">ითამაშე და ივაჭრე საუკეთესო ნივთებით</span>
+        <div className="hero-title">
+          <h1>
+            The Ultimate <span className="gradient-text" data-text="Georgian Marketplace">Georgian Marketplace</span> for <span className="gradient-text" data-text="CS2">CS2</span> Items
+          </h1>
+          {config.SHOW_GEORGIAN && (
+            <div className="georgian-text">ითამაშე და ივაჭრე საუკეთესო ნივთებით</div>
+          )}
         </div>
         <p className="hero-description">
           Buy and sell CS2 skins with confidence on our secure P2P marketplace.
