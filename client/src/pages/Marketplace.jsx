@@ -137,24 +137,6 @@ function Marketplace({ user }) {
     };
   }, [fetchItems, fetchMarketStats]);
 
-  // Initial data fetch
-  useEffect(() => {
-    fetchItems();
-    fetchMarketStats();
-  }, [fetchItems, fetchMarketStats]);
-
-  // Handle search and filters
-  useEffect(() => {
-    const filtered = items.filter(item => {
-      const matchesSearch = !searchQuery || 
-        item.marketHashName.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesFilters = activeFilters.length === 0 || 
-        activeFilters.some(filter => item.category === filter);
-      return matchesSearch && matchesFilters;
-    });
-    setFilteredItems(filtered);
-  }, [items, searchQuery, activeFilters]);
-
   // Fetch user profile
   const fetchUserProfile = useCallback(async () => {
     if (!user) return;
@@ -174,6 +156,58 @@ function Marketplace({ user }) {
       console.error('Error fetching user profile:', err);
     }
   }, [user]);
+
+  // Fetch user listings
+  const fetchUserListings = useCallback(async () => {
+    if (!user) return;
+    try {
+      const response = await axios.get(`${API_URL}/marketplace/user-listings`, {
+        withCredentials: true
+      });
+      setMyListings(response.data || []);
+    } catch (err) {
+      console.error('Error fetching user listings:', err);
+      setMyListings([]);
+    }
+  }, [user]);
+
+  // Handle item click
+  const handleItemClick = (item) => {
+    setSelectedItem(item);
+    setItemDetailsOpen(true);
+  };
+
+  // Handle filter click
+  const handleFilterClick = (filterId) => {
+    setActiveFilters(prev =>
+      prev.includes(filterId)
+        ? prev.filter(f => f !== filterId)
+        : [...prev, filterId]
+    );
+  };
+
+  // Handle item action (buy/offer)
+  const handleItemAction = (action) => {
+    setTradeAction(action);
+    setTradePanelOpen(true);
+  };
+
+  // Handle trade completion
+  const handleTradeComplete = () => {
+    setTradePanelOpen(false);
+    fetchItems();
+    fetchMarketStats();
+    toast.success('Trade completed successfully!');
+  };
+
+  // Handle listing completion
+  const handleListingComplete = () => {
+    setShowSellModal(false);
+    fetchItems();
+    fetchMarketStats();
+    fetchUserListings();
+    toast.success('Item listed successfully!');
+  };
 
   // Handle trade URL save
   const handleTradeUrlSave = async (tradeUrl) => {
@@ -217,6 +251,27 @@ function Marketplace({ user }) {
   useEffect(() => {
     fetchUserProfile();
   }, [fetchUserProfile]);
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchItems();
+    fetchMarketStats();
+    if (user) {
+      fetchUserListings();
+    }
+  }, [fetchItems, fetchMarketStats, fetchUserListings, user]);
+
+  // Handle search and filters
+  useEffect(() => {
+    const filtered = items.filter(item => {
+      const matchesSearch = !searchQuery || 
+        item.marketHashName.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesFilters = activeFilters.length === 0 || 
+        activeFilters.some(filter => item.category === filter);
+      return matchesSearch && matchesFilters;
+    });
+    setFilteredItems(filtered);
+  }, [items, searchQuery, activeFilters]);
 
   // Render header section
   const renderHeader = () => (
@@ -360,8 +415,8 @@ function Marketplace({ user }) {
           onClick={() => setShowListingsPanel(true)}
         >
           <span>My Listings</span>
-          {userListings.length > 0 && (
-            <span className="count">{userListings.length}</span>
+          {myListings.length > 0 && (
+            <span className="count">{myListings.length}</span>
           )}
         </button>
       )}
