@@ -5,6 +5,7 @@ import { useTranslation } from '../utils/languageUtils';
 import { API_URL } from '../config/constants';
 import socketService from '../services/socketService';
 import '../styles/Marketplace.css';
+import { toast } from 'react-hot-toast';
 
 // Component imports
 import OfferModal from '../components/OfferModal';
@@ -15,6 +16,7 @@ import ItemCard3D from '../components/ItemCard3D';
 import TradeUrlPrompt from '../components/TradeUrlPrompt';
 import LiveActivityFeed from '../components/LiveActivityFeed';
 import SocketConnectionIndicator from '../components/SocketConnectionIndicator';
+import SellModal from '../components/SellModal';
 
 function Marketplace({ user }) {
   // State management
@@ -43,6 +45,7 @@ function Marketplace({ user }) {
   });
   const [showActivityFeed, setShowActivityFeed] = useState(true);
   const itemsPerPage = 12;
+  const [showSellModal, setShowSellModal] = useState(false);
 
   const { t } = useTranslation();
 
@@ -72,8 +75,8 @@ function Marketplace({ user }) {
         page: currentPage,
         limit: itemsPerPage,
         sort: sortOption,
-        ...(searchQuery && { search: searchQuery }),
-        ...(activeFilters.length > 0 && { categories: activeFilters.join(',') })
+        search: searchQuery,
+        categories: activeFilters.join(',')
       });
 
       // Don't send credentials for public marketplace view
@@ -96,14 +99,7 @@ function Marketplace({ user }) {
       console.error('Error fetching items:', err);
       setItems([]);
       setFilteredItems([]);
-      // Show error notification if available
-      if (window.showNotification) {
-        window.showNotification(
-          'Error',
-          'Failed to load marketplace items',
-          'ERROR'
-        );
-      }
+      toast.error(t('errors.fetchItems'));
     } finally {
       setLoading(false);
     }
@@ -457,6 +453,13 @@ function Marketplace({ user }) {
           />
         )}
       </AnimatePresence>
+
+      {showSellModal && (
+        <SellModal
+          onClose={() => setShowSellModal(false)}
+          user={user}
+        />
+      )}
     </div>
   );
 }
