@@ -46,7 +46,6 @@ function Marketplace({ user }) {
   const [showActivityFeed, setShowActivityFeed] = useState(true);
   const itemsPerPage = 12;
   const [showSellModal, setShowSellModal] = useState(false);
-  const [userListings, setUserListings] = useState([]);
 
   const { t } = useTranslation();
 
@@ -176,21 +175,6 @@ function Marketplace({ user }) {
     }
   }, [user]);
 
-  // Fetch user listings
-  const fetchUserListings = useCallback(async () => {
-    if (!user) return;
-    
-    try {
-      const response = await axios.get(`${API_URL}/marketplace/user-listings`, {
-        withCredentials: true
-      });
-      setUserListings(response.data || []);
-    } catch (err) {
-      console.error('Error fetching user listings:', err);
-      setUserListings([]);
-    }
-  }, [user]);
-
   // Handle trade URL save
   const handleTradeUrlSave = async (tradeUrl) => {
     try {
@@ -229,141 +213,61 @@ function Marketplace({ user }) {
     }
   };
 
-  // Check user profile and listings on mount and when user changes
+  // Check user profile on mount and when user changes
   useEffect(() => {
     fetchUserProfile();
-    fetchUserListings();
-  }, [fetchUserProfile, fetchUserListings]);
+  }, [fetchUserProfile]);
 
-  // Render functions
+  // Render header section
   const renderHeader = () => (
-    <header className="marketplace-header">
-      <div className="marketplace-header-content">
-        <h1 className="marketplace-title">{t('marketplace.title')}</h1>
-        <p className="marketplace-subtitle">
-          Buy and sell CS2 items securely with other players
-        </p>
-        <div className="stats-bar">
-          <div className="stat-item">
-            <span>{t('marketplace.activeListings')}:</span>
-            <span className="stat-value">{marketStats.totalListings || 0}</span>
-          </div>
-          <div className="stat-item">
-            <span>{t('marketplace.activeUsers')}:</span>
-            <span className="stat-value">{marketStats.activeUsers || 0}</span>
-          </div>
-          <div className="stat-item">
-            <span>{t('marketplace.completedTrades')}:</span>
-            <span className="stat-value">{marketStats.completedTrades || 0}</span>
-          </div>
+    <div className="marketplace-header">
+      <h1>CS2 Market</h1>
+      <p className="marketplace-subtitle">Buy and sell CS2 items securely with other players</p>
+      <div className="marketplace-stats">
+        <div className="stat-item">
+          <span className="stat-label">Active Listings</span>
+          <span className="stat-value">{marketStats.totalListings || 0}</span>
+        </div>
+        <div className="stat-item">
+          <span className="stat-label">Active Users</span>
+          <span className="stat-value">{marketStats.activeUsers || 0}</span>
+        </div>
+        <div className="stat-item">
+          <span className="stat-label">Completed Trades</span>
+          <span className="stat-value">{marketStats.completedTrades || 0}</span>
         </div>
       </div>
-    </header>
+    </div>
   );
 
-  const renderSearchAndFilters = () => (
-    <section className="search-filter-section">
-      <div className="search-bar">
-        <input
-          type="text"
-          className="search-input"
-          placeholder={t('marketplace.searchPlaceholder')}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <div className="view-toggle">
-          <button
-            className={`view-toggle-button ${itemView === 'grid' ? 'active' : ''}`}
-            onClick={() => setItemView('grid')}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="7" height="7"></rect>
-              <rect x="14" y="3" width="7" height="7"></rect>
-              <rect x="14" y="14" width="7" height="7"></rect>
-              <rect x="3" y="14" width="7" height="7"></rect>
-            </svg>
-          </button>
-          <button
-            className={`view-toggle-button ${itemView === 'list' ? 'active' : ''}`}
-            onClick={() => setItemView('list')}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="3" y1="12" x2="21" y2="12"></line>
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <div className="filter-tags">
-        {filterOptions.map(filter => (
-          <button
-            key={filter.id}
-            className={`filter-tag ${activeFilters.includes(filter.id) ? 'active' : ''}`}
-            onClick={() => {
-              setActiveFilters(prev =>
-                prev.includes(filter.id)
-                  ? prev.filter(f => f !== filter.id)
-                  : [...prev, filter.id]
-              );
-            }}
-          >
-            {filter.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="sort-options">
-        {sortOptions.map(option => (
-          <button
-            key={option.id}
-            className={`sort-option ${sortOption === option.id ? 'active' : ''}`}
-            onClick={() => setSortOption(option.id)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-
+  // Render items section
   const renderItems = () => {
     if (loading) {
       return (
         <div className="loading-state">
           <div className="loading-spinner" />
-          <p>{t('common.loading')}</p>
+          <p>Loading items...</p>
         </div>
       );
     }
 
-    if (!items || items.length === 0) {
+    if (filteredItems.length === 0) {
       return (
         <div className="empty-state">
-          <h3>{t('marketplace.noItems')}</h3>
-          <p>{t('marketplace.noItemsDescription')}</p>
-          {!user && (
-            <button onClick={() => setShowSellModal(true)}>
-              {t('marketplace.signInToSell')}
-            </button>
-          )}
+          <h3>No items found</h3>
+          <p>{user ? "Try adjusting your filters or search terms" : "Sign in to list items for sale"}</p>
         </div>
       );
     }
 
     return (
       <div className={itemView === 'grid' ? 'items-grid' : 'items-list'}>
-        {filteredItems.map(item => (
+        {filteredItems.map((item) => (
           <ItemCard3D
             key={item._id}
             item={item}
-            view={itemView}
+            onClick={() => handleItemClick(item)}
             isAuthenticated={!!user}
-            onSelect={() => {
-              setSelectedItemId(item._id);
-              setItemDetailsOpen(true);
-            }}
           />
         ))}
       </div>
@@ -408,74 +312,107 @@ function Marketplace({ user }) {
       <SocketConnectionIndicator />
       
       {renderHeader()}
-      {renderSearchAndFilters()}
+      
+      <div className="filter-section">
+        <div className="search-bar-container">
+          <input
+            type="text"
+            className="search-bar"
+            placeholder="Search for items..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        
+        <div className="filter-tags">
+          {filterOptions.map((filter) => (
+            <button
+              key={filter.id}
+              className={`filter-tag ${activeFilters.includes(filter.id) ? 'active' : ''}`}
+              onClick={() => handleFilterClick(filter.id)}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="sort-container">
+          <select
+            className="sort-select"
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value)}
+          >
+            {sortOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {renderItems()}
       {renderPagination()}
 
-      {showActivityFeed && (
-        <LiveActivityFeed
-          onClose={() => setShowActivityFeed(false)}
-        />
+      {user && (
+        <button
+          className="user-listings-button"
+          onClick={() => setShowListingsPanel(true)}
+        >
+          <span>My Listings</span>
+          {userListings.length > 0 && (
+            <span className="count">{userListings.length}</span>
+          )}
+        </button>
       )}
 
-      <div className="quick-actions">
-        {user && (
-          <button
-            className="quick-action-button"
-            onClick={() => setShowListingsPanel(true)}
-            title={t('marketplace.myListings')}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M20 7h-7"></path>
-              <path d="M14 17H5"></path>
-              <circle cx="17" cy="17" r="3"></circle>
-              <circle cx="7" cy="7" r="3"></circle>
-            </svg>
-            {userListings.length > 0 && (
-              <span className="count">{userListings.length}</span>
-            )}
-          </button>
-        )}
-        <button
-          className="quick-action-button"
-          onClick={() => setShowActivityFeed(!showActivityFeed)}
-          title={t('marketplace.marketActivity')}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-          </svg>
-        </button>
-      </div>
+      <LiveActivityFeed
+        isOpen={showActivityFeed}
+        onToggle={() => setShowActivityFeed(!showActivityFeed)}
+      />
 
       <AnimatePresence>
-        {showTradeUrlPrompt && (
-          <TradeUrlPrompt
-            onClose={() => setShowTradeUrlPrompt(false)}
-            onSave={handleTradeUrlSave}
-          />
-        )}
-        {itemDetailsOpen && (
+        {itemDetailsOpen && selectedItem && (
           <ItemDetails
-            itemId={selectedItemId}
+            item={selectedItem}
             isOpen={itemDetailsOpen}
             onClose={() => setItemDetailsOpen(false)}
-            onItemUpdated={fetchItems}
-          />
-        )}
-        {showListingsPanel && (
-          <UserListings
-            show={showListingsPanel}
-            onClose={() => setShowListingsPanel(false)}
+            onAction={handleItemAction}
           />
         )}
       </AnimatePresence>
 
-      {showSellModal && (
-        <SellModal
-          onClose={() => setShowSellModal(false)}
-          user={user}
-        />
-      )}
+      <AnimatePresence>
+        {tradePanelOpen && selectedItem && (
+          <TradePanel
+            isOpen={tradePanelOpen}
+            onClose={() => setTradePanelOpen(false)}
+            item={selectedItem}
+            action={tradeAction}
+            onComplete={handleTradeComplete}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showTradeUrlPrompt && (
+          <TradeUrlPrompt
+            isOpen={showTradeUrlPrompt}
+            onClose={() => setShowTradeUrlPrompt(false)}
+            onSave={handleTradeUrlSave}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showSellModal && (
+          <SellModal
+            isOpen={showSellModal}
+            onClose={() => setShowSellModal(false)}
+            onListingComplete={handleListingComplete}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

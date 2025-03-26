@@ -90,6 +90,18 @@
     }
   },
   "marketplace": {
+    "title": "CS2 Market",
+    "subtitle": "Buy and sell CS2 items securely with other players",
+    "activeListings": "Active Listings",
+    "activeUsers": "Active Users",
+    "completedTrades": "Completed Trades",
+    "searchPlaceholder": "Search for items...",
+    "filters": {
+      "latest": "Latest",
+      "priceLowToHigh": "Price: Low to High",
+      "priceHighToLow": "Price: High to Low",
+      "mostPopular": "Most Popular"
+    },
     "tabs": {
       "all": "All Listings",
       "my": "My Listings"
@@ -109,14 +121,6 @@
       "pattern": "Pattern Index",
       "trade": "Start Trade",
       "makeOffer": "Make Offer"
-    },
-    "filters": {
-      "category": "Category",
-      "rarity": "Rarity",
-      "wear": "Wear",
-      "priceRange": "Price Range",
-      "sort": "Sort By",
-      "reset": "Reset Filters"
     }
   },
   "inventory": {
