@@ -26,6 +26,16 @@ const init = (ioInstance) => {
     const userId = socket.userId;
 
     if (userId) {
+      // Check if user already has an active socket
+      const existingSocketId = activeSockets.get(userId);
+      if (existingSocketId) {
+        // If user has an existing socket, disconnect it first
+        const existingSocket = io.sockets.sockets.get(existingSocketId);
+        if (existingSocket) {
+          existingSocket.disconnect(true);
+        }
+      }
+
       // Store socket association for authenticated users
       activeSockets.set(userId, socket.id);
       socket.join(`user:${userId}`); // Join user-specific room
@@ -39,7 +49,7 @@ const init = (ioInstance) => {
         user: socket.username || "A user",
       });
     } else {
-      // Track anonymous connections
+      // Track anonymous connections with a timestamp
       anonymousSockets.add(socket.id);
     }
 
@@ -63,18 +73,21 @@ const init = (ioInstance) => {
     // Handle disconnection
     socket.on("disconnect", () => {
       if (userId) {
-        activeSockets.delete(userId);
-        // Don't immediately remove from activeUsers to allow for reconnection
-        setTimeout(() => {
-          // Only remove if they haven't reconnected
-          if (!activeSockets.has(userId)) {
-            activeUsers.delete(userId);
-            emitUserActivity({
-              action: "logout",
-              user: socket.username || "A user",
-            });
-          }
-        }, 5000); // 5 second grace period for reconnection
+        // Only remove socket if it's still the current one for this user
+        if (activeSockets.get(userId) === socket.id) {
+          activeSockets.delete(userId);
+          // Don't immediately remove from activeUsers to allow for reconnection
+          setTimeout(() => {
+            // Only remove if they haven't reconnected
+            if (!activeSockets.has(userId)) {
+              activeUsers.delete(userId);
+              emitUserActivity({
+                action: "logout",
+                user: socket.username || "A user",
+              });
+            }
+          }, 5000); // 5 second grace period for reconnection
+        }
       } else {
         anonymousSockets.delete(socket.id);
       }

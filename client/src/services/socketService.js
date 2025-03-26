@@ -21,8 +21,19 @@ class SocketService {
       API_URL
     );
 
+    // If we already have a socket, don't create a new one
+    if (this.socket && this.socket.connected) {
+      console.log(
+        "[SocketService] Socket already connected, skipping connection"
+      );
+      return this.socket;
+    }
+
+    // If we have a socket but it's not connected, disconnect it first
     if (this.socket) {
-      console.log("[SocketService] Socket already exists, disconnecting first");
+      console.log(
+        "[SocketService] Socket exists but not connected, disconnecting first"
+      );
       this.disconnect();
     }
 
@@ -44,6 +55,7 @@ class SocketService {
       reconnectionDelay: 1000,
       timeout: 10000,
       autoConnect: true,
+      forceNew: true, // Force a new connection
     });
 
     // Setup connection event handlers
@@ -111,6 +123,15 @@ class SocketService {
 
   reconnect() {
     console.log("[SocketService] Manual reconnect requested");
+
+    // If we already have a connected socket, don't reconnect
+    if (this.socket && this.socket.connected) {
+      console.log(
+        "[SocketService] Socket already connected, skipping reconnect"
+      );
+      return;
+    }
+
     this.reconnectAttempts = 0;
 
     if (this.reconnectTimer) {

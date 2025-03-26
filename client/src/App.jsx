@@ -199,13 +199,34 @@ function App() {
 
     // Initial connection if needed
     if (!socketService.isConnected()) {
-      socketService.connect();
+      // Add a small delay before initial connection to prevent race conditions
+      setTimeout(() => {
+        socketService.connect();
+      }, 100);
     }
 
     // Cleanup on unmount
     return () => {
       socketService.off('connection_status', handleConnectionStatus);
       socketService.off('notification', handleNotification);
+      // Don't disconnect on unmount as it might be a route change
+      // Only disconnect if the app is actually being closed
+      if (window.isUnloading) {
+        socketService.disconnect();
+      }
+    };
+  }, []);
+
+  // Add window unload handler
+  useEffect(() => {
+    const handleUnload = () => {
+      window.isUnloading = true;
+      socketService.disconnect();
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
     };
   }, []);
 
