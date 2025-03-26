@@ -79,7 +79,7 @@ function Marketplace({ user }) {
       // Don't send credentials for public marketplace view
       const res = await axios.get(`${API_URL}/marketplace?${params}`);
 
-      if (Array.isArray(res.data.items)) {
+      if (res.data && Array.isArray(res.data.items)) {
         setItems(res.data.items);
         setFilteredItems(res.data.items);
         
@@ -87,9 +87,15 @@ function Marketplace({ user }) {
         if (res.data.stats) {
           setMarketStats(res.data.stats);
         }
+      } else {
+        console.error('Invalid response format:', res.data);
+        setItems([]);
+        setFilteredItems([]);
       }
     } catch (err) {
       console.error('Error fetching items:', err);
+      setItems([]);
+      setFilteredItems([]);
       // Show error notification if available
       if (window.showNotification) {
         window.showNotification(
@@ -107,9 +113,17 @@ function Marketplace({ user }) {
   const fetchMarketStats = useCallback(async () => {
     try {
       const res = await axios.get(`${API_URL}/marketplace/stats`);
-      setMarketStats(res.data);
+      if (res.data) {
+        setMarketStats(res.data);
+      }
     } catch (err) {
       console.error('Error fetching market stats:', err);
+      // Set default values on error
+      setMarketStats({
+        totalListings: 0,
+        totalVolume: 0,
+        averagePrice: 0
+      });
     }
   }, []);
 
@@ -219,15 +233,15 @@ function Marketplace({ user }) {
         <div className="stats-bar">
           <div className="stat-item">
             <span>Active Listings:</span>
-            <span className="stat-value">{marketStats.totalListings}</span>
+            <span className="stat-value">{marketStats.totalListings || 0}</span>
           </div>
           <div className="stat-item">
             <span>24h Volume:</span>
-            <span className="stat-value">${marketStats.totalVolume.toFixed(2)}</span>
+            <span className="stat-value">${(marketStats.totalVolume || 0).toFixed(2)}</span>
           </div>
           <div className="stat-item">
             <span>Avg. Price:</span>
-            <span className="stat-value">${marketStats.averagePrice.toFixed(2)}</span>
+            <span className="stat-value">${(marketStats.averagePrice || 0).toFixed(2)}</span>
           </div>
         </div>
       </div>
