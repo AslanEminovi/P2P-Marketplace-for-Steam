@@ -222,22 +222,22 @@ function Marketplace({ user }) {
   const renderHeader = () => (
     <header className="marketplace-header">
       <div className="marketplace-header-content">
-        <h1 className="marketplace-title">CS2 Marketplace</h1>
+        <h1 className="marketplace-title">{t('marketplace.title')}</h1>
         <p className="marketplace-subtitle">
           Buy and sell CS2 items securely with other players
         </p>
         <div className="stats-bar">
           <div className="stat-item">
-            <span>Active Listings:</span>
+            <span>{t('marketplace.activeListings')}:</span>
             <span className="stat-value">{marketStats.totalListings || 0}</span>
           </div>
           <div className="stat-item">
-            <span>24h Volume:</span>
-            <span className="stat-value">${(marketStats.totalVolume || 0).toFixed(2)}</span>
+            <span>{t('marketplace.activeUsers')}:</span>
+            <span className="stat-value">{marketStats.activeUsers || 0}</span>
           </div>
           <div className="stat-item">
-            <span>Avg. Price:</span>
-            <span className="stat-value">${(marketStats.averagePrice || 0).toFixed(2)}</span>
+            <span>{t('marketplace.completedTrades')}:</span>
+            <span className="stat-value">{marketStats.completedTrades || 0}</span>
           </div>
         </div>
       </div>
@@ -250,7 +250,7 @@ function Marketplace({ user }) {
         <input
           type="text"
           className="search-input"
-          placeholder="Search items..."
+          placeholder={t('marketplace.searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -316,7 +316,7 @@ function Marketplace({ user }) {
       return (
         <div className="loading-state">
           <div className="loading-spinner" />
-          <p>Loading marketplace items...</p>
+          <p>{t('common.loading')}</p>
         </div>
       );
     }
@@ -324,16 +324,12 @@ function Marketplace({ user }) {
     if (!items || items.length === 0) {
       return (
         <div className="empty-state">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-          <p>No items found matching your criteria</p>
+          <h3>{t('marketplace.noItems')}</h3>
+          <p>{t('marketplace.noItemsDescription')}</p>
           {!user && (
-            <p className="empty-state-subtitle">
-              Sign in with Steam to list your items for sale
-            </p>
+            <button onClick={() => setShowSellModal(true)}>
+              {t('marketplace.signInToSell')}
+            </button>
           )}
         </div>
       );
@@ -368,7 +364,7 @@ function Marketplace({ user }) {
           onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
           disabled={currentPage === 1}
         >
-          Previous
+          {t('common.previous')}
         </button>
         {[...Array(totalPages)].map((_, i) => (
           <button
@@ -384,7 +380,7 @@ function Marketplace({ user }) {
           onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
           disabled={currentPage === totalPages}
         >
-          Next
+          {t('common.next')}
         </button>
       </div>
     );
@@ -410,7 +406,7 @@ function Marketplace({ user }) {
           <button
             className="quick-action-button"
             onClick={() => setShowListingsPanel(true)}
-            title="My Listings"
+            title={t('marketplace.myListings')}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M20 7h-7"></path>
@@ -418,12 +414,15 @@ function Marketplace({ user }) {
               <circle cx="17" cy="17" r="3"></circle>
               <circle cx="7" cy="7" r="3"></circle>
             </svg>
+            {userListings.length > 0 && (
+              <span className="count">{userListings.length}</span>
+            )}
           </button>
         )}
         <button
           className="quick-action-button"
           onClick={() => setShowActivityFeed(!showActivityFeed)}
-          title="Market Activity"
+          title={t('marketplace.marketActivity')}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
