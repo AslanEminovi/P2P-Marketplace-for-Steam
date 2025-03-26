@@ -46,6 +46,7 @@ function Marketplace({ user }) {
   const [showActivityFeed, setShowActivityFeed] = useState(true);
   const itemsPerPage = 12;
   const [showSellModal, setShowSellModal] = useState(false);
+  const [userListings, setUserListings] = useState([]);
 
   const { t } = useTranslation();
 
@@ -175,6 +176,21 @@ function Marketplace({ user }) {
     }
   }, [user]);
 
+  // Fetch user listings
+  const fetchUserListings = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const response = await axios.get(`${API_URL}/marketplace/user-listings`, {
+        withCredentials: true
+      });
+      setUserListings(response.data || []);
+    } catch (err) {
+      console.error('Error fetching user listings:', err);
+      setUserListings([]);
+    }
+  }, [user]);
+
   // Handle trade URL save
   const handleTradeUrlSave = async (tradeUrl) => {
     try {
@@ -213,10 +229,11 @@ function Marketplace({ user }) {
     }
   };
 
-  // Check user profile on mount and when user changes
+  // Check user profile and listings on mount and when user changes
   useEffect(() => {
     fetchUserProfile();
-  }, [fetchUserProfile]);
+    fetchUserListings();
+  }, [fetchUserProfile, fetchUserListings]);
 
   // Render functions
   const renderHeader = () => (
