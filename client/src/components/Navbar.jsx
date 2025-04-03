@@ -11,6 +11,7 @@ const Navbar = ({ user, onLogout }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -112,6 +113,13 @@ const Navbar = ({ user, onLogout }) => {
     }
   };
 
+  const handleSellItemsClick = (e) => {
+    if (!user) {
+      e.preventDefault();
+      setShowSignInPrompt(true);
+    }
+  };
+
   return (
     <nav className={`navbar ${scrolled ? 'scrolled' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       <div className="navbar-container">
@@ -147,7 +155,11 @@ const Navbar = ({ user, onLogout }) => {
               </svg>
               Marketplace
             </NavLink>
-            <NavLink to="/inventory" className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}>
+            <NavLink 
+              to="/inventory" 
+              className={({ isActive }) => isActive ? 'navbar-link active' : 'navbar-link'}
+              onClick={handleSellItemsClick}
+            >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="16" y1="8" x2="8" y2="8"></line>
@@ -414,6 +426,43 @@ const Navbar = ({ user, onLogout }) => {
           </a>
         </div>
       </div>
+
+      {/* Sign In Prompt Modal */}
+      {showSignInPrompt && (
+        <div 
+          className="sign-in-prompt-modal"
+          onClick={() => setShowSignInPrompt(false)}
+        >
+          <div 
+            className="sign-in-prompt-content"
+            onClick={e => e.stopPropagation()}
+          >
+            <h2>Sign In Required</h2>
+            <p>You need to sign in with Steam to sell items on the marketplace.</p>
+            <div className="sign-in-prompt-buttons">
+              <button 
+                className="cancel-button"
+                onClick={() => setShowSignInPrompt(false)}
+              >
+                Cancel
+              </button>
+              <a 
+                href={`${API_URL}/auth/steam`}
+                className="sign-in-button"
+              >
+                <img 
+                  src="Steam-Emblem.png" 
+                  alt="Steam" 
+                  className="steam-icon" 
+                  width="24" 
+                  height="24" 
+                />
+                Sign in with Steam
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 };

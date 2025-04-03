@@ -852,3 +852,89 @@
 .sign-in-button:hover .steam-icon {
   filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.7));
 }
+
+/* Sign In Prompt Modal */
+.sign-in-prompt-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  backdrop-filter: blur(5px);
+}
+
+.sign-in-prompt-content {
+  background: rgba(45, 27, 105, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  color: #e2e8f0;
+  text-align: center;
+}
+
+.sign-in-prompt-content h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, #4ade80 0%, #22d3ee 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.sign-in-prompt-content p {
+  margin-bottom: 1.5rem;
+  color: #9ca3af;
+}
+
+.sign-in-prompt-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.sign-in-prompt-buttons .cancel-button {
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.sign-in-prompt-buttons .cancel-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.sign-in-prompt-buttons .sign-in-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #4ade80;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
+}
+
+.sign-in-prompt-buttons .sign-in-button:hover {
+  background: #22c55e;
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(74, 222, 128, 0.4);
+}
