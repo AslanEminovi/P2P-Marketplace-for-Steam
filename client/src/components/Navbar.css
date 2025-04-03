@@ -864,8 +864,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 2000;
+  z-index: 9999; /* Increased z-index to appear above everything */
   backdrop-filter: blur(5px);
+  overflow: hidden; /* Prevent scrolling when modal is open */
 }
 
 .sign-in-prompt-content {
@@ -875,10 +876,27 @@
   padding: 2rem;
   max-width: 400px;
   width: 90%;
+  max-height: 90vh; /* Ensure modal doesn't exceed viewport height */
+  overflow-y: auto; /* Add scrolling if content is too tall */
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   color: #e2e8f0;
   text-align: center;
+  position: relative; /* Ensure proper stacking context */
+  margin: 20px; /* Add some margin from viewport edges */
+}
+
+/* Ensure the modal appears above all other content */
+.navbar,
+.navbar-container,
+.navbar-links,
+.navbar-right,
+.user-section,
+.dropdown-wrapper,
+.user-dropdown,
+.mobile-menu {
+  position: relative;
+  z-index: 1000; /* Lower z-index than modal */
 }
 
 .sign-in-prompt-content h2 {
