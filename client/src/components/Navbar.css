@@ -33,14 +33,36 @@
   transition: all 0.3s ease;
   box-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
   /* Add hardware acceleration */
-  transform: translateZ(0);
-  will-change: height, background-color, box-shadow;
+  transform: translateZ(0) translateY(0);
+  will-change: transform, height, background-color, box-shadow;
 }
 
 .navbar.scrolled {
   height: 70px;
   background-color: rgba(10, 14, 23, 0.98);
   box-shadow: 0 2px 25px rgba(0, 0, 0, 0.7), 0 0 5px rgba(0, 210, 255, 0.2);
+}
+
+/* New class for hiding navbar when scrolling down */
+.navbar.navbar-hidden {
+  transform: translateY(-100%);
+}
+
+/* Add different color schemes based on scroll depth */
+.navbar:not(.scrolled) {
+  background-color: rgba(10, 14, 23, 0.8);
+  border-bottom-color: rgba(0, 210, 255, 0.1);
+}
+
+.navbar.scrolled:not(.navbar-hidden) {
+  background-color: rgba(21, 28, 43, 0.98);
+  border-bottom-color: rgba(140, 92, 247, 0.3);
+  box-shadow: 0 2px 25px rgba(0, 0, 0, 0.7), 0 0 10px rgba(140, 92, 247, 0.15);
+}
+
+.navbar.scrolled.navbar-hidden {
+  background-color: rgba(10, 14, 23, 0.98);
+  box-shadow: none;
 }
 
 .navbar-container {

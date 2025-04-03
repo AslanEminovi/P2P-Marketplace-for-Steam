@@ -12,6 +12,8 @@ const Navbar = ({ user, onLogout }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [scrollPosition, setScrollPosition] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -28,14 +30,28 @@ const Navbar = ({ user, onLogout }) => {
     }
   }, [user]);
   
-  // Handle scroll effects
+  // Enhanced scroll effect with direction detection
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 50) {
+      const currentScrollPos = window.scrollY;
+      
+      // Determine if we should show or hide the navbar based on scroll direction
+      if (currentScrollPos > 100) {
         setScrolled(true);
+        
+        // Hide when scrolling down, show when scrolling up
+        if (currentScrollPos > scrollPosition && !hidden) {
+          setHidden(true);
+        } else if (currentScrollPos < scrollPosition && hidden) {
+          setHidden(false);
+        }
       } else {
         setScrolled(false);
+        setHidden(false);
       }
+      
+      // Update scroll position
+      setScrollPosition(currentScrollPos);
     };
     
     window.addEventListener('scroll', handleScroll);
@@ -43,7 +59,7 @@ const Navbar = ({ user, onLogout }) => {
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
-  }, []);
+  }, [scrollPosition, hidden]);
   
   // Handle dropdown visibility and outside clicks
   useEffect(() => {
@@ -122,7 +138,7 @@ const Navbar = ({ user, onLogout }) => {
 
   return (
     <>
-      <nav className={`navbar ${scrolled ? 'scrolled' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
+      <nav className={`navbar ${scrolled ? 'scrolled' : ''} ${mobileOpen ? 'mobile-open' : ''} ${hidden ? 'navbar-hidden' : ''}`}>
         <div className="navbar-container">
           <div className="navbar-left">
             <Link to="/" className="navbar-logo">
