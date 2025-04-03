@@ -545,7 +545,7 @@ function App() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
+      background: 'var(--gaming-bg-dark)',
       position: 'relative',
       overflow: 'hidden',
       transition: 'background 0.5s ease-out'

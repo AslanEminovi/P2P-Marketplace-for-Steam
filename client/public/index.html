@@ -2,23 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/Steam-Emblem.png" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#581845" />
+    <meta name="theme-color" content="#0A0E17" />
     <meta name="description" content="CS2 Marketplace Georgia - Buy, sell and trade CS2 items" />
     <!-- Add critical CSS for initial page load to prevent flash of red background -->
     <style>
-      html, body {
+      body, html {
         margin: 0;
         padding: 0;
         width: 100%;
         height: 100%;
-        background-color: #581845; /* Match the gradient start color */
+        background-color: #0A0E17; /* Match the new UI dark background */
       }
       
       #root {
         min-height: 100vh;
-        background: linear-gradient(45deg, #581845 0%, #900C3F 100%);
+        background: #0A0E17; /* Use the dark background color from new UI */
       }
       
       .loading-screen-background {
@@ -36,7 +36,8 @@
         z-index: 9999;
       }
     </style>
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/Steam-Emblem.png" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     <!-- AOS Animation Library -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <!-- Google Fonts - Gaming Fonts -->

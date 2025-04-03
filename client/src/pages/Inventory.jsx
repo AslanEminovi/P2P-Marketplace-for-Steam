@@ -664,7 +664,7 @@ function Inventory({ user }) {
         marginTop: '2rem',
         color: '#e2e8f0',
         padding: '2rem',
-        background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)'
+        background: 'var(--gaming-bg-dark)'
       }}>
         <h2 style={{
           fontSize: '2rem',

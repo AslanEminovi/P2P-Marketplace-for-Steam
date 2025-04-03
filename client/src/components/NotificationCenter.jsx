@@ -361,7 +361,7 @@ const NotificationCenter = ({ user }) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              border: '2px solid #581845',
+              border: '2px solid var(--gaming-accent-blue)',
               boxShadow: '0 0 10px rgba(239, 68, 68, 0.6)'
             }}
           >
