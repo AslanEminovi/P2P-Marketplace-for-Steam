@@ -494,26 +494,49 @@ const ItemCard3D = ({
             zIndex: 10
           }}
         >
-          <span
+          <motion.span
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="view-item-button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick(item);
+            }}
             style={{
-              backgroundColor: 'rgba(31, 41, 61, 0.8)',
+              background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
               color: '#ffffff',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontWeight: '500',
-              fontSize: '0.85rem',
-              fontWeight: '500',
+              padding: '10px 18px',
+              borderRadius: '12px',
+              fontWeight: '600',
+              fontSize: '0.9rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '6px'
+              gap: '8px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(124, 58, 237, 0.3)',
+              transition: 'all 0.2s ease',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              transform: 'translateZ(0)',
+              willChange: 'transform, box-shadow',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: '0 8px 16px rgba(124, 58, 237, 0.4)'
+              }
+            }}
+            whileHover={{ 
+              scale: 1.05,
+              boxShadow: '0 8px 16px rgba(124, 58, 237, 0.4)'
             }}
           >
             View Item
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14M12 5l7 7-7 7"/>
             </svg>
-          </span>
+          </motion.span>
         </motion.div>
       )}
     </motion.div>

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { formatCurrency, API_URL } from '../config/constants';
 import TradePanel from './TradePanel';
+import { motion, AnimatePresence } from 'framer-motion';
+import '../styles/ItemDetails.css';
 
 const ItemDetails = ({ 
   item: initialItem = null,
@@ -192,332 +194,222 @@ const ItemDetails = ({
   if (!isOpen) return null;
   
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          zIndex: 100,
-          display: isOpen ? 'block' : 'none'
-        }}
-        onClick={onClose}
-      />
-      
-      {/* Modal */}
-      <div
-        style={{
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          backgroundColor: '#1f2937',
-          borderRadius: '8px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-          padding: '24px',
-          zIndex: 101,
-          width: '90%',
-          maxWidth: '800px',
-          maxHeight: '90vh',
-          overflow: 'auto',
-          display: isOpen ? 'block' : 'none'
-        }}
-      >
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            background: 'none',
-            border: 'none',
-            color: '#9ca3af',
-            fontSize: '24px',
-            cursor: 'pointer',
-            padding: '4px'
-          }}
-        >
-          ×
-        </button>
-        
-        {loading ? (
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            padding: '40px 0' 
-          }}>
-            <div style={{
-              width: '50px',
-              height: '50px',
-              border: '3px solid rgba(255,255,255,0.1)',
-              borderRadius: '50%',
-              borderTopColor: '#4ade80',
-              animation: 'spin 1s linear infinite'
-            }}></div>
-          </div>
-        ) : error ? (
-          <div style={{
-            backgroundColor: '#7f1d1d',
-            color: '#f87171',
-            padding: '16px',
-            borderRadius: '8px',
-            margin: '20px 0'
-          }}>
-            <h3>Error</h3>
-            <p>{error}</p>
-          </div>
-        ) : item ? (
-          <div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              {/* Item header */}
-              <div style={{ 
-                display: 'flex', 
-                gap: '24px',
-                flexDirection: window.innerWidth < 640 ? 'column' : 'row'
-              }}>
-                {/* Item image */}
-                <div style={{
-                  backgroundColor: '#111827',
-                  borderRadius: '8px',
-                  padding: '16px',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  width: window.innerWidth < 640 ? '100%' : '300px',
-                  height: '250px'
-                }}>
-                  <img 
-                    src={item.imageUrl} 
-                    alt={item.marketHashName}
-                    style={{
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                      objectFit: 'contain'
-                    }}
-                  />
-                </div>
-                
-                {/* Item details */}
-                <div style={{ flex: 1 }}>
-                  <h2 style={{ 
-                    color: '#f1f1f1', 
-                    marginTop: 0,
-                    marginBottom: '12px' 
-                  }}>
-                    {item.marketHashName}
-                  </h2>
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.75)',
+              backdropFilter: 'blur(5px)',
+              WebkitBackdropFilter: 'blur(5px)',
+              zIndex: 100,
+            }}
+            onClick={onClose}
+          />
+          
+          {/* Modal */}
+          <motion.div
+            className="item-details-modal"
+            initial={{ opacity: 0, scale: 0.9, x: '40%', y: '40%' }}
+            animate={{ opacity: 1, scale: 1, x: '0%', y: '0%' }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ 
+              type: 'spring', 
+              stiffness: 300, 
+              damping: 30,
+              mass: 1
+            }}
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+              padding: '32px',
+              zIndex: 101,
+              width: '90%',
+              maxWidth: '800px',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              border: '1px solid rgba(255, 255, 255, 0.07)'
+            }}
+          >
+            {/* Close button */}
+            <motion.button
+              whileHover={{ scale: 1.1, rotate: 90 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={onClose}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: 'none',
+                borderRadius: '50%',
+                color: '#fff',
+                fontSize: '18px',
+                cursor: 'pointer',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </motion.button>
+            
+            {loading ? (
+              <div className="item-details-loading">
+                <div className="loading-spinner"></div>
+                <p className="pulse-effect">Loading item details...</p>
+              </div>
+            ) : error ? (
+              <div className="item-details-loading">
+                <p style={{ color: '#ef4444' }}>{error}</p>
+              </div>
+            ) : item ? (
+              <div>
+                <div className="item-header">
+                  <div className="item-header-image">
+                    <img 
+                      src={item.image || 'https://via.placeholder.com/200'} 
+                      alt={item.name} 
+                    />
+                  </div>
                   
-                  <div style={{ 
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '8px',
-                    marginBottom: '16px'
-                  }}>
-                    {item.wear && (
-                      <span style={{
-                        backgroundColor: '#111827',
-                        color: formatWear(item.wear).color,
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '0.875rem',
-                        fontWeight: '500'
-                      }}>
-                        {formatWear(item.wear).text}
-                      </span>
-                    )}
+                  <div className="item-header-details">
+                    <h2 className="item-title">{item.name}</h2>
+                    <p className="item-subtitle">
+                      {item.weapon_type || ''} 
+                      {item.exterior && ` | ${item.exterior}`}
+                    </p>
                     
-                    {item.rarity && (
-                      <span style={{
-                        backgroundColor: '#111827',
-                        color: getRarityColor(item.rarity),
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '0.875rem',
-                        fontWeight: '500'
-                      }}>
-                        {item.rarity}
-                      </span>
-                    )}
+                    <div className="item-price-tag">
+                      {formatCurrency(item.price, 'USD')}
+                    </div>
                     
-                    <span style={{
-                      backgroundColor: '#111827',
-                      color: '#9ca3af',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '0.875rem'
-                    }}>
-                      Asset ID: {item.assetId.substring(0, 8)}...
-                    </span>
-                  </div>
-                  
-                  <div style={{ marginBottom: '24px' }}>
-                    <div style={{ marginBottom: '8px' }}>
-                      <span style={{ 
-                        color: '#9ca3af',
-                        fontSize: '0.875rem' 
-                      }}>
-                        Listed by
-                      </span>
+                    <div className="item-meta">
+                      {item.exterior && (
+                        <div className="meta-item">
+                          <div className="meta-label">Exterior</div>
+                          <div className="meta-value" style={{ color: formatWear(item.exterior).color }}>
+                            {item.exterior}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {item.rarity && (
+                        <div className="meta-item">
+                          <div className="meta-label">Rarity</div>
+                          <div className="meta-value" style={{ color: getRarityColor(item.rarity) }}>
+                            {item.rarity}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {item.float_value && (
+                        <div className="meta-item">
+                          <div className="meta-label">Float Value</div>
+                          <div className="meta-value">
+                            {item.float_value.toFixed(8)}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {item.created_at && (
+                        <div className="meta-item">
+                          <div className="meta-label">Listed</div>
+                          <div className="meta-value">
+                            {new Date(item.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <img
-                        src={item.owner.avatar}
-                        alt={item.owner.displayName}
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%'
-                        }}
-                      />
-                      <span style={{ color: '#f1f1f1' }}>
-                        {item.owner.displayName}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div style={{ marginBottom: '24px' }}>
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center'
-                    }}>
-                      <span style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Price</span>
-                      <span style={{ 
-                        color: '#4ade80', 
-                        fontSize: '1.5rem', 
-                        fontWeight: 'bold' 
-                      }}>
-                        {formatCurrency(item.price, 'USD')}
-                      </span>
-                    </div>
-                    {item.priceGEL && (
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'flex-end'
-                      }}>
-                        <span style={{ 
-                          color: '#9ca3af', 
-                          fontSize: '0.875rem' 
-                        }}>
-                          {formatCurrency(item.priceGEL, 'GEL')}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '12px',
-                    marginTop: '24px'
-                  }}>
-                    {!isUserOwner ? (
-                      <>
-                        <button
-                          onClick={handleBuyNow}
-                          style={{
-                            backgroundColor: '#059669',
-                            color: 'white',
-                            padding: '10px 20px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            fontSize: '1rem',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            flex: '1'
-                          }}
-                        >
-                          Buy Now
-                        </button>
-                        
-                        {item.allowOffers && (
-                          <button
+                    
+                    <div className="item-actions">
+                      {!isUserOwner ? (
+                        <>
+                          <button 
+                            className="item-action-button buy-now-button"
+                            onClick={handleBuyNow}
+                          >
+                            Buy Now
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="9" cy="21" r="1"></circle>
+                              <circle cx="20" cy="21" r="1"></circle>
+                              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                            </svg>
+                          </button>
+                          <button 
+                            className="item-action-button make-offer-button"
                             onClick={handleMakeOffer}
-                            style={{
-                              backgroundColor: '#374151',
-                              color: '#f1f1f1',
-                              padding: '10px 20px',
-                              border: '1px solid #4b5563',
-                              borderRadius: '4px',
-                              fontSize: '1rem',
-                              cursor: 'pointer',
-                              flex: '1'
-                            }}
                           >
                             Make Offer
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="12" y1="1" x2="12" y2="23"></line>
+                              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                            </svg>
                           </button>
-                        )}
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => handleCancelListing(item._id)}
-                        style={{
-                          backgroundColor: '#7f1d1d',
-                          color: 'white',
-                          padding: '10px 20px',
-                          border: 'none',
-                          borderRadius: '4px',
-                          fontSize: '1rem',
-                          fontWeight: 'bold',
-                          cursor: 'pointer',
-                          flex: '1'
-                        }}
-                      >
-                        Remove Listing
-                      </button>
-                    )}
+                        </>
+                      ) : (
+                        <button 
+                          className="item-action-button cancel-button"
+                          onClick={() => handleCancelListing(item._id)}
+                        >
+                          Cancel Listing
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              {/* Additional details */}
-              <div style={{
-                backgroundColor: '#111827',
-                borderRadius: '8px',
-                padding: '16px',
-                marginTop: '16px'
-              }}>
-                <h3 style={{ color: '#f1f1f1', marginTop: 0 }}>Item Description</h3>
-                <p style={{ color: '#9ca3af' }}>
-                  {item.description || `This is a ${item.marketHashName} with ${item.wear} condition.`}
-                </p>
                 
-                {/* You could add more details here like float value, pattern index, etc. */}
+                {item.description && (
+                  <div className="item-description">
+                    <h3 className="description-title">Description</h3>
+                    <p className="description-content">{item.description}</p>
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
-        ) : (
-          <div style={{
-            padding: '40px',
-            textAlign: 'center',
-            color: '#9ca3af'
-          }}>
-            Item not found
-          </div>
-        )}
-        
-        <style>
-          {`
-            @keyframes spin {
-              to { transform: rotate(360deg); }
-            }
-          `}
-        </style>
-      </div>
-      
-      {/* Trade Panel */}
-      <TradePanel
-        isOpen={tradePanelOpen}
-        onClose={() => setTradePanelOpen(false)}
-        item={item}
-        action={tradeAction}
-        onComplete={handleTradeComplete}
-      />
-    </>
+            ) : (
+              <div className="item-details-loading">
+                <p>No item data available</p>
+              </div>
+            )}
+          </motion.div>
+            
+          {/* Trade Panel */}
+          <TradePanel
+            isOpen={tradePanelOpen}
+            onClose={() => setTradePanelOpen(false)}
+            onSuccess={handleTradeComplete}
+            item={item}
+            action={tradeAction}
+          />
+        </>
+      )}
+    </AnimatePresence>
   );
 };
 
