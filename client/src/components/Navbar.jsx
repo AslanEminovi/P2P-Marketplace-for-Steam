@@ -450,7 +450,7 @@ const Navbar = ({ user, onLogout }) => {
               </button>
               <a 
                 href={`${API_URL}/auth/steam`}
-                className="sign-in-button"
+                className="sign-in-prompt-button"
               >
                 <img 
                   src="Steam-Emblem.png" 

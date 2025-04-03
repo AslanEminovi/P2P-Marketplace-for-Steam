@@ -912,6 +912,7 @@
   display: flex;
   gap: 1rem;
   justify-content: center;
+  flex-wrap: wrap; /* Allow buttons to wrap if needed */
 }
 
 .sign-in-prompt-buttons .cancel-button {
@@ -924,6 +925,7 @@
   font-size: 1rem;
   font-weight: 600;
   transition: all 0.3s ease;
+  min-width: 120px;
 }
 
 .sign-in-prompt-buttons .cancel-button:hover {
@@ -931,9 +933,11 @@
   transform: translateY(-2px);
 }
 
-.sign-in-prompt-buttons .sign-in-button {
+/* New separate class for the modal's sign-in button */
+.sign-in-prompt-buttons .sign-in-prompt-button {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
   background: linear-gradient(135deg, #3373F2, #00D2FF);
@@ -946,9 +950,16 @@
   text-decoration: none;
   transition: all 0.3s ease;
   box-shadow: 0 0 20px rgba(0, 210, 255, 0.3);
+  white-space: nowrap;
+  min-width: 200px;
 }
 
-.sign-in-prompt-buttons .sign-in-button:hover {
+.sign-in-prompt-buttons .sign-in-prompt-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 0 30px rgba(0, 210, 255, 0.5);
+}
+
+.sign-in-prompt-buttons .sign-in-prompt-button .steam-icon {
+  width: 24px;
+  height: 24px;
 }
