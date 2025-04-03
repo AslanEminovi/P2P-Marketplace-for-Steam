@@ -501,29 +501,160 @@ function Inventory({ user }) {
     return (total / items.length).toFixed(2);
   };
 
-  if (loading) {
+  // Create a modern loading screen component
+  const renderLoadingScreen = () => {
     return (
-      <div style={{ 
-        color: '#e2e8f0',
+      <div className="loading-overlay" style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(10, 14, 23, 0.85)',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: '60vh',
-        fontSize: '1.25rem',
-        background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)'
+        zIndex: 1000,
+        backdropFilter: 'blur(8px)'
       }}>
-        <div style={{
-          padding: '2rem',
-          borderRadius: '1rem',
-          backgroundColor: 'rgba(45, 27, 105, 0.5)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+        <div className="loading-content" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          maxWidth: '500px',
+          padding: '2.5rem',
+          background: 'rgba(21, 28, 43, 0.8)',
+          borderRadius: '20px',
+          border: '1px solid rgba(51, 115, 242, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), 0 0 15px rgba(51, 115, 242, 0.1)'
         }}>
-          Loading inventory...
+          <div className="loading-spinner-container" style={{
+            marginBottom: '1.5rem',
+            position: 'relative',
+            width: '80px',
+            height: '80px'
+          }}>
+            {/* Outer spinning ring */}
+            <div style={{
+              position: 'absolute',
+              width: '100%',
+              height: '100%',
+              border: '3px solid rgba(51, 115, 242, 0.1)',
+              borderTop: '3px solid #3373F2',
+              borderRadius: '50%',
+              animation: 'spin 1.5s linear infinite'
+            }}></div>
+            
+            {/* Inner spinning ring */}
+            <div style={{
+              position: 'absolute',
+              top: '15px',
+              left: '15px',
+              width: 'calc(100% - 30px)',
+              height: 'calc(100% - 30px)',
+              border: '3px solid rgba(0, 210, 255, 0.1)',
+              borderBottom: '3px solid #00D2FF',
+              borderRadius: '50%',
+              animation: 'spin 1.2s linear infinite reverse'
+            }}></div>
+            
+            {/* Center glowing dot */}
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '20px',
+              height: '20px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #3373F2, #00D2FF)',
+              boxShadow: '0 0 15px rgba(0, 210, 255, 0.8)',
+              animation: 'pulse 1.5s ease-in-out infinite'
+            }}></div>
+          </div>
+          
+          <h2 style={{
+            fontSize: '1.8rem',
+            background: 'linear-gradient(to right, #3373F2, #00D2FF)',
+            WebkitBackgroundClip: 'text',
+            backgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            fontWeight: '700',
+            marginBottom: '1rem',
+            textAlign: 'center'
+          }}>Loading Your Inventory</h2>
+          
+          <p style={{
+            color: 'var(--gaming-text-medium)',
+            textAlign: 'center',
+            fontSize: '1rem',
+            lineHeight: '1.5',
+            maxWidth: '320px',
+            margin: '0 auto'
+          }}>
+            We're fetching your CS2 items from Steam. This might take a moment...
+          </p>
+          
+          <div style={{
+            marginTop: '1.5rem',
+            width: '100%',
+            height: '6px',
+            backgroundColor: 'rgba(31, 41, 61, 0.7)',
+            borderRadius: '8px',
+            overflow: 'hidden',
+            position: 'relative'
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: '-30%',
+              width: '60%',
+              height: '100%',
+              background: 'linear-gradient(90deg, rgba(51, 115, 242, 0), #3373F2, #00D2FF, rgba(0, 210, 255, 0))',
+              animation: 'progressBar 2s ease-in-out infinite'
+            }}></div>
+          </div>
+          
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: '1.5rem',
+            color: 'var(--gaming-text-dim)',
+            fontSize: '0.85rem'
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '0.5rem'}}>
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            Make sure your Steam inventory is set to public
+          </div>
         </div>
+        
+        <style jsx>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+          
+          @keyframes pulse {
+            0%, 100% { opacity: 0.8; transform: translate(-50%, -50%) scale(0.9); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+          }
+          
+          @keyframes progressBar {
+            0% { left: -30%; }
+            50% { left: 70%; }
+            100% { left: -30%; }
+          }
+        `}</style>
       </div>
     );
+  };
+
+  if (loading) {
+    return renderLoadingScreen();
   }
 
   if (!user) {
@@ -721,6 +852,9 @@ function Inventory({ user }) {
           onConfirm={listItemForSale} 
         />
       )}
+
+      {/* Show modern loading screen when loading is true */}
+      {loading && renderLoadingScreen()}
 
       <div className="inventory-header" style={{
         maxWidth: '1400px',
@@ -1264,51 +1398,6 @@ function Inventory({ user }) {
           </button>
         </div>
       )}
-
-      {/* Loading overlay */}
-      {loading && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-          backdropFilter: 'blur(5px)'
-        }}>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '1.5rem'
-          }}>
-            <div className="loading-spinner" style={{
-              width: '60px',
-              height: '60px',
-              border: '5px solid rgba(51, 115, 242, 0.1)',
-              borderRadius: '50%',
-              borderTop: '5px solid #3373F2',
-              animation: 'spin 1s linear infinite'
-            }} />
-            <p style={{ 
-              color: 'var(--gaming-text-bright)',
-              fontSize: '1.1rem',
-              fontWeight: '500'
-            }}>Loading your inventory...</p>
-          </div>
-        </div>
-      )}
-
-      <style jsx>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }
