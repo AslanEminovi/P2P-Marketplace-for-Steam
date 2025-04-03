@@ -482,19 +482,21 @@ const ItemCard3D = ({
           transition={{ duration: 0.2 }}
           style={{
             position: 'absolute',
-            bottom: '10px',
-            left: '10px',
-            right: '10px',
-            padding: '8px 0',
-            backgroundColor: 'rgba(15, 12, 41, 0.9)',
+            bottom: '15px',
+            left: '15px',
+            right: '15px',
+            padding: '10px 0',
+            backgroundColor: 'rgba(15, 23, 42, 0.8)',
             borderRadius: '12px',
             textAlign: 'center',
-            backdropFilter: 'blur(5px)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
-            zIndex: 10
+            zIndex: 10,
+            boxShadow: '0 8px 20px rgba(0, 0, 0, 0.3)'
           }}
         >
-          <motion.span
+          <motion.button
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
@@ -503,40 +505,36 @@ const ItemCard3D = ({
               e.stopPropagation();
               onClick(item);
             }}
+            whileHover={{ 
+              scale: 1.05,
+              boxShadow: '0 8px 16px rgba(124, 58, 237, 0.4)'
+            }}
+            whileTap={{ scale: 0.95 }}
             style={{
               background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
               color: '#ffffff',
-              padding: '10px 18px',
+              padding: '12px 20px',
               borderRadius: '12px',
               fontWeight: '600',
-              fontSize: '0.9rem',
-              display: 'flex',
+              fontSize: '0.95rem',
+              display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
               cursor: 'pointer',
               boxShadow: '0 4px 12px rgba(124, 58, 237, 0.3)',
               transition: 'all 0.2s ease',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-              transform: 'translateZ(0)',
-              willChange: 'transform, box-shadow',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: '0 8px 16px rgba(124, 58, 237, 0.4)'
-              }
-            }}
-            whileHover={{ 
-              scale: 1.05,
-              boxShadow: '0 8px 16px rgba(124, 58, 237, 0.4)'
+              border: 'none',
+              outline: 'none',
+              width: 'auto',
+              margin: '0 auto'
             }}
           >
             View Item
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14M12 5l7 7-7 7"/>
             </svg>
-          </motion.span>
+          </motion.button>
         </motion.div>
       )}
     </motion.div>
