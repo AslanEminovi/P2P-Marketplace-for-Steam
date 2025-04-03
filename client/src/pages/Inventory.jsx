@@ -134,13 +134,35 @@ function Inventory({ user }) {
         }
         
         // Specific handling for 403 Forbidden error (private inventory)
-        if (err.response && err.response.status === 403) {
+        // Check all possible ways a 403 error could be represented
+        if (
+          (err.response && err.response.status === 403) ||
+          (err.message && err.message.includes('403')) ||
+          (err.toString().includes('403')) ||
+          (err.name === 'ot' && err.message === 'ot') // Special case seen in logs
+        ) {
+          console.log('403 Forbidden error detected - private inventory');
           setMessage('Your CS2 inventory is private. Please set your Steam inventory visibility to "Public" in your Steam profile privacy settings to allow the marketplace to access your items.');
           setMessageType('error');
+          setLoading(false);
           return;
         }
         
-        const errorMessage = err.response?.data?.message || err.message;
+        // Check for timeout message
+        if (
+          (err.message && err.message.includes('timeout')) ||
+          (err.message && err.message.includes('too long')) ||
+          (err.code === 'ECONNABORTED') ||
+          (err.name === 'ot') // This seems to be the code for operation timeout in the logs
+        ) {
+          console.log('Request timeout detected');
+          setMessage('Request to Steam servers timed out. This often happens if your inventory is private. Please check your Steam profile privacy settings and ensure your inventory is set to "Public".');
+          setMessageType('error');
+          setLoading(false);
+          return;
+        }
+        
+        const errorMessage = err.response?.data?.message || err.message || 'Unknown error occurred';
         setMessage('Error fetching inventory: ' + errorMessage);
         setMessageType('error');
       } finally {
@@ -338,7 +360,7 @@ function Inventory({ user }) {
             setMessage(`Item "${data.data.item.marketname || data.data.item.markethashname}" added to inventory`);
             setMessageType('success');
           }
-        } else if (data.type === 'item_removed' && data.data && data.data.itemId) {
+        } else if (data.type === 'item_removed' && data.data) {
           // Remove a single item from the inventory without a full refresh
           setItems(prevItems => {
             const removedItem = prevItems.find(item => 
@@ -371,37 +393,34 @@ function Inventory({ user }) {
     // Register the event handler
     socketService.on('inventory_update', handleInventoryUpdate);
     
+    // Register a reset callback for emergency resets
+    const handleEmergencyReset = () => {
+      console.warn("Emergency reset triggered in Inventory");
+      if (isMounted) {
+        setLoading(false);
+      }
+    };
+    lightPerformanceMonitor.registerResetCallback(handleEmergencyReset);
+    
+    // Start performance monitoring with a longer timeout
+    const stopMonitoring = lightPerformanceMonitor.startMonitoring({ timeout: 20000 });
+    
+    // Create a heartbeat to reset the timeout regularly during inventory fetching
+    const heartbeatId = setInterval(() => {
+      if (loading) {
+        lightPerformanceMonitor.resetTimeout(20000);
+      }
+    }, 5000);
+    
     // Clean up the event handler when component unmounts
     return () => {
       isMounted = false;
       setLoading(false); // Ensure loading state is reset
       socketService.off('inventory_update', handleInventoryUpdate);
+      clearInterval(heartbeatId);
+      if (stopMonitoring) stopMonitoring();
     };
   }, []);
-
-  // Use lightweight performance monitoring
-  useEffect(() => {
-    // Ultra-light monitor with emergency reset handler
-    const cleanup = lightPerformanceMonitor.startMonitoring({
-      timeout: 10000 // 10 seconds max
-    });
-    
-    // Register emergency reset callback
-    lightPerformanceMonitor.registerResetCallback(() => {
-      console.warn('Emergency reset triggered in Inventory');
-      
-      // Reset critical states
-      setLoading(false);
-      setShowSellModal(false);
-      setSelectedItem(null);
-      
-      // Show user friendly message
-      setMessage('An operation was taking too long and was automatically cancelled.');
-      setMessageType('warning');
-    });
-    
-    return cleanup;
-  }, []); // Only on initial mount
 
   // Reset monitor timeout when showing modal
   useEffect(() => {

@@ -6,6 +6,8 @@
 let resetCallbacks = [];
 let isMonitoring = false;
 let timeoutId = null;
+let emergencyTimeoutTriggered = false;
+let lastResetTime = 0;
 
 /**
  * Register a callback that will be called when the emergency reset is triggered
@@ -25,18 +27,30 @@ export const registerResetCallback = (callback) => {
  * @param {number} options.timeout How long until emergency reset is triggered (ms)
  */
 export const startMonitoring = (options = {}) => {
-  const { timeout = 8000 } = options;
+  const { timeout = 15000 } = options; // Increase default timeout to 15 seconds
 
   // Don't start if already monitoring
   if (isMonitoring) return;
 
+  // Don't restart monitoring too quickly - prevent cascading resets
+  const now = Date.now();
+  if (now - lastResetTime < 3000) {
+    console.log("Skipping monitor start - too soon after last reset");
+    return;
+  }
+
   isMonitoring = true;
+  emergencyTimeoutTriggered = false;
   console.log("Starting lightweight performance monitoring");
 
   // Set a simple timeout
   timeoutId = setTimeout(() => {
-    console.warn("Emergency performance reset triggered");
-    performEmergencyReset();
+    // Only trigger emergency reset if no reset has happened recently
+    if (!emergencyTimeoutTriggered) {
+      emergencyTimeoutTriggered = true;
+      console.warn("Emergency performance reset triggered");
+      performEmergencyReset();
+    }
   }, timeout);
 
   return () => stopMonitoring();
@@ -62,15 +76,19 @@ export const stopMonitoring = () => {
  * Reset the emergency timeout
  * @param {number} newTimeout
  */
-export const resetTimeout = (newTimeout = 8000) => {
+export const resetTimeout = (newTimeout = 15000) => {
+  // Increased timeout here too
   if (timeoutId) {
     clearTimeout(timeoutId);
   }
 
   if (isMonitoring) {
     timeoutId = setTimeout(() => {
-      console.warn("Emergency performance reset triggered after reset");
-      performEmergencyReset();
+      if (!emergencyTimeoutTriggered) {
+        emergencyTimeoutTriggered = true;
+        console.warn("Emergency performance reset triggered after reset");
+        performEmergencyReset();
+      }
     }, newTimeout);
   }
 };
@@ -80,6 +98,9 @@ export const resetTimeout = (newTimeout = 8000) => {
  */
 export const performEmergencyReset = () => {
   console.warn("Performing emergency reset");
+
+  // Record last reset time to prevent cascading resets
+  lastResetTime = Date.now();
 
   // Call all registered callbacks
   for (const callback of resetCallbacks) {
@@ -112,9 +133,11 @@ export const performEmergencyReset = () => {
     console.error("Error in emergency reset:", e);
   }
 
-  // Start monitoring again
+  // Start monitoring again, but with a delay to prevent cascading resets
   stopMonitoring();
-  startMonitoring();
+  setTimeout(() => {
+    startMonitoring();
+  }, 1000);
 };
 
 // Export as default object
