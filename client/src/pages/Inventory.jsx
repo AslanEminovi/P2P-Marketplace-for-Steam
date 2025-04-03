@@ -465,6 +465,42 @@ function Inventory({ user }) {
     };
   });
 
+  // Calculate the total worth of all items in inventory
+  const calculateTotalWorth = () => {
+    if (!items || items.length === 0) return '0.00';
+    
+    const total = items.reduce((sum, item) => {
+      const price = Number(item.pricelatest || item.pricereal || 0);
+      return sum + price;
+    }, 0);
+    
+    return total.toFixed(2);
+  };
+  
+  // Find the most valuable item price
+  const findMostValuableItem = () => {
+    if (!items || items.length === 0) return '0.00';
+    
+    const mostValuable = items.reduce((max, item) => {
+      const price = Number(item.pricelatest || item.pricereal || 0);
+      return price > max ? price : max;
+    }, 0);
+    
+    return mostValuable.toFixed(2);
+  };
+  
+  // Calculate the average worth of items
+  const calculateAverageWorth = () => {
+    if (!items || items.length === 0) return '0.00';
+    
+    const total = items.reduce((sum, item) => {
+      const price = Number(item.pricelatest || item.pricereal || 0);
+      return sum + price;
+    }, 0);
+    
+    return (total / items.length).toFixed(2);
+  };
+
   if (loading) {
     return (
       <div style={{ 
@@ -711,13 +747,36 @@ function Inventory({ user }) {
             WebkitTextFillColor: 'transparent',
             margin: 0
           }}>My Inventory</h1>
-          <p style={{
-            color: 'var(--gaming-text-dim)',
-            margin: 0,
-            fontSize: '0.95rem'
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem'
           }}>
-            {items.length} item{items.length !== 1 ? 's' : ''} available to sell
-          </p>
+            <p style={{
+              color: 'var(--gaming-text-dim)',
+              margin: 0,
+              fontSize: '0.95rem'
+            }}>
+              {items.length} item{items.length !== 1 ? 's' : ''} available to sell
+            </p>
+            {items.length > 0 && (
+              <p style={{
+                color: '#4ade80',
+                margin: 0,
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="1" x2="12" y2="23"></line>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+                Total Worth: ${calculateTotalWorth()}
+              </p>
+            )}
+          </div>
         </div>
 
         <button
@@ -737,12 +796,14 @@ function Inventory({ user }) {
             border: '1px solid rgba(255,255,255,0.1)',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem'
+            gap: '0.5rem',
+            position: 'relative',
+            overflow: 'hidden'
           }}
         >
-          <span>Refresh Inventory</span>
+          <span style={{ position: 'relative', zIndex: 2 }}>Refresh Inventory</span>
           <svg 
-            style={{ width: '20px', height: '20px' }} 
+            style={{ width: '20px', height: '20px', position: 'relative', zIndex: 2 }} 
             fill="none" 
             stroke="currentColor" 
             viewBox="0 0 24 24"
@@ -754,6 +815,17 @@ function Inventory({ user }) {
               d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
             />
           </svg>
+          <div 
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(to right, #3373F2, #00D2FF)',
+              zIndex: 1
+            }} 
+          />
         </button>
       </div>
       
@@ -827,6 +899,111 @@ function Inventory({ user }) {
           </button>
         </div>
       )}
+
+      {/* Inventory Summary */}
+      {items.length > 0 && (
+        <div style={{
+          maxWidth: '1400px',
+          margin: '0 auto 2rem',
+          padding: '1.25rem',
+          borderRadius: '12px',
+          background: 'rgba(21, 28, 43, 0.6)',
+          backdropFilter: 'blur(10px)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+          border: '1px solid rgba(51, 115, 242, 0.15)',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          gap: '1.5rem'
+        }}>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '1rem',
+            background: 'rgba(31, 41, 61, 0.5)',
+            borderRadius: '10px',
+            border: '1px solid rgba(51, 115, 242, 0.1)'
+          }}>
+            <h3 style={{
+              margin: '0 0 0.5rem 0',
+              fontSize: '0.9rem',
+              color: 'var(--gaming-text-dim)'
+            }}>Total Items</h3>
+            <p style={{
+              margin: 0,
+              fontSize: '1.75rem',
+              fontWeight: 'bold',
+              color: 'var(--gaming-text-bright)'
+            }}>{items.length}</p>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '1rem',
+            background: 'rgba(31, 41, 61, 0.5)',
+            borderRadius: '10px',
+            border: '1px solid rgba(51, 115, 242, 0.1)'
+          }}>
+            <h3 style={{
+              margin: '0 0 0.5rem 0',
+              fontSize: '0.9rem',
+              color: 'var(--gaming-text-dim)'
+            }}>Most Valuable</h3>
+            <p style={{
+              margin: 0,
+              fontSize: '1.75rem',
+              fontWeight: 'bold',
+              color: '#4ade80'
+            }}>${findMostValuableItem()}</p>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '1rem',
+            background: 'rgba(31, 41, 61, 0.5)',
+            borderRadius: '10px',
+            border: '1px solid rgba(51, 115, 242, 0.1)'
+          }}>
+            <h3 style={{
+              margin: '0 0 0.5rem 0',
+              fontSize: '0.9rem',
+              color: 'var(--gaming-text-dim)'
+            }}>Average Value</h3>
+            <p style={{
+              margin: 0,
+              fontSize: '1.75rem',
+              fontWeight: 'bold',
+              color: 'var(--gaming-text-bright)'
+            }}>${calculateAverageWorth()}</p>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '1rem',
+            background: 'rgba(31, 41, 61, 0.5)',
+            borderRadius: '10px',
+            border: '1px solid rgba(51, 115, 242, 0.1)'
+          }}>
+            <h3 style={{
+              margin: '0 0 0.5rem 0',
+              fontSize: '0.9rem',
+              color: 'var(--gaming-text-dim)'
+            }}>Total Worth</h3>
+            <p style={{
+              margin: 0,
+              fontSize: '1.75rem',
+              fontWeight: 'bold',
+              color: '#4ade80'
+            }}>${calculateTotalWorth()}</p>
+          </div>
+        </div>
+      )}
       
       <div className="inventory-grid" style={{ 
         display: 'grid',
@@ -864,34 +1041,40 @@ function Inventory({ user }) {
               e.currentTarget.style.borderColor = 'rgba(51, 115, 242, 0.15)';
             }}
           >
-            {/* Gradient overlay based on rarity */}
+            {/* Subtle background gradient */}
             <div style={{ 
               position: 'absolute',
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
-              background: `radial-gradient(circle at top right, ${getRarityColor(item.rarity)}33, transparent 70%)`,
+              background: `radial-gradient(circle at top right, ${getRarityColor(item.rarity)}11, transparent 70%)`,
               pointerEvents: 'none',
               opacity: 0.7,
               transition: 'opacity 0.3s ease'
             }} />
             
             {/* Item image */}
-            <div className="item-image" style={{ position: 'relative', overflow: 'hidden' }}>
+            <div className="item-image" style={{ 
+              position: 'relative', 
+              overflow: 'hidden',
+              width: '100%',
+              height: '180px',
+              backgroundColor: 'rgba(31, 41, 61, 0.8)'
+            }}>
               {item.image && (
                 <img 
                   src={item.image}
                   alt={item.marketname || item.markethashname}
                   style={{ 
                     width: '100%', 
-                    height: 'auto',
-                    aspectRatio: '1/1',
-                    objectFit: 'cover',
+                    height: '100%',
+                    objectFit: 'contain',
                     objectPosition: 'center',
                     display: 'block',
                     borderBottom: `1px solid rgba(51, 115, 242, 0.15)`,
-                    transition: 'transform 0.4s ease'
+                    transition: 'transform 0.4s ease',
+                    padding: '0.75rem'
                   }}
                   onMouseEnter={(e) => {
                     e.target.style.transform = 'scale(1.05)';
@@ -901,25 +1084,6 @@ function Inventory({ user }) {
                   }}
                 />
               )}
-              
-              {/* Rarity indicator */}
-              <div style={{
-                position: 'absolute',
-                top: '10px',
-                right: '10px',
-                background: `linear-gradient(to right, ${getRarityColor(item.rarity)}cc, ${getRarityColor(item.rarity)}77)`,
-                color: '#fff',
-                padding: '0.3rem 0.6rem',
-                borderRadius: '6px',
-                fontSize: '0.7rem',
-                fontWeight: 'bold',
-                backdropFilter: 'blur(4px)',
-                boxShadow: `0 2px 10px ${getRarityColor(item.rarity)}55`,
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)'
-              }}>
-                {item.rarity}
-              </div>
             </div>
             
             {/* Item details */}
@@ -1009,14 +1173,25 @@ function Inventory({ user }) {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '0.5rem'
+                  gap: '0.5rem',
+                  position: 'relative',
+                  overflow: 'hidden'
                 }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'linear-gradient(to right, #4ade80, #22d3ee)',
+                  zIndex: 1
+                }}></div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position: 'relative', zIndex: 2}}>
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <polyline points="19 12 12 19 5 12"></polyline>
                 </svg>
-                <span>Sell Now</span>
+                <span style={{position: 'relative', zIndex: 2}}>Sell Now</span>
               </button>
             </div>
           </div>
@@ -1071,13 +1246,69 @@ function Inventory({ user }) {
               fontSize: '0.95rem',
               fontWeight: '600',
               transition: 'all 0.3s ease',
-              boxShadow: '0 0 20px rgba(0, 210, 255, 0.2)'
+              boxShadow: '0 0 20px rgba(0, 210, 255, 0.2)',
+              position: 'relative',
+              overflow: 'hidden'
             }}
           >
-            Refresh Inventory
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(to right, #3373F2, #00D2FF)',
+              zIndex: 1
+            }}></div>
+            <span style={{position: 'relative', zIndex: 2}}>Refresh Inventory</span>
           </button>
         </div>
       )}
+
+      {/* Loading overlay */}
+      {loading && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          backdropFilter: 'blur(5px)'
+        }}>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '1.5rem'
+          }}>
+            <div className="loading-spinner" style={{
+              width: '60px',
+              height: '60px',
+              border: '5px solid rgba(51, 115, 242, 0.1)',
+              borderRadius: '50%',
+              borderTop: '5px solid #3373F2',
+              animation: 'spin 1s linear infinite'
+            }} />
+            <p style={{ 
+              color: 'var(--gaming-text-bright)',
+              fontSize: '1.1rem',
+              fontWeight: '500'
+            }}>Loading your inventory...</p>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

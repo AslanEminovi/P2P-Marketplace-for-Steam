@@ -343,7 +343,7 @@ const SellModal = ({ item, onClose, onConfirm }) => {
             overflow: 'hidden',
             borderRadius: '10px',
             boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-            background: `linear-gradient(45deg, ${getRarityColor(item.rarity)}33, transparent)`
+            background: 'rgba(31, 41, 61, 0.5)'
           }}>
             <img
               src={item.image}
@@ -353,6 +353,7 @@ const SellModal = ({ item, onClose, onConfirm }) => {
                 height: '100%',
                 objectFit: 'contain',
                 display: 'block',
+                padding: '0.5rem',
                 transition: 'transform 0.3s ease'
               }}
               onMouseEnter={(e) => {
@@ -362,25 +363,6 @@ const SellModal = ({ item, onClose, onConfirm }) => {
                 e.target.style.transform = 'scale(1)';
               }}
             />
-            
-            {/* Rarity indicator */}
-            <div style={{
-              position: 'absolute',
-              top: '5px',
-              right: '5px',
-              background: `linear-gradient(to right, ${getRarityColor(item.rarity)}cc, ${getRarityColor(item.rarity)}77)`,
-              color: '#fff',
-              padding: '0.2rem 0.4rem',
-              borderRadius: '4px',
-              fontSize: '0.6rem',
-              fontWeight: 'bold',
-              backdropFilter: 'blur(4px)',
-              boxShadow: `0 2px 8px ${getRarityColor(item.rarity)}55`,
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)'
-            }}>
-              {item.rarity}
-            </div>
           </div>
           
           <div style={{ flex: 1 }}>
