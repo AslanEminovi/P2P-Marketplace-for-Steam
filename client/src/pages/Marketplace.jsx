@@ -127,7 +127,7 @@ function Marketplace({ user }) {
   useEffect(() => {
     socketService.on('market_update', (update) => {
       if (update.type === 'new_listing' || update.type === 'item_sold') {
-        fetchItems();
+      fetchItems();
         fetchMarketStats();
       }
     });
@@ -218,10 +218,10 @@ function Marketplace({ user }) {
         { withCredentials: true }
       );
 
-      setUserProfile(prev => ({
-        ...prev,
-        tradeUrl
-      }));
+    setUserProfile(prev => ({
+      ...prev,
+      tradeUrl
+    }));
 
       setShowTradeUrlPrompt(false);
 
@@ -311,11 +311,11 @@ function Marketplace({ user }) {
         <div className="empty-state">
           <h3>No items found</h3>
           <p>{user ? "Try adjusting your filters or search terms" : "Sign in to list items for sale"}</p>
-        </div>
-      );
-    }
+      </div>
+    );
+  }
 
-    return (
+  return (
       <div className={itemView === 'grid' ? 'items-grid' : 'items-list'}>
         {filteredItems.map((item) => (
           <ItemCard3D
@@ -351,7 +351,7 @@ function Marketplace({ user }) {
             {i + 1}
           </button>
         ))}
-        <button
+          <button
           className="page-button"
           onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
           disabled={currentPage === totalPages}
@@ -381,13 +381,13 @@ function Marketplace({ user }) {
         
         <div className="filter-tags">
           {filterOptions.map((filter) => (
-            <button
+          <button
               key={filter.id}
               className={`filter-tag ${activeFilters.includes(filter.id) ? 'active' : ''}`}
               onClick={() => handleFilterClick(filter.id)}
             >
               {filter.label}
-            </button>
+          </button>
           ))}
         </div>
 
@@ -403,9 +403,9 @@ function Marketplace({ user }) {
               </option>
             ))}
           </select>
-        </div>
-      </div>
-
+                    </div>
+                  </div>
+                  
       {renderItems()}
       {renderPagination()}
 
