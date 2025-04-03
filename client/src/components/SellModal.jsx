@@ -268,15 +268,15 @@ const SellModal = ({ item, onClose, onConfirm }) => {
       onClick={handleBackdropClick}
     >
       <div style={{
-        backgroundColor: 'rgba(45, 27, 105, 0.9)',
+        backgroundColor: 'rgba(21, 28, 43, 0.95)',
         backdropFilter: 'blur(10px)',
         borderRadius: '16px',
         padding: '2rem',
         maxWidth: '500px',
         width: '90%',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
+        border: '1px solid rgba(51, 115, 242, 0.2)',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-        color: '#e2e8f0',
+        color: 'var(--gaming-text-medium)',
         position: 'relative'
       }}
       onClick={e => e.stopPropagation()} // Prevent clicks from propagating to backdrop
@@ -287,10 +287,10 @@ const SellModal = ({ item, onClose, onConfirm }) => {
             position: 'absolute',
             top: '1rem',
             right: '1rem',
-            backgroundColor: 'transparent',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
             border: 'none',
-            color: '#e2e8f0',
-            fontSize: '1.5rem',
+            color: 'var(--gaming-text-dim)',
+            fontSize: '1.25rem',
             cursor: 'pointer',
             padding: '0.5rem',
             display: 'flex',
@@ -303,9 +303,11 @@ const SellModal = ({ item, onClose, onConfirm }) => {
           }}
           onMouseEnter={(e) => {
             e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+            e.target.style.color = 'var(--gaming-text-bright)';
           }}
           onMouseLeave={(e) => {
-            e.target.style.backgroundColor = 'transparent';
+            e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+            e.target.style.color = 'var(--gaming-text-dim)';
           }}
         >
           ×
@@ -315,99 +317,128 @@ const SellModal = ({ item, onClose, onConfirm }) => {
           fontSize: '1.5rem',
           marginBottom: '1.5rem',
           textAlign: 'center',
-          background: 'linear-gradient(135deg, #4ade80 0%, #22d3ee 100%)',
+          background: 'linear-gradient(to right, #3373F2, #00D2FF)',
           WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent'
+          WebkitTextFillColor: 'transparent',
+          fontWeight: '700'
         }}>
-          Sell Item
+          Sell Your Item
         </h2>
         
         <div style={{
           display: 'flex',
           marginBottom: '1.5rem',
-          backgroundColor: 'rgba(0, 0, 0, 0.2)',
+          backgroundColor: 'rgba(31, 41, 61, 0.7)',
           borderRadius: '12px',
-          padding: '1rem',
+          padding: '1.25rem',
           alignItems: 'center',
-          gap: '1rem'
+          gap: '1.25rem',
+          border: '1px solid rgba(51, 115, 242, 0.1)'
         }}>
           <div style={{
-            flexShrink: 0
+            flexShrink: 0,
+            position: 'relative',
+            width: '100px',
+            height: '100px',
+            overflow: 'hidden',
+            borderRadius: '10px',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+            background: `linear-gradient(45deg, ${getRarityColor(item.rarity)}33, transparent)`
           }}>
             <img
               src={item.image}
               alt={item.marketname || item.markethashname}
               style={{
-                width: '100px',
-                height: 'auto',
-                borderRadius: '8px',
-                border: `2px solid ${getRarityColor(item.rarity)}`,
-                boxShadow: `0 0 20px ${getRarityColor(item.rarity)}33`
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                display: 'block',
+                transition: 'transform 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'scale(1)';
               }}
             />
+            
+            {/* Rarity indicator */}
+            <div style={{
+              position: 'absolute',
+              top: '5px',
+              right: '5px',
+              background: `linear-gradient(to right, ${getRarityColor(item.rarity)}cc, ${getRarityColor(item.rarity)}77)`,
+              color: '#fff',
+              padding: '0.2rem 0.4rem',
+              borderRadius: '4px',
+              fontSize: '0.6rem',
+              fontWeight: 'bold',
+              backdropFilter: 'blur(4px)',
+              boxShadow: `0 2px 8px ${getRarityColor(item.rarity)}55`,
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)'
+            }}>
+              {item.rarity}
+            </div>
           </div>
           
           <div style={{ flex: 1 }}>
             <h3 style={{
               fontSize: '1rem',
               fontWeight: 'bold',
-              marginBottom: '0.5rem',
-              color: '#ffffff'
+              marginBottom: '0.75rem',
+              color: 'var(--gaming-text-bright)',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
             }}>
               {item.marketname || item.markethashname}
             </h3>
             
             <div style={{
-              fontSize: '0.9rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.4rem'
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '0.75rem',
+              fontSize: '0.85rem'
             }}>
-              <p style={{
-                color: getRarityColor(item.rarity),
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                textShadow: `0 0 10px ${getRarityColor(item.rarity)}66`
-              }}>
-                <span style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: getRarityColor(item.rarity),
-                  boxShadow: `0 0 10px ${getRarityColor(item.rarity)}66`,
-                  display: 'inline-block'
-                }}></span>
-                {item.rarity}
-              </p>
-              
+              {/* Wear condition */}
               {(item.wear || (item.marketname || item.markethashname)?.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i)) && (
-                <p style={{
-                  color: getWearColor(translateWear(item.wear)),
+                <div style={{ 
+                  color: 'var(--gaming-text-medium)',
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                  textShadow: `0 0 10px ${getWearColor(translateWear(item.wear))}66`
+                  flexDirection: 'column',
+                  gap: '0.2rem'
                 }}>
-                  <span style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: getWearColor(translateWear(item.wear)),
-                    boxShadow: `0 0 10px ${getWearColor(translateWear(item.wear))}66`,
-                    display: 'inline-block'
-                  }}></span>
-                  {translateWear(item.wear)}
-                </p>
+                  <span style={{ color: 'var(--gaming-text-dim)', fontSize: '0.75rem' }}>Condition</span>
+                  <span style={{ 
+                    color: getWearColor(translateWear(item.wear)),
+                    fontWeight: '500'
+                  }}>
+                    {translateWear(item.wear)}
+                  </span>
+                </div>
               )}
               
-              <p style={{
-                color: '#4ade80',
-                fontWeight: 'bold',
-                textShadow: '0 0 10px rgba(74, 222, 128, 0.3)'
+              {/* Price */}
+              <div style={{ 
+                color: 'var(--gaming-text-medium)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.2rem',
+                justifySelf: 'end',
+                textAlign: 'right'
               }}>
-                ${(item.pricelatest || item.pricereal || '0.00').toFixed(2)} USD
-              </p>
+                <span style={{ color: 'var(--gaming-text-dim)', fontSize: '0.75rem' }}>Market Price</span>
+                <span style={{ 
+                  color: '#4ade80',
+                  fontWeight: 'bold'
+                }}>
+                  ${(item.pricelatest || item.pricereal || '0.00').toFixed(2)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -417,7 +448,8 @@ const SellModal = ({ item, onClose, onConfirm }) => {
         }}>
           <h3 style={{
             fontSize: '1rem',
-            marginBottom: '0.75rem',
+            marginBottom: '1rem',
+            color: 'var(--gaming-text-bright)',
             textAlign: 'center'
           }}>
             Select Currency Rate (USD to GEL)
@@ -435,16 +467,20 @@ const SellModal = ({ item, onClose, onConfirm }) => {
                 onClick={() => handleRateChange(rate)}
                 style={{
                   padding: '0.75rem 1rem',
-                  backgroundColor: currencyRate === rate && !showCustom ? '#4ade80' : 'rgba(255, 255, 255, 0.1)',
+                  background: currencyRate === rate && !showCustom ? 
+                    'linear-gradient(to right, #3373F2, #00D2FF)' : 
+                    'rgba(31, 41, 61, 0.7)',
                   color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
+                  border: '1px solid rgba(51, 115, 242, 0.15)',
+                  borderRadius: '10px',
                   cursor: 'pointer',
                   fontSize: '0.9rem',
                   fontWeight: '600',
                   transition: 'all 0.3s ease',
                   flex: 1,
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  boxShadow: currencyRate === rate && !showCustom ? 
+                    '0 4px 12px rgba(0, 210, 255, 0.2)' : 'none'
                 }}
               >
                 {rate.toFixed(1)}
@@ -455,16 +491,20 @@ const SellModal = ({ item, onClose, onConfirm }) => {
               onClick={handleShowCustom}
               style={{
                 padding: '0.75rem 1rem',
-                backgroundColor: showCustom ? '#4ade80' : 'rgba(255, 255, 255, 0.1)',
+                background: showCustom ? 
+                  'linear-gradient(to right, #3373F2, #00D2FF)' : 
+                  'rgba(31, 41, 61, 0.7)',
                 color: 'white',
-                border: 'none',
-                borderRadius: '12px',
+                border: '1px solid rgba(51, 115, 242, 0.15)',
+                borderRadius: '10px',
                 cursor: 'pointer',
                 fontSize: '0.9rem',
                 fontWeight: '600',
                 transition: 'all 0.3s ease',
                 flex: 1,
-                textAlign: 'center'
+                textAlign: 'center',
+                boxShadow: showCustom ? 
+                  '0 4px 12px rgba(0, 210, 255, 0.2)' : 'none'
               }}
             >
               Custom
@@ -483,10 +523,10 @@ const SellModal = ({ item, onClose, onConfirm }) => {
                 style={{
                   width: '100%',
                   padding: '0.75rem',
-                  backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                  color: 'white',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '12px',
+                  backgroundColor: 'rgba(31, 41, 61, 0.7)',
+                  color: 'var(--gaming-text-bright)',
+                  border: '1px solid rgba(51, 115, 242, 0.15)',
+                  borderRadius: '10px',
                   fontSize: '0.9rem',
                   outline: 'none',
                   transition: 'all 0.3s ease'
@@ -500,13 +540,14 @@ const SellModal = ({ item, onClose, onConfirm }) => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            backgroundColor: 'rgba(0, 0, 0, 0.2)',
-            padding: '1rem',
+            backgroundColor: 'rgba(31, 41, 61, 0.7)',
+            padding: '1.25rem',
             borderRadius: '12px',
-            marginTop: '1rem'
+            marginTop: '1.25rem',
+            border: '1px solid rgba(51, 115, 242, 0.15)'
           }}>
             <div>
-              <p style={{ fontSize: '0.9rem', color: '#9ca3af' }}>Original Price (USD):</p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--gaming-text-dim)' }}>Original Price (USD):</p>
               <p style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#4ade80' }}>
                 ${(item.pricelatest || item.pricereal || '0.00').toFixed(2)}
               </p>
@@ -519,20 +560,20 @@ const SellModal = ({ item, onClose, onConfirm }) => {
             }}></div>
             
             <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: '0.9rem', color: '#9ca3af' }}>Selling Price (GEL):</p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--gaming-text-dim)' }}>Selling Price (GEL):</p>
               <p style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#4ade80' }}>
-                ₾{calculatePrice()} <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>({currencyRate.toFixed(1)}x)</span>
+                ₾{calculatePrice()} <span style={{ fontSize: '0.8rem', color: 'var(--gaming-text-dim)' }}>({currencyRate.toFixed(1)}x)</span>
               </p>
             </div>
           </div>
           
           <div style={{
             fontSize: '0.8rem',
-            color: '#9ca3af',
-            marginTop: '0.5rem',
+            color: 'var(--gaming-text-dim)',
+            marginTop: '0.75rem',
             textAlign: 'center'
           }}>
-            Market rate: 1 USD = {usdToGel} GEL
+            Current market rate: 1 USD = {usdToGel} GEL
           </div>
         </div>
         
@@ -544,21 +585,15 @@ const SellModal = ({ item, onClose, onConfirm }) => {
             onClick={handleClose}
             style={{
               flex: 1,
-              padding: '0.75rem',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '12px',
+              padding: '0.85rem',
+              backgroundColor: 'rgba(31, 41, 61, 0.7)',
+              color: 'var(--gaming-text-bright)',
+              border: '1px solid rgba(51, 115, 242, 0.15)',
+              borderRadius: '10px',
               cursor: 'pointer',
-              fontSize: '0.9rem',
+              fontSize: '0.95rem',
               fontWeight: '600',
               transition: 'all 0.3s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
             }}
             disabled={isSubmitting}
           >
@@ -569,31 +604,19 @@ const SellModal = ({ item, onClose, onConfirm }) => {
             onClick={handleSubmit}
             style={{
               flex: 1,
-              padding: '0.75rem',
-              backgroundColor: isSubmitting ? '#22c55e' : '#4ade80',
+              padding: '0.85rem',
+              background: isSubmitting ? 
+                'linear-gradient(to right, #3373F2, #00D2FF)' : 
+                'linear-gradient(to right, #3373F2, #00D2FF)',
               color: 'white',
               border: 'none',
-              borderRadius: '12px',
+              borderRadius: '10px',
               cursor: isSubmitting ? 'default' : 'pointer',
-              fontSize: '0.9rem',
+              fontSize: '0.95rem',
               fontWeight: '600',
               transition: 'all 0.3s ease',
-              boxShadow: '0 0 20px rgba(74, 222, 128, 0.2)',
+              boxShadow: '0 4px 12px rgba(0, 210, 255, 0.2)',
               opacity: isSubmitting ? 0.8 : 1
-            }}
-            onMouseEnter={(e) => {
-              if (!isSubmitting) {
-                e.target.style.backgroundColor = '#22c55e';
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 0 30px rgba(74, 222, 128, 0.4)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isSubmitting) {
-                e.target.style.backgroundColor = '#4ade80';
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 0 20px rgba(74, 222, 128, 0.2)';
-              }
             }}
             disabled={isSubmitting}
           >

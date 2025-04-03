@@ -4,25 +4,57 @@ import { formatCurrency, API_URL } from '../config/constants';
 import TradePanel from './TradePanel';
 
 const ItemDetails = ({ 
+  item: initialItem = null,
   itemId, 
   isOpen = false, 
   onClose, 
-  onItemUpdated 
+  onItemUpdated,
+  onAction
 }) => {
-  const [item, setItem] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [item, setItem] = useState(initialItem);
+  const [loading, setLoading] = useState(!initialItem);
   const [error, setError] = useState(null);
   const [tradePanelOpen, setTradePanelOpen] = useState(false);
   const [tradeAction, setTradeAction] = useState(null);
   const [isUserOwner, setIsUserOwner] = useState(false);
   
   useEffect(() => {
+    // If item is directly provided, use it
+    if (initialItem) {
+      setItem(initialItem);
+      setLoading(false);
+      checkUserOwnership(initialItem);
+      return;
+    }
+    
+    // Otherwise fetch by ID if available and modal is open
     if (itemId && isOpen) {
       fetchItemDetails();
     }
-  }, [itemId, isOpen]);
+  }, [itemId, isOpen, initialItem]);
+  
+  const checkUserOwnership = async (itemData) => {
+    try {
+      // Check if the current user is the owner
+      const userResponse = await axios.get(`${API_URL}/user/profile`, {
+        withCredentials: true
+      });
+      
+      if (itemData.owner && userResponse.data && 
+          itemData.owner._id === userResponse.data._id) {
+        setIsUserOwner(true);
+      } else {
+        setIsUserOwner(false);
+      }
+    } catch (err) {
+      console.error('Error checking user ownership:', err);
+      setIsUserOwner(false);
+    }
+  };
   
   const fetchItemDetails = async () => {
+    if (!itemId) return;
+    
     setLoading(true);
     setError(null);
     try {
@@ -30,18 +62,7 @@ const ItemDetails = ({
         withCredentials: true
       });
       setItem(response.data);
-      
-      // Check if the current user is the owner
-      const userResponse = await axios.get(`${API_URL}/user/profile`, {
-        withCredentials: true
-      });
-      
-      if (response.data.owner && userResponse.data && 
-          response.data.owner._id === userResponse.data._id) {
-        setIsUserOwner(true);
-      } else {
-        setIsUserOwner(false);
-      }
+      checkUserOwnership(response.data);
     } catch (err) {
       console.error('Error fetching item details:', err);
       setError(err.response?.data?.error || 'Failed to load item details');
@@ -51,13 +72,21 @@ const ItemDetails = ({
   };
   
   const handleBuyNow = () => {
-    setTradeAction('buy');
-    setTradePanelOpen(true);
+    if (onAction) {
+      onAction('buy');
+    } else {
+      setTradeAction('buy');
+      setTradePanelOpen(true);
+    }
   };
   
   const handleMakeOffer = () => {
-    setTradeAction('offer');
-    setTradePanelOpen(true);
+    if (onAction) {
+      onAction('offer');
+    } else {
+      setTradeAction('offer');
+      setTradePanelOpen(true);
+    }
   };
 
   const handleTradeComplete = (data) => {

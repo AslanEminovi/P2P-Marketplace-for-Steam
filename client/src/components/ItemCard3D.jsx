@@ -496,7 +496,11 @@ const ItemCard3D = ({
         >
           <span
             style={{
-              color: '#e2e8f0',
+              backgroundColor: 'rgba(31, 41, 61, 0.8)',
+              color: '#ffffff',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontWeight: '500',
               fontSize: '0.85rem',
               fontWeight: '500',
               display: 'flex',
@@ -505,7 +509,7 @@ const ItemCard3D = ({
               gap: '6px'
             }}
           >
-            {t('home.featured.viewItem')}
+            View Item
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14M12 5l7 7-7 7"/>
             </svg>

@@ -672,10 +672,11 @@ function Inventory({ user }) {
   }
 
   return (
-    <div style={{ 
-      background: 'linear-gradient(45deg, #581845 0%, #900C3F 100%)',
+    <div className="inventory-container" style={{ 
+      background: 'var(--gaming-bg-dark)',
       minHeight: '100vh',
-      padding: '2rem'
+      padding: '2rem',
+      color: 'var(--gaming-text-medium)'
     }}>
       {showSellModal && selectedItem && (
         <SellModal 
@@ -685,47 +686,63 @@ function Inventory({ user }) {
         />
       )}
 
-      <div style={{
-        display: 'flex',
-        justifyContent: 'flex-end',
+      <div className="inventory-header" style={{
         maxWidth: '1400px',
-        margin: '0 auto',
-        marginBottom: '1.5rem'
+        margin: '0 auto 2rem',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '1.5rem',
+        borderRadius: '16px',
+        background: 'rgba(21, 28, 43, 0.6)',
+        backdropFilter: 'blur(10px)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+        border: '1px solid rgba(51, 115, 242, 0.2)'
       }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.5rem'
+        }}>
+          <h1 style={{
+            fontSize: '1.8rem',
+            background: 'linear-gradient(to right, #4ade80, #22d3ee)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            margin: 0
+          }}>My Inventory</h1>
+          <p style={{
+            color: 'var(--gaming-text-dim)',
+            margin: 0,
+            fontSize: '0.95rem'
+          }}>
+            {items.length} item{items.length !== 1 ? 's' : ''} available to sell
+          </p>
+        </div>
+
         <button
           onClick={fetchInventory}
+          className="refresh-button"
           style={{
             padding: '0.75rem 1.5rem',
-            backgroundColor: '#4ade80',
+            background: 'linear-gradient(to right, #3373F2, #00D2FF)',
             color: 'white',
             border: 'none',
             borderRadius: '12px',
             cursor: 'pointer',
-            fontSize: '0.9rem',
+            fontSize: '0.95rem',
             fontWeight: '600',
             transition: 'all 0.3s ease',
-            boxShadow: '0 0 20px rgba(74, 222, 128, 0.2)',
+            boxShadow: '0 0 20px rgba(0, 210, 255, 0.2)',
             border: '1px solid rgba(255,255,255,0.1)',
-            position: 'relative',
-            overflow: 'hidden',
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem'
           }}
-          onMouseEnter={(e) => {
-            e.target.style.backgroundColor = '#22c55e';
-            e.target.style.transform = 'translateY(-2px)';
-            e.target.style.boxShadow = '0 0 30px rgba(74, 222, 128, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.backgroundColor = '#4ade80';
-            e.target.style.transform = 'translateY(0)';
-            e.target.style.boxShadow = '0 0 20px rgba(74, 222, 128, 0.2)';
-          }}
         >
-          <span style={{ position: 'relative', zIndex: 1 }}>Refresh Inventory</span>
+          <span>Refresh Inventory</span>
           <svg 
-            style={{ width: '20px', height: '20px', position: 'relative', zIndex: 1 }} 
+            style={{ width: '20px', height: '20px' }} 
             fill="none" 
             stroke="currentColor" 
             viewBox="0 0 24 24"
@@ -737,59 +754,50 @@ function Inventory({ user }) {
               d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
             />
           </svg>
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(45deg, transparent 0%, rgba(255,255,255,0.1) 100%)',
-            pointerEvents: 'none'
-          }} />
         </button>
       </div>
       
       {/* Display message as notification without preventing inventory display */}
       {message && (
-        <div style={{ 
+        <div className="inventory-notification" style={{ 
           textAlign: 'center',
           color: messageType === 'success' ? '#4ade80' : messageType === 'error' ? '#ef4444' : '#93c5fd',
-          margin: '1rem 0',
-          padding: '1rem',
-          borderRadius: '0.5rem',
-          backgroundColor: 'rgba(45, 27, 105, 0.5)',
+          margin: '1rem auto 2rem',
+          padding: '1rem 1.5rem',
+          borderRadius: '12px',
+          backgroundColor: 'rgba(21, 28, 43, 0.7)',
           backdropFilter: 'blur(10px)',
           border: `1px solid ${
             messageType === 'success' ? 'rgba(74, 222, 128, 0.3)' : 
             messageType === 'error' ? 'rgba(239, 68, 68, 0.3)' : 
             'rgba(147, 197, 253, 0.3)'
           }`,
-          maxWidth: '600px',
-          margin: '1rem auto',
+          maxWidth: '800px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '0.5rem'
+          gap: '0.75rem',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)'
         }}>
           {messageType === 'success' ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
               <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
           ) : messageType === 'error' ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="8" x2="12" y2="12"></line>
               <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
           ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="8" x2="12" y2="12"></line>
               <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
           )}
-          {message}
+          <span style={{ fontSize: '0.95rem' }}>{message}</span>
           
           {/* Add dismiss button for messages */}
           <button 
@@ -803,15 +811,16 @@ function Inventory({ user }) {
               color: messageType === 'success' ? '#4ade80' : 
                     messageType === 'error' ? '#ef4444' : '#93c5fd',
               cursor: 'pointer',
-              marginLeft: '10px',
+              marginLeft: 'auto',
               padding: '4px',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
             }}
+            aria-label="Dismiss message"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
@@ -819,172 +828,256 @@ function Inventory({ user }) {
         </div>
       )}
       
-      <div style={{ 
+      <div className="inventory-grid" style={{ 
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
         gap: '1.5rem',
-        padding: '1rem',
         maxWidth: '1400px',
         margin: '0 auto'
       }}>
         {items.map((item, idx) => (
-          <div key={idx} style={{ 
-            position: 'relative',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '16px',
-            padding: '1rem',
-            backgroundColor: 'rgba(45, 27, 105, 0.7)',
-            backdropFilter: 'blur(10px)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem',
-            transition: 'all 0.3s ease',
-            cursor: 'pointer',
-            overflow: 'hidden'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-8px)';
-            e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.3)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.2)';
-          }}>
+          <div 
+            key={idx} 
+            className="item-card"
+            style={{ 
+              position: 'relative',
+              border: '1px solid rgba(51, 115, 242, 0.15)',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              backgroundColor: 'rgba(31, 43, 69, 0.6)',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+              display: 'flex',
+              flexDirection: 'column',
+              transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+              cursor: 'pointer',
+              transform: 'translateY(0)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
+              e.currentTarget.style.boxShadow = '0 16px 40px rgba(0, 0, 0, 0.3), 0 0 15px rgba(51, 115, 242, 0.15)';
+              e.currentTarget.style.borderColor = 'rgba(51, 115, 242, 0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0) scale(1)';
+              e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.15)';
+              e.currentTarget.style.borderColor = 'rgba(51, 115, 242, 0.15)';
+            }}
+          >
+            {/* Gradient overlay based on rarity */}
             <div style={{ 
               position: 'absolute',
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
-              background: `radial-gradient(circle at top right, ${getRarityColor(item.rarity)}22, transparent 70%)`,
-              pointerEvents: 'none'
+              background: `radial-gradient(circle at top right, ${getRarityColor(item.rarity)}33, transparent 70%)`,
+              pointerEvents: 'none',
+              opacity: 0.7,
+              transition: 'opacity 0.3s ease'
             }} />
-            <div style={{ position: 'relative' }}>
+            
+            {/* Item image */}
+            <div className="item-image" style={{ position: 'relative', overflow: 'hidden' }}>
               {item.image && (
                 <img 
                   src={item.image}
                   alt={item.marketname || item.markethashname}
                   style={{ 
                     width: '100%', 
-                    height: 'auto', 
-                    borderRadius: '12px',
-                    border: `2px solid ${getRarityColor(item.rarity)}`,
-                    boxShadow: `0 0 20px ${getRarityColor(item.rarity)}33`
+                    height: 'auto',
+                    aspectRatio: '1/1',
+                    objectFit: 'cover',
+                    objectPosition: 'center',
+                    display: 'block',
+                    borderBottom: `1px solid rgba(51, 115, 242, 0.15)`,
+                    transition: 'transform 0.4s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'scale(1)';
                   }}
                 />
               )}
-            </div>
-            <div style={{ flex: 1, position: 'relative', zIndex: 1 }}>
-              <p style={{ 
-                fontSize: '0.9rem', 
-                fontWeight: 'bold', 
-                color: '#e2e8f0',
-                marginBottom: '0.5rem',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                textShadow: '0 2px 4px rgba(0,0,0,0.2)'
-              }}>
-                {item.marketname || item.markethashname}
-              </p>
-              <div style={{ 
-                fontSize: '0.8rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.4rem',
-                background: 'rgba(0,0,0,0.2)',
-                padding: '0.5rem',
-                borderRadius: '8px'
-              }}>
-                <p style={{ 
-                  color: getRarityColor(item.rarity),
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                  textShadow: `0 0 10px ${getRarityColor(item.rarity)}66`
-                }}>
-                  <span style={{ 
-                    width: '8px', 
-                    height: '8px', 
-                    borderRadius: '50%', 
-                    backgroundColor: getRarityColor(item.rarity),
-                    boxShadow: `0 0 10px ${getRarityColor(item.rarity)}66`,
-                    display: 'inline-block'
-                  }}></span>
-                  {item.rarity}
-                </p>
-                {(item.wear || (item.marketname || item.markethashname)?.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i)) && (
-                  <p style={{ 
-                    color: getWearColor(translateWear(item.wear)),
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    textShadow: `0 0 10px ${getWearColor(translateWear(item.wear))}66`
-                  }}>
-                    <span style={{ 
-                      width: '8px', 
-                      height: '8px', 
-                      borderRadius: '50%', 
-                      backgroundColor: getWearColor(translateWear(item.wear)),
-                      boxShadow: `0 0 10px ${getWearColor(translateWear(item.wear))}66`,
-                      display: 'inline-block'
-                    }}></span>
-                    {translateWear(item.wear)}
-                  </p>
-                )}
-                <p style={{ 
-                  color: '#4ade80',
-                  fontWeight: 'bold',
-                  textShadow: '0 0 10px rgba(74, 222, 128, 0.3)'
-                }}>
-                  ${(item.pricelatest || item.pricereal || '0.00').toFixed(2)}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => handleSellClick(item)}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                backgroundColor: '#4ade80',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                fontSize: '0.9rem',
-                fontWeight: '600',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 0 20px rgba(74, 222, 128, 0.2)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                position: 'relative',
-                overflow: 'hidden'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#22c55e';
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 0 30px rgba(74, 222, 128, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = '#4ade80';
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 0 20px rgba(74, 222, 128, 0.2)';
-              }}
-            >
-              <span style={{ position: 'relative', zIndex: 1 }}>Sell Now</span>
+              
+              {/* Rarity indicator */}
               <div style={{
                 position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'linear-gradient(45deg, transparent 0%, rgba(255,255,255,0.1) 100%)',
-                pointerEvents: 'none'
-              }} />
-            </button>
+                top: '10px',
+                right: '10px',
+                background: `linear-gradient(to right, ${getRarityColor(item.rarity)}cc, ${getRarityColor(item.rarity)}77)`,
+                color: '#fff',
+                padding: '0.3rem 0.6rem',
+                borderRadius: '6px',
+                fontSize: '0.7rem',
+                fontWeight: 'bold',
+                backdropFilter: 'blur(4px)',
+                boxShadow: `0 2px 10px ${getRarityColor(item.rarity)}55`,
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)'
+              }}>
+                {item.rarity}
+              </div>
+            </div>
+            
+            {/* Item details */}
+            <div className="item-details" style={{ 
+              padding: '1rem', 
+              display: 'flex', 
+              flexDirection: 'column',
+              gap: '0.75rem',
+              flex: 1
+            }}>
+              <h3 style={{ 
+                fontSize: '0.9rem', 
+                fontWeight: 'bold', 
+                color: 'var(--gaming-text-bright)',
+                margin: 0,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {item.marketname || item.markethashname}
+              </h3>
+              
+              {/* Item info grid */}
+              <div style={{ 
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '0.5rem',
+                fontSize: '0.8rem'
+              }}>
+                {/* Wear condition */}
+                {(item.wear || (item.marketname || item.markethashname)?.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i)) && (
+                  <div style={{ 
+                    color: 'var(--gaming-text-medium)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.25rem'
+                  }}>
+                    <span style={{ color: 'var(--gaming-text-dim)', fontSize: '0.75rem' }}>Condition</span>
+                    <span style={{ 
+                      color: getWearColor(translateWear(item.wear)),
+                      fontWeight: '500'
+                    }}>
+                      {translateWear(item.wear)}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Price */}
+                <div style={{ 
+                  color: 'var(--gaming-text-medium)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.25rem',
+                  justifySelf: 'end',
+                  textAlign: 'right'
+                }}>
+                  <span style={{ color: 'var(--gaming-text-dim)', fontSize: '0.75rem' }}>Market Price</span>
+                  <span style={{ 
+                    color: '#4ade80',
+                    fontWeight: 'bold',
+                    fontSize: '0.95rem'
+                  }}>
+                    ${(item.pricelatest || item.pricereal || '0.00').toFixed(2)}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Sell button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSellClick(item);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: 'linear-gradient(to right, #4ade80, #22d3ee)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease',
+                  marginTop: 'auto',
+                  boxShadow: '0 4px 10px rgba(74, 222, 128, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <polyline points="19 12 12 19 5 12"></polyline>
+                </svg>
+                <span>Sell Now</span>
+              </button>
+            </div>
           </div>
         ))}
       </div>
+      
+      {/* Empty state */}
+      {items.length === 0 && !loading && !messageType.includes('error') && (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '3rem',
+          textAlign: 'center',
+          background: 'rgba(21, 28, 43, 0.6)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '16px',
+          maxWidth: '800px',
+          margin: '2rem auto',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+          border: '1px solid rgba(51, 115, 242, 0.15)'
+        }}>
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#8596AD" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="8" x2="8" y2="8"></line>
+            <line x1="16" y1="12" x2="8" y2="12"></line>
+            <line x1="16" y1="16" x2="8" y2="16"></line>
+          </svg>
+          <h3 style={{
+            fontSize: '1.2rem',
+            marginTop: '1.5rem',
+            marginBottom: '0.5rem',
+            color: 'var(--gaming-text-bright)'
+          }}>Your inventory is empty</h3>
+          <p style={{
+            color: 'var(--gaming-text-dim)',
+            maxWidth: '400px',
+            marginBottom: '1.5rem'
+          }}>
+            Make sure your Steam inventory is set to public and reload to see your CS2 items here.
+          </p>
+          <button
+            onClick={fetchInventory}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: 'linear-gradient(to right, #3373F2, #00D2FF)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              fontSize: '0.95rem',
+              fontWeight: '600',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 0 20px rgba(0, 210, 255, 0.2)'
+            }}
+          >
+            Refresh Inventory
+          </button>
+        </div>
+      )}
     </div>
   );
 }
