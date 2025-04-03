@@ -110,7 +110,13 @@ function App() {
             // especially for Steam-related authentication
             config.params.auth_token = token;
 
-            console.log("Added Steam auth token to request:", config.url);
+            // Also add token as Authorization header for better compatibility
+            if (!config.headers) {
+              config.headers = {};
+            }
+            config.headers.Authorization = `Bearer ${token}`;
+
+            console.log("Added auth token to request:", config.url);
           } else {
             console.log("No auth token available for request:", config.url);
           }
@@ -356,6 +362,17 @@ function App() {
 
   // Check authentication status on mount and when URL has auth token
   useEffect(() => {
+    // Check for auth token in URL (Steam redirects with token in URL)
+    const urlParams = new URLSearchParams(window.location.search);
+    const authToken = urlParams.get('auth_token');
+
+    if (authToken) {
+      // Immediately remove token from URL to prevent bookmarking with token
+      window.history.replaceState({}, document.title, window.location.pathname);
+      console.log("Found auth token in URL, storing it and checking status...");
+      localStorage.setItem('auth_token', authToken);
+    }
+
     checkAuthStatus();
   }, []);
 
@@ -370,116 +387,69 @@ function App() {
         setLoading(false);
       }, 5000);
 
-      try {
-        // Check for auth token in URL (Steam redirects with token in URL)
-        const urlParams = new URLSearchParams(window.location.search);
-        const authToken = urlParams.get('auth_token');
-
-        if (authToken) {
-          console.log("Found auth token in URL, storing it...");
-          // Store token immediately - Steam auth model typically trusts the redirect
-          localStorage.setItem('auth_token', authToken);
-
-          // Remove token from URL to prevent bookmarking with token
-          window.history.replaceState({}, document.title, window.location.pathname);
-
-          try {
-            // Fetch user details with the token
-            console.log("Fetching user details with token...");
-            const userResponse = await axios.get(`${API_URL}/auth/user`, {
-              withCredentials: true,
-              params: {
-                auth_token: authToken
-              },
-              timeout: 5000 // Shorter timeout
-            });
-
-            console.log("User details response:", userResponse.data);
-
-            if (userResponse.data && userResponse.data.authenticated) {
-              console.log("User authenticated:", userResponse.data.user);
-
-              // Set user state
-              setUser(userResponse.data.user);
-
-              // Show success notification
-              if (window.showNotification) {
-                window.showNotification(
-                  'Sign In',
-                  'Success',
-                  'SUCCESS'
-                );
-              }
-
-              clearTimeout(authCheckTimeout);
-              setLoading(false);
-              return;
-            } else {
-              console.warn("Authentication check failed, response:", userResponse.data);
-              localStorage.removeItem('auth_token');
-            }
-          } catch (verifyError) {
-            console.error("User details request failed:", verifyError);
-
-            // If network error, keep the token for retry
-            if (verifyError.code === 'ECONNABORTED' || !verifyError.response) {
-              console.log("Network error, will retry on next load");
-            } else {
-              // If server rejected the token, remove it
-              localStorage.removeItem('auth_token');
-            }
-          }
-        }
-
-        // Check if we have a token in localStorage
-        const storedToken = localStorage.getItem('auth_token');
-        if (storedToken) {
-          console.log("Found stored token, fetching user details...");
-
-          try {
-            // Use existing token to get user details
-            const userResponse = await axios.get(`${API_URL}/auth/user`, {
-              withCredentials: true,
-              params: {
-                auth_token: storedToken
-              },
-              timeout: 5000 // Shorter timeout
-            });
-
-            console.log("Stored token user check response:", userResponse.data);
-
-            if (userResponse.data && userResponse.data.authenticated) {
-              console.log("User authenticated with stored token:", userResponse.data.user);
-              setUser(userResponse.data.user);
-              clearTimeout(authCheckTimeout);
-              setLoading(false);
-              return;
-            } else {
-              console.log("Stored token is invalid, removing...");
-              localStorage.removeItem('auth_token');
-            }
-          } catch (error) {
-            console.error("Stored token check failed:", error);
-
-            // Keep token on network errors, remove on auth rejection
-            if (error.response && error.response.status === 401) {
-              console.log("Server rejected stored token, removing");
-              localStorage.removeItem('auth_token');
-            }
-          }
-        }
-
-        // If we reach here, no valid token was found
-        console.log("No valid token found, user is not authenticated");
+      // Get the token from localStorage
+      const token = localStorage.getItem('auth_token');
+      
+      if (!token) {
+        console.log("No auth token found, user is not authenticated");
         setUser(null);
         clearTimeout(authCheckTimeout);
         setLoading(false);
-      } catch (innerErr) {
-        console.error('Inner auth check error:', innerErr);
-        setUser(null);
-        clearTimeout(authCheckTimeout);
-        setLoading(false);
+        return;
       }
+
+      console.log("Found token, fetching user details...");
+      
+      try {
+        // Use direct axios request with token in both header and params for maximum compatibility
+        const userResponse = await axios.get(`${API_URL}/auth/user`, {
+          withCredentials: true,
+          params: { auth_token: token },
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 8000 // Give it a bit more time
+        });
+
+        console.log("User details response:", userResponse.data);
+
+        if (userResponse.data && userResponse.data.authenticated && userResponse.data.user) {
+          console.log("User authenticated:", userResponse.data.user);
+          
+          // Set user state
+          setUser(userResponse.data.user);
+          
+          // Show success notification
+          if (window.showNotification) {
+            window.showNotification(
+              'Authentication',
+              'Successfully signed in',
+              'SUCCESS'
+            );
+          }
+          
+          clearTimeout(authCheckTimeout);
+          setLoading(false);
+          return;
+        } else {
+          console.warn("Authentication check failed, response:", userResponse.data);
+          localStorage.removeItem('auth_token');
+          setUser(null);
+        }
+      } catch (error) {
+        console.error("User details request failed:", error);
+        
+        // Only remove token if it's an auth error, not a network error
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+          console.log("Invalid token, removing it");
+          localStorage.removeItem('auth_token');
+        } else {
+          console.log("Network or server error, preserving token for retry");
+        }
+        
+        setUser(null);
+      }
+      
+      clearTimeout(authCheckTimeout);
+      setLoading(false);
     } catch (err) {
       console.error('Auth check error:', err);
       setUser(null);
