@@ -133,6 +133,13 @@ function Inventory({ user }) {
           return attemptFetch();
         }
         
+        // Specific handling for 403 Forbidden error (private inventory)
+        if (err.response && err.response.status === 403) {
+          setMessage('Your CS2 inventory is private. Please set your Steam inventory visibility to "Public" in your Steam profile privacy settings to allow the marketplace to access your items.');
+          setMessageType('error');
+          return;
+        }
+        
         const errorMessage = err.response?.data?.message || err.message;
         setMessage('Error fetching inventory: ' + errorMessage);
         setMessageType('error');
@@ -494,6 +501,9 @@ function Inventory({ user }) {
   }
 
   if (messageType === 'error' && !message.includes('successfully')) {
+    // Check if this is a private inventory error
+    const isPrivateInventoryError = message.includes('inventory is private');
+    
     return (
       <div style={{ 
         color: '#e2e8f0',
@@ -515,7 +525,7 @@ function Inventory({ user }) {
           }}>
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" 
               style={{ margin: '0 auto' }}
-              stroke="#f87171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              stroke={isPrivateInventoryError ? "#fbbf24" : "#f87171"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="8" x2="12" y2="12"></line>
               <line x1="12" y1="16" x2="12.01" y2="16"></line>
@@ -527,7 +537,7 @@ function Inventory({ user }) {
             marginBottom: '1rem',
             color: '#f1f1f1'
           }}>
-            Unable to Load Inventory
+            {isPrivateInventoryError ? 'Private Inventory Detected' : 'Unable to Load Inventory'}
           </h2>
           
           <p style={{
@@ -540,11 +550,39 @@ function Inventory({ user }) {
             {message}
           </p>
           
+          {isPrivateInventoryError && (
+            <div style={{
+              padding: '1rem',
+              backgroundColor: 'rgba(251, 191, 36, 0.1)',
+              border: '1px solid rgba(251, 191, 36, 0.3)',
+              borderRadius: '0.5rem',
+              marginBottom: '1.5rem',
+              maxWidth: '600px',
+              margin: '0 auto 1.5rem'
+            }}>
+              <p style={{ color: '#fcd34d', marginBottom: '0.5rem' }}>
+                <strong>How to fix:</strong>
+              </p>
+              <ol style={{ 
+                textAlign: 'left', 
+                color: '#e2e8f0', 
+                paddingLeft: '1.5rem',
+                margin: '0 0 0.5rem 0' 
+              }}>
+                <li>Go to your Steam Profile</li>
+                <li>Click "Edit Profile" and select "Privacy Settings"</li>
+                <li>Set "Inventory" to "Public"</li>
+                <li>Return to this page and click "Try Again"</li>
+              </ol>
+            </div>
+          )}
+          
           <div style={{
             display: 'flex',
             justifyContent: 'center',
             gap: '1rem'
           }}>
+            
             <button
               onClick={fetchInventory}
               style={{
@@ -567,9 +605,9 @@ function Inventory({ user }) {
               target="_blank"
               rel="noopener noreferrer"
               style={{
-                background: 'transparent',
-                color: '#93c5fd',
-                border: '1px solid #3b82f6',
+                background: isPrivateInventoryError ? 'linear-gradient(to right, #f59e0b, #d97706)' : 'transparent',
+                color: isPrivateInventoryError ? 'white' : '#93c5fd',
+                border: isPrivateInventoryError ? 'none' : '1px solid #3b82f6',
                 padding: '0.75rem 1.5rem',
                 borderRadius: '0.5rem',
                 cursor: 'pointer',
@@ -577,7 +615,8 @@ function Inventory({ user }) {
                 textDecoration: 'none',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.5rem'
+                gap: '0.5rem',
+                boxShadow: isPrivateInventoryError ? '0 4px 6px rgba(0,0,0,0.1)' : 'none'
               }}
             >
               Steam Privacy Settings
