@@ -35,18 +35,27 @@ const Navbar = ({ user, onLogout }) => {
     const handleScroll = () => {
       const currentScrollPos = window.scrollY;
       
-      // Determine if we should show or hide the navbar based on scroll direction
-      if (currentScrollPos > 100) {
-        setScrolled(true);
-        
-        // Hide when scrolling down, show when scrolling up
-        if (currentScrollPos > scrollPosition && !hidden) {
-          setHidden(true);
-        } else if (currentScrollPos < scrollPosition && hidden) {
-          setHidden(false);
-        }
-      } else {
+      // Always show navbar when at top of page
+      if (currentScrollPos < 50) {
         setScrolled(false);
+        setHidden(false);
+        return;
+      }
+      
+      // Only change state when necessary to prevent unnecessary re-renders
+      if (currentScrollPos > 50 && !scrolled) {
+        setScrolled(true);
+      }
+      
+      // Use a threshold to prevent small scroll movements from triggering hide/show
+      const scrollDifference = currentScrollPos - scrollPosition;
+      
+      // Hide when scrolling down (positive difference)
+      if (scrollDifference > 10 && !hidden) {
+        setHidden(true);
+      } 
+      // Show when scrolling up (negative difference)
+      else if (scrollDifference < -10 && hidden) {
         setHidden(false);
       }
       
@@ -59,7 +68,7 @@ const Navbar = ({ user, onLogout }) => {
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [scrollPosition, hidden]);
+  }, [scrollPosition, hidden, scrolled]);
   
   // Handle dropdown visibility and outside clicks
   useEffect(() => {
