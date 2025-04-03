@@ -985,3 +985,18 @@
   width: 24px;
   height: 24px;
 }
+
+.menu-item:hover {
+  color: transparent;
+  background: linear-gradient(135deg, #2ecc71, #1abc9c, #3498db);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.account-username {
+  font-weight: 600;
+  color: transparent;
+  background: linear-gradient(135deg, #4ade80, #22d3ee);
+  -webkit-background-clip: text;
+  background-clip: text;
+}

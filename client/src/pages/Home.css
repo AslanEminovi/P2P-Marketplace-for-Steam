@@ -1540,10 +1540,10 @@
 }
 
 .count-animation.updating {
+  color: var(--gaming-accent-cyan);
   background: var(--gaming-accent-cyan);
   -webkit-background-clip: text;
   background-clip: text;
-  -webkit-text-fill-color: transparent;
   transform: scale(1.1);
 }
 
