@@ -9,6 +9,16 @@
   align-items: center;
   justify-content: center;
   z-index: 9999;
+  overflow: hidden;
+}
+
+/* Closing animation for wrapper */
+.item-details-wrapper.closing .item-details-container {
+  animation: fadeOutDown 0.3s forwards;
+}
+
+.item-details-wrapper.closing .item-details-overlay {
+  animation: fadeOut 0.3s forwards;
 }
 
 /* Dark overlay behind the modal */
@@ -37,6 +47,30 @@
   z-index: 10001;
   overflow: auto;
   border: 1px solid rgba(255, 255, 255, 0.07);
+  /* Enhanced border glow */
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 0 20px rgba(124, 58, 237, 0.1);
+}
+
+/* Custom scrollbar for the modal */
+.item-details-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.item-details-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.item-details-container::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.3);
+  border-radius: 10px;
+}
+
+.item-details-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 58, 237, 0.5);
 }
 
 /* Close button */
@@ -62,6 +96,7 @@
 .item-details-close-btn:hover {
   background: rgba(255, 255, 255, 0.2);
   transform: rotate(90deg);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
 }
 
 /* Content area */
@@ -86,10 +121,13 @@
   justify-content: center;
   position: relative;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: 16px;
   background: rgba(15, 23, 42, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  /* Enhanced glass effect */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .item-img {
@@ -122,6 +160,7 @@
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 20px rgba(124, 58, 237, 0.2);
 }
 
 .item-subtitle {
@@ -141,6 +180,16 @@
   font-weight: 700;
   color: white;
   margin-bottom: 1rem;
+  transition: all 0.3s ease;
+  /* Price tag glow */
+  box-shadow: 0 0 15px rgba(79, 70, 229, 0.1);
+}
+
+.item-price-tag:hover {
+  background: rgba(79, 70, 229, 0.15);
+  border: 1px solid rgba(79, 70, 229, 0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(79, 70, 229, 0.2);
 }
 
 .item-meta {
@@ -153,14 +202,24 @@
 .meta-item {
   background: rgba(255, 255, 255, 0.05);
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.meta-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
 }
 
 .meta-label {
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.5);
   margin-bottom: 0.5rem;
+  font-weight: 500;
 }
 
 .meta-value {
@@ -173,9 +232,17 @@
 .item-owner {
   background: rgba(255, 255, 255, 0.05);
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   margin-bottom: 1.5rem;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.item-owner:hover {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
 }
 
 .owner-info {
@@ -191,6 +258,8 @@
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.1);
 }
 
 .owner-avatar img {
@@ -243,40 +312,79 @@
   border: none;
   outline: none;
   position: relative;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
   transition: all 0.3s ease;
+  overflow: hidden;
 }
 
-/* Buy Now Button */
+/* Button hover effect */
+.action-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.7s ease;
+}
+
+.action-button:hover::before {
+  left: 100%;
+}
+
+/* Buy Now Button with Glow Effect */
 .action-button-buy {
   background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
   color: white;
+  transition: all 0.3s ease;
+}
+
+.action-button-buy.glow-effect {
+  box-shadow: 
+    0 8px 16px rgba(0, 0, 0, 0.3),
+    0 0 10px rgba(124, 58, 237, 0.2),
+    0 0 20px rgba(124, 58, 237, 0.1);
+  animation: softPulse 3s infinite;
 }
 
 .action-button-buy:hover {
-  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.5);
-  transform: translateY(-2px) scale(1.02);
+  box-shadow: 
+    0 15px 30px rgba(124, 58, 237, 0.3),
+    0 0 20px rgba(124, 58, 237, 0.4),
+    0 0 40px rgba(124, 58, 237, 0.2);
+  transform: translateY(-3px) scale(1.02);
 }
 
 .action-button-buy:active {
   transform: translateY(1px);
+  box-shadow: 0 5px 15px rgba(124, 58, 237, 0.3);
 }
 
 /* Make Offer Button */
 .action-button-offer {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 }
 
 .action-button-offer:hover {
-  background: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-  transform: translateY(-2px) scale(1.02);
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+  transform: translateY(-3px) scale(1.02);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .action-button-offer:active {
   transform: translateY(1px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
 /* Cancel Button */
@@ -288,8 +396,14 @@
 
 .action-button-cancel:hover {
   background: rgba(239, 68, 68, 0.15);
-  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.15);
-  transform: translateY(-2px);
+  box-shadow: 0 15px 30px rgba(239, 68, 68, 0.15);
+  transform: translateY(-3px);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.action-button-cancel:active {
+  transform: translateY(1px);
+  box-shadow: 0 5px 15px rgba(239, 68, 68, 0.15);
 }
 
 /* Description section */
@@ -297,6 +411,11 @@
   margin-top: 2rem;
   padding-top: 2rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.3);
+  padding: 1.5rem;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .description-title {
@@ -304,6 +423,10 @@
   font-weight: 600;
   margin-bottom: 1rem;
   color: white;
+  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .description-content {
@@ -328,19 +451,47 @@
   border-radius: 50%;
   border-top-color: #4F46E5;
   animation: spin 1s linear infinite;
+  box-shadow: 0 0 30px rgba(124, 58, 237, 0.2);
 }
 
 .pulse-effect {
   animation: pulse 2s infinite;
+  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 600;
 }
 
+/* Animations */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.5; transform: scale(0.95); }
+  0%, 100% { opacity: 0.6; transform: scale(0.95); }
   50% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes softPulse {
+  0%, 100% { box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3), 0 0 10px rgba(124, 58, 237, 0.2), 0 0 20px rgba(124, 58, 237, 0.1); }
+  50% { box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3), 0 0 20px rgba(124, 58, 237, 0.4), 0 0 40px rgba(124, 58, 237, 0.2); }
+}
+
+@keyframes fadeOutDown {
+  from { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to { 
+    opacity: 0;
+    transform: translateY(30px);
+  }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 /* Responsive adjustments */
