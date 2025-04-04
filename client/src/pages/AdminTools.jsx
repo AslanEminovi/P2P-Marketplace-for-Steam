@@ -852,116 +852,137 @@ function AdminTools() {
   };
 
   return (
-    <Container fluid className="py-4 admin-tools-container bg-dark">
-      <div className="d-flex align-items-center mb-4">
-        <div className="me-auto">
-          <h1 className="text-white mb-1">Admin Tools</h1>
-          <p className="text-white-50 mb-0">Manage users, items, trades and system maintenance</p>
-        </div>
-        <Button 
-          variant="outline-light" 
-          size="sm" 
-          onClick={fetchStats}
-          disabled={statsLoading}
-          className="me-2"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-1">
-            <polyline points="1 4 1 10 7 10"></polyline>
-            <polyline points="23 20 23 14 17 14"></polyline>
-            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-          </svg>
-          Refresh Data
-        </Button>
-        <a href="/marketplace" className="btn btn-primary btn-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-1">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-          </svg>
-          Return to Site
-        </a>
-      </div>
-      
+    <Container fluid className="admin-tools-container py-4">
+      <Row className="mb-4">
+        <Col>
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h1 className="text-white mb-1">Admin Tools</h1>
+              <p className="text-white-50 mb-0">Manage users, items, trades and system maintenance</p>
+            </div>
+            <div className="d-flex gap-2">
+              <Button 
+                variant="outline-light" 
+                className="d-flex align-items-center"
+                onClick={() => {
+                  fetchStats();
+                  fetchUsers();
+                  fetchItems();
+                  fetchTrades();
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                </svg>
+                Refresh Data
+              </Button>
+              <Button 
+                variant="success" 
+                as={Link} 
+                to="/"
+                className="d-flex align-items-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 8 8 12 12 16"></polyline>
+                  <line x1="16" y1="12" x2="8" y2="12"></line>
+                </svg>
+                Return to Site
+              </Button>
+            </div>
+          </div>
+        </Col>
+      </Row>
+
       {message && (
-        <Alert 
-          variant={message.type} 
-          onClose={() => setMessage(null)} 
-          dismissible
-          className="mb-4"
-        >
-          {message.text}
-        </Alert>
+        <Row className="mb-4">
+          <Col>
+            <Alert variant={message.type} onClose={() => setMessage(null)} dismissible>
+              {message.text}
+            </Alert>
+          </Col>
+        </Row>
       )}
-      
-      <Card bg="dark" className="admin-tabs-card mb-4 border-0">
+
+      <Card bg="dark" text="white" className="admin-tabs-card mb-4">
         <Card.Header className="bg-dark border-bottom border-secondary">
           <Tabs
             activeKey={activeTab}
-            onSelect={k => setActiveTab(k)}
+            onSelect={(k) => setActiveTab(k)}
             className="admin-tabs"
-            variant="pills"
-            fill
           >
-            <Tab eventKey="dashboard" title={
-              <span className="d-flex align-items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                  <rect x="3" y="3" width="7" height="9"></rect>
-                  <rect x="14" y="3" width="7" height="5"></rect>
-                  <rect x="14" y="12" width="7" height="9"></rect>
-                  <rect x="3" y="16" width="7" height="5"></rect>
-                </svg>
-                Dashboard
-              </span>
-            } />
-            
-            <Tab eventKey="users" title={
-              <span className="d-flex align-items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="9" cy="7" r="4"></circle>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
-                Users
-              </span>
-            } />
-            
-            <Tab eventKey="items" title={
-              <span className="d-flex align-items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                  <line x1="16" y1="8" x2="8" y2="8"></line>
-                  <line x1="16" y1="12" x2="8" y2="12"></line>
-                  <line x1="16" y1="16" x2="8" y2="16"></line>
-                </svg>
-                Items
-              </span>
-            } />
-            
-            <Tab eventKey="trades" title={
-              <span className="d-flex align-items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                  <polyline points="17 1 21 5 17 9"></polyline>
-                  <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                  <polyline points="7 23 3 19 7 15"></polyline>
-                  <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                </svg>
-                Trades
-              </span>
-            } />
-            
-            <Tab eventKey="cleanup" title={
-              <span className="d-flex align-items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                  <polyline points="3 6 5 6 21 6"></polyline>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
-                Cleanup
-              </span>
-            } />
+            <Tab 
+              eventKey="dashboard" 
+              title={
+                <div className="d-flex align-items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                  Dashboard
+                </div>
+              }
+            />
+            <Tab 
+              eventKey="users" 
+              title={
+                <div className="d-flex align-items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                  Users
+                </div>
+              }
+            />
+            <Tab 
+              eventKey="items" 
+              title={
+                <div className="d-flex align-items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                  </svg>
+                  Items
+                </div>
+              }
+            />
+            <Tab 
+              eventKey="trades" 
+              title={
+                <div className="d-flex align-items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                    <polyline points="17 1 21 5 17 9"></polyline>
+                    <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                    <polyline points="7 23 3 19 7 15"></polyline>
+                    <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                  </svg>
+                  Trades
+                </div>
+              }
+            />
+            <Tab 
+              eventKey="cleanup" 
+              title={
+                <div className="d-flex align-items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="8" y1="12" x2="16" y2="12"></line>
+                    <line x1="12" y1="16" x2="12" y2="16"></line>
+                    <line x1="12" y1="8" x2="12" y2="8"></line>
+                  </svg>
+                  Cleanup
+                </div>
+              }
+            />
           </Tabs>
         </Card.Header>
-        
-        <Card.Body className="bg-dark text-white p-4">
+        <Card.Body className="pt-4 pb-4">
           {activeTab === "dashboard" && (
             <DashboardTab stats={stats} loading={statsLoading} />
           )}
@@ -995,9 +1016,7 @@ function AdminTools() {
             />
           )}
           
-          {activeTab === "trades" && (
-            renderTradesTab()
-          )}
+          {activeTab === "trades" && renderTradesTab()}
           
           {activeTab === "cleanup" && (
             <CleanupTab 
@@ -1267,112 +1286,37 @@ function CleanupTab({
   cleanupAllListings, cleanupUserListings 
 }) {
   return (
-    <Row>
-      <Col lg={6} className="mb-4">
-        <Card bg="dark" text="white" className="h-100">
-          <Card.Header className="bg-dark border-danger">
-            <h5 className="mb-0 d-flex align-items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2 text-danger">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-              </svg>
-              System-wide Cleanup
-            </h5>
-          </Card.Header>
-          <Card.Body>
-            <p className="text-light">
-              This will check all listings in the system and cleanup any that are no longer valid. 
-              Items will be unlisted and trades will be marked as cancelled if:
-            </p>
-            <ul className="text-light">
-              <li>The item no longer exists in the owner's Steam inventory</li>
-              <li>The trade has been pending for more than 7 days</li>
-              <li>The item has been removed from Steam</li>
-            </ul>
-            <div className="d-grid gap-2">
-              <Button 
-                variant="danger" 
-                size="lg"
-                onClick={cleanupAllListings}
-                disabled={loading}
-                className="mb-3"
-              >
-                {loading ? (
-                  <>
-                    <Spinner
-                      as="span"
-                      animation="border"
-                      size="sm"
-                      role="status"
-                      aria-hidden="true"
-                      className="me-2"
-                    />
-                    Running System Cleanup...
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-                    </svg>
-                    Run System-wide Cleanup
-                  </>
-                )}
-              </Button>
-              <Alert variant="dark" className="border border-danger text-white-50 mb-0">
-                <Alert.Heading className="fs-6 text-danger">Warning!</Alert.Heading>
-                <p className="mb-0 small">
-                  This operation can take a long time and will affect all users. 
-                  Use with caution during low-traffic periods.
-                </p>
-              </Alert>
-            </div>
-          </Card.Body>
-        </Card>
-      </Col>
-      
-      <Col lg={6} className="mb-4">
-        <Card bg="dark" text="white" className="h-100">
-          <Card.Header className="bg-dark border-warning">
-            <h5 className="mb-0 d-flex align-items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2 text-warning">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-              </svg>
-              User-specific Cleanup
-            </h5>
-          </Card.Header>
-          <Card.Body>
-            <p className="text-light">
-              Clean up all listings and trades for a specific user. 
-              This is useful when a user has reported issues with their listings 
-              or when investigating potential fraud.
-            </p>
-            <Form onSubmit={cleanupUserListings}>
-              <Form.Group className="mb-3">
-                <Form.Label className="text-light">User ID</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter user ID"
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                  required
-                  className="bg-dark text-light border-secondary"
-                />
-                <Form.Text className="text-light">
-                  Enter the MongoDB ObjectId or Steam ID of the user.
-                </Form.Text>
-              </Form.Group>
-              <div className="d-grid">
+    <div className="cleanup-tab">
+      <Row>
+        <Col lg={6} className="mb-4">
+          <Card bg="dark" text="white" className="h-100">
+            <Card.Header className="bg-dark border-danger">
+              <h5 className="mb-0 d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2 text-danger">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                System-wide Cleanup
+              </h5>
+            </Card.Header>
+            <Card.Body>
+              <p className="text-light">
+                This will check all listings in the system and cleanup any that are no longer valid. 
+                Items will be unlisted and trades will be marked as cancelled if:
+              </p>
+              <ul className="text-light">
+                <li>The item no longer exists in the owner's Steam inventory</li>
+                <li>The trade has been pending for more than 7 days</li>
+                <li>The item has been removed from Steam</li>
+              </ul>
+              <div className="d-grid gap-2">
                 <Button 
-                  variant="warning" 
-                  size="lg" 
-                  type="submit" 
-                  disabled={loading || !userId.trim()}
+                  variant="danger" 
+                  size="lg"
+                  onClick={cleanupAllListings}
+                  disabled={loading}
                   className="mb-3"
                 >
                   {loading ? (
@@ -1385,94 +1329,166 @@ function CleanupTab({
                         aria-hidden="true"
                         className="me-2"
                       />
-                      Cleaning User Data...
+                      Running System Cleanup...
                     </>
                   ) : (
                     <>
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                        <path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"></path>
-                        <polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon>
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
                       </svg>
-                      Run User Cleanup
+                      Run System-wide Cleanup
                     </>
                   )}
                 </Button>
-              </div>
-            </Form>
-          </Card.Body>
-        </Card>
-      </Col>
-      
-      {results && (
-        <Col md={12}>
-          <Card bg="dark" text="white" className="mb-4">
-            <Card.Header className="bg-dark border-success">
-              <h5 className="mb-0 d-flex align-items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2 text-success">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                Cleanup Results
-              </h5>
-            </Card.Header>
-            <Card.Body>
-              <div className="bg-dark text-light p-3 rounded border border-secondary" style={{ maxHeight: '300px', overflow: 'auto' }}>
-                <Row className="mb-3">
-                  <Col md={6}>
-                    <Card bg="secondary" className="mb-3">
-                      <Card.Body>
-                        <h6 className="text-white mb-2">Items Updated</h6>
-                        <h3 className="text-white mb-0">{results.itemsUpdated || 0}</h3>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                  <Col md={6}>
-                    <Card bg="secondary" className="mb-3">
-                      <Card.Body>
-                        <h6 className="text-white mb-2">Trades Updated</h6>
-                        <h3 className="text-white mb-0">{results.tradesUpdated || 0}</h3>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                </Row>
-                
-                {(results.items && results.items.length > 0) && (
-                  <div className="mb-4">
-                    <h6 className="text-white">Items Details:</h6>
-                    <ul className="list-group bg-dark">
-                      {results.items.map((item, i) => (
-                        <li key={i} className="list-group-item bg-dark text-light border-secondary">
-                          Item: {item.marketHashName || 'Unknown'} - {item.message}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                
-                {(results.trades && results.trades.length > 0) && (
-                  <div>
-                    <h6 className="text-white">Trades Details:</h6>
-                    <ul className="list-group bg-dark">
-                      {results.trades.map((trade, i) => (
-                        <li key={i} className="list-group-item bg-dark text-light border-secondary">
-                          Trade ID: {trade._id || 'Unknown'} - {trade.message}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                
-                {(!results.items || results.items.length === 0) && 
-                 (!results.trades || results.trades.length === 0) && (
-                  <div className="text-center py-4">
-                    <p className="mb-0">No detailed results available.</p>
-                  </div>
-                )}
+                <Alert variant="dark" className="border border-danger text-white-50 mb-0">
+                  <Alert.Heading className="fs-6 text-danger">Warning!</Alert.Heading>
+                  <p className="mb-0 small">
+                    This operation can take a long time and will affect all users. 
+                    Use with caution during low-traffic periods.
+                  </p>
+                </Alert>
               </div>
             </Card.Body>
           </Card>
         </Col>
+        
+        <Col lg={6} className="mb-4">
+          <Card bg="dark" text="white" className="h-100">
+            <Card.Header className="bg-dark border-warning">
+              <h5 className="mb-0 d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2 text-warning">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                User-specific Cleanup
+              </h5>
+            </Card.Header>
+            <Card.Body>
+              <p className="text-light">
+                Clean up all listings and trades for a specific user. 
+                This is useful when a user has reported issues with their listings 
+                or when investigating potential fraud.
+              </p>
+              <Form onSubmit={cleanupUserListings}>
+                <Form.Group className="mb-3">
+                  <Form.Label className="text-light">User ID</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Enter user ID"
+                    value={userId}
+                    onChange={(e) => setUserId(e.target.value)}
+                    required
+                    className="bg-dark text-light border-secondary"
+                  />
+                  <Form.Text className="text-light">
+                    Enter the MongoDB ObjectId or Steam ID of the user.
+                  </Form.Text>
+                </Form.Group>
+                <div className="d-grid">
+                  <Button 
+                    variant="warning" 
+                    size="lg" 
+                    type="submit" 
+                    disabled={loading || !userId.trim()}
+                    className="mb-3"
+                  >
+                    {loading ? (
+                      <>
+                        <Spinner
+                          as="span"
+                          animation="border"
+                          size="sm"
+                          role="status"
+                          aria-hidden="true"
+                          className="me-2"
+                        />
+                        Cleaning User Data...
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                          <path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"></path>
+                          <polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon>
+                        </svg>
+                        Run User Cleanup
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </Form>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+      
+      {results && (
+        <Row>
+          <Col md={12}>
+            <Card bg="dark" text="white" className="mb-4">
+              <Card.Header className="bg-dark border-success">
+                <h5 className="mb-0 d-flex align-items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2 text-success">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  Cleanup Results
+                </h5>
+              </Card.Header>
+              <Card.Body>
+                <div className="bg-dark text-light p-3 rounded border border-secondary" style={{ maxHeight: '300px', overflow: 'auto' }}>
+                  <Row className="mb-3">
+                    <Col md={6}>
+                      <Card bg="secondary" className="mb-3">
+                        <Card.Body>
+                          <h6 className="text-white mb-2">Items Updated</h6>
+                          <h3 className="text-white mb-0">{results.itemsUpdated || 0}</h3>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                    <Col md={6}>
+                      <Card bg="secondary" className="mb-3">
+                        <Card.Body>
+                          <h6 className="text-white mb-2">Trades Updated</h6>
+                          <h3 className="text-white mb-0">{results.tradesUpdated || 0}</h3>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  </Row>
+                  
+                  {(results.items && results.items.length > 0) && (
+                    <div className="mb-4">
+                      <h6 className="text-white">Items Details:</h6>
+                      <ul className="list-group bg-dark">
+                        {results.items.map((item, i) => (
+                          <li key={i} className="list-group-item bg-dark text-light border-secondary">
+                            Item: {item.marketHashName || 'Unknown'} - {item.message}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {(results.trades && results.trades.length > 0) && (
+                    <div>
+                      <h6 className="text-white">Trades Details:</h6>
+                      <ul className="list-group bg-dark">
+                        {results.trades.map((trade, i) => (
+                          <li key={i} className="list-group-item bg-dark text-light border-secondary">
+                            Trade {trade._id || i}: {trade.message}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
       )}
-    </Row>
+    </div>
   );
 }
 
