@@ -342,12 +342,12 @@ const TradePanel = ({
         
         const requestData = {
           tradeUrl: tradeUrl,
-          amount: parseFloat(offerAmount),
-          currency: offerCurrency
+          offerAmount: parseFloat(offerAmount),
+          offerCurrency: offerCurrency
         };
         
         const response = await axios.post(
-          `${API_URL}/marketplace/offer/${item._id}`,
+          `${API_URL}/offers/${item._id}`,
           requestData,
           { withCredentials: true }
         );
