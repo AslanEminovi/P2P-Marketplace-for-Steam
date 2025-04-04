@@ -116,6 +116,11 @@
   border-color: rgba(16, 185, 129, 0.3);
 }
 
+.trades-stat-card.cancelled {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.2) 0%, rgba(239, 68, 68, 0.2) 100%);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
 .trades-stat-icon {
   display: flex;
   align-items: center;
