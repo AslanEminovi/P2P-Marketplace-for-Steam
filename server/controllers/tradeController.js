@@ -394,22 +394,42 @@ exports.cancelTrade = async (req, res) => {
     const userId = req.user._id;
     const { reason } = req.body;
 
-    console.log(`Request to cancel trade ${tradeId}. Reason: ${reason}`);
+    console.log(
+      `Request to cancel trade ${tradeId} by user ${userId}. Reason: ${
+        reason || "No reason provided"
+      }`
+    );
 
-    // First, get the trade to check permissions and to get item info before deleting
+    // First, get the trade to check permissions and to get item info
     const trade = await Trade.findById(tradeId)
       .populate("item")
       .populate("buyer", "walletBalance");
 
     if (!trade) {
+      console.log(`Trade ${tradeId} not found for cancellation`);
       return res.status(404).json({ error: "Trade not found" });
     }
 
+    console.log(
+      `Found trade: ${trade._id}, status: ${trade.status}, buyer: ${trade.buyer}, seller: ${trade.seller}`
+    );
+
     // Only the relevant user can cancel (buyer, seller)
-    const isBuyer = trade.buyer.toString() === userId.toString();
-    const isSeller = trade.seller.toString() === userId.toString();
+    const isBuyer =
+      trade.buyer &&
+      trade.buyer._id &&
+      trade.buyer._id.toString() === userId.toString();
+    const isSeller =
+      trade.seller && trade.seller.toString() === userId.toString();
+
+    console.log(
+      `Cancel request from user ${userId}. isBuyer: ${isBuyer}, isSeller: ${isSeller}`
+    );
 
     if (!isBuyer && !isSeller) {
+      console.log(
+        `User ${userId} doesn't have permission to cancel trade ${trade._id}`
+      );
       return res.status(403).json({
         error: "You don't have permission to cancel this trade",
       });
@@ -417,31 +437,54 @@ exports.cancelTrade = async (req, res) => {
 
     // Can't cancel completed trades
     if (trade.status === "completed") {
+      console.log(
+        `Cannot cancel trade ${trade._id} because it's already completed`
+      );
       return res.status(400).json({ error: "Cannot cancel a completed trade" });
     }
 
     // Already cancelled
     if (trade.status === "cancelled") {
+      console.log(`Trade ${trade._id} is already cancelled`);
       return res.status(400).json({ error: "Trade is already cancelled" });
     }
 
-    // Proceed with deletion
-    console.log(`Deleting cancelled trade ${tradeId}`);
+    console.log(`Updating trade ${tradeId} status to cancelled`);
+
+    // Instead of deleting, update the status to cancelled
+    trade.status = "cancelled";
+    trade.statusHistory.push({
+      status: "cancelled",
+      timestamp: new Date(),
+      note: reason || `Cancelled by ${isBuyer ? "buyer" : "seller"}`,
+    });
+
+    // Save the updated trade
+    await trade.save();
+    console.log(`Successfully updated trade ${tradeId} status to cancelled`);
 
     // If there's an item, update it to not be in trade anymore
-    if (trade.item) {
-      const item = await Item.findById(trade.item._id);
-      if (item) {
-        item.isListed = false;
-        await item.save();
-        console.log(`Updated item ${item._id} to not be listed anymore`);
+    if (trade.item && trade.item._id) {
+      try {
+        const item = await Item.findById(trade.item._id);
+        if (item) {
+          item.isListed = false;
+          await item.save();
+          console.log(`Updated item ${item._id} to not be listed anymore`);
+        }
+      } catch (itemError) {
+        console.error(
+          `Error updating item for cancelled trade ${tradeId}:`,
+          itemError
+        );
+        // Continue even if item update fails
       }
     }
 
     // If it was a purchase, refund the buyer
     if (trade.status !== "failed" && trade.buyer && trade.price > 0) {
       try {
-        const buyer = await User.findById(trade.buyer);
+        const buyer = await User.findById(trade.buyer._id || trade.buyer);
         if (buyer) {
           // Add the amount back to buyer's wallet
           buyer.walletBalance += trade.price;
@@ -459,9 +502,9 @@ exports.cancelTrade = async (req, res) => {
             link: `/profile?tab=wallet`,
           });
         }
-      } catch (err) {
-        console.error("Error processing refund:", err);
-        // We'll continue with the deletion even if refund fails
+      } catch (refundErr) {
+        console.error("Error processing refund:", refundErr);
+        // We'll continue even if refund fails
       }
     }
 
@@ -478,7 +521,9 @@ exports.cancelTrade = async (req, res) => {
       });
 
       // For the other party
-      const otherPartyId = isBuyer ? trade.seller : trade.buyer;
+      const otherPartyId = isBuyer
+        ? trade.seller
+        : trade.buyer._id || trade.buyer;
       await notificationService.createNotification({
         user: otherPartyId,
         title: "Trade Cancelled by " + (isBuyer ? "Buyer" : "Seller"),
@@ -487,21 +532,22 @@ exports.cancelTrade = async (req, res) => {
         } was cancelled by the ${isBuyer ? "buyer" : "seller"}.`,
         type: "trade_cancelled",
       });
-    } catch (err) {
-      console.error("Error creating cancellation notifications:", err);
-      // Continue with deletion even if notifications fail
+    } catch (notifyErr) {
+      console.error("Error creating cancellation notifications:", notifyErr);
+      // Continue even if notifications fail
     }
-
-    // Finally, delete the trade
-    await Trade.findByIdAndDelete(tradeId);
 
     return res.json({
       success: true,
-      message: "Trade cancelled and deleted successfully",
+      message: "Trade cancelled successfully",
     });
   } catch (err) {
     console.error("Cancel trade error:", err);
-    return res.status(500).json({ error: "Failed to cancel trade" });
+    return res
+      .status(500)
+      .json({
+        error: "Failed to cancel trade: " + (err.message || "Unknown error"),
+      });
   }
 };
 

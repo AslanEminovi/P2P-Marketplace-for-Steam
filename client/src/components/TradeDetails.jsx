@@ -17,6 +17,7 @@ const StatusBadge = ({ status }) => {
       case 'awaiting_confirmation':
         return { bg: '#9a3412', text: '#fdba74' };
       case 'cancelled':
+        return { bg: '#7f1d1d', text: '#f87171' };
       case 'failed':
         return { bg: '#7f1d1d', text: '#f87171' };
       default:
@@ -25,6 +26,33 @@ const StatusBadge = ({ status }) => {
   };
 
   const colors = getStatusColor();
+  
+  // For cancelled trades, show a more prominent badge
+  if (status === 'cancelled') {
+    return (
+      <span style={{
+        backgroundColor: colors.bg,
+        color: colors.text,
+        padding: '4px 8px',
+        borderRadius: '4px',
+        fontSize: '0.875rem',
+        fontWeight: '500',
+        textTransform: 'uppercase',
+        boxShadow: '0 0 10px rgba(239, 68, 68, 0.5)',
+        animation: 'pulseBadge 2s infinite'
+      }}>
+        {getStatusText(status)}
+        <style jsx>{`
+          @keyframes pulseBadge {
+            0% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
+            50% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.8); }
+            100% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
+          }
+        `}</style>
+      </span>
+    );
+  }
+  
   return (
     <span style={{
       backgroundColor: colors.bg,
@@ -271,6 +299,8 @@ const TradeDetails = ({ tradeId }) => {
   const retryAttempted = useRef(false);
   const [isCheckingInventory, setIsCheckingInventory] = useState(false);
   const [assetId, setAssetId] = useState('');
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
     if (tradeId) {
@@ -302,109 +332,60 @@ const TradeDetails = ({ tradeId }) => {
   const loadTradeDetails = async () => {
     setLoading(true);
     setError(null);
+    
+    // Set a timeout that will show a retry button if the request takes too long
+    const timeoutId = setTimeout(() => {
+      setLoadingTimeout(true);
+    }, 15000); // 15 seconds timeout
+    
     try {
       console.log(`Loading trade details for ID: ${tradeId}`);
       const response = await axios.get(`${API_URL}/trades/${tradeId}`, {
-        withCredentials: true,
-        timeout: 15000 // 15 second timeout
+        withCredentials: true
       });
       
-      // Check if we received a valid response
-      if (!response.data || !response.data._id) {
-        console.error('Invalid or empty trade data received:', response.data);
-        throw new Error('Received invalid trade data from server');
+      clearTimeout(timeoutId);
+      setLoadingTimeout(false);
+      
+      console.log('Trade details loaded:', response.data);
+      
+      // Structure the data appropriately
+      const tradeData = response.data;
+      
+      // Check if the user is the buyer or seller
+      if (tradeData.buyer) {
+        tradeData.isUserBuyer = tradeData.buyer._id === (user?._id || localStorage.getItem('userId'));
       }
       
-      // Ensure the trade has item data - provide fallbacks if missing
-      const trade = response.data;
-      
-      // If item is missing, create a fallback item with any available data
-      if (!trade.item || typeof trade.item !== 'object') {
-        console.warn('Trade missing item data, creating fallback:', trade);
-        trade.item = {
-          marketHashName: trade.itemName || 'Unknown Item',
-          imageUrl: trade.itemImage || 'https://community.cloudflare.steamstatic.com/economy/image/fWFc82js0fmoRAP-qOIPu5THSWqfSmTELLqcUywGkijVjZULUrsm1j-9xgEGegouTxTgsSxQt5M1V_eNC-VZzY89ssYDjGIzw1B_Z7PlMmQzJVGaVaUJC_Q7-Q28UiRh7pQ7VoLj9ewDKw_us4PAN7coOopJTMDWXvSGMF_860g60agOe8ONpyK-i3vuaGgCUg25_ToQnOKE6bBunMsoYhg/360fx360f',
-          wear: trade.itemWear || 'Unknown',
-          rarity: trade.itemRarity || 'Unknown',
-          assetId: trade.assetId || 'Unknown'
-        };
+      if (tradeData.seller) {
+        tradeData.isUserSeller = tradeData.seller._id === (user?._id || localStorage.getItem('userId'));
       }
       
-      // Ensure buyer and seller objects exist
-      if (!trade.buyer || typeof trade.buyer !== 'object') {
-        trade.buyer = { displayName: 'Unknown Buyer', avatar: '' };
+      setTrade(tradeData);
+      
+      // If the trade is cancelled or completed, we can clear the form state
+      if (['cancelled', 'completed', 'failed'].includes(tradeData.status)) {
+        setSteamOfferUrl('');
+        setCancelReason('');
       }
       
-      if (!trade.seller || typeof trade.seller !== 'object') {
-        trade.seller = { displayName: 'Unknown Seller', avatar: '' };
-      }
-      
-      setTrade(trade);
-      console.log('Trade details loaded:', trade);
-      
-      // Set UI states based on trade status
-      if (trade.status === 'offer_sent') {
-        setSellerWaitingForBuyer(true);
-      }
-      
-      try {
-        // Check if current user is buyer or seller
-        const currentUser = await axios.get(`${API_URL}/users/profile`, {
-          withCredentials: true
-        });
-        
-        const userId = currentUser.data._id;
-        setIsBuyer(userId === trade.buyer._id);
-        setIsSeller(userId === trade.seller._id);
-      } catch (profileError) {
-        console.error('Error loading user profile:', profileError);
-        // Continue even if this part fails - we can still show trade details
-      }
-      
-      // Reset loading states based on status
-      if (trade.status === 'completed' || 
-          trade.status === 'cancelled' || 
-          trade.status === 'failed') {
-        setCanConfirmReceived(false);
-        setConfirmLoading(false);
-        setSendingLoading(false);
-        setApproveLoading(false);
-        // Reset inventory check result when trade is completed, cancelled, or failed
-        setInventoryCheckResult(null);
-        setIsCheckingInventory(false);
-      }
     } catch (err) {
+      clearTimeout(timeoutId);
+      setLoadingTimeout(false);
+      
       console.error('Error loading trade details:', err);
-      
-      // Provide more detailed error information
-      let errorMessage = 'Failed to load trade details. Please refresh the page.';
-      
-      if (err.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        if (err.response.status === 404) {
-          errorMessage = 'Trade not found. The trade may have been deleted or you do not have access to it.';
-        } else {
-          errorMessage = err.response.data?.error || `Server error (${err.response.status}): ${errorMessage}`;
-        }
-      } else if (err.request) {
-        // The request was made but no response was received
-        errorMessage = 'No response received from server. Please check your internet connection and try again.';
-      } else if (err.message) {
-        // Something happened in setting up the request that triggered an Error
-        errorMessage = err.message;
-      }
-      
+      const errorMessage = err.response?.data?.error || 'Failed to load trade details. Please refresh the page and try again.';
       setError(errorMessage);
       
-      toast.error(
-        `${errorMessage} Please check your Steam trade offers.`,
-        { duration: 10000 }
-      );
-      
-      // If the error contains a tradeOffersLink, set it
-      if (err.response?.data?.tradeOffersLink) {
-        setTradeOffersUrl(err.response.data.tradeOffersLink);
+      // Show error notification
+      if (window.showNotification) {
+        window.showNotification(
+          'Error',
+          errorMessage,
+          'ERROR'
+        );
+      } else {
+        toast.error(errorMessage);
       }
     } finally {
       setLoading(false);
@@ -691,10 +672,20 @@ const TradeDetails = ({ tradeId }) => {
     console.log(`Attempting to cancel trade: ${tradeId}`);
     
     try {
-      const response = await axios.put(`${API_URL}/trades/${tradeId}/cancel`, {
-        reason: cancelReason
-      }, {
-        withCredentials: true
+      // Ensure the reason is valid
+      const cancelData = {
+        reason: cancelReason || 'No reason provided'
+      };
+      
+      // Make API call with explicit credentials setting
+      const response = await axios({
+        method: 'put',
+        url: `${API_URL}/trades/${tradeId}/cancel`,
+        data: cancelData,
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       
       console.log('Cancel trade response:', response.data);
@@ -712,16 +703,24 @@ const TradeDetails = ({ tradeId }) => {
         }
         
         setCancelReason('');
+        
+        // Hide the modal immediately
+        const modal = document.getElementById('cancelModal');
+        if (modal) modal.style.display = 'none';
+        
+        // Reload the trade details to show the updated status
         loadTradeDetails();
         
         // Redirect to trades page after a short delay
         setTimeout(() => {
           window.location.href = '/trades';
         }, 1500);
+      } else {
+        throw new Error(response.data.error || 'Unknown error occurred');
       }
     } catch (err) {
       console.error('Error cancelling trade:', err);
-      const errorMessage = err.response?.data?.error || 'Failed to cancel trade. Please try again.';
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to cancel trade. Please try again.';
       setError(errorMessage);
       
       // Show error notification
@@ -1550,12 +1549,12 @@ const TradeDetails = ({ tradeId }) => {
         left: 0,
         width: '100%',
         height: '100%',
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        zIndex: 1000,
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        zIndex: 9999,
         overflowY: 'auto',
-        padding: '20px',
-        alignItems: 'center',
-        justifyContent: 'center'
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
       }}
       onClick={(e) => {
         if (e.target.id === 'cancelModal') {
@@ -1736,6 +1735,12 @@ const TradeDetails = ({ tradeId }) => {
             to { transform: rotate(360deg); }
           }
           
+          @keyframes pulseBadge {
+            0% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
+            50% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.8); }
+            100% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
+          }
+          
           #cancelModal {
             display: none;
             position: fixed;
@@ -1743,10 +1748,12 @@ const TradeDetails = ({ tradeId }) => {
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
             overflow-y: auto;
-            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
           }
           
           .spinner {
