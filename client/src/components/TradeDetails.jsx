@@ -451,6 +451,86 @@ const TradeItemDetails = ({ item, trade, price }) => {
   );
 };
 
+// Main trade header component
+const TradeHeader = ({ trade, userRoles }) => {
+  // Display user roles clearly for debugging purposes
+  const { isBuyer, isSeller } = userRoles;
+  
+  return (
+    <div style={{
+      backgroundColor: 'rgba(17, 24, 39, 0.5)',
+      borderRadius: '16px',
+      padding: '20px',
+      marginBottom: '24px',
+      boxShadow: '0 8px 20px rgba(0, 0, 0, 0.15)',
+      backdropFilter: 'blur(10px)',
+      border: '1px solid rgba(55, 65, 81, 0.5)',
+      position: 'relative'
+    }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '16px'
+      }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
+        }}>
+          <h2 style={{
+            margin: 0,
+            color: '#f1f1f1',
+            fontSize: '1.5rem',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15.6 11.6L22 7v10l-6.4-4.5v-1"></path>
+              <path d="M15.6 15.9L8 21V11l7.6 5.1"></path>
+              <path d="M15.6 11.6L8 6v5"></path>
+              <path d="M15.6 5.1L22 9l-6.4 3.6-7.6-5.1L15.6 5.1z"></path>
+            </svg>
+            Trade #{trade._id.substring(0, 8)}
+          </h2>
+          <div style={{
+            fontSize: '0.9rem',
+            color: '#d1d5db',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            Created {new Date(trade.createdAt).toLocaleString()}
+          </div>
+          
+          {/* Add user role information for debugging */}
+          <div style={{
+            fontSize: '0.85rem',
+            backgroundColor: 'rgba(17, 24, 39, 0.7)',
+            padding: '4px 10px',
+            borderRadius: '6px',
+            marginTop: '10px',
+            color: isBuyer ? '#93c5fd' : (isSeller ? '#4ade80' : '#d1d5db')
+          }}>
+            Your Role: {isBuyer ? 'Buyer' : (isSeller ? 'Seller' : 'Viewer')}
+            <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '2px' }}>
+              User ID: {trade.userId || 'Unknown'}
+            </div>
+          </div>
+        </div>
+        <StatusBadge status={trade.status} />
+      </div>
+    </div>
+  );
+};
+
 const TradeDetails = ({ tradeId }) => {
   const [trade, setTrade] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -647,7 +727,13 @@ const TradeDetails = ({ tradeId }) => {
     try {
       // Validate that they've entered a trade offer ID or URL
       if (!steamOfferUrl || steamOfferUrl.trim() === '') {
-        toast.warning('Please enter the Steam trade offer ID or URL to help the buyer identify your offer');
+        // Add protection against toast being undefined
+        if (typeof toast?.warning === 'function') {
+          toast.warning('Please enter the Steam trade offer ID or URL to help the buyer identify your offer');
+        } else {
+          console.error('Please enter the Steam trade offer ID or URL to help the buyer identify your offer');
+          alert('Please enter the Steam trade offer ID or URL to help the buyer identify your offer');
+        }
         setSendingLoading(false);
         return;
       }
@@ -659,7 +745,14 @@ const TradeDetails = ({ tradeId }) => {
       );
       
       if (response.data?.success) {
-        toast.success('Successfully marked the trade offer as sent. The buyer has been notified.');
+        // Add protection against toast being undefined
+        if (typeof toast?.success === 'function') {
+          toast.success('Successfully marked the trade offer as sent. The buyer has been notified.');
+        } else {
+          console.log('Successfully marked the trade offer as sent. The buyer has been notified.');
+          alert('Successfully marked the trade offer as sent. The buyer has been notified.');
+        }
+        
         // Update the local state to reflect the status change
         setTrade({
           ...trade,
@@ -684,7 +777,13 @@ const TradeDetails = ({ tradeId }) => {
         errorMessage = err.response.data.error;
       }
       
-      toast.error(errorMessage);
+      // Add protection against toast being undefined
+      if (typeof toast?.error === 'function') {
+        toast.error(errorMessage);
+      } else {
+        console.error(errorMessage);
+        alert(errorMessage);
+      }
     } finally {
       setSendingLoading(false);
     }
@@ -1394,837 +1493,1004 @@ const TradeDetails = ({ tradeId }) => {
     );
   };
 
-  if (loading && !trade) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column',
-        alignItems: 'center', 
-        justifyContent: 'center',
-        padding: '60px 0',
-        backgroundColor: 'rgba(17, 24, 39, 0.4)',
-        borderRadius: '16px',
-        backdropFilter: 'blur(8px)',
-        minHeight: '300px'
-      }}>
-        <div style={{
-          width: '60px',
-          height: '60px',
-          border: '3px solid rgba(74, 222, 128, 0.1)',
-          borderRadius: '50%',
-          borderTopColor: '#4ade80',
-          animation: 'spin 1.2s linear infinite',
-          marginBottom: '20px'
-        }}></div>
-        <div style={{
-          color: '#e5e7eb',
-          fontSize: '1.1rem',
-          fontWeight: '500'
-        }}>
-          Loading trade details...
-        </div>
-      </div>
-    );
-  }
-
-  if (error && !trade) {
-    return (
-      <div style={{
-        backgroundColor: 'rgba(127, 29, 29, 0.4)',
-        backdropFilter: 'blur(8px)',
-        color: '#f87171',
-        padding: '24px',
-        borderRadius: '12px',
-        margin: '30px 0',
-        boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)',
-        border: '1px solid rgba(239, 68, 68, 0.3)'
-      }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          marginBottom: '16px'
-        }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-          <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>Error Loading Trade</h3>
-        </div>
-        <p style={{ margin: 0, fontSize: '1rem', lineHeight: '1.6' }}>{error}</p>
-        
-        <button 
-          onClick={loadTradeDetails}
-          style={{
-            backgroundColor: 'rgba(239, 68, 68, 0.2)',
-            border: '1px solid rgba(239, 68, 68, 0.5)',
-            color: '#f87171',
-            padding: '10px 16px',
-            borderRadius: '8px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            marginTop: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseOver={(e) => {
-            e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.3)';
-          }}
-          onMouseOut={(e) => {
-            e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 2v6h6"></path>
-            <path d="M21 12A9 9 0 0 0 6 5.3L3 8"></path>
-            <path d="M21 22v-6h-6"></path>
-            <path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"></path>
-          </svg>
-          Retry
-        </button>
-      </div>
-    );
-  }
-
-  if (!trade) {
-    return (
-      <div style={{
-        backgroundColor: 'rgba(31, 41, 55, 0.7)',
-        backdropFilter: 'blur(8px)',
-        padding: '24px',
-        borderRadius: '12px',
-        margin: '30px 0',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '16px',
-        boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)',
-        border: '1px solid rgba(55, 65, 81, 0.5)'
-      }}>
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-          <line x1="12" y1="9" x2="12" y2="13"></line>
-          <line x1="12" y1="17" x2="12.01" y2="17"></line>
-        </svg>
-        <p style={{ color: '#e5e7eb', fontSize: '1.1rem', fontWeight: '500', margin: 0 }}>No trade found with ID: {tradeId}</p>
-        <button 
-          onClick={() => window.location.href = '/trades'}
-          style={{
-            backgroundColor: 'rgba(79, 70, 229, 0.2)',
-            border: '1px solid rgba(79, 70, 229, 0.5)',
-            color: '#818cf8',
-            padding: '10px 16px',
-            borderRadius: '8px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseOver={(e) => {
-            e.target.style.backgroundColor = 'rgba(79, 70, 229, 0.3)';
-          }}
-          onMouseOut={(e) => {
-            e.target.style.backgroundColor = 'rgba(79, 70, 229, 0.2)';
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5"></path>
-            <polyline points="12 19 5 12 12 5"></polyline>
-          </svg>
-          Return to Trades
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div style={{
-      backgroundColor: 'rgba(17, 24, 39, 0.7)',
-      backdropFilter: 'blur(12px)',
-      borderRadius: '16px',
-      padding: '30px',
-      maxWidth: '1100px',
-      margin: '0 auto',
-      boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-      border: '1px solid rgba(55, 65, 81, 0.5)'
+      padding: '20px',
+      maxWidth: '1200px',
+      margin: '0 auto'
     }}>
-      <div style={{ 
-        marginBottom: '30px', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        borderBottom: '1px solid rgba(55, 65, 81, 0.5)',
-        paddingBottom: '20px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{
-            backgroundColor: 'rgba(79, 70, 229, 0.1)',
-            borderRadius: '12px',
-            width: '48px',
-            height: '48px',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            border: '1px solid rgba(79, 70, 229, 0.3)'
-          }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-            </svg>
-          </div>
-          <div>
-            <h2 style={{ 
-              color: '#f1f1f1', 
-              margin: '0 0 5px 0',
-              fontSize: '1.5rem',
-              fontWeight: '600'
-            }}>
-              Trade #{trade._id.substring(0, 8)}
-            </h2>
-            <div style={{ 
-              color: '#9ca3af', 
-              fontSize: '0.9rem', 
-              display: 'flex', 
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
-              Created {new Date(trade.createdAt).toLocaleString()}
-            </div>
-          </div>
-        </div>
-        <StatusBadge status={trade.status} />
-      </div>
-
-      {error && (
+      {loading ? (
         <div style={{
+          height: '300px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '20px',
+          backgroundColor: 'rgba(17, 24, 39, 0.4)',
+          borderRadius: '16px',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(55, 65, 81, 0.5)',
+          boxShadow: '0 8px 20px rgba(0, 0, 0, 0.15)',
+        }}>
+          <div className="spinner" style={{
+            width: '40px',
+            height: '40px',
+            border: '3px solid rgba(79, 70, 229, 0.3)',
+            borderTop: '3px solid #818cf8',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+          <div style={{ color: '#d1d5db', fontSize: '1rem', fontWeight: '500' }}>
+            Loading trade details...
+          </div>
+          
+          <style jsx>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      ) : error && !trade ? (
+        <div style={{
+          padding: '24px',
           backgroundColor: 'rgba(127, 29, 29, 0.3)',
           color: '#f87171',
-          padding: '16px 20px',
-          borderRadius: '12px',
-          marginBottom: '24px',
+          borderRadius: '16px',
           display: 'flex',
-          alignItems: 'flex-start',
-          gap: '12px',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '20px',
+          textAlign: 'center',
+          backdropFilter: 'blur(10px)',
           border: '1px solid rgba(239, 68, 68, 0.3)',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+          boxShadow: '0 8px 20px rgba(0, 0, 0, 0.15)',
         }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '2px' }}>
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="8" x2="12" y2="12"></line>
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
           <div>
-            <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '1rem' }}>Error</div>
-            <div style={{ fontSize: '0.95rem' }}>{error}</div>
-            {tradeOffersUrl && (
-              <a 
-                href={tradeOffersUrl} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  color: '#f87171',
-                  textDecoration: 'none',
-                  marginTop: '10px',
-                  fontSize: '0.9rem',
-                  fontWeight: '500',
-                  padding: '6px 12px',
-                  backgroundColor: 'rgba(127, 29, 29, 0.2)',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseOver={(e) => {
-                  e.target.style.backgroundColor = 'rgba(127, 29, 29, 0.3)';
-                }}
-                onMouseOut={(e) => {
-                  e.target.style.backgroundColor = 'rgba(127, 29, 29, 0.2)';
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                  <polyline points="15 3 21 3 21 9"></polyline>
-                  <line x1="10" y1="14" x2="21" y2="3"></line>
-                </svg>
-                Check Your Steam Trade Offers
-              </a>
-            )}
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '1.25rem', fontWeight: '600' }}>Error Loading Trade</h3>
+            <p style={{ margin: '0 0 20px 0', fontSize: '1rem', opacity: '0.9' }}>{error}</p>
+            <button
+              onClick={loadTradeDetails}
+              style={{
+                backgroundColor: 'rgba(239, 68, 68, 0.3)',
+                color: '#f87171',
+                border: '1px solid rgba(239, 68, 68, 0.5)',
+                borderRadius: '8px',
+                padding: '8px 16px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '500',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.4)';
+              }}
+              onMouseOut={(e) => {
+                e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.3)';
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="1 4 1 10 7 10"></polyline>
+                <polyline points="23 20 23 14 17 14"></polyline>
+                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+              </svg>
+              Retry
+            </button>
           </div>
         </div>
-      )}
+      ) : trade ? (
+        <div style={{
+          backgroundColor: 'rgba(31, 41, 55, 0.3)',
+          borderRadius: '16px',
+          padding: '24px',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(55, 65, 81, 0.5)'
+        }}>
+          {/* Trade header with user role information */}
+          <TradeHeader trade={trade} userRoles={{ isBuyer, isSeller }} />
 
-      {/* Trade Details */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1fr) 350px',
-        gap: '30px'
-      }}>
-        {/* Main content */}
-        <div>
-          {/* Status timeline */}
-          <StatusTimeline trade={trade} />
-          
-          {/* Trade information */}
-          <div style={{
-            backgroundColor: 'rgba(17, 24, 39, 0.4)',
-            borderRadius: '16px',
-            padding: '24px',
-            marginBottom: '24px',
-            border: '1px solid rgba(55, 65, 81, 0.5)',
-            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.15)',
-            backdropFilter: 'blur(8px)'
-          }}>
-            <h3 style={{ 
-              color: '#f1f1f1', 
-              margin: '0 0 20px 0',
-              fontSize: '1.1rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px'
-            }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-              </svg>
-              Trade Help
-            </h3>
-            
+          {error && (
             <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              color: '#d1d5db',
-              fontSize: '0.95rem',
-              backgroundColor: 'rgba(31, 41, 55, 0.5)',
-              padding: '16px',
+              backgroundColor: 'rgba(127, 29, 29, 0.3)',
+              color: '#f87171',
+              padding: '16px 20px',
               borderRadius: '12px',
-              border: '1px solid rgba(55, 65, 81, 0.5)'
-            }}>
-              <p style={{ margin: 0, lineHeight: '1.6' }}>
-                If you're experiencing issues with this trade, make sure to check your Steam trade offers directly.
-              </p>
-              
-              <a 
-                href="https://steamcommunity.com/my/tradeoffers" 
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ 
-                  color: '#3b82f6',
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginTop: '8px',
-                  padding: '10px 16px',
-                  backgroundColor: 'rgba(17, 24, 39, 0.5)',
-                  borderRadius: '8px',
-                  fontWeight: '500',
-                  transition: 'all 0.2s ease',
-                  border: '1px solid rgba(59, 130, 246, 0.3)'
-                }}
-                onMouseOver={(e) => {
-                  e.target.style.backgroundColor = 'rgba(17, 24, 39, 0.7)';
-                  e.target.style.borderColor = 'rgba(59, 130, 246, 0.5)';
-                  e.target.style.transform = 'translateY(-2px)';
-                }}
-                onMouseOut={(e) => {
-                  e.target.style.backgroundColor = 'rgba(17, 24, 39, 0.5)';
-                  e.target.style.borderColor = 'rgba(59, 130, 246, 0.3)';
-                  e.target.style.transform = 'translateY(0)';
-                }}
-              >
-                Open Steam Trade Offers
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                  <polyline points="15 3 21 3 21 9"></polyline>
-                  <line x1="10" y1="14" x2="21" y2="3"></line>
-                </svg>
-              </a>
-            </div>
-          </div>
-          
-          {/* Status history */}
-          {trade.statusHistory && (
-            <div style={{
-              backgroundColor: 'rgba(17, 24, 39, 0.4)',
-              borderRadius: '16px',
-              padding: '24px',
               marginBottom: '24px',
-              border: '1px solid rgba(55, 65, 81, 0.5)',
-              boxShadow: '0 8px 16px rgba(0, 0, 0, 0.15)',
-              backdropFilter: 'blur(8px)'
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
             }}>
-              <h3 style={{ 
-                color: '#f1f1f1', 
-                margin: '0 0 20px 0',
-                fontSize: '1.1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px'
-              }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="16" x2="12" y2="12"></line>
-                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                </svg>
-                Status History
-              </h3>
-              
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px'
-              }}>
-                {trade.statusHistory.map((entry, index) => (
-                  <div 
-                    key={index}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '2px' }}>
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <div>
+                <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '1rem' }}>Error</div>
+                <div style={{ fontSize: '0.95rem' }}>{error}</div>
+                {tradeOffersUrl && (
+                  <a 
+                    href={tradeOffersUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
                     style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '16px',
-                      padding: '16px',
-                      backgroundColor: 'rgba(31, 41, 55, 0.5)',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(55, 65, 81, 0.5)',
-                      position: 'relative',
-                      overflow: 'hidden'
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      color: '#f87171',
+                      textDecoration: 'none',
+                      marginTop: '10px',
+                      fontSize: '0.9rem',
+                      fontWeight: '500',
+                      padding: '6px 12px',
+                      backgroundColor: 'rgba(127, 29, 29, 0.2)',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.backgroundColor = 'rgba(127, 29, 29, 0.3)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.backgroundColor = 'rgba(127, 29, 29, 0.2)';
                     }}
                   >
-                    {index < trade.statusHistory.length - 1 && (
-                      <div style={{
-                        position: 'absolute',
-                        left: '27px',
-                        top: '48px',
-                        bottom: '-16px',
-                        width: '2px',
-                        backgroundColor: 'rgba(55, 65, 81, 0.8)',
-                        zIndex: 1
-                      }} />
-                    )}
-                    
-                    <div style={{
-                      backgroundColor: getStatusBgColor(entry.status),
-                      color: getStatusColor(entry.status),
-                      width: '40px',
-                      height: '40px',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      borderRadius: '50%',
-                      flexShrink: 0,
-                      boxShadow: `0 0 12px ${getStatusBgColor(entry.status)}80`,
-                      border: `2px solid ${getStatusColor(entry.status)}`,
-                      zIndex: 2
-                    }}>
-                      {getStatusIcon(entry.status)}
-                    </div>
-                    
-                    <div style={{ flex: 1 }}>
-                      <div style={{ 
-                        color: '#f1f1f1',
-                        marginBottom: '8px',
-                        fontWeight: '600',
-                        fontSize: '1.05rem'
-                      }}>
-                        {getStatusText(entry.status)}
-                      </div>
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                        gap: '8px'
-                      }}>
-                        <div style={{ 
-                          color: '#9ca3af', 
-                          fontSize: '0.9rem',
-                          flex: '1',
-                          minWidth: '200px' 
-                        }}>
-                          {entry.message || getDefaultStatusMessage(entry.status)}
-                        </div>
-                        <div style={{ 
-                          color: '#9ca3af', 
-                          fontSize: '0.85rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          backgroundColor: 'rgba(17, 24, 39, 0.5)',
-                          padding: '4px 10px',
-                          borderRadius: '6px'
-                        }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <polyline points="12 6 12 12 16 14"></polyline>
-                          </svg>
-                          {new Date(entry.timestamp).toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                    Check Your Steam Trade Offers
+                  </a>
+                )}
               </div>
             </div>
           )}
+
+          {/* Trade Details */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1fr) 350px',
+            gap: '30px'
+          }}>
+            {/* Main content */}
+            <div>
+              {/* Status timeline */}
+              <StatusTimeline trade={trade} />
+              
+              {/* Display role debugging information */}
+              <div style={{
+                backgroundColor: 'rgba(17, 24, 39, 0.4)',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '24px',
+                border: '1px solid rgba(55, 65, 81, 0.3)',
+                color: '#d1d5db',
+                fontSize: '0.9rem'
+              }}>
+                <h4 style={{ margin: '0 0 12px 0', color: '#f1f1f1' }}>Role Information</h4>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <div style={{ 
+                    padding: '4px 10px', 
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)', 
+                    borderRadius: '6px',
+                    border: '1px solid rgba(59, 130, 246, 0.3)'
+                  }}>
+                    Buyer ID: {trade.buyer?._id || 'Unknown'}
+                  </div>
+                  <div style={{ 
+                    padding: '4px 10px', 
+                    backgroundColor: 'rgba(16, 185, 129, 0.2)', 
+                    borderRadius: '6px',
+                    border: '1px solid rgba(16, 185, 129, 0.3)'
+                  }}>
+                    Seller ID: {trade.seller?._id || 'Unknown'}
+                  </div>
+                  <div style={{ 
+                    padding: '4px 10px', 
+                    backgroundColor: isBuyer ? 'rgba(59, 130, 246, 0.3)' : 'rgba(107, 114, 128, 0.2)', 
+                    borderRadius: '6px',
+                    border: `1px solid ${isBuyer ? 'rgba(59, 130, 246, 0.4)' : 'rgba(107, 114, 128, 0.3)'}`,
+                    fontWeight: isBuyer ? '500' : '400'
+                  }}>
+                    Is Buyer: {isBuyer ? 'Yes' : 'No'}
+                  </div>
+                  <div style={{ 
+                    padding: '4px 10px', 
+                    backgroundColor: isSeller ? 'rgba(16, 185, 129, 0.3)' : 'rgba(107, 114, 128, 0.2)', 
+                    borderRadius: '6px',
+                    border: `1px solid ${isSeller ? 'rgba(16, 185, 129, 0.4)' : 'rgba(107, 114, 128, 0.3)'}`,
+                    fontWeight: isSeller ? '500' : '400'
+                  }}>
+                    Is Seller: {isSeller ? 'Yes' : 'No'}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Trade information */}
+              <div style={{
+                backgroundColor: 'rgba(17, 24, 39, 0.4)',
+                borderRadius: '16px',
+                padding: '24px',
+                marginBottom: '24px',
+                border: '1px solid rgba(55, 65, 81, 0.5)',
+                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.15)',
+                backdropFilter: 'blur(8px)'
+              }}>
+                <h3 style={{ 
+                  color: '#f1f1f1', 
+                  margin: '0 0 20px 0',
+                  fontSize: '1.1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                  </svg>
+                  Trade Help
+                </h3>
+                
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px',
+                  color: '#d1d5db',
+                  fontSize: '0.95rem',
+                  backgroundColor: 'rgba(31, 41, 55, 0.5)',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(55, 65, 81, 0.5)'
+                }}>
+                  <p style={{ margin: 0, lineHeight: '1.6' }}>
+                    If you're experiencing issues with this trade, make sure to check your Steam trade offers directly.
+                  </p>
+                  
+                  <a 
+                    href="https://steamcommunity.com/my/tradeoffers" 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ 
+                      color: '#3b82f6',
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginTop: '8px',
+                      padding: '10px 16px',
+                      backgroundColor: 'rgba(17, 24, 39, 0.5)',
+                      borderRadius: '8px',
+                      fontWeight: '500',
+                      transition: 'all 0.2s ease',
+                      border: '1px solid rgba(59, 130, 246, 0.3)'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.backgroundColor = 'rgba(17, 24, 39, 0.7)';
+                      e.target.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                      e.target.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.backgroundColor = 'rgba(17, 24, 39, 0.5)';
+                      e.target.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                      e.target.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    Open Steam Trade Offers
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                  </a>
+                </div>
+              </div>
+            </div>
+            
+            {/* Sidebar */}
+            <div>
+              {/* Item details */}
+              <TradeItemDetails 
+                item={trade.item} 
+                trade={trade} 
+                price={trade.price}
+              />
+              
+              {/* Help and info */}
+              <div style={{
+                backgroundColor: 'rgba(17, 24, 39, 0.4)',
+                borderRadius: '16px',
+                padding: '24px',
+                border: '1px solid rgba(55, 65, 81, 0.5)',
+                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.15)',
+                backdropFilter: 'blur(8px)'
+              }}>
+                <h3 style={{ 
+                  color: '#f1f1f1', 
+                  margin: '0 0 20px 0',
+                  fontSize: '1.1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                  </svg>
+                  Trade Help
+                </h3>
+                
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px',
+                  color: '#d1d5db',
+                  fontSize: '0.95rem',
+                  backgroundColor: 'rgba(31, 41, 55, 0.5)',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(55, 65, 81, 0.5)'
+                }}>
+                  <p style={{ margin: 0, lineHeight: '1.6' }}>
+                    If you're experiencing issues with this trade, make sure to check your Steam trade offers directly.
+                  </p>
+                  
+                  <a 
+                    href="https://steamcommunity.com/my/tradeoffers" 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ 
+                      color: '#3b82f6',
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginTop: '8px',
+                      padding: '10px 16px',
+                      backgroundColor: 'rgba(17, 24, 39, 0.5)',
+                      borderRadius: '8px',
+                      fontWeight: '500',
+                      transition: 'all 0.2s ease',
+                      border: '1px solid rgba(59, 130, 246, 0.3)'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.backgroundColor = 'rgba(17, 24, 39, 0.7)';
+                      e.target.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                      e.target.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.backgroundColor = 'rgba(17, 24, 39, 0.5)';
+                      e.target.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                      e.target.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    Open Steam Trade Offers
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
           
           {/* Trade actions */}
           {renderTradeActions()}
         </div>
-        
-        {/* Sidebar */}
-        <div>
-          {/* Item details */}
-          <TradeItemDetails 
-            item={trade.item} 
-            trade={trade} 
-            price={trade.price}
-          />
-          
-          {/* Help and info */}
-          <div style={{
-            backgroundColor: 'rgba(17, 24, 39, 0.4)',
-            borderRadius: '16px',
-            padding: '24px',
-            border: '1px solid rgba(55, 65, 81, 0.5)',
-            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.15)',
-            backdropFilter: 'blur(8px)'
-          }}>
-            <h3 style={{ 
-              color: '#f1f1f1', 
-              margin: '0 0 20px 0',
-              fontSize: '1.1rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px'
-            }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-              </svg>
-              Trade Help
-            </h3>
-            
+      ) : (
+        <div style={{
+          backgroundColor: 'rgba(31, 41, 55, 0.7)',
+          backdropFilter: 'blur(12px)',
+          borderRadius: '16px',
+          padding: '30px',
+          maxWidth: '1100px',
+          margin: '0 auto',
+          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+          border: '1px solid rgba(55, 65, 81, 0.5)'
+        }}>
+          <TradeHeader trade={trade} userRoles={{ isBuyer, isSeller }} />
+
+          {error && (
             <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              color: '#d1d5db',
-              fontSize: '0.95rem',
-              backgroundColor: 'rgba(31, 41, 55, 0.5)',
-              padding: '16px',
+              backgroundColor: 'rgba(127, 29, 29, 0.3)',
+              color: '#f87171',
+              padding: '16px 20px',
               borderRadius: '12px',
-              border: '1px solid rgba(55, 65, 81, 0.5)'
+              marginBottom: '24px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
             }}>
-              <p style={{ margin: 0, lineHeight: '1.6' }}>
-                If you're experiencing issues with this trade, make sure to check your Steam trade offers directly.
-              </p>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '2px' }}>
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <div>
+                <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '1rem' }}>Error</div>
+                <div style={{ fontSize: '0.95rem' }}>{error}</div>
+                {tradeOffersUrl && (
+                  <a 
+                    href={tradeOffersUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      color: '#f87171',
+                      textDecoration: 'none',
+                      marginTop: '10px',
+                      fontSize: '0.9rem',
+                      fontWeight: '500',
+                      padding: '6px 12px',
+                      backgroundColor: 'rgba(127, 29, 29, 0.2)',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.backgroundColor = 'rgba(127, 29, 29, 0.3)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.backgroundColor = 'rgba(127, 29, 29, 0.2)';
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                    Check Your Steam Trade Offers
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Trade Details */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1fr) 350px',
+            gap: '30px'
+          }}>
+            {/* Main content */}
+            <div>
+              {/* Status timeline */}
+              <StatusTimeline trade={trade} />
               
-              <a 
-                href="https://steamcommunity.com/my/tradeoffers" 
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ 
-                  color: '#3b82f6',
-                  textDecoration: 'none',
+              {/* Trade information */}
+              <div style={{
+                backgroundColor: 'rgba(17, 24, 39, 0.4)',
+                borderRadius: '16px',
+                padding: '24px',
+                marginBottom: '24px',
+                border: '1px solid rgba(55, 65, 81, 0.5)',
+                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.15)',
+                backdropFilter: 'blur(8px)'
+              }}>
+                <h3 style={{ 
+                  color: '#f1f1f1', 
+                  margin: '0 0 20px 0',
+                  fontSize: '1.1rem',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  marginTop: '8px',
-                  padding: '10px 16px',
-                  backgroundColor: 'rgba(17, 24, 39, 0.5)',
-                  borderRadius: '8px',
-                  fontWeight: '500',
-                  transition: 'all 0.2s ease',
-                  border: '1px solid rgba(59, 130, 246, 0.3)'
-                }}
-                onMouseOver={(e) => {
-                  e.target.style.backgroundColor = 'rgba(17, 24, 39, 0.7)';
-                  e.target.style.borderColor = 'rgba(59, 130, 246, 0.5)';
-                  e.target.style.transform = 'translateY(-2px)';
-                }}
-                onMouseOut={(e) => {
-                  e.target.style.backgroundColor = 'rgba(17, 24, 39, 0.5)';
-                  e.target.style.borderColor = 'rgba(59, 130, 246, 0.3)';
-                  e.target.style.transform = 'translateY(0)';
-                }}
-              >
-                Open Steam Trade Offers
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                  <polyline points="15 3 21 3 21 9"></polyline>
-                  <line x1="10" y1="14" x2="21" y2="3"></line>
-                </svg>
-              </a>
+                  gap: '10px'
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                  </svg>
+                  Trade Help
+                </h3>
+                
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px',
+                  color: '#d1d5db',
+                  fontSize: '0.95rem',
+                  backgroundColor: 'rgba(31, 41, 55, 0.5)',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(55, 65, 81, 0.5)'
+                }}>
+                  <p style={{ margin: 0, lineHeight: '1.6' }}>
+                    If you're experiencing issues with this trade, make sure to check your Steam trade offers directly.
+                  </p>
+                  
+                  <a 
+                    href="https://steamcommunity.com/my/tradeoffers" 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ 
+                      color: '#3b82f6',
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginTop: '8px',
+                      padding: '10px 16px',
+                      backgroundColor: 'rgba(17, 24, 39, 0.5)',
+                      borderRadius: '8px',
+                      fontWeight: '500',
+                      transition: 'all 0.2s ease',
+                      border: '1px solid rgba(59, 130, 246, 0.3)'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.backgroundColor = 'rgba(17, 24, 39, 0.7)';
+                      e.target.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                      e.target.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.backgroundColor = 'rgba(17, 24, 39, 0.5)';
+                      e.target.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                      e.target.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    Open Steam Trade Offers
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                  </a>
+                </div>
+              </div>
+              
+              {/* Status history */}
+              {trade.statusHistory && (
+                <div style={{
+                  backgroundColor: 'rgba(17, 24, 39, 0.4)',
+                  borderRadius: '16px',
+                  padding: '24px',
+                  marginBottom: '24px',
+                  border: '1px solid rgba(55, 65, 81, 0.5)',
+                  boxShadow: '0 8px 16px rgba(0, 0, 0, 0.15)',
+                  backdropFilter: 'blur(8px)'
+                }}>
+                  <h3 style={{ 
+                    color: '#f1f1f1', 
+                    margin: '0 0 20px 0',
+                    fontSize: '1.1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px'
+                  }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="16" x2="12" y2="12"></line>
+                      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    Status History
+                  </h3>
+                  
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px'
+                  }}>
+                    {trade.statusHistory.map((entry, index) => (
+                      <div 
+                        key={index}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '16px',
+                          padding: '16px',
+                          backgroundColor: 'rgba(31, 41, 55, 0.5)',
+                          borderRadius: '12px',
+                          border: '1px solid rgba(55, 65, 81, 0.5)',
+                          position: 'relative',
+                          overflow: 'hidden'
+                        }}
+                      >
+                        {index < trade.statusHistory.length - 1 && (
+                          <div style={{
+                            position: 'absolute',
+                            left: '27px',
+                            top: '48px',
+                            bottom: '-16px',
+                            width: '2px',
+                            backgroundColor: 'rgba(55, 65, 81, 0.8)',
+                            zIndex: 1
+                          }} />
+                        )}
+                        
+                        <div style={{
+                          backgroundColor: getStatusBgColor(entry.status),
+                          color: getStatusColor(entry.status),
+                          width: '40px',
+                          height: '40px',
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          borderRadius: '50%',
+                          flexShrink: 0,
+                          boxShadow: `0 0 12px ${getStatusBgColor(entry.status)}80`,
+                          border: `2px solid ${getStatusColor(entry.status)}`,
+                          zIndex: 2
+                        }}>
+                          {getStatusIcon(entry.status)}
+                        </div>
+                        
+                        <div style={{ flex: 1 }}>
+                          <div style={{ 
+                            color: '#f1f1f1',
+                            marginBottom: '8px',
+                            fontWeight: '600',
+                            fontSize: '1.05rem'
+                          }}>
+                            {getStatusText(entry.status)}
+                          </div>
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '8px'
+                          }}>
+                            <div style={{ 
+                              color: '#9ca3af', 
+                              fontSize: '0.9rem',
+                              flex: '1',
+                              minWidth: '200px' 
+                            }}>
+                              {entry.message || getDefaultStatusMessage(entry.status)}
+                            </div>
+                            <div style={{ 
+                              color: '#9ca3af', 
+                              fontSize: '0.85rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              backgroundColor: 'rgba(17, 24, 39, 0.5)',
+                              padding: '4px 10px',
+                              borderRadius: '6px'
+                            }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                              </svg>
+                              {new Date(entry.timestamp).toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Trade actions */}
+              {renderTradeActions()}
+            </div>
+            
+            {/* Sidebar */}
+            <div>
+              {/* Item details */}
+              <TradeItemDetails 
+                item={trade.item} 
+                trade={trade} 
+                price={trade.price}
+              />
+              
+              {/* Help and info */}
+              <div style={{
+                backgroundColor: 'rgba(17, 24, 39, 0.4)',
+                borderRadius: '16px',
+                padding: '24px',
+                border: '1px solid rgba(55, 65, 81, 0.5)',
+                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.15)',
+                backdropFilter: 'blur(8px)'
+              }}>
+                <h3 style={{ 
+                  color: '#f1f1f1', 
+                  margin: '0 0 20px 0',
+                  fontSize: '1.1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                  </svg>
+                  Trade Help
+                </h3>
+                
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px',
+                  color: '#d1d5db',
+                  fontSize: '0.95rem',
+                  backgroundColor: 'rgba(31, 41, 55, 0.5)',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(55, 65, 81, 0.5)'
+                }}>
+                  <p style={{ margin: 0, lineHeight: '1.6' }}>
+                    If you're experiencing issues with this trade, make sure to check your Steam trade offers directly.
+                  </p>
+                  
+                  <a 
+                    href="https://steamcommunity.com/my/tradeoffers" 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ 
+                      color: '#3b82f6',
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginTop: '8px',
+                      padding: '10px 16px',
+                      backgroundColor: 'rgba(17, 24, 39, 0.5)',
+                      borderRadius: '8px',
+                      fontWeight: '500',
+                      transition: 'all 0.2s ease',
+                      border: '1px solid rgba(59, 130, 246, 0.3)'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.backgroundColor = 'rgba(17, 24, 39, 0.7)';
+                      e.target.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                      e.target.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.backgroundColor = 'rgba(17, 24, 39, 0.5)';
+                      e.target.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                      e.target.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    Open Steam Trade Offers
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Cancel Modal */}
-      <div id="cancelModal" style={{
-        display: 'none',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        backgroundColor: 'rgba(0,0,0,0.85)',
-        zIndex: 9999,
-        overflowY: 'auto',
-        backdropFilter: 'blur(5px)'
-      }}
-      onClick={(e) => {
-        if (e.target.id === 'cancelModal') {
-          e.target.classList.remove('visible');
-        }
-      }}>
-        <div style={{
-          backgroundColor: 'rgba(31, 41, 55, 0.95)',
-          padding: '30px',
-          borderRadius: '16px',
-          maxWidth: '550px',
-          width: '100%',
-          position: 'relative',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
-        }}
-        onClick={(e) => e.stopPropagation()}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '15px',
-            marginBottom: '24px'
+          {/* Cancel Modal */}
+          <div id="cancelModal" style={{
+            display: 'none',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            zIndex: 9999,
+            overflowY: 'auto',
+            backdropFilter: 'blur(5px)'
+          }}
+          onClick={(e) => {
+            if (e.target.id === 'cancelModal') {
+              e.target.classList.remove('visible');
+            }
           }}>
             <div style={{
-              backgroundColor: 'rgba(220, 38, 38, 0.2)',
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              flexShrink: 0,
-              border: '1px solid rgba(220, 38, 38, 0.3)'
-            }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="15" y1="9" x2="9" y2="15"></line>
-                <line x1="9" y1="9" x2="15" y2="15"></line>
-              </svg>
-            </div>
-            <div>
-              <h3 style={{ 
-                color: '#f1f1f1', 
-                marginTop: '0',
-                marginBottom: '8px',
-                fontSize: '1.5rem',
-                fontWeight: '600' 
-              }}>Cancel Trade</h3>
-              <p style={{ 
-                color: '#9ca3af',
-                margin: '0',
-                fontSize: '1rem',
-                lineHeight: '1.5' 
+              backgroundColor: 'rgba(31, 41, 55, 0.95)',
+              padding: '30px',
+              borderRadius: '16px',
+              maxWidth: '550px',
+              width: '100%',
+              position: 'relative',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)',
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}
+            onClick={(e) => e.stopPropagation()}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '15px',
+                marginBottom: '24px'
               }}>
-                Are you sure you want to cancel this trade? This action cannot be undone.
-              </p>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: '24px' }}>
-            <label 
-              htmlFor="cancelReason" 
-              style={{ 
-                display: 'block', 
-                color: '#e5e7eb', 
-                marginBottom: '10px',
-                fontSize: '0.95rem',
-                fontWeight: '500'
-              }}
-            >
-              Reason for cancellation (optional):
-            </label>
-            <textarea
-              id="cancelReason"
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              placeholder="Explain why you're cancelling this trade..."
-              style={{
-                width: '100%',
-                padding: '14px',
-                backgroundColor: 'rgba(31, 41, 55, 0.7)',
-                border: '1px solid rgba(75, 85, 99, 0.5)',
-                borderRadius: '8px',
-                color: '#f1f1f1',
-                minHeight: '100px',
-                fontSize: '0.95rem',
-                outline: 'none',
-                transition: 'all 0.2s ease',
-                resize: 'vertical'
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = 'rgba(79, 70, 229, 0.6)';
-                e.target.style.boxShadow = '0 0 0 2px rgba(79, 70, 229, 0.2)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = 'rgba(75, 85, 99, 0.5)';
-                e.target.style.boxShadow = 'none';
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px' }}>
-            <button
-              onClick={() => {
-                const modal = document.getElementById('cancelModal');
-                if (modal) modal.classList.remove('visible');
-              }}
-              style={{
-                backgroundColor: 'rgba(31, 41, 55, 0.7)',
-                color: '#e5e7eb',
-                border: '1px solid rgba(75, 85, 99, 0.5)',
-                padding: '12px 24px',
-                borderRadius: '10px',
-                cursor: 'pointer',
-                fontWeight: '600',
-                width: '48%',
-                fontSize: '0.95rem',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseOver={(e) => {
-                e.target.style.backgroundColor = 'rgba(31, 41, 55, 0.9)';
-                e.target.style.transform = 'translateY(-2px)';
-              }}
-              onMouseOut={(e) => {
-                e.target.style.backgroundColor = 'rgba(31, 41, 55, 0.7)';
-                e.target.style.transform = 'translateY(0)';
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-              Go Back
-            </button>
-            <button
-              onClick={handleCancelTrade}
-              disabled={loading}
-              style={{
-                backgroundColor: loading ? '#9ca3af' : '#dc2626',
-                color: 'white',
-                border: 'none',
-                padding: '12px 24px',
-                borderRadius: '10px',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontWeight: '600',
-                width: '48%',
-                fontSize: '0.95rem',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: loading ? 'none' : '0 4px 12px rgba(220, 38, 38, 0.25)',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseOver={(e) => {
-                if (!loading) {
-                  e.currentTarget.style.backgroundColor = '#b91c1c';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 15px rgba(220, 38, 38, 0.35)';
-                }
-              }}
-              onMouseOut={(e) => {
-                if (!loading) {
-                  e.currentTarget.style.backgroundColor = '#dc2626';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 38, 38, 0.25)';
-                }
-              }}
-            >
-              {loading ? (
-                <>
-                  <div className="spinner" style={{
-                    display: 'inline-block',
-                    width: '18px',
-                    height: '18px',
-                    border: '2px solid rgba(255,255,255,0.2)',
-                    borderRadius: '50%',
-                    borderTopColor: 'white',
-                    animation: 'spin 1s linear infinite'
-                  }} />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <div style={{
+                  backgroundColor: 'rgba(220, 38, 38, 0.2)',
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  flexShrink: 0,
+                  border: '1px solid rgba(220, 38, 38, 0.3)'
+                }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10"></circle>
                     <line x1="15" y1="9" x2="9" y2="15"></line>
                     <line x1="9" y1="9" x2="15" y2="15"></line>
                   </svg>
-                  Yes, Cancel Trade
-                </>
-              )}
-            </button>
+                </div>
+                <div>
+                  <h3 style={{ 
+                    color: '#f1f1f1', 
+                    marginTop: '0',
+                    marginBottom: '8px',
+                    fontSize: '1.5rem',
+                    fontWeight: '600' 
+                  }}>Cancel Trade</h3>
+                  <p style={{ 
+                    color: '#9ca3af',
+                    margin: '0',
+                    fontSize: '1rem',
+                    lineHeight: '1.5' 
+                  }}>
+                    Are you sure you want to cancel this trade? This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '24px' }}>
+                <label 
+                  htmlFor="cancelReason" 
+                  style={{ 
+                    display: 'block', 
+                    color: '#e5e7eb', 
+                    marginBottom: '10px',
+                    fontSize: '0.95rem',
+                    fontWeight: '500'
+                  }}
+                >
+                  Reason for cancellation (optional):
+                </label>
+                <textarea
+                  id="cancelReason"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Explain why you're cancelling this trade..."
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    backgroundColor: 'rgba(31, 41, 55, 0.7)',
+                    border: '1px solid rgba(75, 85, 99, 0.5)',
+                    borderRadius: '8px',
+                    color: '#f1f1f1',
+                    minHeight: '100px',
+                    fontSize: '0.95rem',
+                    outline: 'none',
+                    transition: 'all 0.2s ease',
+                    resize: 'vertical'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = 'rgba(79, 70, 229, 0.6)';
+                    e.target.style.boxShadow = '0 0 0 2px rgba(79, 70, 229, 0.2)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'rgba(75, 85, 99, 0.5)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px' }}>
+                <button
+                  onClick={() => {
+                    const modal = document.getElementById('cancelModal');
+                    if (modal) modal.classList.remove('visible');
+                  }}
+                  style={{
+                    backgroundColor: 'rgba(31, 41, 55, 0.7)',
+                    color: '#e5e7eb',
+                    border: '1px solid rgba(75, 85, 99, 0.5)',
+                    padding: '12px 24px',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    width: '48%',
+                    fontSize: '0.95rem',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.backgroundColor = 'rgba(31, 41, 55, 0.9)';
+                    e.target.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.backgroundColor = 'rgba(31, 41, 55, 0.7)';
+                    e.target.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                  Go Back
+                </button>
+                <button
+                  onClick={handleCancelTrade}
+                  disabled={loading}
+                  style={{
+                    backgroundColor: loading ? '#9ca3af' : '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    padding: '12px 24px',
+                    borderRadius: '10px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontWeight: '600',
+                    width: '48%',
+                    fontSize: '0.95rem',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: loading ? 'none' : '0 4px 12px rgba(220, 38, 38, 0.25)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    if (!loading) {
+                      e.currentTarget.style.backgroundColor = '#b91c1c';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 15px rgba(220, 38, 38, 0.35)';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!loading) {
+                      e.currentTarget.style.backgroundColor = '#dc2626';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 38, 38, 0.25)';
+                    }
+                  }}
+                >
+                  {loading ? (
+                    <>
+                      <div className="spinner" style={{
+                        display: 'inline-block',
+                        width: '18px',
+                        height: '18px',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        borderRadius: '50%',
+                        borderTopColor: 'white',
+                        animation: 'spin 1s linear infinite'
+                      }} />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                      </svg>
+                      Yes, Cancel Trade
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Add shared CSS animation style */}
-      <style>
-        {`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-          
-          @keyframes pulseBadge {
-            0% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
-            50% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.8); }
-            100% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
-          }
-          
-          #cancelModal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.85);
-            z-index: 9999;
-            overflow-y: auto;
-          }
-          
-          #cancelModal.visible {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-          }
-          
-          .spinner {
-            animation: spin 1s linear infinite;
-          }
-        `}
-      </style>
+      )}
     </div>
   );
 };
