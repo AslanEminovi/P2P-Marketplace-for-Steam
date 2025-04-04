@@ -256,10 +256,12 @@ const ItemDetails = ({
               left: 0,
               right: 0,
               bottom: 0,
+              width: '100vw',
+              height: '100vh',
               backgroundColor: 'rgba(0, 0, 0, 0.75)',
               backdropFilter: 'blur(5px)',
               WebkitBackdropFilter: 'blur(5px)',
-              zIndex: 100,
+              zIndex: 9998,
             }}
             onClick={onClose}
           />
@@ -285,7 +287,7 @@ const ItemDetails = ({
               borderRadius: '16px',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
               padding: '32px',
-              zIndex: 101,
+              zIndex: 9999,
               width: '90%',
               maxWidth: '800px',
               maxHeight: '90vh',

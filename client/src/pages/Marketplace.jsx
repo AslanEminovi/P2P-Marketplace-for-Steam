@@ -123,20 +123,6 @@ function Marketplace({ user }) {
     }
   }, []);
 
-  // Socket event handlers
-  useEffect(() => {
-    socketService.on('market_update', (update) => {
-      if (update.type === 'new_listing' || update.type === 'item_sold') {
-      fetchItems();
-        fetchMarketStats();
-      }
-    });
-
-    return () => {
-      socketService.off('market_update');
-    };
-  }, [fetchItems, fetchMarketStats]);
-
   // Fetch user profile
   const fetchUserProfile = useCallback(async () => {
     if (!user) return;
@@ -170,6 +156,82 @@ function Marketplace({ user }) {
       setMyListings([]);
     }
   }, [user]);
+
+  // Initial data load
+  useEffect(() => {
+    // Initial data fetch
+    fetchItems();
+    fetchMarketStats();
+    
+    if (user) {
+      fetchUserProfile();
+      fetchUserListings();
+    }
+    
+    // Setup socket connection
+    socketService.connect();
+    
+    // Check socket connection
+    if (!socketService.isConnected()) {
+      console.log('Socket not connected, reconnecting...');
+      socketService.reconnect();
+    }
+    
+    // Return cleanup function
+    return () => {
+      // No need to disconnect as the service manages this
+    };
+  }, [fetchItems, fetchMarketStats, fetchUserProfile, fetchUserListings, user]);
+
+  // Socket event handlers
+  useEffect(() => {
+    // Ensure we're connected to socket
+    if (!socketService.isConnected()) {
+      socketService.reconnect();
+    }
+    
+    // Handle market updates
+    const handleMarketUpdate = (update) => {
+      console.log('Market update received:', update);
+      if (update.type === 'new_listing' || update.type === 'item_sold') {
+        fetchItems();
+        fetchMarketStats();
+      }
+    };
+    
+    // Register socket event listeners
+    socketService.on('market_update', handleMarketUpdate);
+    
+    // Setup connection status handlers
+    socketService.onConnected(() => {
+      console.log('Socket connected, refreshing data...');
+      fetchItems();
+      fetchMarketStats();
+    });
+    
+    socketService.onDisconnected(() => {
+      console.log('Socket disconnected');
+      // Display toast notification when disconnected
+      toast.error('Connection lost. Attempting to reconnect...', { duration: 3000 });
+    });
+    
+    // Cleanup event listeners
+    return () => {
+      socketService.off('market_update', handleMarketUpdate);
+    };
+  }, [fetchItems, fetchMarketStats]);
+
+  // Auto-refresh listings periodically as backup for socket issues
+  useEffect(() => {
+    // Set up a backup timer to refresh listings every 30 seconds
+    // This ensures data stays fresh even if WebSocket connection has issues
+    const intervalId = setInterval(() => {
+      console.log('Periodic refresh of listings');
+      fetchItems();
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [fetchItems]);
 
   // Handle item click
   const handleItemClick = (item) => {
@@ -248,20 +310,6 @@ function Marketplace({ user }) {
       }
     }
   };
-
-  // Check user profile on mount and when user changes
-  useEffect(() => {
-    fetchUserProfile();
-  }, [fetchUserProfile]);
-
-  // Initial data fetch
-  useEffect(() => {
-    fetchItems();
-    fetchMarketStats();
-    if (user) {
-      fetchUserListings();
-    }
-  }, [fetchItems, fetchMarketStats, fetchUserListings, user]);
 
   // Handle search and filters
   useEffect(() => {

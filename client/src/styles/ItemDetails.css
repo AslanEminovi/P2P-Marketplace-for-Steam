@@ -4,6 +4,22 @@
   --accent-color: #4F46E5;
   --accent-hover: #7C3AED;
   --border-light: rgba(255, 255, 255, 0.1);
+  z-index: 9999;
+  position: fixed;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+/* Make sure the modal stays centered */
+.item-details-modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
 }
 
 /* Item header styles */
