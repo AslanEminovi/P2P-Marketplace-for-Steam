@@ -6,6 +6,7 @@ import { API_URL } from '../config/constants';
 import socketService from '../services/socketService';
 import '../styles/Marketplace.css';
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 // Component imports
 import OfferModal from '../components/OfferModal';
@@ -494,7 +495,13 @@ function Marketplace({ user }) {
             onClose={() => setTradePanelOpen(false)}
             item={selectedItem}
             action={tradeAction}
-            onComplete={handleTradeComplete}
+            onComplete={(data) => {
+              // Handle trade completion
+              if (data && data.success) {
+                // Refresh items after successful trade
+                fetchItems();
+              }
+            }}
           />
         )}
       </AnimatePresence>
@@ -504,7 +511,10 @@ function Marketplace({ user }) {
           <TradeUrlPrompt
             isOpen={showTradeUrlPrompt}
             onClose={() => setShowTradeUrlPrompt(false)}
-            onSave={handleTradeUrlSave}
+            onSave={(url) => {
+              // Handle trade URL save
+              fetchUserProfile();
+            }}
           />
         )}
       </AnimatePresence>
@@ -518,6 +528,11 @@ function Marketplace({ user }) {
           />
         )}
       </AnimatePresence>
+
+      <UserListings 
+        show={showListingsPanel} 
+        onClose={() => setShowListingsPanel(false)} 
+      />
     </div>
   );
 }

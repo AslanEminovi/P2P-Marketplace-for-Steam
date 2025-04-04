@@ -18,10 +18,10 @@ import MyListings from './pages/MyListings';
 import Profile from './pages/Profile';
 import TradeDetailPage from './pages/TradeDetailPage';
 import SteamSettingsPage from './pages/SteamSettings';
+import Trades from './pages/Trades';
 
 // Components
 import SteamSettings from './components/SteamSettings';
-import TradeHistory from './components/TradeHistory';
 import NotificationCenter from './components/NotificationCenter';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import PageWrapper from './components/PageWrapper';
@@ -865,7 +865,7 @@ function App() {
             <Route path="/trades" element={
               <ProtectedRoute user={user}>
                 <PageWrapper key="trades">
-                  <TradeHistory user={user} />
+                  <Trades user={user} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
