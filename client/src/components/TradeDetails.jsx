@@ -706,7 +706,7 @@ const TradeDetails = ({ tradeId }) => {
         
         // Hide the modal immediately
         const modal = document.getElementById('cancelModal');
-        if (modal) modal.style.display = 'none';
+        if (modal) modal.classList.remove('visible');
         
         // Reload the trade details to show the updated status
         loadTradeDetails();
@@ -736,7 +736,7 @@ const TradeDetails = ({ tradeId }) => {
       
       // Keep the modal open to allow retry
       const modal = document.getElementById('cancelModal');
-      if (modal) modal.style.display = 'block';
+      if (modal) modal.classList.add('visible');
     } finally {
       setLoading(false);
     }
@@ -935,7 +935,7 @@ const TradeDetails = ({ tradeId }) => {
                 onClick={() => {
                   setCancelReason('');
                   const modal = document.getElementById('cancelModal');
-                  if (modal) modal.style.display = 'block';
+                  if (modal) modal.classList.add('visible');
                 }}
                 style={{
                   backgroundColor: 'rgba(220, 38, 38, 0.9)',
@@ -1129,7 +1129,7 @@ const TradeDetails = ({ tradeId }) => {
                 onClick={() => {
                   setCancelReason('');
                   const modal = document.getElementById('cancelModal');
-                  if (modal) modal.style.display = 'block';
+                  if (modal) modal.classList.add('visible');
                 }}
                 style={{
                   backgroundColor: 'rgba(220, 38, 38, 0.9)',
@@ -1552,13 +1552,10 @@ const TradeDetails = ({ tradeId }) => {
         backgroundColor: 'rgba(0,0,0,0.85)',
         zIndex: 9999,
         overflowY: 'auto',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
       }}
       onClick={(e) => {
         if (e.target.id === 'cancelModal') {
-          e.target.style.display = 'none';
+          e.target.classList.remove('visible');
         }
       }}>
         <div style={{
@@ -1606,7 +1603,7 @@ const TradeDetails = ({ tradeId }) => {
             <button
               onClick={() => {
                 const modal = document.getElementById('cancelModal');
-                if (modal) modal.style.display = 'none';
+                if (modal) modal.classList.remove('visible');
               }}
               style={{
                 backgroundColor: '#374151',
@@ -1751,6 +1748,9 @@ const TradeDetails = ({ tradeId }) => {
             background-color: rgba(0, 0, 0, 0.85);
             z-index: 9999;
             overflow-y: auto;
+          }
+          
+          #cancelModal.visible {
             display: flex;
             justify-content: center;
             align-items: center;
@@ -1819,13 +1819,13 @@ const getStatusBgColor = (status) => {
 };
 
 const getStatusIcon = (status) => {
-  const iconProps = { width: "16", height: "16", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" };
+  const iconProps = { width: "14", height: "14", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" };
   
   switch (status) {
     case 'completed':
-      return <svg {...iconProps} viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>;
+      return <svg {...iconProps} viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>;
     case 'awaiting_seller':
-      return <svg {...iconProps} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
+      return <svg {...iconProps} viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"></circle><polyline points="12 9 12 12 14 14"></polyline></svg>;
     case 'offer_sent':
       return <svg {...iconProps} viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>;
     case 'awaiting_confirmation':
@@ -1834,7 +1834,7 @@ const getStatusIcon = (status) => {
     case 'failed':
       return <svg {...iconProps} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>;
     default:
-      return <svg {...iconProps} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>;
+      return <svg {...iconProps} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>;
   }
 };
 
