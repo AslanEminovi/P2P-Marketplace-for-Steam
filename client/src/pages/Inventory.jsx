@@ -51,13 +51,13 @@ function Inventory({ user }) {
   const fetchInventory = async () => {
     let retryCount = 0;
     const maxRetries = 2;
-    
+
     const attemptFetch = async () => {
       try {
         setLoading(true);
         setMessage('');
         setMessageType('');
-        
+
         if (!user) {
           setMessage('Please sign in through Steam to view your inventory.');
           setMessageType('error');
@@ -68,18 +68,18 @@ function Inventory({ user }) {
         console.log('Fetching inventory...');
         // Get the auth token from localStorage with the correct key
         const token = localStorage.getItem('auth_token');
-        
+
         console.log('Using auth token:', token ? token.substring(0, 10) + '...' : 'No token found');
         console.log('Current API URL:', API_URL);
         console.log('User object:', JSON.stringify(user, null, 2));
-        
+
         // Form the complete URL for debugging
         const requestUrl = `${API_URL}/inventory/my`;
         console.log('Request URL:', requestUrl);
-        
+
         // Try a simpler approach - ONLY include the token in the URL query parameter
         // This is how many Steam integrations expect authentication
-        const requestConfig = { 
+        const requestConfig = {
           withCredentials: true,
           timeout: 30000, // 30 second timeout
           params: {
@@ -90,11 +90,11 @@ function Inventory({ user }) {
           // Removing the Authorization header to see if that's causing conflict
         };
         console.log('Request config:', JSON.stringify(requestConfig, null, 2));
-        
+
         const res = await axios.get(requestUrl, requestConfig);
-        
+
         console.log('Inventory response:', res.data);
-        
+
         if (res.data && Array.isArray(res.data)) {
           if (res.data.length === 0) {
             // Only show empty inventory message if this isn't right after listing an item
@@ -117,22 +117,22 @@ function Inventory({ user }) {
         }
       } catch (err) {
         console.error('Inventory fetch error:', err);
-        
+
         // Check if we should retry
         if (retryCount < maxRetries && (
-            !err.response || // Network error
-            err.response.status >= 500 || // Server error
-            err.response.status === 429 || // Rate limit
-            err.code === 'ECONNABORTED' // Timeout
-          )) {
+          !err.response || // Network error
+          err.response.status >= 500 || // Server error
+          err.response.status === 429 || // Rate limit
+          err.code === 'ECONNABORTED' // Timeout
+        )) {
           console.log(`Retrying inventory fetch (${retryCount + 1}/${maxRetries})...`);
           retryCount++;
-          
+
           // Wait briefly before retrying
           await new Promise(resolve => setTimeout(resolve, 1000));
           return attemptFetch();
         }
-        
+
         // Specific handling for 403 Forbidden error (private inventory)
         // Check all possible ways a 403 error could be represented
         if (
@@ -147,7 +147,7 @@ function Inventory({ user }) {
           setLoading(false);
           return;
         }
-        
+
         // Check for timeout message
         if (
           (err.message && err.message.includes('timeout')) ||
@@ -161,7 +161,7 @@ function Inventory({ user }) {
           setLoading(false);
           return;
         }
-        
+
         const errorMessage = err.response?.data?.message || err.message || 'Unknown error occurred';
         setMessage('Error fetching inventory: ' + errorMessage);
         setMessageType('error');
@@ -169,7 +169,7 @@ function Inventory({ user }) {
         setLoading(false);
       }
     };
-    
+
     return attemptFetch();
   };
 
@@ -186,16 +186,16 @@ function Inventory({ user }) {
   const listItemForSale = (itemData) => {
     // CRITICAL: We can't use async/await directly here as it might block
     // Simply queue the operations and return immediately
-    
+
     // First, show minimal loading indication
     setLoading(true);
-    
+
     // Set a safety timeout to reset loading state
     const loadingTimeout = setTimeout(() => {
       console.log("Safety timeout triggered - resetting loading state");
       setLoading(false);
     }, 5000);
-    
+
     // Use setTimeout with zero delay to move this task to a separate event loop tick
     setTimeout(() => {
       // Always try to clean up
@@ -218,11 +218,11 @@ function Inventory({ user }) {
         setTimeout(() => {
           // Use a basic fetch instead of axios (sometimes more reliable for preventing freezes)
           const apiUrl = `${API_URL}/marketplace/list`;
-          
+
           // Create the request with proper timeout
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second timeout
-          
+
           fetch(apiUrl, {
             method: 'POST',
             headers: {
@@ -233,31 +233,31 @@ function Inventory({ user }) {
             body: JSON.stringify(minimalData),
             signal: controller.signal
           })
-          .then(response => {
-            clearTimeout(timeoutId);
-            return response.json().catch(() => ({})); // Handle JSON parse errors gracefully
-          })
-          .then(data => {
-            // Success handling
-            setLoading(false);
-            clearTimeout(loadingTimeout);
-            
-            setMessage('Item listed for sale successfully!');
-            setMessageType('success');
-            
-            // Don't do any further processing in this promise chain
-            // Instead queue a separate operation to refresh inventory
-            queueInventoryRefresh();
-          })
-          .catch(error => {
-            console.error('Error in listing item:', error);
-            setLoading(false);
-            clearTimeout(loadingTimeout);
-            
-            // Simple error message, don't do complex processing
-            setMessage('Error listing item. Please try again.');
-            setMessageType('error');
-          });
+            .then(response => {
+              clearTimeout(timeoutId);
+              return response.json().catch(() => ({})); // Handle JSON parse errors gracefully
+            })
+            .then(data => {
+              // Success handling
+              setLoading(false);
+              clearTimeout(loadingTimeout);
+
+              setMessage('Item listed for sale successfully!');
+              setMessageType('success');
+
+              // Don't do any further processing in this promise chain
+              // Instead queue a separate operation to refresh inventory
+              queueInventoryRefresh();
+            })
+            .catch(error => {
+              console.error('Error in listing item:', error);
+              setLoading(false);
+              clearTimeout(loadingTimeout);
+
+              // Simple error message, don't do complex processing
+              setMessage('Error listing item. Please try again.');
+              setMessageType('error');
+            });
         }, 10); // minimal delay to ensure UI responsiveness
       } catch (e) {
         // Last resort error handling
@@ -273,12 +273,12 @@ function Inventory({ user }) {
   // Queue inventory refresh instead of doing it directly
   const queueInventoryRefresh = (() => {
     let refreshQueued = false;
-    
+
     return () => {
       // Don't queue multiple refreshes
       if (refreshQueued) return;
       refreshQueued = true;
-      
+
       // Wait 1.5 seconds before refreshing
       setTimeout(() => {
         try {
@@ -298,7 +298,7 @@ function Inventory({ user }) {
 
   useEffect(() => {
     let isMounted = true;
-    
+
     // CRITICAL: Reset any stuck state from previous renders
     document.body.style.overflow = '';
     document.body.style.backgroundColor = '';
@@ -306,14 +306,14 @@ function Inventory({ user }) {
     document.body.style.position = '';
     document.body.style.top = '';
     document.body.style.width = '';
-    
+
     // Remove any modal elements that might be stuck
     ['modal-backdrop', 'backdrop', 'overlay', 'modal-open'].forEach(className => {
       document.querySelectorAll(`.${className}`).forEach(el => {
         if (el && el.parentNode) el.parentNode.removeChild(el);
       });
     });
-    
+
     // Reset any fixed positioning
     const mainContent = document.querySelector('main');
     if (mainContent) {
@@ -321,7 +321,7 @@ function Inventory({ user }) {
       mainContent.style.top = '';
       mainContent.style.width = '';
     }
-    
+
     const loadInventory = async () => {
       try {
         await fetchInventory();
@@ -332,18 +332,18 @@ function Inventory({ user }) {
         }
       }
     };
-    
+
     loadInventory();
-    
+
     // Setup WebSocket event listener for inventory updates
     const handleInventoryUpdate = (data) => {
       if (!isMounted) return;
-      
+
       console.log('Inventory update received in component:', data);
-      
+
       // Ensure we're not in a loading state when processing socket updates
       setLoading(false);
-      
+
       try {
         // Check the type of update and handle accordingly
         if (data.type === 'refresh' || data.type === 'item_added' || data.type === 'item_removed') {
@@ -354,7 +354,7 @@ function Inventory({ user }) {
         } else if (data.type === 'item_added' && data.data && data.data.item) {
           // Add a single item to the inventory without a full refresh
           setItems(prevItems => [...prevItems, data.data.item]);
-          
+
           // If we don't already have a success message, show this one
           if (messageType !== 'success') {
             setMessage(`Item "${data.data.item.marketname || data.data.item.markethashname}" added to inventory`);
@@ -363,23 +363,23 @@ function Inventory({ user }) {
         } else if (data.type === 'item_removed' && data.data) {
           // Remove a single item from the inventory without a full refresh
           setItems(prevItems => {
-            const removedItem = prevItems.find(item => 
+            const removedItem = prevItems.find(item =>
               item._id === data.data.itemId || item.assetId === data.data.assetId
             );
-            const filteredItems = prevItems.filter(item => 
+            const filteredItems = prevItems.filter(item =>
               item._id !== data.data.itemId && item.assetId !== data.data.assetId
             );
-            
+
             // Show removal message if we don't already have a success message
             if (removedItem && messageType !== 'success') {
               setMessage(`Item "${removedItem.marketname || removedItem.markethashname}" removed from inventory`);
               setMessageType('info');
             }
-            
+
             return filteredItems;
           });
         }
-        
+
         // Only set message from socket event if it's not overriding a success message
         if (data.message && messageType !== 'success') {
           setMessage(data.message);
@@ -389,10 +389,10 @@ function Inventory({ user }) {
         console.error('Error handling socket update:', error);
       }
     };
-    
+
     // Register the event handler
     socketService.on('inventory_update', handleInventoryUpdate);
-    
+
     // Register a reset callback for emergency resets
     const handleEmergencyReset = () => {
       console.warn("Emergency reset triggered in Inventory");
@@ -401,17 +401,17 @@ function Inventory({ user }) {
       }
     };
     lightPerformanceMonitor.registerResetCallback(handleEmergencyReset);
-    
+
     // Start performance monitoring with a longer timeout
     const stopMonitoring = lightPerformanceMonitor.startMonitoring({ timeout: 20000 });
-    
+
     // Create a heartbeat to reset the timeout regularly during inventory fetching
     const heartbeatId = setInterval(() => {
       if (loading) {
         lightPerformanceMonitor.resetTimeout(20000);
       }
     }, 5000);
-    
+
     // Clean up the event handler when component unmounts
     return () => {
       isMounted = false;
@@ -432,7 +432,7 @@ function Inventory({ user }) {
   // Add another safety check for loading state
   useEffect(() => {
     let loadingTimeoutId = null;
-    
+
     if (loading) {
       // If loading state persists for more than 8 seconds, force reset
       loadingTimeoutId = setTimeout(() => {
@@ -441,7 +441,7 @@ function Inventory({ user }) {
         setMessageType('warning');
       }, 8000);
     }
-    
+
     return () => {
       if (loadingTimeoutId) {
         clearTimeout(loadingTimeoutId);
@@ -459,7 +459,7 @@ function Inventory({ user }) {
         document.body.style.overflow = '';
       }
     }, 5000);
-    
+
     return () => {
       clearInterval(cleanupTimer);
     };
@@ -468,36 +468,36 @@ function Inventory({ user }) {
   // Calculate the total worth of all items in inventory
   const calculateTotalWorth = () => {
     if (!items || items.length === 0) return '0.00';
-    
+
     const total = items.reduce((sum, item) => {
       const price = Number(item.pricelatest || item.pricereal || 0);
       return sum + price;
     }, 0);
-    
+
     return total.toFixed(2);
   };
-  
+
   // Find the most valuable item price
   const findMostValuableItem = () => {
     if (!items || items.length === 0) return '0.00';
-    
+
     const mostValuable = items.reduce((max, item) => {
       const price = Number(item.pricelatest || item.pricereal || 0);
       return price > max ? price : max;
     }, 0);
-    
+
     return mostValuable.toFixed(2);
   };
-  
+
   // Calculate the average worth of items
   const calculateAverageWorth = () => {
     if (!items || items.length === 0) return '0.00';
-    
+
     const total = items.reduce((sum, item) => {
       const price = Number(item.pricelatest || item.pricereal || 0);
       return sum + price;
     }, 0);
-    
+
     return (total / items.length).toFixed(2);
   };
 
@@ -544,7 +544,7 @@ function Inventory({ user }) {
               borderRadius: '50%',
               animation: 'spin 1.5s linear infinite'
             }}></div>
-            
+
             {/* Inner spinning ring */}
             <div style={{
               position: 'absolute',
@@ -557,7 +557,7 @@ function Inventory({ user }) {
               borderRadius: '50%',
               animation: 'spin 1.2s linear infinite reverse'
             }}></div>
-            
+
             {/* Center glowing dot */}
             <div style={{
               position: 'absolute',
@@ -572,7 +572,7 @@ function Inventory({ user }) {
               animation: 'pulse 1.5s ease-in-out infinite'
             }}></div>
           </div>
-          
+
           <h2 style={{
             fontSize: '1.8rem',
             background: 'linear-gradient(to right, #3373F2, #00D2FF)',
@@ -583,7 +583,7 @@ function Inventory({ user }) {
             marginBottom: '1rem',
             textAlign: 'center'
           }}>Loading Your Inventory</h2>
-          
+
           <p style={{
             color: 'var(--gaming-text-medium)',
             textAlign: 'center',
@@ -594,7 +594,7 @@ function Inventory({ user }) {
           }}>
             We're fetching your CS2 items from Steam. This might take a moment...
           </p>
-          
+
           <div style={{
             marginTop: '1.5rem',
             width: '100%',
@@ -614,7 +614,7 @@ function Inventory({ user }) {
               animation: 'progressBar 2s ease-in-out infinite'
             }}></div>
           </div>
-          
+
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -623,7 +623,7 @@ function Inventory({ user }) {
             color: 'var(--gaming-text-dim)',
             fontSize: '0.85rem'
           }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '0.5rem'}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '0.5rem' }}>
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
@@ -631,7 +631,7 @@ function Inventory({ user }) {
             Make sure your Steam inventory is set to public
           </div>
         </div>
-        
+
         <style jsx>{`
           @keyframes spin {
             0% { transform: rotate(0deg); }
@@ -659,7 +659,7 @@ function Inventory({ user }) {
 
   if (!user) {
     return (
-      <div style={{ 
+      <div style={{
         textAlign: 'center',
         marginTop: '2rem',
         color: '#e2e8f0',
@@ -689,9 +689,9 @@ function Inventory({ user }) {
   if (messageType === 'error' && !message.includes('successfully')) {
     // Check if this is a private inventory error
     const isPrivateInventoryError = message.includes('inventory is private');
-    
+
     return (
-      <div style={{ 
+      <div style={{
         color: '#e2e8f0',
         padding: '30px',
         maxWidth: '1200px',
@@ -709,7 +709,7 @@ function Inventory({ user }) {
           <div style={{
             marginBottom: '1.5rem'
           }}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" 
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
               style={{ margin: '0 auto' }}
               stroke={isPrivateInventoryError ? "#fbbf24" : "#f87171"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
@@ -717,15 +717,15 @@ function Inventory({ user }) {
               <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
           </div>
-          
-          <h2 style={{ 
+
+          <h2 style={{
             fontSize: '1.5rem',
             marginBottom: '1rem',
             color: '#f1f1f1'
           }}>
             {isPrivateInventoryError ? 'Private Inventory Detected' : 'Unable to Load Inventory'}
           </h2>
-          
+
           <p style={{
             fontSize: '1rem',
             marginBottom: '1.5rem',
@@ -735,7 +735,7 @@ function Inventory({ user }) {
           }}>
             {message}
           </p>
-          
+
           {isPrivateInventoryError && (
             <div style={{
               padding: '1rem',
@@ -749,11 +749,11 @@ function Inventory({ user }) {
               <p style={{ color: '#fcd34d', marginBottom: '0.5rem' }}>
                 <strong>How to fix:</strong>
               </p>
-              <ol style={{ 
-                textAlign: 'left', 
-                color: '#e2e8f0', 
+              <ol style={{
+                textAlign: 'left',
+                color: '#e2e8f0',
                 paddingLeft: '1.5rem',
-                margin: '0 0 0.5rem 0' 
+                margin: '0 0 0.5rem 0'
               }}>
                 <li>Go to your Steam Profile</li>
                 <li>Click "Edit Profile" and select "Privacy Settings"</li>
@@ -762,13 +762,13 @@ function Inventory({ user }) {
               </ol>
             </div>
           )}
-          
+
           <div style={{
             display: 'flex',
             justifyContent: 'center',
             gap: '1rem'
           }}>
-            
+
             <button
               onClick={fetchInventory}
               style={{
@@ -785,9 +785,9 @@ function Inventory({ user }) {
             >
               Try Again
             </button>
-            
-            <a 
-              href="https://steamcommunity.com/my/edit/settings" 
+
+            <a
+              href="https://steamcommunity.com/my/edit/settings"
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -813,10 +813,10 @@ function Inventory({ user }) {
               </svg>
             </a>
           </div>
-          
+
           {/* Add retry button for listing if needed */}
           {window.lastFailedListing && window.lastFailedListing.item && (
-            <button 
+            <button
               id="retry-listing-button"
               style={{
                 marginTop: '1rem',
@@ -839,17 +839,17 @@ function Inventory({ user }) {
   }
 
   return (
-    <div className="inventory-container" style={{ 
+    <div className="inventory-container" style={{
       background: 'var(--gaming-bg-dark)',
       minHeight: '100vh',
       padding: '2rem',
       color: 'var(--gaming-text-medium)'
     }}>
       {showSellModal && selectedItem && (
-        <SellModal 
-          item={selectedItem} 
-          onClose={handleCloseSellModal} 
-          onConfirm={listItemForSale} 
+        <SellModal
+          item={selectedItem}
+          onClose={handleCloseSellModal}
+          onConfirm={listItemForSale}
         />
       )}
 
@@ -936,20 +936,20 @@ function Inventory({ user }) {
           }}
         >
           <span style={{ position: 'relative', zIndex: 2 }}>Refresh Inventory</span>
-          <svg 
-            style={{ width: '20px', height: '20px', position: 'relative', zIndex: 2 }} 
-            fill="none" 
-            stroke="currentColor" 
+          <svg
+            style={{ width: '20px', height: '20px', position: 'relative', zIndex: 2 }}
+            fill="none"
+            stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
             />
           </svg>
-          <div 
+          <div
             style={{
               position: 'absolute',
               top: 0,
@@ -958,14 +958,14 @@ function Inventory({ user }) {
               bottom: 0,
               background: 'linear-gradient(to right, #3373F2, #00D2FF)',
               zIndex: 1
-            }} 
+            }}
           />
         </button>
       </div>
-      
+
       {/* Display message as notification without preventing inventory display */}
       {message && (
-        <div className="inventory-notification" style={{ 
+        <div className="inventory-notification" style={{
           textAlign: 'center',
           color: messageType === 'success' ? '#4ade80' : messageType === 'error' ? '#ef4444' : '#93c5fd',
           margin: '1rem auto 2rem',
@@ -973,11 +973,10 @@ function Inventory({ user }) {
           borderRadius: '12px',
           backgroundColor: 'rgba(21, 28, 43, 0.7)',
           backdropFilter: 'blur(10px)',
-          border: `1px solid ${
-            messageType === 'success' ? 'rgba(74, 222, 128, 0.3)' : 
-            messageType === 'error' ? 'rgba(239, 68, 68, 0.3)' : 
-            'rgba(147, 197, 253, 0.3)'
-          }`,
+          border: `1px solid ${messageType === 'success' ? 'rgba(74, 222, 128, 0.3)' :
+              messageType === 'error' ? 'rgba(239, 68, 68, 0.3)' :
+                'rgba(147, 197, 253, 0.3)'
+            }`,
           maxWidth: '800px',
           display: 'flex',
           alignItems: 'center',
@@ -1004,9 +1003,9 @@ function Inventory({ user }) {
             </svg>
           )}
           <span style={{ fontSize: '0.95rem' }}>{message}</span>
-          
+
           {/* Add dismiss button for messages */}
-          <button 
+          <button
             onClick={() => {
               setMessage('');
               setMessageType('');
@@ -1014,8 +1013,8 @@ function Inventory({ user }) {
             style={{
               background: 'transparent',
               border: 'none',
-              color: messageType === 'success' ? '#4ade80' : 
-                    messageType === 'error' ? '#ef4444' : '#93c5fd',
+              color: messageType === 'success' ? '#4ade80' :
+                messageType === 'error' ? '#ef4444' : '#93c5fd',
               cursor: 'pointer',
               marginLeft: 'auto',
               padding: '4px',
@@ -1138,8 +1137,8 @@ function Inventory({ user }) {
           </div>
         </div>
       )}
-      
-      <div className="inventory-grid" style={{ 
+
+      <div className="inventory-grid" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
         gap: '1.5rem',
@@ -1147,10 +1146,10 @@ function Inventory({ user }) {
         margin: '0 auto'
       }}>
         {items.map((item, idx) => (
-          <div 
-            key={idx} 
+          <div
+            key={idx}
             className="item-card"
-            style={{ 
+            style={{
               position: 'relative',
               border: '1px solid rgba(51, 115, 242, 0.15)',
               borderRadius: '16px',
@@ -1176,7 +1175,7 @@ function Inventory({ user }) {
             }}
           >
             {/* Subtle background gradient */}
-            <div style={{ 
+            <div style={{
               position: 'absolute',
               top: 0,
               left: 0,
@@ -1187,21 +1186,21 @@ function Inventory({ user }) {
               opacity: 0.7,
               transition: 'opacity 0.3s ease'
             }} />
-            
+
             {/* Item image */}
-            <div className="item-image" style={{ 
-              position: 'relative', 
+            <div className="item-image" style={{
+              position: 'relative',
               overflow: 'hidden',
               width: '100%',
               height: '180px',
               backgroundColor: 'rgba(31, 41, 61, 0.8)'
             }}>
               {item.image && (
-                <img 
+                <img
                   src={item.image}
                   alt={item.marketname || item.markethashname}
-                  style={{ 
-                    width: '100%', 
+                  style={{
+                    width: '100%',
                     height: '100%',
                     objectFit: 'contain',
                     objectPosition: 'center',
@@ -1219,18 +1218,18 @@ function Inventory({ user }) {
                 />
               )}
             </div>
-            
+
             {/* Item details */}
-            <div className="item-details" style={{ 
-              padding: '1rem', 
-              display: 'flex', 
+            <div className="item-details" style={{
+              padding: '1rem',
+              display: 'flex',
               flexDirection: 'column',
               gap: '0.75rem',
               flex: 1
             }}>
-              <h3 style={{ 
-                fontSize: '0.9rem', 
-                fontWeight: 'bold', 
+              <h3 style={{
+                fontSize: '0.9rem',
+                fontWeight: 'bold',
                 color: 'var(--gaming-text-bright)',
                 margin: 0,
                 whiteSpace: 'nowrap',
@@ -1239,9 +1238,9 @@ function Inventory({ user }) {
               }}>
                 {item.marketname || item.markethashname}
               </h3>
-              
+
               {/* Item info grid */}
-              <div style={{ 
+              <div style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
                 gap: '0.5rem',
@@ -1249,14 +1248,14 @@ function Inventory({ user }) {
               }}>
                 {/* Wear condition */}
                 {(item.wear || (item.marketname || item.markethashname)?.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i)) && (
-                  <div style={{ 
+                  <div style={{
                     color: 'var(--gaming-text-medium)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '0.25rem'
                   }}>
                     <span style={{ color: 'var(--gaming-text-dim)', fontSize: '0.75rem' }}>Condition</span>
-                    <span style={{ 
+                    <span style={{
                       color: getWearColor(translateWear(item.wear)),
                       fontWeight: '500'
                     }}>
@@ -1264,9 +1263,9 @@ function Inventory({ user }) {
                     </span>
                   </div>
                 )}
-                
+
                 {/* Price */}
-                <div style={{ 
+                <div style={{
                   color: 'var(--gaming-text-medium)',
                   display: 'flex',
                   flexDirection: 'column',
@@ -1275,7 +1274,7 @@ function Inventory({ user }) {
                   textAlign: 'right'
                 }}>
                   <span style={{ color: 'var(--gaming-text-dim)', fontSize: '0.75rem' }}>Market Price</span>
-                  <span style={{ 
+                  <span style={{
                     color: '#4ade80',
                     fontWeight: 'bold',
                     fontSize: '0.95rem'
@@ -1284,7 +1283,7 @@ function Inventory({ user }) {
                   </span>
                 </div>
               </div>
-              
+
               {/* Sell button */}
               <button
                 onClick={(e) => {
@@ -1321,17 +1320,17 @@ function Inventory({ user }) {
                   background: 'linear-gradient(to right, #4ade80, #22d3ee)',
                   zIndex: 1
                 }}></div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position: 'relative', zIndex: 2}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'relative', zIndex: 2 }}>
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <polyline points="19 12 12 19 5 12"></polyline>
                 </svg>
-                <span style={{position: 'relative', zIndex: 2}}>Sell Now</span>
+                <span style={{ position: 'relative', zIndex: 2 }}>Sell Now</span>
               </button>
             </div>
           </div>
         ))}
       </div>
-      
+
       {/* Empty state */}
       {items.length === 0 && !loading && !messageType.includes('error') && (
         <div style={{
@@ -1394,7 +1393,7 @@ function Inventory({ user }) {
               background: 'linear-gradient(to right, #3373F2, #00D2FF)',
               zIndex: 1
             }}></div>
-            <span style={{position: 'relative', zIndex: 2}}>Refresh Inventory</span>
+            <span style={{ position: 'relative', zIndex: 2 }}>Refresh Inventory</span>
           </button>
         </div>
       )}

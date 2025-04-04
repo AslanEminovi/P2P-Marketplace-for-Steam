@@ -5,6 +5,30 @@ import TradePanel from './TradePanel';
 import { motion, AnimatePresence } from 'framer-motion';
 import '../styles/ItemDetails.css';
 
+// Define rarity colors mapping - same as in ItemCard3D
+const RARITY_COLORS = {
+  'Consumer Grade': '#b0c3d9',
+  'Industrial Grade': '#5e98d9',
+  'Mil-Spec Grade': '#4b69ff',
+  'Restricted': '#8847ff',
+  'Classified': '#d32ce6',
+  'Covert': '#eb4b4b',
+  '★': '#e4ae39',
+  // Defaults for unknown types
+  'default': '#b0c3d9'
+};
+
+// Define wear color mapping - same as in ItemCard3D
+const WEAR_COLORS = {
+  'Factory New': '#4cd94c',
+  'Minimal Wear': '#87d937',
+  'Field-Tested': '#d9d937',
+  'Well-Worn': '#d98037',
+  'Battle-Scarred': '#d94040',
+  // Default for unknown wear
+  'default': '#94a3b8'
+};
+
 const ItemDetails = ({ 
   item: initialItem = null,
   itemId, 
@@ -151,44 +175,67 @@ const ItemDetails = ({
     };
   }, [onClose]);
   
-  // Format wear value for display
-  const formatWear = (wear) => {
-    switch (wear) {
-      case 'Factory New':
-        return { text: 'FN', color: '#4ade80' };
-      case 'Minimal Wear':
-        return { text: 'MW', color: '#3b82f6' };
-      case 'Field-Tested':
-        return { text: 'FT', color: '#9333ea' };
-      case 'Well-Worn':
-        return { text: 'WW', color: '#f97316' };
-      case 'Battle-Scarred':
-        return { text: 'BS', color: '#ef4444' };
-      default:
-        return { text: wear, color: '#9ca3af' };
+  // Get truncated name for better display
+  const getTruncatedName = (item) => {
+    if (!item) return '';
+    
+    let name = item.marketHashName || item.name || '';
+    // Remove wear information from the name if present
+    name = name.replace(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i, '').trim();
+    
+    // Truncate long names
+    if (name.length > 40) {
+      return name.substring(0, 37) + '...';
     }
+    return name;
   };
   
-  // Get color for rarity
-  const getRarityColor = (rarity) => {
-    switch (rarity) {
-      case 'Consumer Grade':
-        return '#b0c3d9';
-      case 'Industrial Grade':
-        return '#5e98d9';
-      case 'Mil-Spec Grade':
-        return '#4b69ff';
-      case 'Restricted':
-        return '#8847ff';
-      case 'Classified':
-        return '#d32ee6';
-      case 'Covert':
-        return '#eb4b4b';
-      case 'Contraband':
-        return '#e4ae39';
-      default:
-        return '#9ca3af';
+  // Extract or identify wear from item data
+  const getWearName = (item) => {
+    if (!item) return null;
+    
+    // First check if exterior or wear is provided directly
+    if (item.exterior) {
+      return item.exterior;
     }
+    
+    if (item.wear) {
+      return item.wear;
+    }
+    
+    // Then try to extract from market hash name if available
+    if (item.marketHashName) {
+      const wearMatch = item.marketHashName.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i);
+      if (wearMatch) {
+        return wearMatch[0];
+      }
+    }
+    
+    return null;
+  };
+  
+  // Get rarity color - fallback to default if not found
+  const getRarityColor = (rarity) => {
+    return RARITY_COLORS[rarity] || RARITY_COLORS.default;
+  };
+  
+  // Get wear color - fallback to default if not found
+  const getWearColor = (wear) => {
+    return WEAR_COLORS[wear] || WEAR_COLORS.default;
+  };
+  
+  // Get image URL with fallback
+  const getItemImage = (item) => {
+    if (!item) return 'https://via.placeholder.com/200?text=No+Image';
+    
+    // Check for different possible image properties
+    return item.imageUrl || item.image || `https://via.placeholder.com/200?text=${encodeURIComponent(item.name || 'Item')}`;
+  };
+  
+  // Get weapon type/category
+  const getWeaponType = (item) => {
+    if (!item) return '';
+    return item.weapon_type || item.category || '';
   };
   
   if (!isOpen) return null;
@@ -287,18 +334,24 @@ const ItemDetails = ({
             ) : item ? (
               <div>
                 <div className="item-header">
-                  <div className="item-header-image">
-                    <img 
-                      src={item.image || 'https://via.placeholder.com/200'} 
-                      alt={item.name} 
+                  <div className="item-header-image" style={{
+                    background: `radial-gradient(circle at top right, ${getRarityColor(item.rarity)}22, transparent 70%)`
+                  }}>
+                    <motion.img 
+                      src={getItemImage(item)}
+                      alt={getTruncatedName(item)}
+                      initial={{ y: -5, opacity: 0.8 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      whileHover={{ scale: 1.05, y: -5 }}
+                      transition={{ type: 'spring', stiffness: 300 }}
                     />
                   </div>
                   
                   <div className="item-header-details">
-                    <h2 className="item-title">{item.name}</h2>
+                    <h2 className="item-title">{getTruncatedName(item)}</h2>
                     <p className="item-subtitle">
-                      {item.weapon_type || ''} 
-                      {item.exterior && ` | ${item.exterior}`}
+                      {getWeaponType(item)}
+                      {getWearName(item) && ` | ${getWearName(item)}`}
                     </p>
                     
                     <div className="item-price-tag">
@@ -306,11 +359,11 @@ const ItemDetails = ({
                     </div>
                     
                     <div className="item-meta">
-                      {item.exterior && (
+                      {getWearName(item) && (
                         <div className="meta-item">
                           <div className="meta-label">Exterior</div>
-                          <div className="meta-value" style={{ color: formatWear(item.exterior).color }}>
-                            {item.exterior}
+                          <div className="meta-value" style={{ color: getWearColor(getWearName(item)) }}>
+                            {getWearName(item)}
                           </div>
                         </div>
                       )}
@@ -328,7 +381,7 @@ const ItemDetails = ({
                         <div className="meta-item">
                           <div className="meta-label">Float Value</div>
                           <div className="meta-value">
-                            {item.float_value.toFixed(8)}
+                            {parseFloat(item.float_value).toFixed(8)}
                           </div>
                         </div>
                       )}
@@ -342,6 +395,27 @@ const ItemDetails = ({
                         </div>
                       )}
                     </div>
+                    
+                    {/* Owner info section */}
+                    {item.owner && (
+                      <div className="item-owner">
+                        <div className="meta-label">Listed by</div>
+                        <div className="owner-info">
+                          <div className="owner-avatar">
+                            {item.owner.avatar ? (
+                              <img src={item.owner.avatar} alt={item.owner.displayName || 'Seller'} />
+                            ) : (
+                              <div className="avatar-placeholder">
+                                {(item.owner.displayName?.[0] || '?').toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                          <div className="owner-name">
+                            {item.owner.displayName || 'Anonymous Seller'}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     
                     <div className="item-actions">
                       {!isUserOwner ? (
