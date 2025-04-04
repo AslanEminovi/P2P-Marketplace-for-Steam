@@ -13,6 +13,7 @@ const Trades = ({ user }) => {
   const [roleFilter, setRoleFilter] = useState('all'); // 'all', 'sent', 'received'
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('newest'); // 'newest', 'oldest', 'highest', 'lowest'
+  const [refreshKey, setRefreshKey] = useState(0); // Used to trigger a refresh
   const [stats, setStats] = useState({
     totalTrades: 0,
     activeTrades: 0,
@@ -23,7 +24,14 @@ const Trades = ({ user }) => {
 
   useEffect(() => {
     fetchTrades();
-  }, []);
+    
+    // Set up periodic refresh every 2 minutes
+    const refreshInterval = setInterval(() => {
+      setRefreshKey(prevKey => prevKey + 1);
+    }, 120000);
+    
+    return () => clearInterval(refreshInterval);
+  }, [refreshKey]);
   
   // Calculate stats when trades change
   useEffect(() => {
@@ -55,7 +63,8 @@ const Trades = ({ user }) => {
       });
       
       if (Array.isArray(response.data)) {
-        setTrades(response.data);
+        const tradesWithImages = await enhanceTradesWithUserImages(response.data);
+        setTrades(tradesWithImages);
       } else {
         console.error('Invalid response format from trade history API:', response.data);
         setTrades([]);
@@ -68,6 +77,27 @@ const Trades = ({ user }) => {
     } finally {
       setLoading(false);
     }
+  };
+  
+  // Function to enhance trades with user images
+  const enhanceTradesWithUserImages = async (trades) => {
+    return trades.map(trade => {
+      // Ensure buyer and seller have avatars
+      if (trade.buyer && !trade.buyer.avatar && trade.buyer.avatarfull) {
+        trade.buyer.avatar = trade.buyer.avatarfull;
+      }
+      
+      if (trade.seller && !trade.seller.avatar && trade.seller.avatarfull) {
+        trade.seller.avatar = trade.seller.avatarfull;
+      }
+      
+      // Make sure item image is set
+      if (trade.item && trade.item.iconUrl && !trade.itemImage) {
+        trade.itemImage = trade.item.iconUrl;
+      }
+      
+      return trade;
+    });
   };
 
   const getStatusColor = (status) => {
@@ -175,6 +205,21 @@ const Trades = ({ user }) => {
     setRoleFilter('all');
     setSortOrder('newest');
   };
+  
+  // Get the appropriate avatar URL
+  const getAvatarUrl = (userObj) => {
+    if (!userObj) return '/default-avatar.png';
+    
+    return userObj.avatar || 
+           userObj.avatarfull || 
+           userObj.avatarUrl || 
+           '/default-avatar.png';
+  };
+
+  // Handle refresh button click
+  const handleRefresh = () => {
+    setRefreshKey(prevKey => prevKey + 1);
+  };
 
   // Render large empty state
   const renderEmptyState = () => {
@@ -209,10 +254,25 @@ const Trades = ({ user }) => {
           <h1>My Trades</h1>
           <p>Manage and track all your trades in one place</p>
         </div>
+        
+        {/* Add refresh button */}
+        <button className="trades-refresh-button" onClick={handleRefresh} title="Refresh trades">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M23 4v6h-6"></path>
+            <path d="M1 20v-6h6"></path>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path>
+            <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"></path>
+          </svg>
+        </button>
       </div>
       
       {/* Stats Cards */}
-      <div className="trades-stats">
+      <motion.div 
+        className="trades-stats"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
         <div className="trades-stat-card">
           <div className="trades-stat-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -263,10 +323,15 @@ const Trades = ({ user }) => {
             <div className="trades-stat-value">{formatCurrency(stats.totalValue)}</div>
           </div>
         </div>
-      </div>
+      </motion.div>
       
       {/* Tabs */}
-      <div className="trades-tabs">
+      <motion.div 
+        className="trades-tabs"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+      >
         <button 
           className={`trades-tab ${activeTab === 'active' ? 'active' : ''}`}
           onClick={() => setActiveTab('active')}
@@ -291,10 +356,15 @@ const Trades = ({ user }) => {
           Trade History
           {stats.completedTrades > 0 && <span className="trades-tab-badge">{stats.completedTrades}</span>}
         </button>
-      </div>
+      </motion.div>
       
       {/* Filters */}
-      <div className="trades-filters">
+      <motion.div 
+        className="trades-filters"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.2 }}
+      >
         <div className="trades-search-container">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8"></circle>
@@ -360,7 +430,7 @@ const Trades = ({ user }) => {
             </button>
           )}
         </div>
-      </div>
+      </motion.div>
       
       {/* Loading, Error or Trades List */}
       <div className="trades-content">
@@ -388,7 +458,7 @@ const Trades = ({ user }) => {
           renderEmptyState()
         ) : (
           <div className="trades-list">
-            <AnimatePresence>
+            <AnimatePresence mode="popLayout">
               {filteredTrades.map((trade, index) => (
                 <motion.div 
                   key={trade._id}
@@ -397,6 +467,7 @@ const Trades = ({ user }) => {
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.3, delay: index * 0.05 }}
                   className="trade-card"
+                  whileHover={{ scale: 1.01 }}
                 >
                   <div className="trade-card-header">
                     <div className="trade-status" style={{ backgroundColor: getStatusColor(trade.status) }}>
@@ -414,14 +485,14 @@ const Trades = ({ user }) => {
                   <div className="trade-card-content">
                     <div className="trade-item-image">
                       <img 
-                        src={trade.itemImage || '/default-item.png'} 
+                        src={trade.itemImage || trade.item?.iconUrl || '/default-item.png'} 
                         alt={trade.itemName} 
                         onError={(e) => {e.target.src = '/default-item.png'}}
                       />
                     </div>
                     
                     <div className="trade-item-details">
-                      <h3 className="trade-item-name">{trade.itemName}</h3>
+                      <h3 className="trade-item-name">{trade.itemName || trade.item?.marketHashName || 'Unknown Item'}</h3>
                       <p className="trade-item-price">
                         {formatCurrency(trade.price, trade.currency)} 
                         {trade.currency && trade.currency !== 'USD' && ` (${trade.currency})`}
@@ -429,15 +500,38 @@ const Trades = ({ user }) => {
                       
                       <div className="trade-participants">
                         <div className="trade-participant">
-                          <span className="trade-role">{trade.isUserBuyer ? 'You' : 'Buyer'}:</span>
-                          <span className="trade-user">{trade.isUserBuyer ? 'You' : trade.buyer?.displayName || 'Unknown'}</span>
+                          <div className="trade-participant-avatar">
+                            <img 
+                              src={getAvatarUrl(trade.buyer)} 
+                              alt={trade.buyer?.displayName || 'Buyer'} 
+                              onError={(e) => {e.target.src = '/default-avatar.png'}}
+                            />
+                          </div>
+                          <div className="trade-participant-info">
+                            <span className="trade-role">{trade.isUserBuyer ? 'You' : 'Buyer'}:</span>
+                            <span className="trade-user">{trade.isUserBuyer ? 'You' : trade.buyer?.displayName || 'Unknown'}</span>
+                          </div>
                         </div>
                         
-                        <div className="trade-divider"></div>
+                        <div className="trade-divider">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 12h14"></path>
+                            <path d="M12 5l7 7-7 7"></path>
+                          </svg>
+                        </div>
                         
                         <div className="trade-participant">
-                          <span className="trade-role">{trade.isUserSeller ? 'You' : 'Seller'}:</span>
-                          <span className="trade-user">{trade.isUserSeller ? 'You' : trade.seller?.displayName || 'Unknown'}</span>
+                          <div className="trade-participant-avatar">
+                            <img 
+                              src={getAvatarUrl(trade.seller)} 
+                              alt={trade.seller?.displayName || 'Seller'} 
+                              onError={(e) => {e.target.src = '/default-avatar.png'}}
+                            />
+                          </div>
+                          <div className="trade-participant-info">
+                            <span className="trade-role">{trade.isUserSeller ? 'You' : 'Seller'}:</span>
+                            <span className="trade-user">{trade.isUserSeller ? 'You' : trade.seller?.displayName || 'Unknown'}</span>
+                          </div>
                         </div>
                       </div>
                     </div>

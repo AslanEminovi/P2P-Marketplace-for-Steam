@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { API_URL } from '../config/constants';
+import axios from 'axios';
 import './Navbar.css';
 
 // Remove logo import since it's not needed
@@ -14,6 +15,7 @@ const Navbar = ({ user, onLogout }) => {
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [scrollPosition, setScrollPosition] = useState(0);
+  const [pendingTradesCount, setPendingTradesCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -27,6 +29,34 @@ const Navbar = ({ user, onLogout }) => {
     if (user) {
       console.log("User avatar:", user.avatar);
       console.log("User display name:", user.displayName);
+    }
+  }, [user]);
+  
+  // Fetch pending trades count
+  useEffect(() => {
+    if (user) {
+      const fetchPendingTrades = async () => {
+        try {
+          const response = await axios.get(`${API_URL}/trades/history`, { 
+            withCredentials: true 
+          });
+          
+          if (Array.isArray(response.data)) {
+            const activeTrades = response.data.filter(trade => 
+              ['awaiting_seller', 'offer_sent', 'awaiting_confirmation', 'created', 'pending'].includes(trade?.status)
+            );
+            setPendingTradesCount(activeTrades.length);
+          }
+        } catch (err) {
+          console.error('Error fetching pending trades count:', err);
+        }
+      };
+      
+      fetchPendingTrades();
+      
+      // Refresh pending trades count every 5 minutes
+      const interval = setInterval(fetchPendingTrades, 300000);
+      return () => clearInterval(interval);
     }
   }, [user]);
   
@@ -299,16 +329,16 @@ const Navbar = ({ user, onLogout }) => {
                                 <polyline points="7 23 3 19 7 15"></polyline>
                                 <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
                               </svg>
-                              {user?.pendingTrades > 0 && (
-                                <span className="trades-badge">{user.pendingTrades}</span>
+                              {pendingTradesCount > 0 && (
+                                <span className="trades-badge">{pendingTradesCount}</span>
                               )}
                             </div>
                             <div className="trades-content">
                               <span className="trades-title">My Trades</span>
                               <div className="trades-status">
-                                {user?.pendingTrades > 0 ? (
+                                {pendingTradesCount > 0 ? (
                                   <span className="trades-status-text active">
-                                    {user.pendingTrades} active {user.pendingTrades === 1 ? 'trade' : 'trades'}
+                                    {pendingTradesCount} active {pendingTradesCount === 1 ? 'trade' : 'trades'}
                                   </span>
                                 ) : (
                                   <span className="trades-status-text">No pending trades</span>
