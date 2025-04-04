@@ -270,11 +270,7 @@ const ItemDetails = ({
               backdropFilter: 'blur(5px)',
               WebkitBackdropFilter: 'blur(5px)',
               zIndex: 9998,
-              pointerEvents: 'auto'
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
+              pointerEvents: 'none'
             }}
           />
           
@@ -432,7 +428,7 @@ const ItemDetails = ({
                       </div>
                     )}
                     
-                    <div className="item-actions" style={{ position: 'relative', zIndex: 10000 }}>
+                    <div className="item-actions" style={{ position: 'relative', zIndex: 20000 }}>
                       {!isUserOwner ? (
                         <>
                           <button 
@@ -454,7 +450,7 @@ const ItemDetails = ({
                               gap: '0.75rem',
                               cursor: 'pointer',
                               position: 'relative',
-                              zIndex: 10001,
+                              zIndex: 20001,
                               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
                               flex: 1,
                               minHeight: '50px'
@@ -486,7 +482,7 @@ const ItemDetails = ({
                               gap: '0.75rem',
                               cursor: 'pointer',
                               position: 'relative',
-                              zIndex: 10001,
+                              zIndex: 20001,
                               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
                               flex: 1,
                               minHeight: '50px'
@@ -523,7 +519,7 @@ const ItemDetails = ({
                             gap: '0.75rem',
                             cursor: 'pointer',
                             position: 'relative',
-                            zIndex: 10001,
+                            zIndex: 20001,
                             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
                             flex: 1,
                             minHeight: '50px'
