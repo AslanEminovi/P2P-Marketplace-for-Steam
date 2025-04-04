@@ -254,9 +254,12 @@ const Trades = ({ user }) => {
   const getAvatarUrl = (userObj) => {
     if (!userObj) return '/default-avatar.png';
     
+    // Try all possible avatar properties in order
     return userObj.avatar || 
            userObj.avatarfull || 
            userObj.avatarUrl || 
+           userObj.avatarMedium ||
+           userObj.avatarSmall ||
            '/default-avatar.png';
   };
 
@@ -556,7 +559,12 @@ const Trades = ({ user }) => {
                             <img 
                               src={getAvatarUrl(trade.buyer)} 
                               alt={trade.buyer?.displayName || 'Buyer'} 
-                              onError={(e) => {e.target.src = '/default-avatar.png'}}
+                              onError={(e) => {
+                                console.error("Failed to load buyer avatar:", e.target.src);
+                                e.target.onerror = null; // Prevent infinite loop
+                                e.target.src = '/default-avatar.png';
+                              }}
+                              loading="lazy"
                             />
                           </div>
                           <div className="trade-participant-info">
@@ -577,7 +585,12 @@ const Trades = ({ user }) => {
                             <img 
                               src={getAvatarUrl(trade.seller)} 
                               alt={trade.seller?.displayName || 'Seller'} 
-                              onError={(e) => {e.target.src = '/default-avatar.png'}}
+                              onError={(e) => {
+                                console.error("Failed to load seller avatar:", e.target.src);
+                                e.target.onerror = null; // Prevent infinite loop
+                                e.target.src = '/default-avatar.png';
+                              }}
+                              loading="lazy"
                             />
                           </div>
                           <div className="trade-participant-info">
