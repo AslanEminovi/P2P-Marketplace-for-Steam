@@ -4,11 +4,16 @@
   --accent-color: #4F46E5;
   --accent-hover: #7C3AED;
   --border-light: rgba(255, 255, 255, 0.1);
-  z-index: 9999;
-  position: fixed;
+  z-index: 9999 !important;
+  position: fixed !important;
   top: 50% !important;
   left: 50% !important;
   transform: translate(-50%, -50%) !important;
+  pointer-events: auto !important;
+}
+
+.item-details-modal * {
+  pointer-events: auto !important;
 }
 
 /* Make sure the modal stays centered */
@@ -181,44 +186,61 @@
   display: flex;
   gap: 1rem;
   margin-top: 1.5rem;
+  position: relative;
+  z-index: 10000;
 }
 
 .item-action-button {
-  padding: 0.875rem 1.5rem;
+  padding: 1rem 1.5rem;
   border-radius: 12px;
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   transition: all 0.2s ease;
   border: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   flex: 1; /* Make buttons take equal space */
+  position: relative;
+  overflow: visible;
+  min-height: 50px;
 }
 
 .buy-now-button {
   background: var(--primary-gradient);
   color: white;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .buy-now-button:hover {
-  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.3);
-  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.5);
+  transform: translateY(-2px) scale(1.02);
+}
+
+.buy-now-button:active {
+  transform: translateY(1px);
 }
 
 .make-offer-button {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
   color: white;
   border: 1px solid var(--border-light);
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .make-offer-button:hover {
-  background: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px) scale(1.02);
+}
+
+.make-offer-button:active {
+  transform: translateY(1px);
 }
 
 .cancel-button {

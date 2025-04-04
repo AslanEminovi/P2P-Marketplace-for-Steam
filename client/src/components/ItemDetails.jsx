@@ -97,7 +97,11 @@ const ItemDetails = ({
     }
   };
   
-  const handleBuyNow = () => {
+  const handleBuyNow = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("Buy Now button clicked");
+    
     if (onAction) {
       onAction('buy');
     } else {
@@ -106,7 +110,11 @@ const ItemDetails = ({
     }
   };
   
-  const handleMakeOffer = () => {
+  const handleMakeOffer = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("Make Offer button clicked");
+    
     if (onAction) {
       onAction('offer');
     } else {
@@ -262,8 +270,12 @@ const ItemDetails = ({
               backdropFilter: 'blur(5px)',
               WebkitBackdropFilter: 'blur(5px)',
               zIndex: 9998,
+              pointerEvents: 'auto'
             }}
-            onClick={onClose}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
           />
           
           {/* Modal */}
@@ -292,7 +304,8 @@ const ItemDetails = ({
               maxWidth: '800px',
               maxHeight: '90vh',
               overflow: 'auto',
-              border: '1px solid rgba(255, 255, 255, 0.07)'
+              border: '1px solid rgba(255, 255, 255, 0.07)',
+              pointerEvents: 'auto'
             }}
           >
             {/* Close button */}
@@ -419,15 +432,36 @@ const ItemDetails = ({
                       </div>
                     )}
                     
-                    <div className="item-actions">
+                    <div className="item-actions" style={{ position: 'relative', zIndex: 10000 }}>
                       {!isUserOwner ? (
                         <>
                           <button 
                             className="item-action-button buy-now-button"
                             onClick={handleBuyNow}
+                            type="button"
+                            style={{
+                              fontSize: '1.1rem',
+                              fontWeight: '700',
+                              padding: '1rem 1.5rem',
+                              borderRadius: '12px',
+                              background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                              color: 'white',
+                              border: 'none',
+                              outline: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.75rem',
+                              cursor: 'pointer',
+                              position: 'relative',
+                              zIndex: 10001,
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+                              flex: 1,
+                              minHeight: '50px'
+                            }}
                           >
                             Buy Now
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <circle cx="9" cy="21" r="1"></circle>
                               <circle cx="20" cy="21" r="1"></circle>
                               <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
@@ -436,9 +470,30 @@ const ItemDetails = ({
                           <button 
                             className="item-action-button make-offer-button"
                             onClick={handleMakeOffer}
+                            type="button"
+                            style={{
+                              fontSize: '1.1rem',
+                              fontWeight: '700',
+                              padding: '1rem 1.5rem',
+                              borderRadius: '12px',
+                              background: 'rgba(255, 255, 255, 0.15)',
+                              color: 'white',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              outline: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.75rem',
+                              cursor: 'pointer',
+                              position: 'relative',
+                              zIndex: 10001,
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                              flex: 1,
+                              minHeight: '50px'
+                            }}
                           >
                             Make Offer
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <line x1="12" y1="1" x2="12" y2="23"></line>
                               <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                             </svg>
@@ -447,10 +502,35 @@ const ItemDetails = ({
                       ) : (
                         <button 
                           className="item-action-button cancel-button"
-                          onClick={() => handleCancelListing(item._id)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleCancelListing(item._id);
+                          }}
+                          type="button"
+                          style={{
+                            fontSize: '1.1rem',
+                            fontWeight: '700',
+                            padding: '1rem 1.5rem',
+                            borderRadius: '12px',
+                            background: 'rgba(239, 68, 68, 0.15)',
+                            color: '#ef4444',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            outline: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.75rem',
+                            cursor: 'pointer',
+                            position: 'relative',
+                            zIndex: 10001,
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                            flex: 1,
+                            minHeight: '50px'
+                          }}
                         >
                           Cancel Listing
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <circle cx="12" cy="12" r="10"></circle>
                             <line x1="15" y1="9" x2="9" y2="15"></line>
                             <line x1="9" y1="9" x2="15" y2="15"></line>
