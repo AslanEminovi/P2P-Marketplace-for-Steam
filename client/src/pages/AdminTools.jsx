@@ -6,6 +6,8 @@ import {
   Modal
 } from 'react-bootstrap';
 import { API_URL } from '../config/constants';
+import { Link } from 'react-router-dom';
+import '../styles/AdminTools.css';
 
 function AdminTools() {
   // Shared states
@@ -196,18 +198,33 @@ function AdminTools() {
   const fetchTrades = async (page = 1) => {
     try {
       setTradesLoading(true);
-      const response = await axios.get(`${API_URL}/admin/trades`, { 
+      const response = await axios.get(`${API_URL}/trades/history`, { 
         params: { page, search: tradeSearch },
         withCredentials: true 
       });
-      setTrades(response.data.trades);
-      setTradesPagination(response.data.pagination);
+      
+      if (Array.isArray(response.data)) {
+        setTrades(response.data);
+        setTradesPagination({ 
+          page: page, 
+          pages: Math.ceil(response.data.length / 10),
+          total: response.data.length 
+        });
+      } else {
+        console.error('Invalid response format:', response.data);
+        setTrades([]);
+        setMessage({
+          type: 'danger',
+          text: `Error fetching trades: ${response.data?.error || 'Invalid data format received from server'}`
+        });
+      }
     } catch (error) {
       console.error('Error fetching trades:', error);
       setMessage({
         type: 'danger',
         text: `Error fetching trades: ${error.response?.data?.error || error.message}`
       });
+      setTrades([]);
     } finally {
       setTradesLoading(false);
     }
@@ -835,8 +852,34 @@ function AdminTools() {
   };
 
   return (
-    <Container fluid className="py-4">
-      <h1 className="mb-4">Admin Tools</h1>
+    <Container fluid className="py-4 admin-tools-container bg-dark">
+      <div className="d-flex align-items-center mb-4">
+        <div className="me-auto">
+          <h1 className="text-white mb-1">Admin Tools</h1>
+          <p className="text-white-50 mb-0">Manage users, items, trades and system maintenance</p>
+        </div>
+        <Button 
+          variant="outline-light" 
+          size="sm" 
+          onClick={fetchStats}
+          disabled={statsLoading}
+          className="me-2"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-1">
+            <polyline points="1 4 1 10 7 10"></polyline>
+            <polyline points="23 20 23 14 17 14"></polyline>
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+          </svg>
+          Refresh Data
+        </Button>
+        <a href="/marketplace" className="btn btn-primary btn-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-1">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          Return to Site
+        </a>
+      </div>
       
       {message && (
         <Alert 
@@ -849,348 +892,512 @@ function AdminTools() {
         </Alert>
       )}
       
-      <Tabs
-        activeKey={activeTab}
-        onSelect={k => setActiveTab(k)}
-        className="mb-4"
-      >
-        <Tab eventKey="dashboard" title="Dashboard">
-          <DashboardTab stats={stats} loading={statsLoading} refreshStats={fetchStats} />
-        </Tab>
+      <Card bg="dark" className="admin-tabs-card mb-4 border-0">
+        <Card.Header className="bg-dark border-bottom border-secondary">
+          <Tabs
+            activeKey={activeTab}
+            onSelect={k => setActiveTab(k)}
+            className="admin-tabs"
+            variant="pills"
+            fill
+          >
+            <Tab eventKey="dashboard" title={
+              <span className="d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                  <rect x="3" y="3" width="7" height="9"></rect>
+                  <rect x="14" y="3" width="7" height="5"></rect>
+                  <rect x="14" y="12" width="7" height="9"></rect>
+                  <rect x="3" y="16" width="7" height="5"></rect>
+                </svg>
+                Dashboard
+              </span>
+            } />
+            
+            <Tab eventKey="users" title={
+              <span className="d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                Users
+              </span>
+            } />
+            
+            <Tab eventKey="items" title={
+              <span className="d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="8" x2="8" y2="8"></line>
+                  <line x1="16" y1="12" x2="8" y2="12"></line>
+                  <line x1="16" y1="16" x2="8" y2="16"></line>
+                </svg>
+                Items
+              </span>
+            } />
+            
+            <Tab eventKey="trades" title={
+              <span className="d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                  <polyline points="17 1 21 5 17 9"></polyline>
+                  <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                  <polyline points="7 23 3 19 7 15"></polyline>
+                  <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                </svg>
+                Trades
+              </span>
+            } />
+            
+            <Tab eventKey="cleanup" title={
+              <span className="d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                Cleanup
+              </span>
+            } />
+          </Tabs>
+        </Card.Header>
         
-        <Tab eventKey="users" title="Users">
-          <UsersTab 
-            users={users}
-            loading={usersLoading}
-            pagination={usersPagination}
-            userSearch={userSearch}
-            setUserSearch={setUserSearch}
-            handleUserSearch={handleUserSearch}
-            fetchUsers={fetchUsers}
-            viewUserDetails={viewUserDetails}
-            renderPagination={renderPagination}
-          />
-        </Tab>
-        
-        <Tab eventKey="items" title="Items">
-          <ItemsTab 
-            items={items}
-            loading={itemsLoading}
-            pagination={itemsPagination}
-            itemSearch={itemSearch}
-            setItemSearch={setItemSearch}
-            itemFilter={itemFilter}
-            handleItemFilter={handleItemFilter}
-            handleItemSearch={handleItemSearch}
-            fetchItems={fetchItems}
-            renderPagination={renderPagination}
-          />
-        </Tab>
-        
-        <Tab eventKey="trades" title="Trades Management">
-          {renderTradesTab()}
-        </Tab>
-        
-        <Tab eventKey="cleanup" title="Cleanup Tools">
-          <CleanupTab 
-            userId={userId}
-            setUserId={setUserId}
-            loading={loading}
-            results={cleanupResults}
-            cleanupAllListings={cleanupAllListings}
-            cleanupUserListings={cleanupUserListings}
-          />
-        </Tab>
-      </Tabs>
-      
-      {/* User Detail Modal */}
-      <Modal 
-        show={userDetailModalOpen} 
-        onHide={() => setUserDetailModalOpen(false)}
-        size="lg"
-      >
-        <Modal.Header closeButton className="bg-dark text-white">
-          <Modal.Title>User Details</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="bg-dark text-white">
-          {userDetailLoading ? (
-            <div className="text-center my-4">
-              <Spinner animation="border" variant="light" />
-            </div>
-          ) : selectedUser ? (
-            <>
-              <Row>
-                <Col md={3}>
-                  <img 
-                    src={selectedUser.avatar || 'https://via.placeholder.com/150'} 
-                    alt={selectedUser.displayName}
-                    className="img-fluid rounded mb-3"
-                  />
-                </Col>
-                <Col md={9}>
-                  <h4>{selectedUser.displayName}</h4>
-                  <p>
-                    <strong>Steam ID:</strong> {selectedUser.steamId}<br/>
-                    <strong>Joined:</strong> {new Date(selectedUser.createdAt).toLocaleDateString()}<br/>
-                    <strong>Balance:</strong> ${selectedUser.balance?.toFixed(2) || '0.00'}<br/>
-                    <strong>Status:</strong> {' '}
-                    {selectedUser.isBanned ? (
-                      <Badge bg="danger">Banned</Badge>
-                    ) : selectedUser.isAdmin ? (
-                      <Badge bg="success">Admin</Badge>
-                    ) : (
-                      <Badge bg="primary">User</Badge>
-                    )}
-                  </p>
-                  
-                  <div className="d-flex gap-2 mb-3">
-                    {selectedUser.isAdmin ? (
-                      <Button 
-                        variant="outline-warning" 
-                        size="sm"
-                        onClick={() => updateUserStatus(selectedUser._id, { isAdmin: false })}
-                      >
-                        Remove Admin
-                      </Button>
-                    ) : (
-                      <Button 
-                        variant="outline-success" 
-                        size="sm"
-                        onClick={() => updateUserStatus(selectedUser._id, { isAdmin: true })}
-                      >
-                        Make Admin
-                      </Button>
-                    )}
-                    
-                    {selectedUser.isBanned ? (
-                      <Button 
-                        variant="outline-success" 
-                        size="sm"
-                        onClick={() => updateUserStatus(selectedUser._id, { isBanned: false })}
-                      >
-                        Unban User
-                      </Button>
-                    ) : (
-                      <Button 
-                        variant="outline-danger" 
-                        size="sm"
-                        onClick={() => updateUserStatus(selectedUser._id, { 
-                          isBanned: true,
-                          banReason: 'Administrative action'
-                        })}
-                      >
-                        Ban User
-                      </Button>
-                    )}
-                  </div>
-                </Col>
-              </Row>
-              
-              <h5 className="mt-4">Recent Items</h5>
-              {userItems.length > 0 ? (
-                <Table responsive variant="dark" size="sm">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Type</th>
-                      <th>Listed</th>
-                      <th>Price</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {userItems.map(item => (
-                      <tr key={item._id}>
-                        <td>{item.name}</td>
-                        <td>{item.type}</td>
-                        <td>
-                          {item.isListed ? (
-                            <Badge bg="success">Listed</Badge>
-                          ) : (
-                            <Badge bg="secondary">Not Listed</Badge>
-                          )}
-                        </td>
-                        <td>${item.price?.toFixed(2) || 'N/A'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              ) : (
-                <p className="text-muted">No items found</p>
-              )}
-              
-              <h5 className="mt-4">Recent Trades</h5>
-              {userTrades.length > 0 ? (
-                <Table responsive variant="dark" size="sm">
-                  <thead>
-                    <tr>
-                      <th>Item</th>
-                      <th>Price</th>
-                      <th>Status</th>
-                      <th>Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {userTrades.map(trade => (
-                      <tr key={trade._id}>
-                        <td>{trade.itemName || 'Unknown Item'}</td>
-                        <td>${trade.price?.toFixed(2) || '0.00'}</td>
-                        <td>
-                          <Badge bg={trade.status === 'completed' ? 'success' : 
-                                     trade.status === 'cancelled' ? 'danger' : 'warning'}>
-                            {trade.status}
-                          </Badge>
-                        </td>
-                        <td>{new Date(trade.createdAt).toLocaleDateString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              ) : (
-                <p className="text-muted">No trades found</p>
-              )}
-            </>
-          ) : (
-            <p className="text-center">No user selected</p>
+        <Card.Body className="bg-dark text-white p-4">
+          {activeTab === "dashboard" && (
+            <DashboardTab stats={stats} loading={statsLoading} />
           )}
-        </Modal.Body>
-        <Modal.Footer className="bg-dark text-white">
-          <Button variant="secondary" onClick={() => setUserDetailModalOpen(false)}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
+          
+          {activeTab === "users" && (
+            <UsersTab 
+              users={users}
+              loading={usersLoading}
+              pagination={usersPagination}
+              userSearch={userSearch}
+              setUserSearch={setUserSearch}
+              handleUserSearch={handleUserSearch}
+              fetchUsers={fetchUsers}
+              viewUserDetails={viewUserDetails}
+              renderPagination={renderPagination}
+            />
+          )}
+          
+          {activeTab === "items" && (
+            <ItemsTab 
+              items={items}
+              loading={itemsLoading}
+              pagination={itemsPagination}
+              itemSearch={itemSearch}
+              setItemSearch={setItemSearch}
+              itemFilter={itemFilter}
+              handleItemFilter={handleItemFilter}
+              handleItemSearch={handleItemSearch}
+              fetchItems={fetchItems}
+              renderPagination={renderPagination}
+            />
+          )}
+          
+          {activeTab === "trades" && (
+            renderTradesTab()
+          )}
+          
+          {activeTab === "cleanup" && (
+            <CleanupTab 
+              userId={userId}
+              setUserId={setUserId}
+              loading={loading}
+              results={cleanupResults}
+              cleanupAllListings={cleanupAllListings}
+              cleanupUserListings={cleanupUserListings}
+            />
+          )}
+        </Card.Body>
+      </Card>
     </Container>
   );
 }
 
 // Dashboard Tab Component
-function DashboardTab({ stats, loading, refreshStats }) {
-  if (loading) {
-    return (
-      <div className="text-center my-5">
-        <Spinner animation="border" variant="light" />
-      </div>
-    );
-  }
-  
-  if (!stats) {
-    return (
-      <div className="text-center my-5">
-        <p>No statistics available</p>
-        <Button variant="primary" onClick={refreshStats}>
-          Load Statistics
-        </Button>
-      </div>
-    );
-  }
-  
+function DashboardTab({ stats, loading }) {
   return (
-    <>
-      <Row>
-        <Col md={12} className="mb-4">
-          <Button variant="outline-light" size="sm" onClick={refreshStats} className="float-end">
-            <i className="fas fa-sync-alt me-1"></i> Refresh
-          </Button>
-          <p className="text-muted">
-            Last updated: {new Date(stats.timestamp).toLocaleString()}
-          </p>
-        </Col>
-      </Row>
-      
-      <Row>
-        <Col md={4} className="mb-4">
-          <Card className="h-100 bg-dark text-white">
-            <Card.Body>
-              <Card.Title>Users</Card.Title>
-              <h2>{stats.users.total.toLocaleString()}</h2>
-              <p className="text-success">
-                +{stats.users.newLast7Days} new users in the last 7 days
-              </p>
-            </Card.Body>
-          </Card>
-        </Col>
-        
-        <Col md={4} className="mb-4">
-          <Card className="h-100 bg-dark text-white">
-            <Card.Body>
-              <Card.Title>Items</Card.Title>
-              <h2>{stats.items.total.toLocaleString()}</h2>
-              <p>
-                {stats.items.listed.toLocaleString()} currently listed 
-                ({((stats.items.listed / stats.items.total) * 100).toFixed(1)}%)
-              </p>
-            </Card.Body>
-          </Card>
-        </Col>
-        
-        <Col md={4} className="mb-4">
-          <Card className="h-100 bg-dark text-white">
-            <Card.Body>
-              <Card.Title>Trades</Card.Title>
-              <h2>{stats.trades.completed.toLocaleString()}</h2>
-              <p>
-                {stats.trades.pending.toLocaleString()} pending trades<br/>
-                <span className="text-success">${stats.trades.volumeLast7Days.toLocaleString()} traded (7 days)</span>
-              </p>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </>
+    <div className="admin-dashboard">
+      {loading ? (
+        <div className="text-center py-5">
+          <Spinner animation="border" variant="light" />
+          <p className="mt-3 text-light">Loading dashboard statistics...</p>
+        </div>
+      ) : !stats ? (
+        <Alert variant="warning">
+          No statistics available. Try refreshing the page.
+        </Alert>
+      ) : (
+        <>
+          <Row className="mb-4">
+            <Col lg={3} md={6} className="mb-4">
+              <Card bg="dark" text="white" className="h-100 border-primary">
+                <Card.Body>
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                      <h6 className="text-white-50 text-uppercase mb-0">Total Users</h6>
+                      <h2 className="mt-2 mb-0 text-white">{stats.totalUsers || 0}</h2>
+                    </div>
+                    <div className="stats-icon bg-primary-subtle rounded p-3">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                      </svg>
+                    </div>
+                  </div>
+                  <p className="text-white-50 mb-0">
+                    <span className={stats.userGrowth >= 0 ? "text-success" : "text-danger"}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-1">
+                        {stats.userGrowth >= 0 ? (
+                          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                        ) : (
+                          <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline>
+                        )}
+                      </svg>
+                      {Math.abs(stats.userGrowth || 0)}% 
+                    </span>
+                    &nbsp;since last month
+                  </p>
+                </Card.Body>
+              </Card>
+            </Col>
+            
+            <Col lg={3} md={6} className="mb-4">
+              <Card bg="dark" text="white" className="h-100 border-success">
+                <Card.Body>
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                      <h6 className="text-white-50 text-uppercase mb-0">Active Trades</h6>
+                      <h2 className="mt-2 mb-0 text-white">{stats.activeTrades || 0}</h2>
+                    </div>
+                    <div className="stats-icon bg-success-subtle rounded p-3">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="17 1 21 5 17 9"></polyline>
+                        <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                        <polyline points="7 23 3 19 7 15"></polyline>
+                        <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                      </svg>
+                    </div>
+                  </div>
+                  <p className="text-white-50 mb-0">
+                    <span className="text-success">
+                      Active vs Completed: {stats.tradeRatio || 0}%
+                    </span>
+                  </p>
+                </Card.Body>
+              </Card>
+            </Col>
+            
+            <Col lg={3} md={6} className="mb-4">
+              <Card bg="dark" text="white" className="h-100 border-info">
+                <Card.Body>
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                      <h6 className="text-white-50 text-uppercase mb-0">Market Items</h6>
+                      <h2 className="mt-2 mb-0 text-white">{stats.totalItems || 0}</h2>
+                    </div>
+                    <div className="stats-icon bg-info-subtle rounded p-3">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                      </svg>
+                    </div>
+                  </div>
+                  <p className="text-white-50 mb-0">
+                    <span className="text-info">
+                      Listed items: {stats.listedItems || 0} ({stats.listingRatio || 0}%)
+                    </span>
+                  </p>
+                </Card.Body>
+              </Card>
+            </Col>
+            
+            <Col lg={3} md={6} className="mb-4">
+              <Card bg="dark" text="white" className="h-100 border-warning">
+                <Card.Body>
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                      <h6 className="text-white-50 text-uppercase mb-0">Total Revenue</h6>
+                      <h2 className="mt-2 mb-0 text-white">{stats.totalRevenue ? (stats.totalRevenue / 100).toFixed(2) : "0.00"} GEL</h2>
+                    </div>
+                    <div className="stats-icon bg-warning-subtle rounded p-3">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                      </svg>
+                    </div>
+                  </div>
+                  <p className="text-white-50 mb-0">
+                    <span className={stats.revenueChange >= 0 ? "text-success" : "text-danger"}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-1">
+                        {stats.revenueChange >= 0 ? (
+                          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                        ) : (
+                          <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline>
+                        )}
+                      </svg>
+                      {Math.abs(stats.revenueChange || 0)}% 
+                    </span>
+                    &nbsp;since last month
+                  </p>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+
+          <Row className="mb-4">
+            <Col md={6}>
+              <Card bg="dark" text="white" className="h-100">
+                <Card.Header className="d-flex justify-content-between align-items-center">
+                  <h5 className="mb-0">Recent Trades</h5>
+                  <Button variant="outline-light" size="sm" as={Link} to="/admin/tools?tab=trades">
+                    View All
+                  </Button>
+                </Card.Header>
+                <Card.Body>
+                  {stats.recentTrades && stats.recentTrades.length > 0 ? (
+                    <Table responsive borderless variant="dark" className="mb-0">
+                      <thead>
+                        <tr>
+                          <th>Item</th>
+                          <th>Status</th>
+                          <th>Price</th>
+                          <th>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stats.recentTrades.slice(0, 5).map((trade, index) => (
+                          <tr key={index}>
+                            <td className="text-nowrap">{trade.itemName || 'Unknown Item'}</td>
+                            <td>
+                              <Badge
+                                bg={
+                                  trade.status === 'completed' ? 'success' :
+                                  trade.status === 'cancelled' || trade.status === 'failed' ? 'danger' :
+                                  'primary'
+                                }
+                              >
+                                {trade.status}
+                              </Badge>
+                            </td>
+                            <td>{((trade.price || 0) / 100).toFixed(2)} GEL</td>
+                            <td className="text-nowrap">{new Date(trade.createdAt).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  ) : (
+                    <p className="text-center text-muted my-4">No recent trades found</p>
+                  )}
+                </Card.Body>
+              </Card>
+            </Col>
+            
+            <Col md={6}>
+              <Card bg="dark" text="white" className="h-100">
+                <Card.Header className="d-flex justify-content-between align-items-center">
+                  <h5 className="mb-0">System Status</h5>
+                  <span className="badge bg-success">Operational</span>
+                </Card.Header>
+                <Card.Body>
+                  <div className="system-status-items">
+                    {stats.systemStatus?.components?.map((component, index) => (
+                      <div key={index} className="status-item d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                          <h6 className="mb-0">{component.name}</h6>
+                          <small className="text-muted">{component.description}</small>
+                        </div>
+                        <Badge 
+                          bg={component.status === 'operational' ? 'success' : 
+                             component.status === 'degraded' ? 'warning' : 'danger'}
+                        >
+                          {component.status}
+                        </Badge>
+                      </div>
+                    )) || (
+                      <>
+                        <div className="status-item d-flex justify-content-between align-items-center mb-3">
+                          <div>
+                            <h6 className="mb-0">API Services</h6>
+                            <small className="text-muted">Backend services status</small>
+                          </div>
+                          <Badge bg="success">Operational</Badge>
+                        </div>
+                        <div className="status-item d-flex justify-content-between align-items-center mb-3">
+                          <div>
+                            <h6 className="mb-0">Database Services</h6>
+                            <small className="text-muted">MongoDB status</small>
+                          </div>
+                          <Badge bg="success">Operational</Badge>
+                        </div>
+                        <div className="status-item d-flex justify-content-between align-items-center mb-3">
+                          <div>
+                            <h6 className="mb-0">Steam Integration</h6>
+                            <small className="text-muted">Steam API connection</small>
+                          </div>
+                          <Badge bg="success">Operational</Badge>
+                        </div>
+                        <div className="status-item d-flex justify-content-between align-items-center">
+                          <div>
+                            <h6 className="mb-0">Payment Gateway</h6>
+                            <small className="text-muted">Payment processing status</small>
+                          </div>
+                          <Badge bg="success">Operational</Badge>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        </>
+      )}
+    </div>
   );
 }
 
 // Cleanup Tab Component
-function CleanupTab({ userId, setUserId, loading, results, cleanupAllListings, cleanupUserListings }) {
+function CleanupTab({ 
+  userId, setUserId, loading, results, 
+  cleanupAllListings, cleanupUserListings 
+}) {
   return (
     <Row>
-      <Col md={6} className="mb-4">
-        <Card className="h-100 bg-dark text-white">
+      <Col lg={6} className="mb-4">
+        <Card bg="dark" text="white" className="h-100">
+          <Card.Header className="bg-dark border-danger">
+            <h5 className="mb-0 d-flex align-items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2 text-danger">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+              System-wide Cleanup
+            </h5>
+          </Card.Header>
           <Card.Body>
-            <Card.Title>Cleanup All Listings</Card.Title>
-            <Card.Text>
-              This will find all items marked as listed and update them to not listed.
-              It will also cancel any trades that are stuck in a non-terminal state.
-            </Card.Text>
-            <Button 
-              variant="danger" 
-              onClick={cleanupAllListings} 
-              disabled={loading}
-            >
-              {loading ? 'Processing...' : 'Run Full Cleanup'}
-            </Button>
+            <p className="text-light">
+              This will check all listings in the system and cleanup any that are no longer valid. 
+              Items will be unlisted and trades will be marked as cancelled if:
+            </p>
+            <ul className="text-light">
+              <li>The item no longer exists in the owner's Steam inventory</li>
+              <li>The trade has been pending for more than 7 days</li>
+              <li>The item has been removed from Steam</li>
+            </ul>
+            <div className="d-grid gap-2">
+              <Button 
+                variant="danger" 
+                size="lg"
+                onClick={cleanupAllListings}
+                disabled={loading}
+                className="mb-3"
+              >
+                {loading ? (
+                  <>
+                    <Spinner
+                      as="span"
+                      animation="border"
+                      size="sm"
+                      role="status"
+                      aria-hidden="true"
+                      className="me-2"
+                    />
+                    Running System Cleanup...
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                    </svg>
+                    Run System-wide Cleanup
+                  </>
+                )}
+              </Button>
+              <Alert variant="dark" className="border border-danger text-white-50 mb-0">
+                <Alert.Heading className="fs-6 text-danger">Warning!</Alert.Heading>
+                <p className="mb-0 small">
+                  This operation can take a long time and will affect all users. 
+                  Use with caution during low-traffic periods.
+                </p>
+              </Alert>
+            </div>
           </Card.Body>
         </Card>
       </Col>
       
-      <Col md={6} className="mb-4">
-        <Card className="h-100 bg-dark text-white">
+      <Col lg={6} className="mb-4">
+        <Card bg="dark" text="white" className="h-100">
+          <Card.Header className="bg-dark border-warning">
+            <h5 className="mb-0 d-flex align-items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2 text-warning">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+              User-specific Cleanup
+            </h5>
+          </Card.Header>
           <Card.Body>
-            <Card.Title>Cleanup User Listings</Card.Title>
-            <Card.Text>
-              This will find all items marked as listed for a specific user and update them to not listed.
-            </Card.Text>
+            <p className="text-light">
+              Clean up all listings and trades for a specific user. 
+              This is useful when a user has reported issues with their listings 
+              or when investigating potential fraud.
+            </p>
             <Form onSubmit={cleanupUserListings}>
               <Form.Group className="mb-3">
-                <Form.Label>User ID</Form.Label>
-                <Form.Control 
-                  type="text" 
-                  placeholder="Enter MongoDB User ID" 
+                <Form.Label className="text-light">User ID</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter user ID"
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
-                  disabled={loading}
+                  required
+                  className="bg-dark text-light border-secondary"
                 />
-                <Form.Text className="text-muted">
-                  Enter the MongoDB ObjectId of the user
+                <Form.Text className="text-light">
+                  Enter the MongoDB ObjectId or Steam ID of the user.
                 </Form.Text>
               </Form.Group>
-              <Button 
-                variant="warning" 
-                type="submit" 
-                disabled={loading}
-              >
-                {loading ? 'Processing...' : 'Cleanup User Listings'}
-              </Button>
+              <div className="d-grid">
+                <Button 
+                  variant="warning" 
+                  size="lg" 
+                  type="submit" 
+                  disabled={loading || !userId.trim()}
+                  className="mb-3"
+                >
+                  {loading ? (
+                    <>
+                      <Spinner
+                        as="span"
+                        animation="border"
+                        size="sm"
+                        role="status"
+                        aria-hidden="true"
+                        className="me-2"
+                      />
+                      Cleaning User Data...
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                        <path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"></path>
+                        <polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon>
+                      </svg>
+                      Run User Cleanup
+                    </>
+                  )}
+                </Button>
+              </div>
             </Form>
           </Card.Body>
         </Card>
@@ -1198,12 +1405,69 @@ function CleanupTab({ userId, setUserId, loading, results, cleanupAllListings, c
       
       {results && (
         <Col md={12}>
-          <Card className="mt-4 bg-dark text-white">
+          <Card bg="dark" text="white" className="mb-4">
+            <Card.Header className="bg-dark border-success">
+              <h5 className="mb-0 d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2 text-success">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Cleanup Results
+              </h5>
+            </Card.Header>
             <Card.Body>
-              <Card.Title>Cleanup Results</Card.Title>
-              <pre className="bg-dark text-white p-3 rounded">
-                {JSON.stringify(results, null, 2)}
-              </pre>
+              <div className="bg-dark text-light p-3 rounded border border-secondary" style={{ maxHeight: '300px', overflow: 'auto' }}>
+                <Row className="mb-3">
+                  <Col md={6}>
+                    <Card bg="secondary" className="mb-3">
+                      <Card.Body>
+                        <h6 className="text-white mb-2">Items Updated</h6>
+                        <h3 className="text-white mb-0">{results.itemsUpdated || 0}</h3>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                  <Col md={6}>
+                    <Card bg="secondary" className="mb-3">
+                      <Card.Body>
+                        <h6 className="text-white mb-2">Trades Updated</h6>
+                        <h3 className="text-white mb-0">{results.tradesUpdated || 0}</h3>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                </Row>
+                
+                {(results.items && results.items.length > 0) && (
+                  <div className="mb-4">
+                    <h6 className="text-white">Items Details:</h6>
+                    <ul className="list-group bg-dark">
+                      {results.items.map((item, i) => (
+                        <li key={i} className="list-group-item bg-dark text-light border-secondary">
+                          Item: {item.marketHashName || 'Unknown'} - {item.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {(results.trades && results.trades.length > 0) && (
+                  <div>
+                    <h6 className="text-white">Trades Details:</h6>
+                    <ul className="list-group bg-dark">
+                      {results.trades.map((trade, i) => (
+                        <li key={i} className="list-group-item bg-dark text-light border-secondary">
+                          Trade ID: {trade._id || 'Unknown'} - {trade.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {(!results.items || results.items.length === 0) && 
+                 (!results.trades || results.trades.length === 0) && (
+                  <div className="text-center py-4">
+                    <p className="mb-0">No detailed results available.</p>
+                  </div>
+                )}
+              </div>
             </Card.Body>
           </Card>
         </Col>
@@ -1225,8 +1489,13 @@ function UsersTab({
             placeholder="Search by name, Steam ID or email"
             value={userSearch}
             onChange={(e) => setUserSearch(e.target.value)}
+            className="bg-dark text-light border-secondary"
           />
           <Button variant="primary" type="submit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
             Search
           </Button>
         </InputGroup>
@@ -1235,65 +1504,92 @@ function UsersTab({
       {loading ? (
         <div className="text-center my-5">
           <Spinner animation="border" variant="light" />
+          <p className="mt-3 text-light">Loading users...</p>
         </div>
       ) : users.length > 0 ? (
         <>
-          <Table responsive striped hover variant="dark">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Steam ID</th>
-                <th>Joined</th>
-                <th>Status</th>
-                <th>Balance</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(user => (
-                <tr key={user._id}>
-                  <td>
-                    <div className="d-flex align-items-center">
-                      <img 
-                        src={user.avatar || 'https://via.placeholder.com/32'} 
-                        alt={user.displayName}
-                        style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 10 }}
-                      />
-                      {user.displayName}
-                    </div>
-                  </td>
-                  <td>{user.steamId}</td>
-                  <td>{new Date(user.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    {user.isBanned ? (
-                      <Badge bg="danger">Banned</Badge>
-                    ) : user.isAdmin ? (
-                      <Badge bg="success">Admin</Badge>
-                    ) : (
-                      <Badge bg="primary">User</Badge>
-                    )}
-                  </td>
-                  <td>${user.balance?.toFixed(2) || '0.00'}</td>
-                  <td>
-                    <Button 
-                      variant="outline-info" 
-                      size="sm"
-                      onClick={() => viewUserDetails(user._id)}
-                    >
-                      Details
-                    </Button>
-                  </td>
+          <div className="table-responsive">
+            <Table responsive striped hover variant="dark" className="align-middle mb-0">
+              <thead>
+                <tr className="bg-dark">
+                  <th className="border-0">User</th>
+                  <th className="border-0">Steam ID</th>
+                  <th className="border-0">Joined</th>
+                  <th className="border-0">Status</th>
+                  <th className="border-0">Balance</th>
+                  <th className="border-0 text-end">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
+              </thead>
+              <tbody>
+                {users.map(user => (
+                  <tr key={user._id}>
+                    <td className="text-nowrap">
+                      <div className="d-flex align-items-center">
+                        <div className="avatar avatar-sm me-2">
+                          <img 
+                            src={user.avatar || 'https://via.placeholder.com/40'}
+                            alt={user.displayName}
+                            style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }}
+                            className="border border-secondary"
+                          />
+                        </div>
+                        <div>
+                          <div className="fw-medium text-white">{user.displayName}</div>
+                          <div className="small text-white-50">{user.email || 'No email'}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="text-white-50">{user.steamId}</td>
+                    <td className="text-white-50">{new Date(user.createdAt).toLocaleDateString()}</td>
+                    <td>
+                      {user.isBanned ? (
+                        <Badge bg="danger" className="px-3 py-2">Banned</Badge>
+                      ) : user.isAdmin ? (
+                        <Badge bg="warning" className="px-3 py-2" text="dark">Admin</Badge>
+                      ) : (
+                        <Badge bg="primary" className="px-3 py-2">User</Badge>
+                      )}
+                    </td>
+                    <td className="text-white">
+                      {((user.balance || 0) / 100).toFixed(2)} GEL
+                    </td>
+                    <td className="text-end">
+                      <Button 
+                        variant="outline-light" 
+                        size="sm"
+                        onClick={() => viewUserDetails(user._id)}
+                        className="user-action-btn"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-1">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        Details
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
           
           <div className="d-flex justify-content-center mt-4">
             {renderPagination(pagination, fetchUsers)}
           </div>
         </>
       ) : (
-        <p className="text-center">No users found</p>
+        <div className="text-center py-5 my-4 bg-dark-secondary rounded">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white-50 mb-3">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <p className="text-white">No users found</p>
+          <Button variant="outline-light" size="sm" onClick={() => { setUserSearch(''); fetchUsers(1); }}>
+            Clear search and try again
+          </Button>
+        </div>
       )}
     </>
   );
@@ -1308,30 +1604,45 @@ function ItemsTab({
     <>
       <Form onSubmit={handleItemSearch} className="mb-4">
         <Row>
-          <Col md={8}>
+          <Col lg={8} className="mb-3 mb-lg-0">
             <FormControl
               placeholder="Search by item name"
               value={itemSearch}
               onChange={(e) => setItemSearch(e.target.value)}
-              className="mb-2"
+              className="bg-dark text-light border-secondary"
             />
           </Col>
-          <Col md={4}>
+          <Col lg={4}>
             <div className="d-flex gap-2">
               <Button 
                 variant={itemFilter.isListed === true ? "success" : "outline-success"} 
                 onClick={() => handleItemFilter({ ...itemFilter, isListed: itemFilter.isListed === true ? null : true })}
+                className="flex-grow-1"
               >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-1">
+                  <path d="M9 12h6"></path>
+                  <path d="M12 9v6"></path>
+                  <circle cx="12" cy="12" r="10"></circle>
+                </svg>
                 Listed
               </Button>
               <Button 
                 variant={itemFilter.isListed === false ? "danger" : "outline-danger"}
                 onClick={() => handleItemFilter({ ...itemFilter, isListed: itemFilter.isListed === false ? null : false })}
+                className="flex-grow-1"
               >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-1">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="15" y1="9" x2="9" y2="15"></line>
+                  <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
                 Not Listed
               </Button>
               <Button variant="primary" type="submit">
-                Search
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
               </Button>
             </div>
           </Col>
@@ -1341,56 +1652,127 @@ function ItemsTab({
       {loading ? (
         <div className="text-center my-5">
           <Spinner animation="border" variant="light" />
+          <p className="mt-3 text-light">Loading items...</p>
         </div>
       ) : items.length > 0 ? (
         <>
-          <Table responsive striped hover variant="dark">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Owner</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map(item => (
-                <tr key={item._id}>
-                  <td>
-                    <div className="d-flex align-items-center">
-                      <img 
-                        src={item.imageUrl || 'https://via.placeholder.com/32'} 
-                        alt={item.marketHashName}
-                        style={{ width: 32, height: 32, marginRight: 10, objectFit: 'contain' }}
-                      />
-                      {item.marketHashName}
-                    </div>
-                  </td>
-                  <td>{item.owner?.displayName || 'Unknown'}</td>
-                  <td>{item.rarity || 'Unknown'}</td>
-                  <td>
-                    {item.isListed ? (
-                      <Badge bg="success">Listed</Badge>
-                    ) : (
-                      <Badge bg="secondary">Not Listed</Badge>
-                    )}
-                  </td>
-                  <td>${item.price?.toFixed(2) || 'N/A'}</td>
+          <div className="table-responsive">
+            <Table responsive striped hover variant="dark" className="align-middle mb-0">
+              <thead>
+                <tr className="bg-dark">
+                  <th className="border-0">Name</th>
+                  <th className="border-0">Owner</th>
+                  <th className="border-0">Category</th>
+                  <th className="border-0">Rarity</th>
+                  <th className="border-0">Status</th>
+                  <th className="border-0">Price</th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
+              </thead>
+              <tbody>
+                {items.map(item => (
+                  <tr key={item._id}>
+                    <td>
+                      <div className="d-flex align-items-center">
+                        <div className="me-3">
+                          <img 
+                            src={item.iconUrl || item.imageUrl || 'https://via.placeholder.com/40'} 
+                            alt={item.marketHashName}
+                            style={{ width: 40, height: 40, objectFit: 'contain' }}
+                            className="border border-secondary p-1 rounded"
+                          />
+                        </div>
+                        <div className="text-white">
+                          {item.marketHashName}
+                          <div className="small text-white-50">
+                            {item.type || 'CS2 Item'}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      {item.owner?.displayName ? (
+                        <div className="d-flex align-items-center">
+                          <img 
+                            src={item.owner.avatar || 'https://via.placeholder.com/24'}
+                            alt={item.owner.displayName}
+                            style={{ width: 24, height: 24, borderRadius: '50%', marginRight: 8 }}
+                          />
+                          <span className="text-white-50">{item.owner.displayName}</span>
+                        </div>
+                      ) : (
+                        <span className="text-white-50">Unknown</span>
+                      )}
+                    </td>
+                    <td className="text-white-50">{item.category || 'N/A'}</td>
+                    <td>
+                      <span 
+                        className="px-2 py-1 rounded" 
+                        style={{ 
+                          backgroundColor: getRarityColor(item.rarity) || 'rgba(108, 117, 125, 0.2)',
+                          color: getRarityColor(item.rarity) ? '#000' : '#fff',
+                          fontSize: '0.8rem',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {item.rarity || 'Standard'}
+                      </span>
+                    </td>
+                    <td>
+                      {item.isListed ? (
+                        <Badge bg="success" className="px-3 py-2">Listed</Badge>
+                      ) : (
+                        <Badge bg="secondary" className="px-3 py-2">Not Listed</Badge>
+                      )}
+                    </td>
+                    <td className="text-white fw-bold">
+                      {item.price ? ((item.price) / 100).toFixed(2) + ' GEL' : 'N/A'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
           
           <div className="d-flex justify-content-center mt-4">
             {renderPagination(pagination, fetchItems)}
           </div>
         </>
       ) : (
-        <p className="text-center">No items found</p>
+        <div className="text-center py-5 my-4 bg-dark-secondary rounded">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white-50 mb-3">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="8" x2="8" y2="8"></line>
+            <line x1="16" y1="12" x2="8" y2="12"></line>
+            <line x1="16" y1="16" x2="8" y2="16"></line>
+          </svg>
+          <p className="text-white">No items found</p>
+          <Button variant="outline-light" size="sm" onClick={() => { setItemSearch(''); handleItemFilter({ isListed: null }); fetchItems(1); }}>
+            Clear filters and try again
+          </Button>
+        </div>
       )}
     </>
   );
+
+  // Helper function to get a color based on item rarity
+  function getRarityColor(rarity) {
+    if (!rarity) return null;
+    
+    const rarityMap = {
+      'Consumer Grade': 'rgba(176, 195, 217, 0.8)', // Light blue
+      'Industrial Grade': 'rgba(94, 152, 217, 0.8)', // Blue
+      'Mil-Spec Grade': 'rgba(75, 105, 255, 0.8)', // Darker blue
+      'Restricted': 'rgba(136, 71, 255, 0.8)', // Purple
+      'Classified': 'rgba(211, 44, 230, 0.8)', // Pink
+      'Covert': 'rgba(235, 75, 75, 0.8)', // Red
+      'Contraband': 'rgba(228, 174, 57, 0.8)', // Yellow/Gold
+      'Extraordinary': 'rgba(202, 171, 5, 0.8)', // Gold
+      'Distinguished': 'rgba(73, 132, 194, 0.8)', // Medium blue
+      'Exotic': 'rgba(234, 117, 164, 0.8)' // Pink
+    };
+    
+    return rarityMap[rarity] || 'rgba(108, 117, 125, 0.8)'; // Default gray
+  }
 }
 
 export default AdminTools; 

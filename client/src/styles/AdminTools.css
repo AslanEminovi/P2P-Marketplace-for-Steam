@@ -1,0 +1,215 @@
+/* AdminTools.css - Modern styling for the admin panel */
+
+.admin-tools-container {
+  min-height: calc(100vh - 70px);
+  color: #f1f5f9;
+}
+
+/* Tabs Styling */
+.admin-tabs {
+  border-bottom: none;
+}
+
+.admin-tabs .nav-link {
+  color: #94a3b8;
+  border: none;
+  padding: 0.75rem 1rem;
+  margin-right: 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  background-color: transparent;
+}
+
+.admin-tabs .nav-link:hover {
+  color: #e2e8f0;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.admin-tabs .nav-link.active {
+  color: #ffffff;
+  background-color: #1e40af;
+  font-weight: 500;
+}
+
+/* Dashboard Styling */
+.stats-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.bg-primary-subtle {
+  background-color: rgba(37, 99, 235, 0.2);
+  color: #3b82f6;
+}
+
+.bg-success-subtle {
+  background-color: rgba(22, 163, 74, 0.2);
+  color: #4ade80;
+}
+
+.bg-info-subtle {
+  background-color: rgba(6, 182, 212, 0.2);
+  color: #22d3ee;
+}
+
+.bg-warning-subtle {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+
+.bg-danger-subtle {
+  background-color: rgba(220, 38, 38, 0.2);
+  color: #ef4444;
+}
+
+/* Table Styling */
+.table-responsive {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.table-dark {
+  --bs-table-bg: rgba(17, 24, 39, 0.4);
+  --bs-table-striped-bg: rgba(31, 41, 55, 0.5);
+  --bs-table-striped-color: #f3f4f6;
+  --bs-table-active-bg: rgba(55, 65, 81, 0.5);
+  --bs-table-active-color: #f3f4f6;
+  --bs-table-hover-bg: rgba(55, 65, 81, 0.3);
+  --bs-table-hover-color: #f3f4f6;
+  color: #f3f4f6;
+  border-color: rgba(75, 85, 99, 0.3);
+}
+
+/* Card Styling */
+.card {
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.admin-tabs-card {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+  border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+  padding: 1rem 1.5rem;
+}
+
+.border-primary {
+  border-color: rgba(37, 99, 235, 0.5) !important;
+}
+
+.border-success {
+  border-color: rgba(22, 163, 74, 0.5) !important;
+}
+
+.border-info {
+  border-color: rgba(6, 182, 212, 0.5) !important;
+}
+
+.border-warning {
+  border-color: rgba(245, 158, 11, 0.5) !important;
+}
+
+.border-danger {
+  border-color: rgba(220, 38, 38, 0.5) !important;
+}
+
+/* Button Styling */
+.btn {
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.btn-outline-light {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-outline-light:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.user-action-btn {
+  border-radius: 0.5rem;
+}
+
+/* Form Controls */
+.form-control {
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.form-control:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+/* Badges */
+.badge {
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  border-radius: 0.25rem;
+}
+
+/* Spinner */
+.spinner-border {
+  width: 2rem;
+  height: 2rem;
+}
+
+/* Dark Background for sections */
+.bg-dark-secondary {
+  background-color: #1f2937;
+}
+
+/* System Status Styling */
+.system-status-items .status-item {
+  padding: 0.75rem;
+  background: rgba(31, 41, 55, 0.5);
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.system-status-items .status-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Pagination */
+.pagination {
+  --bs-pagination-bg: rgba(31, 41, 55, 0.5);
+  --bs-pagination-border-color: rgba(75, 85, 99, 0.3);
+  --bs-pagination-color: #e2e8f0;
+  --bs-pagination-hover-bg: rgba(55, 65, 81, 0.5);
+  --bs-pagination-hover-color: #ffffff;
+  --bs-pagination-active-bg: #1e40af;
+  --bs-pagination-active-border-color: #1e40af;
+  --bs-pagination-disabled-bg: rgba(31, 41, 55, 0.3);
+  --bs-pagination-disabled-color: #9ca3af;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.pagination .page-item .page-link {
+  border-radius: 0;
+  background-color: var(--bs-pagination-bg);
+  color: var(--bs-pagination-color);
+  border-color: var(--bs-pagination-border-color);
+}
+
+.pagination .page-item.active .page-link {
+  background-color: var(--bs-pagination-active-bg);
+  border-color: var(--bs-pagination-active-border-color);
+}
+
+/* Media Queries for Responsive Design */
+@media (max-width: 768px) {
+  .admin-tabs .nav-link {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+} 
