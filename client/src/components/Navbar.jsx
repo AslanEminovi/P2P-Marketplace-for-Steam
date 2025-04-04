@@ -274,6 +274,27 @@ const Navbar = ({ user, onLogout }) => {
                       )}
                     </div>
                     <span className="desktop-only">{user.displayName}</span>
+                    {/* Add Admin Badge for admins */}
+                    {user.isAdmin && (
+                      <span 
+                        className="admin-badge" 
+                        style={{
+                          backgroundColor: '#f59e0b',
+                          color: '#000',
+                          fontSize: '0.6rem',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          marginLeft: '6px',
+                          fontWeight: 'bold',
+                          letterSpacing: '0.5px',
+                          border: '1px solid rgba(0,0,0,0.1)',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                          textTransform: 'uppercase'
+                        }}
+                      >
+                        ADMIN
+                      </span>
+                    )}
                     <div className={`dropdown-arrow ${dropdownOpen ? 'active' : ''}`}>
                       <svg 
                         xmlns="http://www.w3.org/2000/svg" 
@@ -349,6 +370,17 @@ const Navbar = ({ user, onLogout }) => {
                           </svg>
                           Settings
                         </NavLink>
+                        
+                        {/* Add Admin Tools link for admins */}
+                        {user.isAdmin && (
+                          <NavLink to="/admin/tools" className="dropdown-menu-item admin-link" onClick={() => setDropdownOpen(false)}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 1v22"></path>
+                              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                            </svg>
+                            Admin Panel
+                          </NavLink>
+                        )}
                       
                         <div className="dropdown-divider"></div>
                       

@@ -41,6 +41,18 @@ function AdminTools() {
   const [itemSearch, setItemSearch] = useState('');
   const [itemFilter, setItemFilter] = useState({ isListed: null });
 
+  // Trades management states
+  const [trades, setTrades] = useState([]);
+  const [tradesPagination, setTradesPagination] = useState({ page: 1, pages: 1, total: 0 });
+  const [tradesLoading, setTradesLoading] = useState(false);
+  const [tradeSearch, setTradeSearch] = useState('');
+  const [selectedTrade, setSelectedTrade] = useState(null);
+  const [tradeDetailModalOpen, setTradeDetailModalOpen] = useState(false);
+  const [tradeActionLoading, setTradeActionLoading] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundTarget, setRefundTarget] = useState('buyer');
+  const [cancelReason, setCancelReason] = useState('');
+
   // Load initial data
   useEffect(() => {
     if (activeTab === 'dashboard') {
@@ -49,6 +61,8 @@ function AdminTools() {
       fetchUsers();
     } else if (activeTab === 'items') {
       fetchItems();
+    } else if (activeTab === 'trades') {
+      fetchTrades();
     }
   }, [activeTab]);
 
@@ -178,6 +192,136 @@ function AdminTools() {
     fetchItems(1);
   };
 
+  // Trades functions
+  const fetchTrades = async (page = 1) => {
+    try {
+      setTradesLoading(true);
+      const response = await axios.get(`${API_URL}/admin/trades`, { 
+        params: { page, search: tradeSearch },
+        withCredentials: true 
+      });
+      setTrades(response.data.trades);
+      setTradesPagination(response.data.pagination);
+    } catch (error) {
+      console.error('Error fetching trades:', error);
+      setMessage({
+        type: 'danger',
+        text: `Error fetching trades: ${error.response?.data?.error || error.message}`
+      });
+    } finally {
+      setTradesLoading(false);
+    }
+  };
+
+  const handleTradeSearch = (e) => {
+    e.preventDefault();
+    fetchTrades(1);
+  };
+
+  const viewTradeDetails = async (tradeId) => {
+    try {
+      setTradeActionLoading(true);
+      const response = await axios.get(`${API_URL}/admin/trades/${tradeId}`, { withCredentials: true });
+      setSelectedTrade(response.data);
+      setTradeDetailModalOpen(true);
+    } catch (error) {
+      console.error('Error fetching trade details:', error);
+      setMessage({
+        type: 'danger',
+        text: `Error fetching trade details: ${error.response?.data?.error || error.message}`
+      });
+    } finally {
+      setTradeActionLoading(false);
+    }
+  };
+
+  const handleCancelTrade = async (tradeId) => {
+    if (!cancelReason.trim()) {
+      setMessage({
+        type: 'warning',
+        text: 'Please provide a reason for cancellation'
+      });
+      return;
+    }
+
+    try {
+      setTradeActionLoading(true);
+      const response = await axios.post(`${API_URL}/admin/trades/${tradeId}/cancel`, 
+        { reason: cancelReason }, 
+        { withCredentials: true }
+      );
+      
+      setMessage({
+        type: 'success',
+        text: 'Trade cancelled successfully'
+      });
+      
+      // Update trade in the list
+      setTrades(trades.map(trade => 
+        trade._id === tradeId ? {...trade, status: 'cancelled'} : trade
+      ));
+      
+      // Update selected trade if in modal
+      if (selectedTrade && selectedTrade._id === tradeId) {
+        setSelectedTrade({...selectedTrade, status: 'cancelled'});
+      }
+      
+      setCancelReason('');
+    } catch (error) {
+      console.error('Error cancelling trade:', error);
+      setMessage({
+        type: 'danger',
+        text: `Error cancelling trade: ${error.response?.data?.error || error.message}`
+      });
+    } finally {
+      setTradeActionLoading(false);
+    }
+  };
+
+  const handleTransferFunds = async (tradeId) => {
+    const amount = parseFloat(refundAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setMessage({
+        type: 'warning',
+        text: 'Please enter a valid amount greater than 0'
+      });
+      return;
+    }
+
+    try {
+      setTradeActionLoading(true);
+      const response = await axios.post(`${API_URL}/admin/trades/${tradeId}/transfer-funds`, 
+        { 
+          amount: Math.round(amount * 100), // Convert to cents
+          target: refundTarget 
+        }, 
+        { withCredentials: true }
+      );
+      
+      setMessage({
+        type: 'success',
+        text: `Successfully transferred ${amount} GEL to the ${refundTarget}`
+      });
+      
+      // Reset form
+      setRefundAmount('');
+      
+      // Refresh trade details
+      if (selectedTrade && selectedTrade._id === tradeId) {
+        const updatedTradeResponse = await axios.get(`${API_URL}/admin/trades/${tradeId}`, { withCredentials: true });
+        setSelectedTrade(updatedTradeResponse.data);
+      }
+    } catch (error) {
+      console.error('Error transferring funds:', error);
+      setMessage({
+        type: 'danger',
+        text: `Error transferring funds: ${error.response?.data?.error || error.message}`
+      });
+    } finally {
+      setTradeActionLoading(false);
+    }
+  };
+
   // Cleanup functions
   const cleanupAllListings = async () => {
     try {
@@ -301,38 +445,420 @@ function AdminTools() {
     return <Pagination>{items}</Pagination>;
   };
 
+  // Render the trades tab
+  const renderTradesTab = () => {
+    return (
+      <>
+        <Row className="mb-4">
+          <Col>
+            <Card bg="dark" text="white">
+              <Card.Header>
+                <h5 className="mb-0">Trade Management</h5>
+              </Card.Header>
+              <Card.Body>
+                <Form onSubmit={handleTradeSearch} className="mb-4">
+                  <InputGroup>
+                    <FormControl
+                      placeholder="Search by trade ID, item name, or user..."
+                      value={tradeSearch}
+                      onChange={(e) => setTradeSearch(e.target.value)}
+                    />
+                    <Button variant="primary" type="submit">
+                      Search
+                    </Button>
+                  </InputGroup>
+                </Form>
+
+                {tradesLoading ? (
+                  <div className="text-center py-4">
+                    <Spinner animation="border" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </Spinner>
+                  </div>
+                ) : trades.length === 0 ? (
+                  <Alert variant="info">No trades found</Alert>
+                ) : (
+                  <>
+                    <Table variant="dark" striped bordered hover responsive>
+                      <thead>
+                        <tr>
+                          <th>Trade ID</th>
+                          <th>Item</th>
+                          <th>Price</th>
+                          <th>Buyer</th>
+                          <th>Seller</th>
+                          <th>Status</th>
+                          <th>Created</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {trades.map(trade => (
+                          <tr key={trade._id}>
+                            <td>{trade._id}</td>
+                            <td>
+                              {trade.item?.marketHashName || trade.itemName || 'Unknown Item'}
+                            </td>
+                            <td>{((trade.price || 0) / 100).toFixed(2)} GEL</td>
+                            <td>
+                              {trade.buyer?.displayName || 'Unknown'}
+                            </td>
+                            <td>
+                              {trade.seller?.displayName || 'Unknown'}
+                            </td>
+                            <td>
+                              <Badge
+                                bg={
+                                  trade.status === 'completed' ? 'success' :
+                                  trade.status === 'cancelled' || trade.status === 'failed' ? 'danger' :
+                                  'primary'
+                                }
+                              >
+                                {trade.status}
+                              </Badge>
+                            </td>
+                            <td>{new Date(trade.createdAt).toLocaleString()}</td>
+                            <td>
+                              <Button 
+                                variant="info" 
+                                size="sm" 
+                                onClick={() => viewTradeDetails(trade._id)}
+                                className="me-1"
+                              >
+                                Details
+                              </Button>
+                              {!['completed', 'cancelled', 'failed'].includes(trade.status) && (
+                                <Button 
+                                  variant="danger" 
+                                  size="sm" 
+                                  onClick={() => {
+                                    setSelectedTrade(trade);
+                                    setTradeDetailModalOpen(true);
+                                    setCancelReason('');
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+
+                    {renderPagination(tradesPagination, fetchTrades)}
+                  </>
+                )}
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Trade Detail Modal */}
+        <Modal
+          show={tradeDetailModalOpen}
+          onHide={() => setTradeDetailModalOpen(false)}
+          size="lg"
+          centered
+          backdrop="static"
+        >
+          <Modal.Header closeButton className="bg-dark text-white">
+            <Modal.Title>Trade Details</Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="bg-dark text-white">
+            {!selectedTrade ? (
+              <div className="text-center py-4">
+                <Spinner animation="border" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </Spinner>
+              </div>
+            ) : (
+              <>
+                <Row className="mb-4">
+                  <Col md={6}>
+                    <h5>General Information</h5>
+                    <Table variant="dark" size="sm" borderless>
+                      <tbody>
+                        <tr>
+                          <td><strong>Trade ID:</strong></td>
+                          <td>{selectedTrade._id}</td>
+                        </tr>
+                        <tr>
+                          <td><strong>Status:</strong></td>
+                          <td>
+                            <Badge
+                              bg={
+                                selectedTrade.status === 'completed' ? 'success' :
+                                selectedTrade.status === 'cancelled' || selectedTrade.status === 'failed' ? 'danger' :
+                                'primary'
+                              }
+                            >
+                              {selectedTrade.status}
+                            </Badge>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td><strong>Item:</strong></td>
+                          <td>{selectedTrade.item?.marketHashName || selectedTrade.itemName || 'Unknown Item'}</td>
+                        </tr>
+                        <tr>
+                          <td><strong>Price:</strong></td>
+                          <td>{((selectedTrade.price || 0) / 100).toFixed(2)} GEL</td>
+                        </tr>
+                        <tr>
+                          <td><strong>Created:</strong></td>
+                          <td>{new Date(selectedTrade.createdAt).toLocaleString()}</td>
+                        </tr>
+                        {selectedTrade.completedAt && (
+                          <tr>
+                            <td><strong>Completed:</strong></td>
+                            <td>{new Date(selectedTrade.completedAt).toLocaleString()}</td>
+                          </tr>
+                        )}
+                        {selectedTrade.cancelledAt && (
+                          <tr>
+                            <td><strong>Cancelled:</strong></td>
+                            <td>{new Date(selectedTrade.cancelledAt).toLocaleString()}</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </Table>
+                  </Col>
+                  <Col md={6}>
+                    <h5>Participants</h5>
+                    <Table variant="dark" size="sm" borderless>
+                      <tbody>
+                        <tr>
+                          <td><strong>Buyer:</strong></td>
+                          <td>
+                            {selectedTrade.buyer?.displayName || 'Unknown'}
+                            {selectedTrade.buyer && (
+                              <Button 
+                                variant="link" 
+                                size="sm" 
+                                onClick={() => viewUserDetails(selectedTrade.buyer._id)}
+                                className="p-0 ms-2"
+                              >
+                                View Profile
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td><strong>Buyer ID:</strong></td>
+                          <td>{selectedTrade.buyer?._id || 'Unknown'}</td>
+                        </tr>
+                        <tr>
+                          <td><strong>Seller:</strong></td>
+                          <td>
+                            {selectedTrade.seller?.displayName || 'Unknown'}
+                            {selectedTrade.seller && (
+                              <Button 
+                                variant="link" 
+                                size="sm" 
+                                onClick={() => viewUserDetails(selectedTrade.seller._id)}
+                                className="p-0 ms-2"
+                              >
+                                View Profile
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td><strong>Seller ID:</strong></td>
+                          <td>{selectedTrade.seller?._id || 'Unknown'}</td>
+                        </tr>
+                      </tbody>
+                    </Table>
+                  </Col>
+                </Row>
+
+                {/* Trade Actions */}
+                {!['completed', 'cancelled', 'failed'].includes(selectedTrade.status) && (
+                  <Card bg="secondary" text="white" className="mb-4">
+                    <Card.Header>
+                      <h5 className="mb-0">Cancel Trade</h5>
+                    </Card.Header>
+                    <Card.Body>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Reason for Cancellation</Form.Label>
+                        <Form.Control
+                          as="textarea"
+                          rows={3}
+                          value={cancelReason}
+                          onChange={(e) => setCancelReason(e.target.value)}
+                          placeholder="Explain why this trade is being cancelled..."
+                        />
+                      </Form.Group>
+                      <Button
+                        variant="danger"
+                        onClick={() => handleCancelTrade(selectedTrade._id)}
+                        disabled={tradeActionLoading}
+                      >
+                        {tradeActionLoading ? (
+                          <>
+                            <Spinner
+                              as="span"
+                              animation="border"
+                              size="sm"
+                              role="status"
+                              aria-hidden="true"
+                              className="me-2"
+                            />
+                            Processing...
+                          </>
+                        ) : (
+                          'Cancel Trade'
+                        )}
+                      </Button>
+                    </Card.Body>
+                  </Card>
+                )}
+
+                {/* Fund Transfer */}
+                <Card bg="secondary" text="white" className="mb-4">
+                  <Card.Header>
+                    <h5 className="mb-0">Transfer Funds</h5>
+                  </Card.Header>
+                  <Card.Body>
+                    <p className="text-warning">
+                      Use this feature to compensate users in case of issues or fraud. The amount 
+                      will be added to the selected user's account balance.
+                    </p>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Amount (GEL)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={refundAmount}
+                        onChange={(e) => setRefundAmount(e.target.value)}
+                        placeholder="Enter amount to transfer"
+                      />
+                    </Form.Group>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Recipient</Form.Label>
+                      <div>
+                        <Form.Check
+                          inline
+                          type="radio"
+                          label={`Buyer (${selectedTrade.buyer?.displayName || 'Unknown'})`}
+                          name="refundTarget"
+                          id="refund-buyer"
+                          checked={refundTarget === 'buyer'}
+                          onChange={() => setRefundTarget('buyer')}
+                        />
+                        <Form.Check
+                          inline
+                          type="radio"
+                          label={`Seller (${selectedTrade.seller?.displayName || 'Unknown'})`}
+                          name="refundTarget"
+                          id="refund-seller"
+                          checked={refundTarget === 'seller'}
+                          onChange={() => setRefundTarget('seller')}
+                        />
+                      </div>
+                    </Form.Group>
+                    <Button
+                      variant="success"
+                      onClick={() => handleTransferFunds(selectedTrade._id)}
+                      disabled={tradeActionLoading}
+                    >
+                      {tradeActionLoading ? (
+                        <>
+                          <Spinner
+                            as="span"
+                            animation="border"
+                            size="sm"
+                            role="status"
+                            aria-hidden="true"
+                            className="me-2"
+                          />
+                          Processing...
+                        </>
+                      ) : (
+                        'Transfer Funds'
+                      )}
+                    </Button>
+                  </Card.Body>
+                </Card>
+
+                {/* Status History */}
+                {selectedTrade.statusHistory && selectedTrade.statusHistory.length > 0 && (
+                  <Card bg="dark" text="white">
+                    <Card.Header>
+                      <h5 className="mb-0">Status History</h5>
+                    </Card.Header>
+                    <Card.Body>
+                      <Table variant="dark" striped bordered responsive>
+                        <thead>
+                          <tr>
+                            <th>Status</th>
+                            <th>Timestamp</th>
+                            <th>Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedTrade.statusHistory.map((status, index) => (
+                            <tr key={index}>
+                              <td>
+                                <Badge
+                                  bg={
+                                    status.status === 'completed' ? 'success' :
+                                    status.status === 'cancelled' || status.status === 'failed' ? 'danger' :
+                                    'primary'
+                                  }
+                                >
+                                  {status.status}
+                                </Badge>
+                              </td>
+                              <td>{new Date(status.timestamp).toLocaleString()}</td>
+                              <td>{status.message || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </Table>
+                    </Card.Body>
+                  </Card>
+                )}
+              </>
+            )}
+          </Modal.Body>
+          <Modal.Footer className="bg-dark text-white">
+            <Button variant="secondary" onClick={() => setTradeDetailModalOpen(false)}>
+              Close
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      </>
+    );
+  };
+
   return (
-    <Container className="py-5">
+    <Container fluid className="py-4">
       <h1 className="mb-4">Admin Tools</h1>
       
       {message && (
-        <Alert variant={message.type} className="mb-4" dismissible onClose={() => setMessage(null)}>
+        <Alert 
+          variant={message.type} 
+          onClose={() => setMessage(null)} 
+          dismissible
+          className="mb-4"
+        >
           {message.text}
         </Alert>
       )}
       
       <Tabs
-        id="admin-tabs"
         activeKey={activeTab}
-        onSelect={(key) => setActiveTab(key)}
+        onSelect={k => setActiveTab(k)}
         className="mb-4"
       >
         <Tab eventKey="dashboard" title="Dashboard">
           <DashboardTab stats={stats} loading={statsLoading} refreshStats={fetchStats} />
         </Tab>
         
-        <Tab eventKey="cleanup" title="Cleanup Tools">
-          <CleanupTab 
-            userId={userId}
-            setUserId={setUserId}
-            loading={loading}
-            results={cleanupResults}
-            cleanupAllListings={cleanupAllListings}
-            cleanupUserListings={cleanupUserListings}
-          />
-        </Tab>
-        
-        <Tab eventKey="users" title="User Management">
+        <Tab eventKey="users" title="Users">
           <UsersTab 
             users={users}
             loading={usersLoading}
@@ -346,7 +872,7 @@ function AdminTools() {
           />
         </Tab>
         
-        <Tab eventKey="items" title="Item Management">
+        <Tab eventKey="items" title="Items">
           <ItemsTab 
             items={items}
             loading={itemsLoading}
@@ -358,6 +884,21 @@ function AdminTools() {
             handleItemSearch={handleItemSearch}
             fetchItems={fetchItems}
             renderPagination={renderPagination}
+          />
+        </Tab>
+        
+        <Tab eventKey="trades" title="Trades Management">
+          {renderTradesTab()}
+        </Tab>
+        
+        <Tab eventKey="cleanup" title="Cleanup Tools">
+          <CleanupTab 
+            userId={userId}
+            setUserId={setUserId}
+            loading={loading}
+            results={cleanupResults}
+            cleanupAllListings={cleanupAllListings}
+            cleanupUserListings={cleanupUserListings}
           />
         </Tab>
       </Tabs>
