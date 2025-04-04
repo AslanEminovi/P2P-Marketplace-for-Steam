@@ -29,7 +29,6 @@ const Trades = ({ user }) => {
     totalTrades: 0,
     activeTrades: 0,
     completedTrades: 0,
-    cancelledTrades: 0,
     totalValue: 0
   });
   const navigate = useNavigate();
@@ -113,37 +112,14 @@ const Trades = ({ user }) => {
         ['completed'].includes(trade?.status)
       );
       
-      const cancelledTrades = trades.filter(trade => 
-        ['cancelled', 'failed'].includes(trade?.status)
-      );
-      
       const totalValue = trades.reduce((sum, trade) => sum + (Number(trade?.price) || 0), 0);
       
       setStats({
         totalTrades: trades.length,
         activeTrades: activeTrades.length,
         completedTrades: completedTrades.length,
-        cancelledTrades: cancelledTrades.length,
         totalValue
       });
-
-      // Log trade status counts for debugging
-      console.log("Trade status breakdown:", {
-        total: trades.length,
-        active: activeTrades.length,
-        completed: completedTrades.length,
-        cancelled: cancelledTrades.length,
-        unknown: trades.length - (activeTrades.length + completedTrades.length + cancelledTrades.length)
-      });
-      
-      // Log each trade status to help investigate
-      console.log("Trade statuses:", trades.map(trade => ({ 
-        id: trade._id,
-        status: trade.status,
-        isActive: ['awaiting_seller', 'offer_sent', 'awaiting_confirmation', 'created', 'pending'].includes(trade?.status),
-        isCompleted: ['completed'].includes(trade?.status),
-        isCancelled: ['cancelled', 'failed'].includes(trade?.status)
-      })));
     }
   }, [trades]);
 
@@ -568,20 +544,6 @@ const Trades = ({ user }) => {
           </div>
         </div>
         
-        <div className="trades-stat-card cancelled">
-          <div className="trades-stat-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="15" y1="9" x2="9" y2="15"></line>
-              <line x1="9" y1="9" x2="15" y2="15"></line>
-            </svg>
-          </div>
-          <div className="trades-stat-content">
-            <div className="trades-stat-label">Cancelled</div>
-            <div className="trades-stat-value">{stats.cancelledTrades}</div>
-          </div>
-        </div>
-        
         <div className="trades-stat-card">
           <div className="trades-stat-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -625,9 +587,7 @@ const Trades = ({ user }) => {
             <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
           </svg>
           Trade History
-          {(stats.completedTrades + stats.cancelledTrades) > 0 && 
-            <span className="trades-tab-badge">{stats.completedTrades + stats.cancelledTrades}</span>
-          }
+          {stats.completedTrades > 0 && <span className="trades-tab-badge">{stats.completedTrades}</span>}
         </button>
       </motion.div>
       
