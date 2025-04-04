@@ -688,6 +688,8 @@ const TradeDetails = ({ tradeId }) => {
   const handleCancelTrade = async () => {
     setLoading(true);
     setError(null);
+    console.log(`Attempting to cancel trade: ${tradeId}`);
+    
     try {
       const response = await axios.put(`${API_URL}/trades/${tradeId}/cancel`, {
         reason: cancelReason
@@ -695,13 +697,47 @@ const TradeDetails = ({ tradeId }) => {
         withCredentials: true
       });
       
+      console.log('Cancel trade response:', response.data);
+      
       if (response.data.success) {
+        // Show success notification
+        if (window.showNotification) {
+          window.showNotification(
+            'Trade Cancelled',
+            'The trade has been successfully cancelled.',
+            'SUCCESS'
+          );
+        } else {
+          toast.success('Trade cancelled successfully');
+        }
+        
         setCancelReason('');
         loadTradeDetails();
+        
+        // Redirect to trades page after a short delay
+        setTimeout(() => {
+          window.location.href = '/trades';
+        }, 1500);
       }
     } catch (err) {
       console.error('Error cancelling trade:', err);
-      setError(err.response?.data?.error || 'Failed to cancel trade');
+      const errorMessage = err.response?.data?.error || 'Failed to cancel trade. Please try again.';
+      setError(errorMessage);
+      
+      // Show error notification
+      if (window.showNotification) {
+        window.showNotification(
+          'Error',
+          errorMessage,
+          'ERROR'
+        );
+      } else {
+        toast.error(errorMessage);
+      }
+      
+      // Keep the modal open to allow retry
+      const modal = document.getElementById('cancelModal');
+      if (modal) modal.style.display = 'block';
     } finally {
       setLoading(false);
     }
@@ -895,7 +931,7 @@ const TradeDetails = ({ tradeId }) => {
               </div>
             )}
 
-            {(['awaiting_seller', 'accepted'].includes(trade.status)) && (
+            {(['awaiting_seller', 'accepted', 'created'].includes(trade.status)) && (
               <button
                 onClick={() => {
                   setCancelReason('');
@@ -903,7 +939,7 @@ const TradeDetails = ({ tradeId }) => {
                   if (modal) modal.style.display = 'block';
                 }}
                 style={{
-                  backgroundColor: 'rgba(127, 29, 29, 0.8)',
+                  backgroundColor: 'rgba(220, 38, 38, 0.9)',
                   color: 'white',
                   border: 'none',
                   padding: '12px 20px',
@@ -915,7 +951,17 @@ const TradeDetails = ({ tradeId }) => {
                   justifyContent: 'center',
                   alignItems: 'center',
                   gap: '8px',
-                  marginTop: trade.status === 'accepted' ? '16px' : '0'
+                  marginTop: trade.status === 'accepted' ? '16px' : '0',
+                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(185, 28, 28, 1)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.9)';
+                  e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1079,7 +1125,7 @@ const TradeDetails = ({ tradeId }) => {
               </div>
             )}
             
-            {trade.status === 'awaiting_seller' && (
+            {(['awaiting_seller', 'created', 'offer_sent'].includes(trade.status)) && (
               <button
                 onClick={() => {
                   setCancelReason('');
@@ -1087,7 +1133,7 @@ const TradeDetails = ({ tradeId }) => {
                   if (modal) modal.style.display = 'block';
                 }}
                 style={{
-                  backgroundColor: 'rgba(127, 29, 29, 0.8)',
+                  backgroundColor: 'rgba(220, 38, 38, 0.9)',
                   color: 'white',
                   border: 'none',
                   padding: '12px 20px',
@@ -1098,7 +1144,17 @@ const TradeDetails = ({ tradeId }) => {
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  gap: '8px'
+                  gap: '8px',
+                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(185, 28, 28, 1)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.9)';
+                  e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1496,6 +1552,8 @@ const TradeDetails = ({ tradeId }) => {
         height: '100%',
         backgroundColor: 'rgba(0,0,0,0.7)',
         zIndex: 1000,
+        overflowY: 'auto',
+        padding: '20px',
         alignItems: 'center',
         justifyContent: 'center'
       }}
@@ -1567,22 +1625,49 @@ const TradeDetails = ({ tradeId }) => {
             <button
               onClick={() => {
                 handleCancelTrade();
-                const modal = document.getElementById('cancelModal');
-                if (modal) modal.style.display = 'none';
+                // Don't hide the modal here - it will be hidden after successful cancellation
+                // or kept open on error to allow retry
               }}
               disabled={loading}
               style={{
-                backgroundColor: '#7f1d1d',
+                backgroundColor: loading ? '#9ca3af' : '#dc2626',
                 color: 'white',
                 border: 'none',
-                padding: '10px 16px',
-                borderRadius: '4px',
+                padding: '12px 20px',
+                borderRadius: '8px',
                 cursor: loading ? 'not-allowed' : 'pointer',
                 fontWeight: 'bold',
-                width: '48%'
+                width: '48%',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.backgroundColor = '#b91c1c';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.backgroundColor = '#dc2626';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }
               }}
             >
-              {loading ? 'Processing...' : 'Yes, Cancel Trade'}
+              {loading ? (
+                <>
+                  <div className="spinner" style={{
+                    display: 'inline-block',
+                    width: '16px',
+                    height: '16px',
+                    border: '2px solid rgba(255,255,255,0.2)',
+                    borderRadius: '50%',
+                    borderTopColor: 'white',
+                    marginRight: '8px'
+                  }} />
+                  Processing...
+                </>
+              ) : 'Yes, Cancel Trade'}
             </button>
           </div>
         </div>
@@ -1653,6 +1738,19 @@ const TradeDetails = ({ tradeId }) => {
           
           #cancelModal {
             display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 20px;
+          }
+          
+          .spinner {
+            animation: spin 1s linear infinite;
           }
         `}
       </style>
