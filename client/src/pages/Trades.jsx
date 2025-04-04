@@ -91,33 +91,53 @@ const Trades = ({ user }) => {
         trade.seller.avatar = trade.seller.avatarfull;
       }
       
-      // Make sure item image is properly set
-      // First check if we have iconUrl directly in the item object
-      if (trade.item && trade.item.iconUrl) {
-        trade.itemImage = trade.item.iconUrl;
-      } 
-      // Then check if we have iconURL (with capital URL)
-      else if (trade.item && trade.item.iconURL) {
-        trade.itemImage = trade.item.iconURL;
-      }
-      // Then check if we have an icon property
-      else if (trade.item && trade.item.icon) {
-        trade.itemImage = trade.item.icon;
-      }
-      // Then check if the image is in the main trade object
-      else if (trade.itemIconUrl) {
-        trade.itemImage = trade.itemIconUrl;
-      }
-      else if (trade.iconUrl) {
-        trade.itemImage = trade.iconUrl;
-      }
-      
-      // Also make sure we have a proper item name
-      if (!trade.itemName && trade.item && trade.item.marketHashName) {
-        trade.itemName = trade.item.marketHashName;
+      // Check all possible locations for the item image
+      if (trade.item) {
+        // First check if marketHashName exists to set itemName
+        if (trade.item.marketHashName && !trade.itemName) {
+          trade.itemName = trade.item.marketHashName;
+        }
+        
+        // Then try all possible image properties in order of likelihood
+        if (trade.item.iconUrl) {
+          trade.itemImage = trade.item.iconUrl;
+        } else if (trade.item.iconURL) {
+          trade.itemImage = trade.item.iconURL;
+        } else if (trade.item.icon) {
+          trade.itemImage = trade.item.icon;
+        } else if (trade.item.imageUrl) {
+          trade.itemImage = trade.item.imageUrl;
+        } else if (trade.item.image) {
+          trade.itemImage = trade.item.image;
+        }
       }
       
-      // Log the trade for debugging
+      // If we still don't have an image, check at the trade level
+      if (!trade.itemImage) {
+        if (trade.itemIconUrl) {
+          trade.itemImage = trade.itemIconUrl;
+        } else if (trade.iconUrl) {
+          trade.itemImage = trade.iconUrl;
+        } else if (trade.imageUrl) {
+          trade.itemImage = trade.imageUrl;
+        }
+      }
+      
+      // Extract hash name from URL if itemName is still missing
+      if (!trade.itemName && trade.itemImage) {
+        const imagePath = trade.itemImage.split('/').pop();
+        const decodedPath = decodeURIComponent(imagePath);
+        if (decodedPath.includes('.png')) {
+          trade.itemName = decodedPath.split('.png')[0];
+        }
+      }
+      
+      // Finally, use a fallback name if still missing
+      if (!trade.itemName) {
+        trade.itemName = "CS2 Item";
+      }
+      
+      // Log the enhanced trade for debugging
       console.log('Enhanced trade:', trade);
       
       return trade;
@@ -509,10 +529,15 @@ const Trades = ({ user }) => {
                   <div className="trade-card-content">
                     <div className="trade-item-image">
                       <img 
-                        src={trade.itemImage || trade.item?.iconUrl || trade.item?.iconURL || trade.item?.icon || '/default-item.png'} 
-                        alt={trade.itemName || trade.item?.marketHashName || 'Item'} 
+                        src={trade.itemImage || 
+                             (trade.item && (trade.item.iconUrl || trade.item.iconURL || trade.item.icon || trade.item.imageUrl || trade.item.image)) || 
+                             trade.itemIconUrl || 
+                             trade.iconUrl || 
+                             '/default-item.png'} 
+                        alt={trade.itemName || (trade.item && trade.item.marketHashName) || 'Item'} 
                         onError={(e) => {
                           console.error("Failed to load image:", e.target.src);
+                          e.target.onerror = null; // Prevent infinite loop
                           e.target.src = '/default-item.png';
                         }}
                       />

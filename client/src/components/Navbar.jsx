@@ -575,9 +575,17 @@ const Navbar = ({ user, onLogout }) => {
           
           .trades-dropdown-status {
             font-size: 11px;
-            color: #f43f5e;
+            color: #10b981;
             margin-top: 2px;
             font-weight: 500;
+            text-shadow: 0 0 5px rgba(16, 185, 129, 0.5);
+            animation: glowPulse 2s infinite;
+          }
+          
+          @keyframes glowPulse {
+            0% { text-shadow: 0 0 5px rgba(16, 185, 129, 0.5); }
+            50% { text-shadow: 0 0 10px rgba(16, 185, 129, 0.8); }
+            100% { text-shadow: 0 0 5px rgba(16, 185, 129, 0.5); }
           }
         `}
       </style>
