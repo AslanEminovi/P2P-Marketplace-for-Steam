@@ -23,121 +23,110 @@ const Trades = ({ user }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchTrades();
-    
-    // Set up periodic refresh every 2 minutes
-    const refreshInterval = setInterval(() => {
-      setRefreshKey(prevKey => prevKey + 1);
-    }, 120000);
-    
-    return () => clearInterval(refreshInterval);
-  }, [refreshKey]);
-  
-  // Calculate stats when trades change
+    if (user) {
+      fetchTrades();
+    } else {
+      setLoading(false);
+      setError('You must be logged in to view trades');
+    }
+  }, [sortOrder, roleFilter]);
+
   useEffect(() => {
-    if (Array.isArray(trades) && trades.length > 0) {
+    if (trades.length > 0) {
+      // Calculate stats
+      const totalTrades = trades.length;
       const activeTrades = trades.filter(trade => 
-        ['awaiting_seller', 'offer_sent', 'awaiting_confirmation', 'created', 'pending'].includes(trade?.status)
-      );
-      
+        !['completed', 'cancelled', 'failed'].includes(trade.status.toLowerCase())
+      ).length;
       const completedTrades = trades.filter(trade => 
-        ['completed'].includes(trade?.status)
-      );
-      
-      const totalValue = trades.reduce((sum, trade) => sum + (Number(trade?.price) || 0), 0);
-      
+        trade.status.toLowerCase() === 'completed'
+      ).length;
+      const cancelledTrades = trades.filter(trade => 
+        ['cancelled', 'failed'].includes(trade.status.toLowerCase())
+      ).length;
+
       setStats({
-        totalTrades: trades.length,
-        activeTrades: activeTrades.length,
-        completedTrades: completedTrades.length,
-        totalValue
+        totalTrades: totalTrades,
+        activeTrades: activeTrades,
+        completedTrades: completedTrades,
+        totalValue: trades.reduce((sum, trade) => sum + (Number(trade?.price) || 0), 0)
       });
     }
   }, [trades]);
 
   const fetchTrades = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      const response = await axios.get(`${API_URL}/trades/history`, { 
-        withCredentials: true 
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      let orderParam = '';
+      if (sortOrder === 'newest') orderParam = 'createdAt:desc';
+      else if (sortOrder === 'oldest') orderParam = 'createdAt:asc';
+      else if (sortOrder === 'highest') orderParam = 'price:desc';
+      else if (sortOrder === 'lowest') orderParam = 'price:asc';
+
+      let roleParam = '';
+      if (roleFilter !== 'all') {
+        roleParam = `&role=${roleFilter}`;
+      }
+
+      const response = await axios.get(`${API_URL}/trades?order=${orderParam}${roleParam}`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      
-      if (Array.isArray(response.data)) {
-        const tradesWithImages = await enhanceTradesWithUserImages(response.data);
+
+      if (response.data && Array.isArray(response.data.trades)) {
+        // Add default image URLs for any items missing images
+        const tradesWithImages = response.data.trades.map(trade => {
+          if (trade.item && !trade.item.imageUrl) {
+            return {
+              ...trade,
+              item: {
+                ...trade.item,
+                imageUrl: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot7HxfDhjxszJemkV09-5lpKKqPrxN7LEmyVQ7MEpiLuSrYmnjQO3-UdsZGHyd4_Bd1RvNQ7T_FDrw-_ng5Pu75iY1zI97bhLsvQz/130fx97f/image.png'
+              }
+            };
+          }
+          return trade;
+        });
+        
         setTrades(tradesWithImages);
       } else {
-        console.error('Invalid response format from trade history API:', response.data);
         setTrades([]);
-        setError('Invalid data format received from server');
       }
+      
+      setLoading(false);
     } catch (err) {
-      console.error('Error fetching trade history:', err);
-      setError('Failed to load trade history. Please try again later.');
+      console.error('Error fetching trades:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to load trades');
       setTrades([]);
-    } finally {
       setLoading(false);
     }
   };
-  
-  // Function to enhance trades with user images
-  const enhanceTradesWithUserImages = async (trades) => {
-    return trades.map(trade => {
-      // Ensure buyer and seller have avatars
-      if (trade.buyer && !trade.buyer.avatar && trade.buyer.avatarfull) {
-        trade.buyer.avatar = trade.buyer.avatarfull;
-      }
-      
-      if (trade.seller && !trade.seller.avatar && trade.seller.avatarfull) {
-        trade.seller.avatar = trade.seller.avatarfull;
-      }
-      
-      // Make sure item image is set
-      if (trade.item && trade.item.iconUrl && !trade.itemImage) {
-        trade.itemImage = trade.item.iconUrl;
-      }
-      
-      return trade;
-    });
-  };
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed':
-        return '#4ade80'; // Green
-      case 'cancelled':
-      case 'failed':
-        return '#ef4444'; // Red
-      case 'pending':
-      case 'awaiting_seller':
-      case 'offer_sent':
-      case 'awaiting_confirmation':
-      case 'created':
-        return '#3b82f6'; // Blue
-      default:
-        return '#9ca3af'; // Gray
-    }
+    status = status.toLowerCase();
+    if (status === 'completed') return 'green';
+    if (status === 'cancelled' || status === 'failed') return 'red';
+    if (status === 'awaiting_confirmation' || status === 'accepted') return 'orange';
+    if (status === 'offer_sent') return 'yellow';
+    return 'blue';
   };
 
   const getStatusLabel = (status) => {
-    switch (status) {
-      case 'completed':
-        return 'Completed';
-      case 'cancelled':
-        return 'Cancelled';
-      case 'failed':
-        return 'Failed';
-      case 'pending':
-        return 'Pending';
-      case 'awaiting_seller':
-        return 'Awaiting Seller';
-      case 'offer_sent':
-        return 'Offer Sent';
-      case 'awaiting_confirmation':
-        return 'Awaiting Confirmation';
-      case 'created':
-        return 'Created';
-      default:
-        return status;
+    switch(status.toLowerCase()) {
+      case 'completed': return 'Completed';
+      case 'cancelled': return 'Cancelled';
+      case 'failed': return 'Failed';
+      case 'awaiting_seller': return 'Awaiting Seller';
+      case 'awaiting_confirmation': return 'Awaiting Confirmation';
+      case 'accepted': return 'Accepted';
+      case 'offer_sent': return 'Offer Sent';
+      default: return status;
     }
   };
 
@@ -170,11 +159,11 @@ const Trades = ({ user }) => {
     // Apply status filter (tab)
     if (activeTab === 'active') {
       filtered = filtered.filter(trade => 
-        ['awaiting_seller', 'offer_sent', 'awaiting_confirmation', 'created', 'pending'].includes(trade?.status)
+        !['completed', 'cancelled', 'failed'].includes(trade?.status.toLowerCase())
       );
     } else if (activeTab === 'history') {
       filtered = filtered.filter(trade => 
-        ['completed', 'cancelled', 'failed'].includes(trade?.status)
+        ['completed', 'cancelled', 'failed'].includes(trade?.status.toLowerCase())
       );
     }
     
