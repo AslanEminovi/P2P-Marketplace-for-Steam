@@ -249,307 +249,188 @@ const ItemDetails = ({
   if (!isOpen) return null;
   
   return (
-    <AnimatePresence>
+    <div className="item-details-wrapper">
       {isOpen && (
         <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              width: '100vw',
-              height: '100vh',
-              backgroundColor: 'rgba(0, 0, 0, 0.75)',
-              backdropFilter: 'blur(5px)',
-              WebkitBackdropFilter: 'blur(5px)',
-              zIndex: 9998,
-              pointerEvents: 'none'
-            }}
+          {/* Dark overlay behind the modal */}
+          <div 
+            className="item-details-overlay"
+            onClick={onClose}
           />
           
-          {/* Modal */}
-          <motion.div
-            className="item-details-modal"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ 
-              type: 'spring', 
-              stiffness: 400, 
-              damping: 25,
-              mass: 0.8
-            }}
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-              borderRadius: '16px',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-              padding: '32px',
-              zIndex: 9999,
-              width: '90%',
-              maxWidth: '800px',
-              maxHeight: '90vh',
-              overflow: 'auto',
-              border: '1px solid rgba(255, 255, 255, 0.07)',
-              pointerEvents: 'auto'
-            }}
-          >
+          {/* Main modal container */}
+          <div className="item-details-container">
             {/* Close button */}
-            <motion.button
-              whileHover={{ scale: 1.1, rotate: 90 }}
-              whileTap={{ scale: 0.9 }}
+            <button
+              className="item-details-close-btn"
               onClick={onClose}
-              style={{
-                position: 'absolute',
-                top: '20px',
-                right: '20px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: 'none',
-                borderRadius: '50%',
-                color: '#fff',
-                fontSize: '18px',
-                cursor: 'pointer',
-                width: '36px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s ease'
-              }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
-            </motion.button>
+            </button>
             
-            {loading ? (
-              <div className="item-details-loading">
-                <div className="loading-spinner"></div>
-                <p className="pulse-effect">Loading item details...</p>
-              </div>
-            ) : error ? (
-              <div className="item-details-loading">
-                <p style={{ color: '#ef4444' }}>{error}</p>
-              </div>
-            ) : item ? (
-              <div>
-                <div className="item-header">
-                  <div className="item-header-image" style={{
-                    background: `radial-gradient(circle at top right, ${getRarityColor(item.rarity)}22, transparent 70%)`
-                  }}>
-                    <motion.img 
-                      src={getItemImage(item)}
-                      alt={getTruncatedName(item)}
-                      initial={{ y: -5, opacity: 0.8 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      whileHover={{ scale: 1.05, y: -5 }}
-                      transition={{ type: 'spring', stiffness: 300 }}
-                    />
+            {/* Content area */}
+            <div className="item-details-content">
+              {loading ? (
+                <div className="item-details-loading">
+                  <div className="loading-spinner"></div>
+                  <p className="pulse-effect">Loading item details...</p>
+                </div>
+              ) : error ? (
+                <div className="item-details-loading">
+                  <p style={{ color: '#ef4444' }}>{error}</p>
+                </div>
+              ) : item ? (
+                <>
+                  {/* Header with image and basic details */}
+                  <div className="item-header">
+                    <div className="item-header-image" style={{
+                      background: `radial-gradient(circle at top right, ${getRarityColor(item.rarity)}22, transparent 70%)`
+                    }}>
+                      <img 
+                        src={getItemImage(item)}
+                        alt={getTruncatedName(item)}
+                        className="item-img"
+                      />
+                    </div>
+                    
+                    <div className="item-header-details">
+                      <h2 className="item-title">{getTruncatedName(item)}</h2>
+                      <p className="item-subtitle">
+                        {getWeaponType(item)}
+                        {getWearName(item) && ` | ${getWearName(item)}`}
+                      </p>
+                      
+                      <div className="item-price-tag">
+                        {formatCurrency(item.price, 'USD')}
+                      </div>
+                      
+                      <div className="item-meta">
+                        {getWearName(item) && (
+                          <div className="meta-item">
+                            <div className="meta-label">Exterior</div>
+                            <div className="meta-value" style={{ color: getWearColor(getWearName(item)) }}>
+                              {getWearName(item)}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {item.rarity && (
+                          <div className="meta-item">
+                            <div className="meta-label">Rarity</div>
+                            <div className="meta-value" style={{ color: getRarityColor(item.rarity) }}>
+                              {item.rarity}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {item.float_value && (
+                          <div className="meta-item">
+                            <div className="meta-label">Float Value</div>
+                            <div className="meta-value">
+                              {parseFloat(item.float_value).toFixed(8)}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {item.created_at && (
+                          <div className="meta-item">
+                            <div className="meta-label">Listed</div>
+                            <div className="meta-value">
+                              {new Date(item.created_at).toLocaleDateString()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Owner info section */}
+                      {item.owner && (
+                        <div className="item-owner">
+                          <div className="meta-label">Listed by</div>
+                          <div className="owner-info">
+                            <div className="owner-avatar">
+                              {item.owner.avatar ? (
+                                <img src={item.owner.avatar} alt={item.owner.displayName || 'Seller'} />
+                              ) : (
+                                <div className="avatar-placeholder">
+                                  {(item.owner.displayName?.[0] || '?').toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            <div className="owner-name">
+                              {item.owner.displayName || 'Anonymous Seller'}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
-                  <div className="item-header-details">
-                    <h2 className="item-title">{getTruncatedName(item)}</h2>
-                    <p className="item-subtitle">
-                      {getWeaponType(item)}
-                      {getWearName(item) && ` | ${getWearName(item)}`}
-                    </p>
-                    
-                    <div className="item-price-tag">
-                      {formatCurrency(item.price, 'USD')}
-                    </div>
-                    
-                    <div className="item-meta">
-                      {getWearName(item) && (
-                        <div className="meta-item">
-                          <div className="meta-label">Exterior</div>
-                          <div className="meta-value" style={{ color: getWearColor(getWearName(item)) }}>
-                            {getWearName(item)}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {item.rarity && (
-                        <div className="meta-item">
-                          <div className="meta-label">Rarity</div>
-                          <div className="meta-value" style={{ color: getRarityColor(item.rarity) }}>
-                            {item.rarity}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {item.float_value && (
-                        <div className="meta-item">
-                          <div className="meta-label">Float Value</div>
-                          <div className="meta-value">
-                            {parseFloat(item.float_value).toFixed(8)}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {item.created_at && (
-                        <div className="meta-item">
-                          <div className="meta-label">Listed</div>
-                          <div className="meta-value">
-                            {new Date(item.created_at).toLocaleDateString()}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Owner info section */}
-                    {item.owner && (
-                      <div className="item-owner">
-                        <div className="meta-label">Listed by</div>
-                        <div className="owner-info">
-                          <div className="owner-avatar">
-                            {item.owner.avatar ? (
-                              <img src={item.owner.avatar} alt={item.owner.displayName || 'Seller'} />
-                            ) : (
-                              <div className="avatar-placeholder">
-                                {(item.owner.displayName?.[0] || '?').toUpperCase()}
-                              </div>
-                            )}
-                          </div>
-                          <div className="owner-name">
-                            {item.owner.displayName || 'Anonymous Seller'}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="item-actions" style={{ position: 'relative', zIndex: 20000 }}>
-                      {!isUserOwner ? (
-                        <>
-                          <button 
-                            className="item-action-button buy-now-button"
-                            onClick={handleBuyNow}
-                            type="button"
-                            style={{
-                              fontSize: '1.1rem',
-                              fontWeight: '700',
-                              padding: '1rem 1.5rem',
-                              borderRadius: '12px',
-                              background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
-                              color: 'white',
-                              border: 'none',
-                              outline: 'none',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '0.75rem',
-                              cursor: 'pointer',
-                              position: 'relative',
-                              zIndex: 20001,
-                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
-                              flex: 1,
-                              minHeight: '50px'
-                            }}
-                          >
-                            Buy Now
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <circle cx="9" cy="21" r="1"></circle>
-                              <circle cx="20" cy="21" r="1"></circle>
-                              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-                            </svg>
-                          </button>
-                          <button 
-                            className="item-action-button make-offer-button"
-                            onClick={handleMakeOffer}
-                            type="button"
-                            style={{
-                              fontSize: '1.1rem',
-                              fontWeight: '700',
-                              padding: '1rem 1.5rem',
-                              borderRadius: '12px',
-                              background: 'rgba(255, 255, 255, 0.15)',
-                              color: 'white',
-                              border: '1px solid rgba(255, 255, 255, 0.1)',
-                              outline: 'none',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '0.75rem',
-                              cursor: 'pointer',
-                              position: 'relative',
-                              zIndex: 20001,
-                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                              flex: 1,
-                              minHeight: '50px'
-                            }}
-                          >
-                            Make Offer
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <line x1="12" y1="1" x2="12" y2="23"></line>
-                              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                            </svg>
-                          </button>
-                        </>
-                      ) : (
+                  {/* Action buttons moved outside other containers for better visibility */}
+                  <div className="item-action-buttons-container">
+                    {!isUserOwner ? (
+                      <>
                         <button 
-                          className="item-action-button cancel-button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleCancelListing(item._id);
-                          }}
+                          className="action-button action-button-buy"
+                          onClick={handleBuyNow}
                           type="button"
-                          style={{
-                            fontSize: '1.1rem',
-                            fontWeight: '700',
-                            padding: '1rem 1.5rem',
-                            borderRadius: '12px',
-                            background: 'rgba(239, 68, 68, 0.15)',
-                            color: '#ef4444',
-                            border: '1px solid rgba(239, 68, 68, 0.2)',
-                            outline: 'none',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '0.75rem',
-                            cursor: 'pointer',
-                            position: 'relative',
-                            zIndex: 20001,
-                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                            flex: 1,
-                            minHeight: '50px'
-                          }}
                         >
-                          Cancel Listing
+                          <span>Buy Now</span>
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="15" y1="9" x2="9" y2="15"></line>
-                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                            <circle cx="9" cy="21" r="1"></circle>
+                            <circle cx="20" cy="21" r="1"></circle>
+                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
                           </svg>
                         </button>
-                      )}
+                        <button 
+                          className="action-button action-button-offer"
+                          onClick={handleMakeOffer}
+                          type="button"
+                        >
+                          <span>Make Offer</span>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" y1="1" x2="12" y2="23"></line>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                          </svg>
+                        </button>
+                      </>
+                    ) : (
+                      <button 
+                        className="action-button action-button-cancel"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleCancelListing(item._id);
+                        }}
+                        type="button"
+                      >
+                        <span>Cancel Listing</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="15" y1="9" x2="9" y2="15"></line>
+                          <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Description if available */}
+                  {item.description && (
+                    <div className="item-description">
+                      <h3 className="description-title">Description</h3>
+                      <p className="description-content">{item.description}</p>
                     </div>
-                  </div>
+                  )}
+                </>
+              ) : (
+                <div className="item-details-loading">
+                  <p>No item data available</p>
                 </div>
-                
-                {item.description && (
-                  <div className="item-description">
-                    <h3 className="description-title">Description</h3>
-                    <p className="description-content">{item.description}</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="item-details-loading">
-                <p>No item data available</p>
-              </div>
-            )}
-          </motion.div>
+              )}
+            </div>
+          </div>
             
           {/* Trade Panel */}
           <TradePanel
@@ -561,7 +442,7 @@ const ItemDetails = ({
           />
         </>
       )}
-    </AnimatePresence>
+    </div>
   );
 };
 
