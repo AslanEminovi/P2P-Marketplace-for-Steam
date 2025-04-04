@@ -91,10 +91,34 @@ const Trades = ({ user }) => {
         trade.seller.avatar = trade.seller.avatarfull;
       }
       
-      // Make sure item image is set
-      if (trade.item && trade.item.iconUrl && !trade.itemImage) {
+      // Make sure item image is properly set
+      // First check if we have iconUrl directly in the item object
+      if (trade.item && trade.item.iconUrl) {
         trade.itemImage = trade.item.iconUrl;
+      } 
+      // Then check if we have iconURL (with capital URL)
+      else if (trade.item && trade.item.iconURL) {
+        trade.itemImage = trade.item.iconURL;
       }
+      // Then check if we have an icon property
+      else if (trade.item && trade.item.icon) {
+        trade.itemImage = trade.item.icon;
+      }
+      // Then check if the image is in the main trade object
+      else if (trade.itemIconUrl) {
+        trade.itemImage = trade.itemIconUrl;
+      }
+      else if (trade.iconUrl) {
+        trade.itemImage = trade.iconUrl;
+      }
+      
+      // Also make sure we have a proper item name
+      if (!trade.itemName && trade.item && trade.item.marketHashName) {
+        trade.itemName = trade.item.marketHashName;
+      }
+      
+      // Log the trade for debugging
+      console.log('Enhanced trade:', trade);
       
       return trade;
     });
@@ -485,9 +509,12 @@ const Trades = ({ user }) => {
                   <div className="trade-card-content">
                     <div className="trade-item-image">
                       <img 
-                        src={trade.itemImage || trade.item?.iconUrl || '/default-item.png'} 
-                        alt={trade.itemName} 
-                        onError={(e) => {e.target.src = '/default-item.png'}}
+                        src={trade.itemImage || trade.item?.iconUrl || trade.item?.iconURL || trade.item?.icon || '/default-item.png'} 
+                        alt={trade.itemName || trade.item?.marketHashName || 'Item'} 
+                        onError={(e) => {
+                          console.error("Failed to load image:", e.target.src);
+                          e.target.src = '/default-item.png';
+                        }}
                       />
                     </div>
                     

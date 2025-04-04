@@ -320,33 +320,27 @@ const Navbar = ({ user, onLogout }) => {
                           My Inventory
                         </NavLink>
                         
-                        <div className="dropdown-menu-item trades-menu-item">
-                          <NavLink to="/trades" className="trades-navlink" onClick={() => setDropdownOpen(false)}>
-                            <div className="trades-icon-wrapper">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="17 1 21 5 17 9"></polyline>
-                                <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                                <polyline points="7 23 3 19 7 15"></polyline>
-                                <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                              </svg>
-                              {pendingTradesCount > 0 && (
-                                <span className="trades-badge">{pendingTradesCount}</span>
-                              )}
-                            </div>
-                            <div className="trades-content">
-                              <span className="trades-title">My Trades</span>
-                              <div className="trades-status">
-                                {pendingTradesCount > 0 ? (
-                                  <span className="trades-status-text active">
-                                    {pendingTradesCount} active {pendingTradesCount === 1 ? 'trade' : 'trades'}
-                                  </span>
-                                ) : (
-                                  <span className="trades-status-text">No pending trades</span>
-                                )}
-                              </div>
-                            </div>
-                          </NavLink>
-                        </div>
+                        <NavLink to="/trades" className="dropdown-menu-item trades-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                          <div className="trades-dropdown-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="17 1 21 5 17 9"></polyline>
+                              <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                              <polyline points="7 23 3 19 7 15"></polyline>
+                              <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                            </svg>
+                            {pendingTradesCount > 0 && (
+                              <span className="trades-dropdown-badge">{pendingTradesCount}</span>
+                            )}
+                          </div>
+                          <div className="trades-dropdown-content">
+                            <span>My Trades</span>
+                            {pendingTradesCount > 0 && (
+                              <span className="trades-dropdown-status">
+                                {pendingTradesCount} active {pendingTradesCount === 1 ? 'trade' : 'trades'}
+                              </span>
+                            )}
+                          </div>
+                        </NavLink>
                         
                         <NavLink to="/settings" className="dropdown-menu-item" onClick={() => setDropdownOpen(false)}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -542,59 +536,48 @@ const Navbar = ({ user, onLogout }) => {
       {/* Add this CSS for the trades dropdown */}
       <style>
         {`
-          .trades-menu-item {
-            padding: 0;
-            transition: all 0.2s ease;
-          }
-          
-          .trades-navlink {
+          .trades-dropdown-item {
             display: flex;
             align-items: center;
-            padding: 12px 16px;
-            color: inherit;
-            text-decoration: none;
-            width: 100%;
-            border-radius: 8px;
+            padding: 12px 14px;
+            gap: 12px;
           }
           
-          .trades-icon-wrapper {
+          .trades-dropdown-icon {
             position: relative;
-            margin-right: 12px;
-          }
-          
-          .trades-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background-color: rgb(124, 58, 237);
-            color: white;
-            border-radius: 50%;
-            font-size: 10px;
-            min-width: 16px;
-            height: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
           }
           
-          .trades-content {
+          .trades-dropdown-badge {
+            position: absolute;
+            top: -4px;
+            right: -6px;
+            background-color: #f43f5e;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 0 2px #151C2B;
+          }
+          
+          .trades-dropdown-content {
             display: flex;
             flex-direction: column;
+            flex: 1;
           }
           
-          .trades-title {
-            font-weight: 500;
-          }
-          
-          .trades-status {
-            font-size: 0.75rem;
-            opacity: 0.7;
+          .trades-dropdown-status {
+            font-size: 11px;
+            color: #f43f5e;
             margin-top: 2px;
-          }
-          
-          .trades-status-text.active {
-            color: #4ade80;
+            font-weight: 500;
           }
         `}
       </style>
