@@ -362,11 +362,11 @@ function Marketplace({ user }) {
         <div className="empty-state">
           <h3>No items found</h3>
           <p>{user ? "Try adjusting your filters or search terms" : "Sign in to list items for sale"}</p>
-        </div>
-      );
-    }
+      </div>
+    );
+  }
 
-    return (
+  return (
       <div className={itemView === 'grid' ? 'items-grid' : 'items-list'}>
         {filteredItems.map((item) => (
           <ItemCard3D

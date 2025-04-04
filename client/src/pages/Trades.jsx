@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,110 +22,122 @@ const Trades = ({ user }) => {
   });
   const navigate = useNavigate();
 
-  const fetchTrades = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        navigate('/');
-        return;
-      }
-
-      let orderParam = '';
-      if (sortOrder === 'newest') orderParam = 'createdAt:desc';
-      else if (sortOrder === 'oldest') orderParam = 'createdAt:asc';
-      else if (sortOrder === 'highest') orderParam = 'price:desc';
-      else if (sortOrder === 'lowest') orderParam = 'price:asc';
-
-      let roleParam = '';
-      if (roleFilter !== 'all') {
-        roleParam = `&role=${roleFilter}`;
-      }
-
-      const response = await axios.get(`${API_URL}/trades?order=${orderParam}${roleParam}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (response.data && Array.isArray(response.data.trades)) {
-        // Add default image URLs for any items missing images
-        const tradesWithImages = response.data.trades.map(trade => {
-          if (trade.item && !trade.item.imageUrl) {
-            return {
-              ...trade,
-              item: {
-                ...trade.item,
-                imageUrl: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot7HxfDhjxszJemkV09-5lpKKqPrxN7LEmyVQ7MEpiLuSrYmnjQO3-UdsZGHyd4_Bd1RvNQ7T_FDrw-_ng5Pu75iY1zI97bhLsvQz/130fx97f/image.png'
-              }
-            };
-          }
-          return trade;
-        });
-        
-        setTrades(tradesWithImages);
-      } else {
-        setTrades([]);
-      }
-      
-      setLoading(false);
-    } catch (err) {
-      console.error('Error fetching trades:', err);
-      // Don't show authentication required error, just redirect to login
-      if (err.response?.status === 401) {
-        navigate('/');
-        return;
-      }
-      setError(err.response?.data?.message || err.message || 'Failed to load trades');
-      setTrades([]);
-      setLoading(false);
-    }
-  }, [navigate, roleFilter, sortOrder]);
-
-  // Ensure this runs when refreshKey changes too
   useEffect(() => {
     fetchTrades();
-  }, [sortOrder, roleFilter, refreshKey, fetchTrades]);
-
+    
+    // Set up periodic refresh every 2 minutes
+    const refreshInterval = setInterval(() => {
+      setRefreshKey(prevKey => prevKey + 1);
+    }, 120000);
+    
+    return () => clearInterval(refreshInterval);
+  }, [refreshKey]);
+  
+  // Calculate stats when trades change
   useEffect(() => {
-    if (trades.length > 0) {
-      // Calculate stats
-      const totalTrades = trades.length;
+    if (Array.isArray(trades) && trades.length > 0) {
       const activeTrades = trades.filter(trade => 
-        !['completed', 'cancelled', 'failed'].includes(trade.status.toLowerCase())
-      ).length;
+        ['awaiting_seller', 'offer_sent', 'awaiting_confirmation', 'created', 'pending'].includes(trade?.status)
+      );
+      
       const completedTrades = trades.filter(trade => 
-        trade.status.toLowerCase() === 'completed'
-      ).length;
-
+        ['completed'].includes(trade?.status)
+      );
+      
+      const totalValue = trades.reduce((sum, trade) => sum + (Number(trade?.price) || 0), 0);
+      
       setStats({
-        totalTrades: totalTrades,
-        activeTrades: activeTrades,
-        completedTrades: completedTrades,
-        totalValue: trades.reduce((sum, trade) => sum + (Number(trade?.price) || 0), 0)
+        totalTrades: trades.length,
+        activeTrades: activeTrades.length,
+        completedTrades: completedTrades.length,
+        totalValue
       });
     }
   }, [trades]);
 
+  const fetchTrades = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/trades/history`, { 
+        withCredentials: true 
+      });
+      
+      if (Array.isArray(response.data)) {
+        const tradesWithImages = await enhanceTradesWithUserImages(response.data);
+        setTrades(tradesWithImages);
+      } else {
+        console.error('Invalid response format from trade history API:', response.data);
+        setTrades([]);
+        setError('Invalid data format received from server');
+      }
+    } catch (err) {
+      console.error('Error fetching trade history:', err);
+      setError('Failed to load trade history. Please try again later.');
+      setTrades([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Function to enhance trades with user images
+  const enhanceTradesWithUserImages = async (trades) => {
+    return trades.map(trade => {
+      // Ensure buyer and seller have avatars
+      if (trade.buyer && !trade.buyer.avatar && trade.buyer.avatarfull) {
+        trade.buyer.avatar = trade.buyer.avatarfull;
+      }
+      
+      if (trade.seller && !trade.seller.avatar && trade.seller.avatarfull) {
+        trade.seller.avatar = trade.seller.avatarfull;
+      }
+      
+      // Make sure item image is set
+      if (trade.item && trade.item.iconUrl && !trade.itemImage) {
+        trade.itemImage = trade.item.iconUrl;
+      }
+      
+      return trade;
+    });
+  };
+
   const getStatusColor = (status) => {
-    status = status.toLowerCase();
-    if (status === 'completed') return 'trade-status-green';
-    if (status === 'cancelled' || status === 'failed') return 'trade-status-red';
-    if (status === 'awaiting_confirmation' || status === 'accepted') return 'trade-status-orange';
-    if (status === 'offer_sent') return 'trade-status-yellow';
-    return 'trade-status-blue';
+    switch (status) {
+      case 'completed':
+        return '#4ade80'; // Green
+      case 'cancelled':
+      case 'failed':
+        return '#ef4444'; // Red
+      case 'pending':
+      case 'awaiting_seller':
+      case 'offer_sent':
+      case 'awaiting_confirmation':
+      case 'created':
+        return '#3b82f6'; // Blue
+      default:
+        return '#9ca3af'; // Gray
+    }
   };
 
   const getStatusLabel = (status) => {
-    switch(status.toLowerCase()) {
-      case 'completed': return 'Completed';
-      case 'cancelled': return 'Cancelled';
-      case 'failed': return 'Failed';
-      case 'awaiting_seller': return 'Awaiting Seller';
-      case 'awaiting_confirmation': return 'Awaiting Confirmation';
-      case 'accepted': return 'Accepted';
-      case 'offer_sent': return 'Offer Sent';
-      default: return status;
+    switch (status) {
+      case 'completed':
+        return 'Completed';
+      case 'cancelled':
+        return 'Cancelled';
+      case 'failed':
+        return 'Failed';
+      case 'pending':
+        return 'Pending';
+      case 'awaiting_seller':
+        return 'Awaiting Seller';
+      case 'offer_sent':
+        return 'Offer Sent';
+      case 'awaiting_confirmation':
+        return 'Awaiting Confirmation';
+      case 'created':
+        return 'Created';
+      default:
+        return status;
     }
   };
 
@@ -158,11 +170,11 @@ const Trades = ({ user }) => {
     // Apply status filter (tab)
     if (activeTab === 'active') {
       filtered = filtered.filter(trade => 
-        !['completed', 'cancelled', 'failed'].includes(trade?.status.toLowerCase())
+        ['awaiting_seller', 'offer_sent', 'awaiting_confirmation', 'created', 'pending'].includes(trade?.status)
       );
     } else if (activeTab === 'history') {
       filtered = filtered.filter(trade => 
-        ['completed', 'cancelled', 'failed'].includes(trade?.status.toLowerCase())
+        ['completed', 'cancelled', 'failed'].includes(trade?.status)
       );
     }
     
@@ -239,8 +251,8 @@ const Trades = ({ user }) => {
     <div className="trades-container">
       <div className="trades-header">
         <div className="trades-header-content">
-          <h1 className="trades-title">My Trades</h1>
-          <p className="trades-subtitle">Manage and track all your trades in one place</p>
+          <h1>My Trades</h1>
+          <p>Manage and track all your trades in one place</p>
         </div>
         
         {/* Add refresh button */}
@@ -261,47 +273,55 @@ const Trades = ({ user }) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="stat-card">
+        <div className="trades-stat-card">
           <div className="trades-stat-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
           </div>
-          <div className="stat-value">{stats.totalTrades}</div>
-          <div className="stat-label">Total Trades</div>
+          <div className="trades-stat-content">
+            <div className="trades-stat-label">Total Trades</div>
+            <div className="trades-stat-value">{stats.totalTrades}</div>
+          </div>
         </div>
         
-        <div className="stat-card stat-card-active">
+        <div className="trades-stat-card active">
           <div className="trades-stat-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
             </svg>
           </div>
-          <div className="stat-value">{stats.activeTrades}</div>
-          <div className="stat-label">Active Trades</div>
+          <div className="trades-stat-content">
+            <div className="trades-stat-label">Active Trades</div>
+            <div className="trades-stat-value">{stats.activeTrades}</div>
+          </div>
         </div>
         
-        <div className="stat-card stat-card-completed">
+        <div className="trades-stat-card completed">
           <div className="trades-stat-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
               <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
           </div>
-          <div className="stat-value">{stats.completedTrades}</div>
-          <div className="stat-label">Completed</div>
+          <div className="trades-stat-content">
+            <div className="trades-stat-label">Completed</div>
+            <div className="trades-stat-value">{stats.completedTrades}</div>
+          </div>
         </div>
         
-        <div className="stat-card">
+        <div className="trades-stat-card">
           <div className="trades-stat-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="1" x2="12" y2="23"></line>
               <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
             </svg>
           </div>
-          <div className="stat-value">{formatCurrency(stats.totalValue)}</div>
-          <div className="stat-label">Total Value</div>
+          <div className="trades-stat-content">
+            <div className="trades-stat-label">Total Value</div>
+            <div className="trades-stat-value">{formatCurrency(stats.totalValue)}</div>
+          </div>
         </div>
       </motion.div>
       
@@ -321,6 +341,7 @@ const Trades = ({ user }) => {
             <polyline points="12 6 12 12 16 14"></polyline>
           </svg>
           Active Trades
+          {stats.activeTrades > 0 && <span className="trades-tab-badge">{stats.activeTrades}</span>}
         </button>
         
         <button 
@@ -333,6 +354,7 @@ const Trades = ({ user }) => {
             <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
           </svg>
           Trade History
+          {stats.completedTrades > 0 && <span className="trades-tab-badge">{stats.completedTrades}</span>}
         </button>
       </motion.div>
       
@@ -343,13 +365,11 @@ const Trades = ({ user }) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.2 }}
       >
-        <div className="trades-search">
-          <div className="trades-search-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-          </div>
+        <div className="trades-search-container">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
           <input
             type="text"
             placeholder="Search by item or user..."
@@ -371,48 +391,34 @@ const Trades = ({ user }) => {
           )}
         </div>
         
-        <div className="trades-filter-controls">
-          <div className="trades-filter">
+        <div className="trades-filter-actions">
+          <div className="trades-filter-group">
             <label htmlFor="roleFilter" className="trades-filter-label">Role:</label>
-            <div className="mac-select-wrapper">
-              <select
-                id="roleFilter"
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="mac-select"
-              >
-                <option value="all">All Trades</option>
-                <option value="sent">Purchases</option>
-                <option value="received">Sales</option>
-              </select>
-              <div className="mac-select-arrow">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </div>
-            </div>
+            <select
+              id="roleFilter"
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="trades-filter-select"
+            >
+              <option value="all">All Trades</option>
+              <option value="sent">Purchases</option>
+              <option value="received">Sales</option>
+            </select>
           </div>
           
-          <div className="trades-filter">
+          <div className="trades-filter-group">
             <label htmlFor="sortOrder" className="trades-filter-label">Sort:</label>
-            <div className="mac-select-wrapper">
-              <select
-                id="sortOrder"
-                value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value)}
-                className="mac-select"
-              >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="highest">Highest Price</option>
-                <option value="lowest">Lowest Price</option>
-              </select>
-              <div className="mac-select-arrow">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </div>
-            </div>
+            <select
+              id="sortOrder"
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              className="trades-filter-select"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="highest">Highest Price</option>
+              <option value="lowest">Lowest Price</option>
+            </select>
           </div>
           
           {(searchTerm || roleFilter !== 'all' || sortOrder !== 'newest') && (
@@ -430,7 +436,7 @@ const Trades = ({ user }) => {
       <div className="trades-content">
         {loading ? (
           <div className="trades-loading">
-            <div className="trades-loading-spinner"></div>
+            <div className="trades-spinner"></div>
             <p>Loading your trades...</p>
           </div>
         ) : error ? (
@@ -464,7 +470,7 @@ const Trades = ({ user }) => {
                   whileHover={{ scale: 1.01 }}
                 >
                   <div className="trade-card-header">
-                    <div className={`trade-status ${getStatusColor(trade.status)}`}>
+                    <div className="trade-status" style={{ backgroundColor: getStatusColor(trade.status) }}>
                       {getStatusLabel(trade.status)}
                     </div>
                     <div className="trade-date">
@@ -477,69 +483,67 @@ const Trades = ({ user }) => {
                   </div>
                   
                   <div className="trade-card-content">
-                    <div className="trade-item-container">
-                      <div className="trade-item-image-wrapper">
-                        <img 
-                          src={trade.item?.imageUrl || trade.item?.iconUrl || '/default-item.png'} 
-                          alt={trade.item?.marketHashName || 'Item'} 
-                          onError={(e) => {e.target.src = '/default-item.png'}}
-                        />
-                      </div>
+                    <div className="trade-item-image">
+                      <img 
+                        src={trade.itemImage || trade.item?.iconUrl || '/default-item.png'} 
+                        alt={trade.itemName} 
+                        onError={(e) => {e.target.src = '/default-item.png'}}
+                      />
+                    </div>
+                    
+                    <div className="trade-item-details">
+                      <h3 className="trade-item-name">{trade.itemName || trade.item?.marketHashName || 'Unknown Item'}</h3>
+                      <p className="trade-item-price">
+                        {formatCurrency(trade.price, trade.currency)} 
+                        {trade.currency && trade.currency !== 'USD' && ` (${trade.currency})`}
+                      </p>
                       
-                      <div className="trade-item-details">
-                        <h3 className="trade-item-name">{trade.item?.marketHashName || 'Unknown Item'}</h3>
-                        <p className="trade-item-price">
-                          {formatCurrency(trade.price, trade.currency)} 
-                          {trade.currency && trade.currency !== 'USD' && ` (${trade.currency})`}
-                        </p>
+                      <div className="trade-participants">
+                        <div className="trade-participant">
+                          <div className="trade-participant-avatar">
+                            <img 
+                              src={getAvatarUrl(trade.buyer)} 
+                              alt={trade.buyer?.displayName || 'Buyer'} 
+                              onError={(e) => {e.target.src = '/default-avatar.png'}}
+                            />
+                          </div>
+                          <div className="trade-participant-info">
+                            <span className="trade-role">{trade.isUserBuyer ? 'You' : 'Buyer'}:</span>
+                            <span className="trade-user">{trade.isUserBuyer ? 'You' : trade.buyer?.displayName || 'Unknown'}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="trade-divider">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 12h14"></path>
+                            <path d="M12 5l7 7-7 7"></path>
+                          </svg>
+                        </div>
+                        
+                        <div className="trade-participant">
+                          <div className="trade-participant-avatar">
+                            <img 
+                              src={getAvatarUrl(trade.seller)} 
+                              alt={trade.seller?.displayName || 'Seller'} 
+                              onError={(e) => {e.target.src = '/default-avatar.png'}}
+                            />
+                          </div>
+                          <div className="trade-participant-info">
+                            <span className="trade-role">{trade.isUserSeller ? 'You' : 'Seller'}:</span>
+                            <span className="trade-user">{trade.isUserSeller ? 'You' : trade.seller?.displayName || 'Unknown'}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     
-                    <div className="trade-users">
-                      <div className="trade-user">
-                        <div className="trade-user-avatar">
-                          <img 
-                            src={getAvatarUrl(trade.buyer)} 
-                            alt={trade.buyer?.displayName || 'Buyer'} 
-                            onError={(e) => {e.target.src = '/default-avatar.png'}}
-                          />
-                        </div>
-                        <div className="trade-user-info">
-                          <span className="trade-user-role">{trade.isUserBuyer ? 'You' : 'Buyer'}:</span>
-                          <span className="trade-user-name">{trade.isUserBuyer ? 'You' : trade.buyer?.displayName || 'Unknown'}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="trade-direction-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M5 12h14"></path>
-                          <path d="M12 5l7 7-7 7"></path>
+                    <div className="trade-actions">
+                      <Link to={`/trades/${trade._id}`} className="trade-view-button">
+                        View Details
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="9 18 15 12 9 6"></polyline>
                         </svg>
-                      </div>
-                      
-                      <div className="trade-user">
-                        <div className="trade-user-avatar">
-                          <img 
-                            src={getAvatarUrl(trade.seller)} 
-                            alt={trade.seller?.displayName || 'Seller'} 
-                            onError={(e) => {e.target.src = '/default-avatar.png'}}
-                          />
-                        </div>
-                        <div className="trade-user-info">
-                          <span className="trade-user-role">{trade.isUserSeller ? 'You' : 'Seller'}:</span>
-                          <span className="trade-user-name">{trade.isUserSeller ? 'You' : trade.seller?.displayName || 'Unknown'}</span>
-                        </div>
-                      </div>
+                      </Link>
                     </div>
-                  </div>
-                  
-                  <div className="trade-card-footer">
-                    <Link to={`/trades/${trade._id}`} className="view-details-button">
-                      View Details
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="9 18 15 12 9 6"></polyline>
-                      </svg>
-                    </Link>
                   </div>
                 </motion.div>
               ))}
