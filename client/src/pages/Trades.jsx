@@ -27,9 +27,9 @@ const Trades = ({ user }) => {
     setError(null);
     
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       if (!token) {
-        navigate('/login');
+        navigate('/');
         return;
       }
 
@@ -73,7 +73,7 @@ const Trades = ({ user }) => {
       console.error('Error fetching trades:', err);
       // Don't show authentication required error, just redirect to login
       if (err.response?.status === 401) {
-        navigate('/login');
+        navigate('/');
         return;
       }
       setError(err.response?.data?.message || err.message || 'Failed to load trades');

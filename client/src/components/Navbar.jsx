@@ -581,6 +581,8 @@ const Navbar = ({ user, onLogout }) => {
           .trades-content {
             display: flex;
             flex-direction: column;
+            flex: 1;
+            max-width: 140px;
           }
           
           .trades-title {
@@ -591,6 +593,9 @@ const Navbar = ({ user, onLogout }) => {
             font-size: 0.75rem;
             opacity: 0.7;
             margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
           
           .trades-status-text.active {
