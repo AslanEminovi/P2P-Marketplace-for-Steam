@@ -5,8 +5,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatCurrency, API_URL } from '../config/constants';
 import '../styles/Trades.css';
 
+// Constants for localStorage keys
+const TRADES_STORAGE_KEY = 'cs2_marketplace_trades';
+const TRADES_TIMESTAMP_KEY = 'cs2_marketplace_trades_timestamp';
+// Trade details constants from TradeDetails.jsx
+const TRADE_DETAILS_KEY_PREFIX = 'cs2_trade_details_';
+const TRADE_TIMESTAMP_KEY_PREFIX = 'cs2_trade_timestamp_';
+// Cache expiration time in milliseconds (10 minutes)
+const CACHE_EXPIRATION = 10 * 60 * 1000;
+const TRADE_CACHE_EXPIRATION = 30 * 60 * 1000;
+
 const Trades = ({ user }) => {
   const [trades, setTrades] = useState([]);
+  const [activeCachedTrades, setActiveCachedTrades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('active'); // 'active', 'history'
@@ -22,8 +33,65 @@ const Trades = ({ user }) => {
   });
   const navigate = useNavigate();
 
+  // Effect to find active trades in localStorage on component mount
   useEffect(() => {
-    fetchTrades();
+    // Load any active trades from localStorage
+    const recoverActiveTrades = () => {
+      try {
+        // Search for all trade detail items in localStorage
+        const activeTradesFromStorage = [];
+        
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith(TRADE_DETAILS_KEY_PREFIX)) {
+            const timestampKey = key.replace(TRADE_DETAILS_KEY_PREFIX, TRADE_TIMESTAMP_KEY_PREFIX);
+            const timestamp = localStorage.getItem(timestampKey);
+            
+            // Only recover trades with a valid timestamp that aren't too old
+            if (timestamp) {
+              const now = Date.now();
+              const cacheValid = (now - parseInt(timestamp, 10) < TRADE_CACHE_EXPIRATION);
+              
+              if (cacheValid) {
+                try {
+                  const tradeData = JSON.parse(localStorage.getItem(key));
+                  
+                  // Only include active trades (not completed, cancelled, or failed)
+                  if (tradeData && !['completed', 'cancelled', 'failed'].includes(tradeData.status)) {
+                    // Extract the trade ID from the key
+                    const tradeId = key.replace(TRADE_DETAILS_KEY_PREFIX, '');
+                    
+                    // Add trade ID property if it doesn't exist
+                    if (!tradeData._id) {
+                      tradeData._id = tradeId;
+                    }
+                    
+                    activeTradesFromStorage.push(tradeData);
+                  }
+                } catch (err) {
+                  console.warn(`Error parsing trade data for key ${key}`, err);
+                }
+              }
+            }
+          }
+        }
+        
+        // Sort by timestamp, most recent first
+        activeTradesFromStorage.sort((a, b) => {
+          return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
+        });
+        
+        setActiveCachedTrades(activeTradesFromStorage);
+      } catch (err) {
+        console.warn('Error recovering active trades from localStorage', err);
+      }
+    };
+    
+    recoverActiveTrades();
+  }, []);
+
+  useEffect(() => {
+    loadTrades();
     
     // Set up periodic refresh every 2 minutes
     const refreshInterval = setInterval(() => {
@@ -55,16 +123,59 @@ const Trades = ({ user }) => {
     }
   }, [trades]);
 
+  // Load trades - first from localStorage cache if valid, then from API
+  const loadTrades = async () => {
+    setLoading(true);
+    
+    try {
+      // First check if we have cached trades in localStorage
+      const cachedTrades = localStorage.getItem(TRADES_STORAGE_KEY);
+      const cachedTimestamp = localStorage.getItem(TRADES_TIMESTAMP_KEY);
+      
+      // Calculate if the cache is still valid
+      const now = Date.now();
+      const cacheValid = cachedTimestamp && (now - parseInt(cachedTimestamp, 10) < CACHE_EXPIRATION);
+      
+      if (cachedTrades && cacheValid) {
+        console.log('Loading trades from localStorage cache');
+        setTrades(JSON.parse(cachedTrades));
+        setLoading(false);
+      }
+      
+      // Always fetch fresh data from API, but if we have cache, don't show loading state
+      await fetchTrades();
+    } catch (err) {
+      console.error('Error loading trades:', err);
+      setError('Failed to load trade history. Please try again later.');
+      setLoading(false);
+    }
+  };
+
   const fetchTrades = async () => {
     try {
-      setLoading(true);
+      // If we're not already showing cached data, set loading to true
+      if (trades.length === 0) {
+        setLoading(true);
+      }
+      
       const response = await axios.get(`${API_URL}/trades/history`, { 
         withCredentials: true 
       });
       
       if (Array.isArray(response.data)) {
         const tradesWithImages = await enhanceTradesWithUserImages(response.data);
+        
+        // Save to state
         setTrades(tradesWithImages);
+        
+        // Save to localStorage with timestamp
+        try {
+          localStorage.setItem(TRADES_STORAGE_KEY, JSON.stringify(tradesWithImages));
+          localStorage.setItem(TRADES_TIMESTAMP_KEY, Date.now().toString());
+        } catch (storageError) {
+          // If localStorage fails (e.g., quota exceeded), just log it but continue
+          console.warn('Failed to save trades to localStorage:', storageError);
+        }
       } else {
         console.error('Invalid response format from trade history API:', response.data);
         setTrades([]);
@@ -266,6 +377,81 @@ const Trades = ({ user }) => {
   // Handle refresh button click
   const handleRefresh = () => {
     setRefreshKey(prevKey => prevKey + 1);
+  };
+
+  // Function to render the in-progress trades section
+  const renderInProgressTrades = () => {
+    if (activeCachedTrades.length === 0) {
+      return null;
+    }
+    
+    return (
+      <div className="in-progress-trades-container">
+        <h3 className="in-progress-trades-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="in-progress-icon">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          In-Progress Trades
+        </h3>
+        <p className="in-progress-trades-description">
+          These trades were in progress when you last navigated away. Click to continue where you left off.
+        </p>
+        
+        <div className="in-progress-trades-list">
+          {activeCachedTrades.map(trade => (
+            <div 
+              key={trade._id} 
+              className="in-progress-trade-card"
+              onClick={() => navigate(`/trades/${trade._id}`)}
+            >
+              <div className="in-progress-trade-header">
+                <span className="in-progress-trade-id">Trade #{trade._id.substring(0, 8)}</span>
+                <span 
+                  className="in-progress-trade-status" 
+                  style={{ 
+                    backgroundColor: getStatusColor(trade.status) + '22',
+                    color: getStatusColor(trade.status),
+                    border: `1px solid ${getStatusColor(trade.status)}44`
+                  }}
+                >
+                  {getStatusLabel(trade.status)}
+                </span>
+              </div>
+              
+              <div className="in-progress-trade-item">
+                <div className="in-progress-trade-item-image">
+                  {trade.itemImage ? (
+                    <img 
+                      src={trade.itemImage} 
+                      alt={trade.itemName || 'Item'} 
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = 'https://community.cloudflare.steamstatic.com/economy/image/IzMF03bi9WpSBq-S-ekoE33L-iLqGFHVaU25ZzQNQcXdEH9myp0erksICfTcePMQFc1nqWSMU5OD2NwOx3sIyShXOjLx2Sk5MbV5MsLD3k3xgfPYDG25bm-Wfw3vUsU9SLPWZ2yp-zWh5OqTE2nIQu4rFl9RKfEEpzdJbsiIaRpp3dUVu2u_0UZyDBl9JNNWfADjmyRCMLwnXeL51Cg/360fx360f';
+                      }}
+                    />
+                  ) : (
+                    <div className="in-progress-trade-item-placeholder">?</div>
+                  )}
+                </div>
+                <div className="in-progress-trade-item-details">
+                  <div className="in-progress-trade-item-name">{trade.itemName || 'Unknown Item'}</div>
+                  <div className="in-progress-trade-item-price">{formatCurrency(trade.price)}</div>
+                </div>
+              </div>
+              
+              <button className="in-progress-trade-continue-btn">
+                Continue Trade
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14"></path>
+                  <path d="M12 5l7 7-7 7"></path>
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   // Render large empty state
@@ -616,6 +802,9 @@ const Trades = ({ user }) => {
           </div>
         )}
       </div>
+      
+      {/* In-Progress Trades Section */}
+      {renderInProgressTrades()}
     </div>
   );
 };

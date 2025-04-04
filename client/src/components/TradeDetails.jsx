@@ -531,6 +531,12 @@ const TradeHeader = ({ trade, userRoles }) => {
   );
 };
 
+// Constants for localStorage keys
+const TRADE_DETAILS_KEY_PREFIX = 'cs2_trade_details_';
+const TRADE_TIMESTAMP_KEY_PREFIX = 'cs2_trade_timestamp_';
+// Cache expiration time in milliseconds (30 minutes)
+const TRADE_CACHE_EXPIRATION = 30 * 60 * 1000;
+
 const TradeDetails = ({ tradeId }) => {
   const [trade, setTrade] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -556,6 +562,7 @@ const TradeDetails = ({ tradeId }) => {
   const [assetId, setAssetId] = useState('');
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const [user, setUser] = useState(null);
+  const [lastTradeStatus, setLastTradeStatus] = useState(null);
 
   // Get current user information
   useEffect(() => {
@@ -575,14 +582,50 @@ const TradeDetails = ({ tradeId }) => {
 
   useEffect(() => {
     if (tradeId) {
+      // Try to load from localStorage first
+      const cacheKey = `${TRADE_DETAILS_KEY_PREFIX}${tradeId}`;
+      const timestampKey = `${TRADE_TIMESTAMP_KEY_PREFIX}${tradeId}`;
+      
+      const cachedTrade = localStorage.getItem(cacheKey);
+      const cachedTimestamp = localStorage.getItem(timestampKey);
+      
+      // Calculate if the cache is still valid
+      const now = Date.now();
+      const cacheValid = cachedTimestamp && (now - parseInt(cachedTimestamp, 10) < TRADE_CACHE_EXPIRATION);
+      
+      if (cachedTrade && cacheValid) {
+        try {
+          console.log('Loading trade details from localStorage cache');
+          const parsedTrade = JSON.parse(cachedTrade);
+          setTrade(parsedTrade);
+          
+          // Save the current status to detect changes
+          setLastTradeStatus(parsedTrade.status);
+          
+          // Set user roles
+          if (typeof parsedTrade.isUserBuyer === 'boolean') {
+            setIsBuyer(parsedTrade.isUserBuyer);
+          }
+          
+          if (typeof parsedTrade.isUserSeller === 'boolean') {
+            setIsSeller(parsedTrade.isUserSeller);
+          }
+          
+          // Briefly show loading false to indicate we're using cached data
+          setLoading(false);
+        } catch (err) {
+          console.error('Error parsing cached trade:', err);
+        }
+      }
+      
+      // Always load fresh data too
       loadTradeDetails();
     }
   }, [tradeId]);
 
   // Set up auto-refresh for trade details
   useEffect(() => {
-    // Initial load
-    loadTradeDetails();
+    // Initial load is handled in the previous useEffect
 
     // Set up refresh interval (every 15 seconds)
     const refreshInterval = setInterval(() => {
@@ -599,6 +642,27 @@ const TradeDetails = ({ tradeId }) => {
     // Clean up the interval on component unmount
     return () => clearInterval(refreshInterval);
   }, [tradeId]); // Only re-run if tradeId changes
+
+  // Save trade to localStorage when it changes
+  useEffect(() => {
+    if (trade && tradeId) {
+      try {
+        const cacheKey = `${TRADE_DETAILS_KEY_PREFIX}${tradeId}`;
+        const timestampKey = `${TRADE_TIMESTAMP_KEY_PREFIX}${tradeId}`;
+        
+        localStorage.setItem(cacheKey, JSON.stringify(trade));
+        localStorage.setItem(timestampKey, Date.now().toString());
+        
+        // Update the last known status
+        if (lastTradeStatus !== trade.status) {
+          setLastTradeStatus(trade.status);
+          console.log(`Trade status changed from ${lastTradeStatus} to ${trade.status}`);
+        }
+      } catch (err) {
+        console.warn('Error saving trade to localStorage:', err);
+      }
+    }
+  }, [trade, tradeId, lastTradeStatus]);
 
   const loadTradeDetails = async () => {
     setLoading(true);

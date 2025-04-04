@@ -668,4 +668,157 @@
   .trade-divider {
     display: none;
   }
+}
+
+/* In-Progress Trades Section */
+.in-progress-trades-container {
+  background-color: rgba(17, 24, 39, 0.4);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 30px;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+}
+
+.in-progress-trades-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #f1f1f1;
+  margin-bottom: 10px;
+}
+
+.in-progress-icon {
+  color: #f59e0b;
+}
+
+.in-progress-trades-description {
+  color: #d1d5db;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+}
+
+.in-progress-trades-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.in-progress-trade-card {
+  background-color: rgba(31, 41, 55, 0.5);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(75, 85, 99, 0.5);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.in-progress-trade-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  border-color: rgba(234, 179, 8, 0.4);
+}
+
+.in-progress-trade-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.in-progress-trade-id {
+  font-weight: 500;
+  color: #e5e7eb;
+  font-size: 0.9rem;
+}
+
+.in-progress-trade-status {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.in-progress-trade-item {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.in-progress-trade-item-image {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(17, 24, 39, 0.6);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.in-progress-trade-item-image img {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+}
+
+.in-progress-trade-item-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #9ca3af;
+  font-weight: 600;
+  font-size: 1.5rem;
+}
+
+.in-progress-trade-item-details {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.in-progress-trade-item-name {
+  color: #f1f1f1;
+  font-weight: 500;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.in-progress-trade-item-price {
+  color: #10b981;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.in-progress-trade-continue-btn {
+  background-color: rgba(234, 179, 8, 0.2);
+  color: #f59e0b;
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: auto;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.in-progress-trade-continue-btn:hover {
+  background-color: rgba(234, 179, 8, 0.3);
+  border-color: rgba(234, 179, 8, 0.6);
 } 
