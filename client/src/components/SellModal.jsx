@@ -196,7 +196,7 @@ const SellModal = ({ item, onClose, onConfirm, onListingComplete }) => {
       const listingData = {
         steamItemId: item.classid || item.id || '',
         assetId: item.assetid || item.asset_id || '',
-        marketHashName: item.market_hash_name || item.name || 'Unknown Item',
+        marketHashName: item.marketHashName || item.markethashname || item.name || 'Unknown Item',
         price: sellingPriceUSD,
         imageUrl: item.image || item.icon_url || '',
         wear: item.wear || translateWear(item.wear_name) || 'Unknown',

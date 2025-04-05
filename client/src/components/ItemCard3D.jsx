@@ -423,11 +423,14 @@ const ItemCard3D = ({
             >
               <div
                 style={{
-                  width: '20px',
-                  height: '20px',
+                  width: '24px',
+                  height: '24px',
                   borderRadius: '50%',
                   overflow: 'hidden',
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
                 }}
               >
                 {item.owner.avatar ? (
@@ -437,7 +440,8 @@ const ItemCard3D = ({
                     style={{
                       width: '100%',
                       height: '100%',
-                      objectFit: 'cover'
+                      objectFit: 'cover',
+                      objectPosition: 'center'
                     }}
                   />
                 ) : (
@@ -447,27 +451,27 @@ const ItemCard3D = ({
                       height: '100%',
                       backgroundColor: '#4ade80',
                       display: 'flex',
-                      alignItems: 'center',
                       justifyContent: 'center',
+                      alignItems: 'center',
                       color: 'white',
-                      fontSize: '0.7rem',
-                      fontWeight: 'bold'
+                      fontWeight: 'bold',
+                      fontSize: '0.7rem'
                     }}
                   >
-                    {item.owner.displayName?.[0] || '?'}
+                    {item.owner.displayName?.charAt(0) || 'U'}
                   </div>
                 )}
               </div>
               <span
                 style={{
                   color: '#94a3b8',
-                  fontSize: '0.75rem',
+                  fontSize: '0.8rem',
+                  whiteSpace: 'nowrap',
                   overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  textOverflow: 'ellipsis'
                 }}
               >
-                {item.owner.displayName}
+                {item.owner.displayName || t('common.unknownSeller')}
               </span>
             </div>
           )}
