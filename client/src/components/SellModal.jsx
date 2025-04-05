@@ -236,18 +236,18 @@ const SellModal = ({ item, onClose, onConfirm, onListingComplete }) => {
       if (response.status === 201 && response.data) {
         console.log("Item successfully listed:", response.data);
         
-        // Call onListingComplete callback BEFORE closing the modal
-        if (onListingComplete) {
-          onListingComplete(response.data);
-        }
-        
-        // Show success toast
+        // Show success toast FIRST
         toast.success(`Item listed successfully!`);
         
-        // Close modal AFTER success notification and callback
-        setTimeout(() => {
-          onClose();
-        }, 300);
+        // Call onListingComplete callback if provided
+        if (onListingComplete) {
+          onListingComplete(response.data);
+        } else {
+          // If no callback, close the modal directly after a short delay
+          setTimeout(() => {
+            onClose();
+          }, 300);
+        }
       } else {
         console.warn("Unexpected response from listing endpoint:", response);
         toast.error("Unexpected response when listing item");

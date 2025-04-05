@@ -12,13 +12,13 @@
 
 /* Header Section */
 .marketplace-header {
+  background: rgba(17, 24, 39, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
   padding: 2rem;
   margin-bottom: 2rem;
-  background: linear-gradient(135deg, #6366f1cc, #a855f7cc);
-  border-radius: 1rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  text-align: center;
-  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .marketplace-header h1 {
@@ -190,10 +190,12 @@
 
 .search-bar-container {
   margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
 }
 
 .search-bar {
-  width: 100%;
+  flex: 1;
   padding: 1rem 1.5rem;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -625,28 +627,4 @@
   border-color: rgba(255, 255, 255, 0.3);
   box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
   outline: none;
-}
-
-.refresh-button {
-  background-color: #4e54c8;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 16px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  margin-left: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.refresh-button:hover {
-  background-color: #3a3f99;
-}
-
-.refresh-button:disabled {
-  background-color: #666;
-  cursor: not-allowed;
 } 

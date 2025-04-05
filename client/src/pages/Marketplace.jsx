@@ -5,6 +5,7 @@ import { useTranslation } from '../utils/languageUtils';
 import { API_URL } from '../config/constants';
 import socketService from '../services/socketService';
 import '../styles/Marketplace.css';
+import '../styles/MarketplaceCustom.css';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -497,16 +498,16 @@ function Marketplace({ user }) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+          
+          {/* Refresh button positioned within search bar container */}
+          <button 
+            className="refresh-button"
+            onClick={handleManualRefresh}
+            disabled={loading}
+          >
+            {loading ? 'Refreshing...' : 'Refresh Items'}
+          </button>
         </div>
-        
-        {/* Add refresh button */}
-        <button 
-          className="refresh-button"
-          onClick={handleManualRefresh}
-          disabled={loading}
-        >
-          {loading ? 'Refreshing...' : 'Refresh Items'}
-        </button>
         
         <div className="filter-tags">
           {filterOptions.map((filter) => (
@@ -539,15 +540,27 @@ function Marketplace({ user }) {
       {renderPagination()}
 
       {user && (
-        <button
-          className="user-listings-button"
-          onClick={() => setShowListingsPanel(true)}
-        >
-          <span>My Listings</span>
-          {myListings.length > 0 && (
-            <span className="count">{myListings.length}</span>
-          )}
-        </button>
+        <div className="user-buttons">
+          <button
+            className="user-listings-button"
+            onClick={() => setShowListingsPanel(true)}
+          >
+            <span>My Listings</span>
+            {myListings.length > 0 && (
+              <span className="count">{myListings.length}</span>
+            )}
+          </button>
+
+          <button
+            className="sell-item-button"
+            onClick={() => {
+              // Redirect to inventory page where user can select an item to sell
+              window.location.href = '/inventory';
+            }}
+          >
+            <span>Sell Item</span>
+          </button>
+        </div>
       )}
 
       <LiveActivityFeed
