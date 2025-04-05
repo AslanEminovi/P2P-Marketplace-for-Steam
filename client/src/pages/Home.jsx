@@ -157,21 +157,19 @@ const HeroSection = ({ user, stats, prevStats }) => {
       <div className="hero-decoration bottom-right"></div>
 
       {/* Add background image div with imported image */}
-      <div className="hero-background-image" style={{ 
-        backgroundImage: `url(${backgroundImage})`,
+      <div style={{ 
         position: 'absolute',
         top: 0,
         left: 0,
-        width: '100%',
-        height: '100%',
+        right: 0,
+        bottom: 0,
+        backgroundImage: `url(${backgroundImage})`,
         backgroundSize: 'cover',
-        backgroundPosition: 'center top',
+        backgroundPosition: 'center',
         opacity: 0.1,
         zIndex: -2,
         pointerEvents: 'none',
-        filter: 'blur(1px)',
-        transform: 'scale(0.95)', /* Slightly shrink to fit better */
-        transformOrigin: 'center center'
+        filter: 'blur(1px)'
       }}></div>
 
       <div className="hero-content">
