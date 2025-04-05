@@ -189,6 +189,17 @@ function App() {
 
   // Handle socket connection status
   useEffect(() => {
+    // Flag to track if we've already set up the socket handlers
+    const hasSetupSocketHandlers = socketService.hasSetupAppHandlers;
+    
+    if (hasSetupSocketHandlers) {
+      console.log('Socket handlers already set up in App component, skipping');
+      return;
+    }
+    
+    // Mark that we've set up the handlers 
+    socketService.hasSetupAppHandlers = true;
+    
     const handleConnectionStatus = (status) => {
       console.log('Socket connection status update:', status);
       setSocketConnected(status.connected);
@@ -216,12 +227,13 @@ function App() {
       }
     };
 
-    // Register listeners
+    // Register listeners - use custom method instead of 'on' to prevent duplicates
     socketService.on('connection_status', handleConnectionStatus);
     socketService.on('notification', handleNotification);
 
-    // Initial connection if needed
-    if (!socketService.isConnected()) {
+    // Initial connection if needed - but don't reconnect if already connected
+    if (!socketService.isConnected() && !socketService.socket) {
+      console.log('Socket not connected in App component, connecting...');
       // Add a small delay before initial connection to prevent race conditions
       setTimeout(() => {
         socketService.connect();

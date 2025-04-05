@@ -188,6 +188,9 @@ function Marketplace({ user }) {
 
   // Socket event handlers
   useEffect(() => {
+    // Track connection status to prevent duplicate notifications
+    let wasConnected = socketService.isConnected();
+    
     // Check connection status and ensure connection
     if (!socketService.isConnected()) {
       console.log('Marketplace: Socket not connected, reconnecting...');
@@ -244,20 +247,29 @@ function Marketplace({ user }) {
     
     // Setup connection status handlers
     socketService.onConnected(() => {
-      console.log('Socket connected in Marketplace, refreshing data...');
-      
-      // Immediately fetch new data when connection is established
-      fetchItems();
-      fetchMarketStats();
-      
-      // Show success toast
-      toast.success('Connection established', { duration: 2000 });
+      // Only show connection toast if we weren't previously connected
+      if (!wasConnected) {
+        console.log('Socket connected in Marketplace, refreshing data...');
+        
+        // Immediately fetch new data when connection is established
+        fetchItems();
+        fetchMarketStats();
+        
+        // Show success toast only on initial connection or after disconnection
+        toast.success('Connection established', { duration: 2000 });
+        
+        // Update our tracking variable
+        wasConnected = true;
+      }
     });
     
     socketService.onDisconnected(() => {
       console.log('Socket disconnected in Marketplace');
       // Display toast notification when disconnected
       toast.error('Connection lost. Attempting to reconnect...', { duration: 3000 });
+      
+      // Update our tracking variable
+      wasConnected = false;
       
       // Try to reconnect immediately
       setTimeout(() => {

@@ -224,18 +224,27 @@ class SocketService {
   }
 
   onConnected(callback) {
-    this.connectedCallback = callback;
+    // Only set the callback if it's not already set to avoid duplicates
+    if (!this.connectedCallback || this.connectedCallback !== callback) {
+      this.connectedCallback = callback;
 
-    // If already connected, call the callback immediately
-    if (this.connected && this.socket && this.socket.connected) {
-      callback();
+      // If already connected, call the callback immediately but only do it once
+      if (this.connected && this.socket && this.socket.connected) {
+        // Use a delay to ensure we don't create infinite loops
+        setTimeout(() => {
+          callback();
+        }, 100);
+      }
     }
 
     return this;
   }
 
   onDisconnected(callback) {
-    this.disconnectedCallback = callback;
+    // Only set the callback if it's not already set to avoid duplicates
+    if (!this.disconnectedCallback || this.disconnectedCallback !== callback) {
+      this.disconnectedCallback = callback;
+    }
     return this;
   }
 
