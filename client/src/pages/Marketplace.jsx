@@ -417,44 +417,6 @@ function Marketplace({ user }) {
         alignItems: 'center'
       }}>
         <h1>CS2 Market</h1>
-        
-        {/* Refresh Marketplace button moved to header */}
-        <button 
-          onClick={handleManualRefresh}
-          disabled={loading}
-          style={{
-            padding: '0.5rem 1.25rem',
-            background: 'linear-gradient(to right, #3373F2, #00D2FF)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            fontWeight: '600',
-            transition: 'all 0.3s ease',
-            boxShadow: '0 0 15px rgba(0, 210, 255, 0.2)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem'
-          }}
-        >
-          <svg
-            style={{ width: '18px', height: '18px' }}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-          {loading ? 'Refreshing...' : 'Refresh'}
-        </button>
       </div>
       <p className="marketplace-subtitle">Buy and sell CS2 items securely with other players</p>
       
@@ -559,27 +521,65 @@ function Marketplace({ user }) {
           }}>${calculateTotalMarketValue()}</p>
         </div>
 
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          padding: '1rem',
-          background: 'rgba(31, 41, 61, 0.5)',
-          borderRadius: '10px',
-          border: '1px solid rgba(51, 115, 242, 0.1)'
-        }}>
-          <h3 style={{
-            margin: '0 0 0.5rem 0',
+        {/* Replace Active Users with Refresh Button */}
+        <button 
+          onClick={handleManualRefresh}
+          disabled={loading}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            background: 'rgba(31, 41, 61, 0.5)',
+            borderRadius: '10px',
+            border: '1px solid rgba(51, 115, 242, 0.3)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            height: '100%'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.background = 'rgba(51, 65, 85, 0.6)';
+            e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.2)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.background = 'rgba(31, 41, 61, 0.5)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        >
+          <svg
+            style={{ 
+              width: '28px', 
+              height: '28px',
+              color: '#3b82f6',
+              marginBottom: '0.5rem'
+            }}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          <span style={{
             fontSize: '0.9rem',
-            color: 'var(--gaming-text-dim)'
-          }}>Active Users</h3>
-          <p style={{
-            margin: 0,
-            fontSize: '1.75rem',
-            fontWeight: 'bold',
-            color: 'var(--gaming-text-bright)'
-          }}>{marketStats.activeUsers || 0}</p>
-        </div>
+            color: 'var(--gaming-text-dim)',
+            marginBottom: '0.25rem'
+          }}>
+            Refresh Marketplace
+          </span>
+          <span style={{
+            fontSize: '0.8rem',
+            color: loading ? '#94a3b8' : '#3b82f6',
+            fontWeight: loading ? 'normal' : 'bold'
+          }}>
+            {loading ? 'Updating...' : 'Click to update'}
+          </span>
+        </button>
       </div>
     </div>
   );
