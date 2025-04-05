@@ -16,16 +16,20 @@ const UserListings = ({ show, onClose }) => {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [newPrice, setNewPrice] = useState('');
 
   const fetchUserListings = async () => {
     try {
-      console.log('Fetching user listings from:', `${API_URL}/marketplace/user-listings`);
+      console.log('Fetching user listings from:', `${API_URL}/marketplace/my-listings`);
       setLoading(true);
       
       // Get auth token from localStorage
       const token = localStorage.getItem('auth_token');
+      console.log('Auth token exists:', !!token);
       
-      const response = await axios.get(`${API_URL}/marketplace/user-listings`, {
+      // Using both withCredentials AND Authorization header for maximum compatibility
+      const response = await axios.get(`${API_URL}/marketplace/my-listings`, {
         withCredentials: true,
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''
@@ -33,11 +37,35 @@ const UserListings = ({ show, onClose }) => {
       });
       
       console.log('User listings response:', response.data);
-      setListings(response.data || []);
-      setError('');
+      
+      if (Array.isArray(response.data)) {
+        console.log(`Successfully fetched ${response.data.length} listings`);
+        setListings(response.data);
+        setError('');
+      } else {
+        console.warn('API returned non-array data:', response.data);
+        setListings([]);
+        setError('Invalid response format from server');
+      }
     } catch (err) {
       console.error('Error fetching listings:', err);
-      setError('Failed to load your listings');
+      
+      // More detailed error info
+      if (err.response) {
+        console.error('Error status:', err.response.status);
+        console.error('Error data:', err.response.data);
+        
+        if (err.response.status === 401) {
+          setError('Authentication error. Please log in again.');
+        } else {
+          setError(`Server error: ${err.response.status}. Try refreshing the page.`);
+        }
+      } else if (err.request) {
+        console.error('No response received:', err.request);
+        setError('No response from server. Please check your connection.');
+      } else {
+        setError('Failed to load your listings. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -45,6 +73,7 @@ const UserListings = ({ show, onClose }) => {
 
   const cancelListing = async (itemId) => {
     try {
+      console.log('Cancelling listing:', itemId);
       const token = localStorage.getItem('auth_token');
       
       await axios.put(`${API_URL}/marketplace/cancel/${itemId}`, {}, {
@@ -54,6 +83,7 @@ const UserListings = ({ show, onClose }) => {
         }
       });
       
+      console.log('Successfully cancelled listing');
       // Update the listings list
       fetchUserListings();
     } catch (err) {
@@ -62,10 +92,62 @@ const UserListings = ({ show, onClose }) => {
     }
   };
 
+  const startEditingPrice = (item) => {
+    setEditingItemId(item._id);
+    setNewPrice(item.price.toString());
+  };
+
+  const cancelEditingPrice = () => {
+    setEditingItemId(null);
+    setNewPrice('');
+  };
+
+  const saveNewPrice = async (itemId) => {
+    try {
+      if (!newPrice || isNaN(parseFloat(newPrice)) || parseFloat(newPrice) <= 0) {
+        alert('Please enter a valid price');
+        return;
+      }
+
+      const token = localStorage.getItem('auth_token');
+      
+      console.log(`Updating price for item ${itemId} to $${newPrice}`);
+      
+      await axios.put(`${API_URL}/marketplace/update-price/${itemId}`, 
+        { price: parseFloat(newPrice) }, 
+        {
+          withCredentials: true,
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : ''
+          }
+        }
+      );
+      
+      // Update successful, refresh listings
+      fetchUserListings();
+      setEditingItemId(null);
+      setNewPrice('');
+      
+    } catch (err) {
+      console.error('Error updating price:', err);
+      alert('Failed to update price. Please try again.');
+    }
+  };
+
   useEffect(() => {
     if (show) {
       fetchUserListings();
+      
+      // Force the body style to prevent scrolling when panel is open
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
     }
+    
+    return () => {
+      // Reset overflow when component unmounts
+      document.body.style.overflow = '';
+    };
   }, [show]);
 
   if (!show) return null;
@@ -321,54 +403,154 @@ const UserListings = ({ show, onClose }) => {
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between'
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap'
                     }}>
-                      {item.offers && item.offers.some(offer => offer.status === 'pending') && (
+                      {editingItemId === item._id ? (
                         <div style={{
-                          fontSize: '0.75rem',
-                          backgroundColor: 'rgba(139, 92, 246, 0.2)',
-                          color: '#a78bfa',
-                          padding: '0.25rem 0.5rem',
-                          borderRadius: '4px',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '0.25rem'
+                          gap: '0.5rem',
+                          width: '100%',
+                          marginBottom: '0.5rem'
                         }}>
-                          <span style={{
-                            width: '6px',
-                            height: '6px',
-                            borderRadius: '50%',
-                            backgroundColor: '#a78bfa'
-                          }}></span>
-                          {item.offers.filter(offer => offer.status === 'pending').length} offers
+                          <div style={{ position: 'relative', flex: 1 }}>
+                            <span style={{ 
+                              position: 'absolute', 
+                              left: '8px', 
+                              top: '50%', 
+                              transform: 'translateY(-50%)',
+                              color: '#9ca3af'
+                            }}>$</span>
+                            <input
+                              type="number"
+                              value={newPrice}
+                              onChange={(e) => setNewPrice(e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem 0.5rem 0.5rem 1.5rem',
+                                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                border: '1px solid rgba(255, 255, 255, 0.2)',
+                                borderRadius: '4px',
+                                color: 'white',
+                                fontSize: '0.875rem'
+                              }}
+                              min="0.01"
+                              step="0.01"
+                              autoFocus
+                            />
+                          </div>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => saveNewPrice(item._id)}
+                            style={{
+                              backgroundColor: 'rgba(74, 222, 128, 0.2)',
+                              color: '#4ade80',
+                              border: '1px solid rgba(74, 222, 128, 0.3)',
+                              borderRadius: '4px',
+                              padding: '0.5rem 0.75rem',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer',
+                              fontWeight: '500'
+                            }}
+                          >
+                            Save
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={cancelEditingPrice}
+                            style={{
+                              backgroundColor: 'rgba(156, 163, 175, 0.2)',
+                              color: '#d1d5db',
+                              border: '1px solid rgba(156, 163, 175, 0.3)',
+                              borderRadius: '4px',
+                              padding: '0.5rem 0.75rem',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer',
+                              fontWeight: '500'
+                            }}
+                          >
+                            Cancel
+                          </motion.button>
                         </div>
+                      ) : (
+                        <>
+                          {item.offers && item.offers.some(offer => offer.status === 'pending') && (
+                            <div style={{
+                              fontSize: '0.75rem',
+                              backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                              color: '#a78bfa',
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem'
+                            }}>
+                              <span style={{
+                                width: '6px',
+                                height: '6px',
+                                borderRadius: '50%',
+                                backgroundColor: '#a78bfa'
+                              }}></span>
+                              {item.offers.filter(offer => offer.status === 'pending').length} offers
+                            </div>
+                          )}
+                          
+                          <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => startEditingPrice(item)}
+                              style={{
+                                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                                color: '#93c5fd',
+                                border: '1px solid rgba(59, 130, 246, 0.3)',
+                                borderRadius: '8px',
+                                padding: '6px 12px',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                fontWeight: '500',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 20h9"></path>
+                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                              </svg>
+                              Edit Price
+                            </motion.button>
+                            
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => cancelListing(item._id)}
+                              style={{
+                                backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                                color: '#f87171',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                borderRadius: '8px',
+                                padding: '6px 12px',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                fontWeight: '500',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                              </svg>
+                              Cancel Listing
+                            </motion.button>
+                          </div>
+                        </>
                       )}
-                      
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => cancelListing(item._id)}
-                        style={{
-                          marginLeft: 'auto',
-                          backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                          color: '#f87171',
-                          border: '1px solid rgba(239, 68, 68, 0.3)',
-                          borderRadius: '8px',
-                          padding: '6px 12px',
-                          fontSize: '0.75rem',
-                          cursor: 'pointer',
-                          fontWeight: '500',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18"></line>
-                          <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                        Cancel Listing
-                      </motion.button>
                     </div>
                   </motion.div>
                 ))}
