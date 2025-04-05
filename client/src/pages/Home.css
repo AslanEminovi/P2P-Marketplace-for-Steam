@@ -267,65 +267,17 @@
 /* HERO SECTION */
 .hero-section-container {
   position: relative;
-  padding: 8rem 2rem 6rem;
-  background: radial-gradient(circle at 50% 50%, rgba(51, 115, 242, 0.2), transparent 70%);
-  border-bottom: 1px solid var(--gaming-border-glow);
+  padding: 4rem 2rem;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%);
+  border-bottom: 1px solid rgba(49, 62, 80, 0.5);
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  overflow: visible;
-  min-height: 80vh;
-  max-height: 100vh;
+  overflow: hidden;
+  min-height: 90vh;
   z-index: 1;
-}
-
-/* Responsive adjustments for hero section on different screens */
-@media screen and (min-width: 1600px) {
-  .hero-section-container {
-    min-height: 70vh;
-    padding-top: 6rem;
-    padding-bottom: 4rem;
-  }
-  
-  /* Adjust the spacing so the search section is visible right after hero section */
-  .search-section-container {
-    margin-top: -2rem;
-  }
-}
-
-/* Regular sized screens like MacBook */
-@media screen and (max-width: 1440px) {
-  .hero-section-container {
-    min-height: 85vh;
-  }
-}
-
-.hero-section-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image:
-    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(51, 115, 242, 0.03) 2px, rgba(51, 115, 242, 0.03) 4px),
-    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(51, 115, 242, 0.03) 2px, rgba(51, 115, 242, 0.03) 4px);
-  background-size: 30px 30px;
-  z-index: -1;
-  animation: scanlines 8s linear infinite;
-  opacity: 0.4;
-}
-
-@keyframes scanlines {
-  0% {
-    background-position: 0 0;
-  }
-
-  100% {
-    background-position: 0 -100px;
-  }
 }
 
 /* Georgian Text Styling */

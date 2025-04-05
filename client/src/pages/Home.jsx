@@ -153,25 +153,6 @@ const HeroSection = ({ user, stats, prevStats }) => {
 
   return (
     <section className="hero-section-container">
-      {/* Background image with responsive styling */}
-      <div style={{ 
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundImage: `url(${backgroundImage})`,
-        backgroundSize: 'contain',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        opacity: 0.15,
-        zIndex: -2,
-        pointerEvents: 'none',
-        maxHeight: '100vh',
-        height: '100%',
-        // Media query handled in CSS
-      }}></div>
-      
       <div className="hero-decoration top-left"></div>
       <div className="hero-decoration bottom-right"></div>
 
