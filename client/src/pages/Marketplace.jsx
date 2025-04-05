@@ -117,7 +117,14 @@ function Marketplace({ user }) {
     try {
       const res = await axios.get(`${API_URL}/marketplace/stats`);
       if (res.data) {
-        setMarketStats(res.data);
+        // Ensure we include all stats even if some are missing
+        setMarketStats({
+          totalListings: res.data.totalListings || 0,
+          totalVolume: res.data.totalVolume || 0,
+          averagePrice: res.data.averagePrice || 0,
+          activeUsers: res.data.activeUsers || 0,
+          completedTrades: res.data.completedTrades || 0
+        });
       }
     } catch (err) {
       console.error('Error fetching market stats:', err);
@@ -125,7 +132,9 @@ function Marketplace({ user }) {
       setMarketStats({
         totalListings: 0,
         totalVolume: 0,
-        averagePrice: 0
+        averagePrice: 0,
+        activeUsers: 0,
+        completedTrades: 0
       });
     }
   }, []);
@@ -220,6 +229,15 @@ function Marketplace({ user }) {
         });
       }
       
+      // Handle user count updates
+      if (update.type === 'user_count' && update.count !== undefined) {
+        console.log('User count update received:', update.count);
+        setMarketStats(prev => ({
+          ...prev,
+          activeUsers: update.count
+        }));
+      }
+      
       // Only refresh stats occasionally for sold items without refreshing all items
       if (update.type === 'item_sold') {
         // Just update stats, not full item refresh
@@ -231,10 +249,22 @@ function Marketplace({ user }) {
     console.log('Registering market_update handler');
     socketService.on('market_update', handleMarketUpdate);
     
+    // Register user count update handler
+    socketService.on('user_count', (data) => {
+      console.log('User count direct update:', data);
+      if (data && typeof data.count === 'number') {
+        setMarketStats(prev => ({
+          ...prev,
+          activeUsers: data.count
+        }));
+      }
+    });
+    
     // Cleanup event listener
     return () => {
       console.log('Removing market_update handler');
       socketService.off('market_update', handleMarketUpdate);
+      socketService.off('user_count');
     };
   }, []); // Empty dependency array - only register once
 

@@ -12,13 +12,13 @@
 
 /* Header Section */
 .marketplace-header {
-  background: rgba(17, 24, 39, 0.8);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
   padding: 2rem;
   margin-bottom: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(135deg, #6366f1cc, #a855f7cc);
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  color: white;
 }
 
 .marketplace-header h1 {
