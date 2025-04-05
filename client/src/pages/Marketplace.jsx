@@ -168,9 +168,10 @@ function Marketplace({ user }) {
   useEffect(() => {
     console.log('Marketplace component mounted - initializing data');
     
-    // Initial data fetch - ONLY ONCE AT MOUNT
-    fetchItems();
-    fetchMarketStats();
+    // Fix refresh issue: fetch stats first, then items
+    fetchMarketStats().then(() => {
+      fetchItems();
+    });
     
     if (user) {
       fetchUserProfile();
@@ -284,8 +285,10 @@ function Marketplace({ user }) {
   const handleManualRefresh = () => {
     console.log('Manual refresh requested');
     setLoading(true);
-    fetchItems().then(() => setLoading(false));
-    fetchMarketStats();
+    // Fix refresh issue: fetch stats first, then items
+    fetchMarketStats().then(() => {
+      fetchItems().then(() => setLoading(false));
+    });
   };
 
   // Handle item click
@@ -413,12 +416,14 @@ function Marketplace({ user }) {
     <div className="marketplace-header">
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
+        flexDirection: 'column',
+        alignItems: 'center',
+        textAlign: 'center',
+        marginBottom: '1rem'
       }}>
         <h1>CS2 Market</h1>
+        <p className="marketplace-subtitle">Buy and sell CS2 items securely with other players</p>
       </div>
-      <p className="marketplace-subtitle">Buy and sell CS2 items securely with other players</p>
       
       {/* Stats Grid like in Inventory */}
       <div style={{
