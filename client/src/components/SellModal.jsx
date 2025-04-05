@@ -18,7 +18,7 @@ const debounce = (func, wait) => {
   };
 };
 
-const SellModal = ({ item, onClose, onConfirm }) => {
+const SellModal = ({ item, onClose, onConfirm, onListingComplete }) => {
   const [currencyRate, setCurrencyRate] = useState(1.8);
   const [showCustom, setShowCustom] = useState(false);
   const [customRate, setCustomRate] = useState('');
@@ -236,23 +236,18 @@ const SellModal = ({ item, onClose, onConfirm }) => {
       if (response.status === 201 && response.data) {
         console.log("Item successfully listed:", response.data);
         
-        // Close modal
-        onClose();
-        
-        // Trigger callback with the listed item data
-        onConfirm && onConfirm(response.data);
+        // Call onListingComplete callback BEFORE closing the modal
+        if (onListingComplete) {
+          onListingComplete(response.data);
+        }
         
         // Show success toast
-        toast.success(`Item listed successfully`);
+        toast.success(`Item listed successfully!`);
         
-        // Force marketplace to refresh to show the new listing
-        if (socketService && typeof socketService.forceFetchMarketplace === 'function') {
-          console.log("Triggering manual marketplace refresh after listing");
-          // Add a 2 second delay before forcing the refresh to avoid immediate loop
-          setTimeout(() => {
-            socketService.forceFetchMarketplace();
-          }, 2000);
-        }
+        // Close modal AFTER success notification and callback
+        setTimeout(() => {
+          onClose();
+        }, 300);
       } else {
         console.warn("Unexpected response from listing endpoint:", response);
         toast.error("Unexpected response when listing item");

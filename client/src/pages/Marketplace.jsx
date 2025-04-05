@@ -357,6 +357,12 @@ function Marketplace({ user }) {
     setFilteredItems(filtered);
   }, [items, searchQuery, activeFilters]);
 
+  // Add a method to handle opening the sell modal
+  const handleOpenSellModal = (item) => {
+    setSelectedItem(item);
+    setShowSellModal(true);
+  };
+
   // Render header section
   const renderHeader = () => (
     <div className="marketplace-header">
@@ -562,9 +568,9 @@ function Marketplace({ user }) {
       </AnimatePresence>
 
       <AnimatePresence>
-        {showSellModal && (
+        {showSellModal && selectedItem && (
           <SellModal
-            isOpen={showSellModal}
+            item={selectedItem}
             onClose={() => setShowSellModal(false)}
             onListingComplete={handleListingComplete}
           />

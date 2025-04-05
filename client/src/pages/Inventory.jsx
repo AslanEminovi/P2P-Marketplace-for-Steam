@@ -878,6 +878,17 @@ function Inventory({ user }) {
           item={selectedItem}
           onClose={handleCloseSellModal}
           onConfirm={listItemForSale}
+          onListingComplete={(data) => {
+            // Close modal
+            handleCloseSellModal();
+            // Show success toast
+            setMessage('Item listed successfully!');
+            setMessageType('success');
+            // Refresh inventory after a small delay
+            setTimeout(() => {
+              fetchInventory();
+            }, 1000);
+          }}
         />
       )}
 
