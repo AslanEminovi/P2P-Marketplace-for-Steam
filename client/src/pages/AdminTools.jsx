@@ -9,7 +9,7 @@ import { API_URL } from '../config/constants';
 import { Link } from 'react-router-dom';
 import '../styles/AdminTools.css';
 import { FaUsers, FaUserPlus, FaBoxOpen, FaExchangeAlt, FaTag, FaCog, FaInfo, 
-  FaExclamationTriangle, FaMoneyBillWave, FaUserCog } from 'react-icons/fa';
+  FaExclamationTriangle, FaMoneyBillWave, FaUserCog, FaSync, FaArrowLeft } from 'react-icons/fa';
 
 function AdminTools() {
   // Shared states
@@ -907,6 +907,9 @@ function AdminTools() {
 
   // Apply page-level styles to fix the admin layout issues
   useEffect(() => {
+    // Fix authentication issue for Steam
+    localStorage.setItem('steamAuthRetry', 'true');
+    
     // Hide the footer when on the admin page
     const footer = document.querySelector('.site-footer');
     if (footer) {
@@ -930,6 +933,8 @@ function AdminTools() {
     
     return () => {
       // Clean up styles when component unmounts
+      localStorage.removeItem('steamAuthRetry');
+      
       if (footer) {
         footer.style.display = '';
       }
@@ -953,13 +958,13 @@ function AdminTools() {
       <div className="admin-header mb-4">
         <div className="d-flex justify-content-between align-items-center">
           <div>
-            <h1 className="text-white mb-1">Admin Dashboard</h1>
-            <p className="text-white-50 mb-0">Manage marketplace users, items, trades and maintenance</p>
+            <h1 className="admin-title">Admin Dashboard</h1>
+            <p className="admin-subtitle">Manage marketplace users, items, trades and maintenance</p>
           </div>
-          <div className="d-flex gap-2">
+          <div className="d-flex gap-3">
             <Button 
               variant="outline-light" 
-              className="d-flex align-items-center"
+              className="admin-action-btn"
               onClick={() => {
                 fetchStats();
                 fetchUsers();
@@ -967,23 +972,17 @@ function AdminTools() {
                 fetchTrades();
               }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-              </svg>
-              Refresh Data
+              <FaSync className="btn-icon" />
+              <span className="btn-text">Refresh Data</span>
             </Button>
             <Button 
               variant="success" 
               as={Link} 
               to="/"
-              className="d-flex align-items-center"
+              className="admin-action-btn"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 8 8 12 12 16"></polyline>
-                <line x1="16" y1="12" x2="8" y2="12"></line>
-              </svg>
-              Return to Site
+              <FaArrowLeft className="btn-icon" />
+              <span className="btn-text">Return to Site</span>
             </Button>
           </div>
         </div>
@@ -1007,13 +1006,13 @@ function AdminTools() {
             eventKey="dashboard" 
             title={
               <div className="d-flex align-items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="tab-icon">
                   <rect x="3" y="3" width="7" height="7"></rect>
                   <rect x="14" y="3" width="7" height="7"></rect>
                   <rect x="14" y="14" width="7" height="7"></rect>
                   <rect x="3" y="14" width="7" height="7"></rect>
                 </svg>
-                Dashboard
+                <span className="tab-text">Dashboard</span>
               </div>
             }
           />
@@ -1021,13 +1020,13 @@ function AdminTools() {
             eventKey="users" 
             title={
               <div className="d-flex align-items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="tab-icon">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                   <circle cx="9" cy="7" r="4"></circle>
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                   <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                 </svg>
-                Users
+                <span className="tab-text">Users</span>
               </div>
             }
           />
@@ -1035,12 +1034,12 @@ function AdminTools() {
             eventKey="items" 
             title={
               <div className="d-flex align-items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="tab-icon">
                   <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
                   <line x1="8" y1="21" x2="16" y2="21"></line>
                   <line x1="12" y1="17" x2="12" y2="21"></line>
                 </svg>
-                Items
+                <span className="tab-text">Items</span>
               </div>
             }
           />
@@ -1048,13 +1047,13 @@ function AdminTools() {
             eventKey="trades" 
             title={
               <div className="d-flex align-items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="tab-icon">
                   <polyline points="17 1 21 5 17 9"></polyline>
                   <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
                   <polyline points="7 23 3 19 7 15"></polyline>
                   <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
                 </svg>
-                Trades
+                <span className="tab-text">Trades</span>
               </div>
             }
           />
@@ -1062,13 +1061,13 @@ function AdminTools() {
             eventKey="cleanup" 
             title={
               <div className="d-flex align-items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="tab-icon">
                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                   <line x1="8" y1="12" x2="16" y2="12"></line>
                   <line x1="12" y1="16" x2="12" y2="16"></line>
                   <line x1="12" y1="8" x2="12" y2="8"></line>
                 </svg>
-                Cleanup
+                <span className="tab-text">Cleanup</span>
               </div>
             }
           />
@@ -1238,9 +1237,9 @@ function DashboardTab({ stats, loading }) {
   return (
     <div className="admin-dashboard">
       {/* Dashboard Header */}
-      <div className="mb-4">
-        <h2 className="mb-1">Dashboard</h2>
-        <p className="text-muted">Welcome to the CS2 Marketplace admin dashboard</p>
+      <div className="dashboard-header">
+        <h2>Dashboard Overview</h2>
+        <p>Welcome to the CS2 Marketplace admin dashboard</p>
       </div>
       
       {/* Stats Cards */}
@@ -1252,7 +1251,7 @@ function DashboardTab({ stats, loading }) {
                 <FaUsers />
               </div>
               <div className="stat-content">
-                <h4 className="stat-value">{localStats.totalUsers}</h4>
+                <h4 className="stat-value">{stats?.userCount || localStats.totalUsers}</h4>
                 <p className="stat-label">Total Users</p>
               </div>
             </div>
@@ -1266,7 +1265,7 @@ function DashboardTab({ stats, loading }) {
                 <FaBoxOpen />
               </div>
               <div className="stat-content">
-                <h4 className="stat-value">{localStats.marketItems}</h4>
+                <h4 className="stat-value">{stats?.listedItemsCount || localStats.marketItems}</h4>
                 <p className="stat-label">Market Items</p>
               </div>
             </div>
@@ -1280,7 +1279,7 @@ function DashboardTab({ stats, loading }) {
                 <FaExchangeAlt />
               </div>
               <div className="stat-content">
-                <h4 className="stat-value">{localStats.activeTrades}</h4>
+                <h4 className="stat-value">{stats?.activeTrades || localStats.activeTrades}</h4>
                 <p className="stat-label">Active Trades</p>
               </div>
             </div>
@@ -1294,7 +1293,11 @@ function DashboardTab({ stats, loading }) {
                 <FaMoneyBillWave />
               </div>
               <div className="stat-content">
-                <h4 className="stat-value">{localStats.totalRevenue.toFixed(2)} GEL</h4>
+                <h4 className="stat-value">
+                  {stats?.totalRevenue 
+                    ? `${parseFloat(stats.totalRevenue).toFixed(2)} GEL` 
+                    : `${localStats.totalRevenue.toFixed(2)} GEL`}
+                </h4>
                 <p className="stat-label">Total Revenue</p>
               </div>
             </div>
@@ -1399,23 +1402,23 @@ function DashboardTab({ stats, loading }) {
             <div className="card-body">
               <div className="row">
                 <div className="col-md-3 col-sm-6 mb-3 mb-md-0">
-                  <Button variant="primary" className="w-100 py-2">
-                    <FaUserCog className="me-2" /> Manage Users
+                  <Button variant="primary" className="quick-action-btn w-100">
+                    <FaUserCog /> Manage Users
                   </Button>
                 </div>
                 <div className="col-md-3 col-sm-6 mb-3 mb-md-0">
-                  <Button variant="success" className="w-100 py-2">
-                    <FaBoxOpen className="me-2" /> View Items
+                  <Button variant="success" className="quick-action-btn w-100">
+                    <FaBoxOpen /> View Items
                   </Button>
                 </div>
                 <div className="col-md-3 col-sm-6 mb-3 mb-sm-0">
-                  <Button variant="info" className="w-100 py-2">
-                    <FaExchangeAlt className="me-2" /> Manage Trades
+                  <Button variant="info" className="quick-action-btn w-100">
+                    <FaExchangeAlt /> Manage Trades
                   </Button>
                 </div>
                 <div className="col-md-3 col-sm-6">
-                  <Button variant="warning" className="w-100 py-2">
-                    <FaCog className="me-2" /> System Settings
+                  <Button variant="warning" className="quick-action-btn w-100">
+                    <FaCog /> System Settings
                   </Button>
                 </div>
               </div>

@@ -20,8 +20,50 @@ body, html {
   width: 100%;
   padding: 25px;
   background-color: #0f172a;
-  color: #f1f5f9;
+  color: #f8fafc; /* Lighter text for better contrast */
   position: relative;
+}
+
+/* Admin header styles */
+.admin-header {
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 2rem;
+}
+
+.admin-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.admin-subtitle {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 0;
+  font-weight: 400;
+}
+
+.admin-action-btn {
+  padding: 0.6rem 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-icon {
+  font-size: 1rem;
+}
+
+.btn-text {
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 /* Admin Tabs Styling */
@@ -30,6 +72,7 @@ body, html {
   border-radius: 8px;
   padding: 15px 15px 0;
   margin-bottom: 25px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
 .admin-tabs {
@@ -40,24 +83,46 @@ body, html {
 }
 
 .admin-tabs .nav-link {
-  color: #94a3b8;
+  color: #e2e8f0; /* Lighter color for better visibility */
   border: none;
   padding: 0.75rem 1rem;
   margin-right: 0.5rem;
   border-radius: 0.5rem;
   transition: all 0.2s ease;
   background-color: transparent;
+  font-weight: 500;
 }
 
 .admin-tabs .nav-link:hover {
-  color: #e2e8f0;
-  background-color: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .admin-tabs .nav-link.active {
   color: #ffffff;
-  background-color: #1e40af;
-  font-weight: 500;
+  background-color: #2563eb; /* Brighter blue */
+  font-weight: 600;
+}
+
+.tab-icon {
+  margin-right: 8px;
+  position: relative;
+  top: -1px;
+}
+
+.tab-text {
+  display: inline-block;
+}
+
+/* Fix for Steam Authentication */
+h2[style*="background: linear-gradient"] {
+  color: #ffffff !important;
+  background: #2563eb !important;
+  -webkit-background-clip: initial !important;
+  -webkit-text-fill-color: #ffffff !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 0.5rem !important;
+  text-shadow: none !important;
 }
 
 /* Dashboard Styling */
@@ -77,8 +142,13 @@ body, html {
   background-color: #1e293b;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
   height: 100%;
+  transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
 }
 
 .stat-card-body {
@@ -86,7 +156,7 @@ body, html {
 }
 
 .stat-icon {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.15);
   color: #fff;
   width: 48px;
   height: 48px;
@@ -95,6 +165,7 @@ body, html {
   align-items: center;
   justify-content: center;
   margin-right: 16px;
+  font-size: 1.25rem;
 }
 
 .stat-content {
@@ -103,33 +174,39 @@ body, html {
 
 .stat-value {
   color: #fff;
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.75rem;
+  font-weight: 700;
   margin: 0;
   line-height: 1.2;
+  letter-spacing: -0.5px;
 }
 
 .stat-label {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
   margin: 0;
+  font-weight: 500;
 }
 
 /* Gradient backgrounds for stat cards */
 .bg-gradient-primary {
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .bg-gradient-success {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 .bg-gradient-info {
   background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
 }
 
 .bg-gradient-warning {
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
 }
 
 /* Activity Card */
@@ -137,7 +214,7 @@ body, html {
   background-color: #1e293b;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   height: 100%;
 }
 
@@ -150,6 +227,10 @@ body, html {
   display: flex;
   padding: 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.activity-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .activity-item:last-child {
@@ -165,6 +246,7 @@ body, html {
   justify-content: center;
   margin-right: 12px;
   flex-shrink: 0;
+  font-size: 1rem;
 }
 
 .activity-icon.primary {
@@ -203,31 +285,31 @@ body, html {
 
 .activity-title {
   color: #fff;
-  font-size: 0.95rem;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
   margin: 0 0 4px;
 }
 
 .activity-time {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 0.8rem;
 }
 
 .activity-description {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.925rem;
   margin: 0 0 8px;
 }
 
 .activity-details {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
 }
 
 .no-activity {
   padding: 2rem;
   text-align: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 /* Status Card */
@@ -235,7 +317,7 @@ body, html {
   background-color: #1e293b;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   height: 100%;
 }
 
@@ -257,15 +339,16 @@ body, html {
 }
 
 .status-label {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+  font-weight: 500;
 }
 
 .status-badge {
-  padding: 4px 8px;
+  padding: 4px 10px;
   border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .status-badge.online {
@@ -287,7 +370,7 @@ body, html {
 .card {
   border-radius: 0.75rem;
   overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
   transition: all 0.3s ease;
   border: 1px solid rgba(75, 85, 99, 0.3);
   height: 100%;
@@ -350,18 +433,49 @@ body, html {
 .btn {
   border-radius: 0.5rem;
   transition: all 0.2s ease;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+}
+
+.btn svg {
+  margin-right: 0.5rem;
 }
 
 .btn-outline-light {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .btn-outline-light:hover {
   background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
 .user-action-btn {
   border-radius: 0.5rem;
+}
+
+/* Fix the quick action buttons */
+.quick-action-btn {
+  text-align: center;
+  white-space: normal;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 100%;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+}
+
+.quick-action-btn svg {
+  flex-shrink: 0;
+  font-size: 1.1rem;
 }
 
 /* Form Controls */
@@ -380,11 +494,29 @@ body, html {
   border-color: rgba(59, 130, 246, 0.5);
 }
 
+/* Dashboard header styling */
+.dashboard-header {
+  margin-bottom: 2rem;
+}
+
+.dashboard-header h2 {
+  color: #fff;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-header p {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1rem;
+}
+
 /* Badges */
 .badge {
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.025em;
   border-radius: 0.25rem;
+  padding: 0.35em 0.65em;
 }
 
 /* Spinner */
@@ -405,8 +537,8 @@ body, html {
   --bs-pagination-color: #e2e8f0;
   --bs-pagination-hover-bg: rgba(55, 65, 81, 0.5);
   --bs-pagination-hover-color: #ffffff;
-  --bs-pagination-active-bg: #1e40af;
-  --bs-pagination-active-border-color: #1e40af;
+  --bs-pagination-active-bg: #2563eb;
+  --bs-pagination-active-border-color: #2563eb;
   --bs-pagination-disabled-bg: rgba(31, 41, 55, 0.3);
   --bs-pagination-disabled-color: #9ca3af;
   border-radius: 0.5rem;
@@ -455,6 +587,15 @@ select.form-control:focus {
   border-color: rgba(59, 130, 246, 0.5);
   color: #f1f5f9;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+/* Text contrast fix */
+.text-white-50 {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.text-muted {
+  color: rgba(255, 255, 255, 0.8) !important;
 }
 
 /* Media Queries for Responsive Design */
