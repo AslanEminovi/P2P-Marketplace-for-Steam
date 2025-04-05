@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import lightPerformanceMonitor from '../utils/lightPerformanceMonitor';
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
+import socketService from '../services/socketService';
+import { API_URL } from '../config/constants';
 
 // Debounce function to prevent UI blocking
 const debounce = (func, wait) => {
@@ -162,47 +166,117 @@ const SellModal = ({ item, onClose, onConfirm }) => {
     }
   };
 
-  // COMPLETELY REWRITTEN to be as lightweight as possible
-  const handleSubmit = () => {
+  // Handle confirmation
+  const handleConfirm = async () => {
     if (isSubmitting) return;
     
-    // Start by setting submitting flag
-    setIsSubmitting(true);
+    console.log("Starting item listing process");
     
-    // IMMEDIATE FORCE CLOSE to prevent any freezing
-    forceCloseModal();
-    
-    // Create a minimal data structure with no references to original item
-    const essentialItemData = {
-      classid: String(item.classid || ''),
-      assetid: String(item.assetid || item.asset_id || ''),
-      markethashname: String(item.markethashname || ''),
-      pricelatest: Number(item.pricelatest || 0),
-      pricereal: Number(item.pricereal || 0),
-      rarity: String(item.rarity || ''),
-      wear: String(item.wear || ''),
-      currencyRate: Number(currencyRate || 0),
-      priceGEL: String(calculatePrice() || '0'),
-      // ONLY add image URL, not image object
-      image: String(item.image || '')
-    };
-    
-    // Delay the execution of the heavy operation 
-    // to allow UI updates to complete first
-    setTimeout(() => {
-      // Pass minimal data to parent with timeout protection
-      const confirmTimeout = setTimeout(() => {
-        console.warn('onConfirm taking too long - operation likely failed silently');
-      }, 5000);
+    try {
+      // Start by setting submitting flag to prevent double-submissions
+      setIsSubmitting(true);
       
-      try {
-        onConfirm(essentialItemData);
-        clearTimeout(confirmTimeout);
-      } catch (error) {
-        clearTimeout(confirmTimeout);
-        console.error('Error in onConfirm:', error);
+      // For Render hosting we need to be very careful with timeouts
+      const listingTimeout = setTimeout(() => {
+        console.warn('Listing operation taking too long - may have failed silently');
+        setIsSubmitting(false);
+        
+        // Close the modal even if we don't know the result
+        // The user can always check their listings to confirm
+        onClose();
+        
+        // Show a toast explaining the situation
+        toast.loading('Processing your listing...', { duration: 5000 });
+      }, 15000); // 15 second max wait time
+      
+      // Get base price from the item
+      const basePrice = item.pricelatest || item.pricereal || 0;
+      if (!basePrice) {
+        console.error("Item has no price information");
+        toast.error("Could not determine item price");
+        clearTimeout(listingTimeout);
+        setIsSubmitting(false);
+        return;
       }
-    }, 100);
+      
+      // Calculate selling price
+      const sellingPriceUSD = basePrice * currencyRate;
+      const sellingPriceGEL = (basePrice * currencyRate * 2.79).toFixed(2); // Current GEL rate
+      
+      // Create listing payload
+      const listingData = {
+        steamItemId: item.classid || item.id || '',
+        assetId: item.assetid || item.asset_id || '',
+        marketHashName: item.market_hash_name || item.name || 'Unknown Item',
+        price: sellingPriceUSD,
+        imageUrl: item.image || item.icon_url || '',
+        wear: item.wear || translateWear(item.wear_name) || 'Unknown',
+        rarity: item.rarity || 'Normal',
+        currencyRate: currencyRate,
+        priceGEL: sellingPriceGEL
+      };
+      
+      // Log listing data for debugging
+      console.log("Sending listing request with data:", listingData);
+      
+      // Send request to server with appropriate timeout
+      const response = await axios.post(
+        `${API_URL}/marketplace/list`,
+        listingData,
+        {
+          withCredentials: true,
+          timeout: 12000 // 12 second timeout for Render hosting
+        }
+      );
+      
+      // Clear timeout as we got a response
+      clearTimeout(listingTimeout);
+      
+      // Process response
+      if (response.status === 201 && response.data) {
+        console.log("Item successfully listed:", response.data);
+        
+        // Close modal
+        onClose();
+        
+        // Trigger callback with the listed item data
+        onConfirm && onConfirm(response.data);
+        
+        // Show success toast
+        toast.success(`Item listed successfully`);
+        
+        // Force marketplace to refresh to show the new listing
+        if (socketService && typeof socketService.forceFetchMarketplace === 'function') {
+          console.log("Triggering manual marketplace refresh");
+          setTimeout(() => {
+            socketService.forceFetchMarketplace();
+          }, 1000);
+        }
+      } else {
+        console.warn("Unexpected response from listing endpoint:", response);
+        toast.error("Unexpected response when listing item");
+      }
+    } catch (error) {
+      console.error("Error listing item:", error);
+      
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error("Server error response:", error.response.data);
+        toast.error(error.response.data.error || "Failed to list item");
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error("No response received:", error.request);
+        toast.error("No response from server - please check your listing status");
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error("Request setup error:", error.message);
+        toast.error("Error setting up request: " + error.message);
+      }
+    } finally {
+      // Always reset submission state
+      setIsSubmitting(false);
+    }
   };
   
   // Replace the handleClose with the forceCloseModal function
@@ -583,7 +657,7 @@ const SellModal = ({ item, onClose, onConfirm }) => {
           </button>
           
           <button
-            onClick={handleSubmit}
+            onClick={handleConfirm}
             style={{
               flex: 1,
               padding: '0.85rem',

@@ -77,12 +77,19 @@ function Marketplace({ user }) {
         limit: itemsPerPage,
         sort: sortOption,
         search: searchQuery,
-        categories: activeFilters.join(',')
+        categories: activeFilters.join(','),
+        _t: Date.now() // Cache busting parameter for Render
       });
 
+      console.log(`Fetching marketplace items: ${API_URL}/marketplace?${params}`);
+      
       // Don't send credentials for public marketplace view
-      const res = await axios.get(`${API_URL}/marketplace?${params}`);
+      const res = await axios.get(`${API_URL}/marketplace?${params}`, {
+        timeout: 15000 // Longer timeout for Render
+      });
 
+      console.log(`Received ${res.data?.items?.length || 0} marketplace items`);
+      
       if (res.data && Array.isArray(res.data.items)) {
         setItems(res.data.items);
         setFilteredItems(res.data.items);
@@ -100,7 +107,7 @@ function Marketplace({ user }) {
       console.error('Error fetching items:', err);
       setItems([]);
       setFilteredItems([]);
-      toast.error(t('errors.fetchItems'));
+      toast.error('Failed to load marketplace items');
     } finally {
       setLoading(false);
     }
@@ -160,6 +167,8 @@ function Marketplace({ user }) {
 
   // Initial data load
   useEffect(() => {
+    console.log('Marketplace component mounted - initializing data');
+    
     // Initial data fetch
     fetchItems();
     fetchMarketStats();
@@ -169,70 +178,134 @@ function Marketplace({ user }) {
       fetchUserListings();
     }
     
-    // Setup socket connection
-    socketService.connect();
-    
-    // Check socket connection
+    // Setup socket connection if not already connected
     if (!socketService.isConnected()) {
-      console.log('Socket not connected, reconnecting...');
-      socketService.reconnect();
+      console.log('Marketplace: Socket not connected, connecting...');
+      socketService.connect();
+    } else {
+      console.log('Marketplace: Socket already connected');
     }
     
     // Return cleanup function
     return () => {
       // No need to disconnect as the service manages this
+      console.log('Marketplace component unmounting');
     };
   }, [fetchItems, fetchMarketStats, fetchUserProfile, fetchUserListings, user]);
 
   // Socket event handlers
   useEffect(() => {
-    // Ensure we're connected to socket
+    // Check connection status and ensure connection
     if (!socketService.isConnected()) {
+      console.log('Marketplace: Socket not connected, reconnecting...');
       socketService.reconnect();
     }
     
     // Handle market updates
     const handleMarketUpdate = (update) => {
       console.log('Market update received:', update);
-      if (update.type === 'new_listing' || update.type === 'item_sold') {
+      
+      if (update.type === 'refresh') {
+        console.log('Refresh event received, refetching data');
         fetchItems();
         fetchMarketStats();
+        return;
+      }
+      
+      // Immediately check if this is a new listing we need to show
+      if (update.type === 'new_listing' && update.item) {
+        console.log('New listing received:', update.item.marketHashName);
+        
+        // Force immediate update for this specific item
+        setItems(prevItems => {
+          // Check if this item already exists to avoid duplicates
+          const itemExists = prevItems.some(item => item._id === update.item._id);
+          if (itemExists) {
+            console.log('Item already exists in list, skipping');
+            return prevItems;
+          }
+          console.log('Adding new item to list');
+          // Always add at the beginning for "latest" sorting
+          return [update.item, ...prevItems];
+        });
+        
+        toast.success(`New item listed: ${update.item.marketHashName}`, {
+          duration: 3000
+        });
+      }
+      
+      // For other updates or periodically, refetch all data
+      if (update.type === 'new_listing' || update.type === 'item_sold') {
+        // Add slight delay to allow server to process the changes
+        setTimeout(() => {
+          console.log('Refreshing items and stats after market update');
+          fetchItems();
+          fetchMarketStats();
+        }, 500);
       }
     };
     
     // Register socket event listeners
+    console.log('Registering market_update handler');
     socketService.on('market_update', handleMarketUpdate);
     
     // Setup connection status handlers
     socketService.onConnected(() => {
-      console.log('Socket connected, refreshing data...');
+      console.log('Socket connected in Marketplace, refreshing data...');
+      
+      // Immediately fetch new data when connection is established
       fetchItems();
       fetchMarketStats();
+      
+      // Show success toast
+      toast.success('Connection established', { duration: 2000 });
     });
     
     socketService.onDisconnected(() => {
-      console.log('Socket disconnected');
+      console.log('Socket disconnected in Marketplace');
       // Display toast notification when disconnected
       toast.error('Connection lost. Attempting to reconnect...', { duration: 3000 });
+      
+      // Try to reconnect immediately
+      setTimeout(() => {
+        if (!socketService.isConnected()) {
+          socketService.reconnect();
+        }
+      }, 1000);
     });
     
     // Cleanup event listeners
     return () => {
+      console.log('Removing market_update handler');
       socketService.off('market_update', handleMarketUpdate);
     };
   }, [fetchItems, fetchMarketStats]);
 
   // Auto-refresh listings periodically as backup for socket issues
   useEffect(() => {
-    // Set up a backup timer to refresh listings every 30 seconds
-    // This ensures data stays fresh even if WebSocket connection has issues
+    console.log('Setting up periodic refresh for listings');
+    
+    // Initial fetch on mount with a small delay
+    // This helps ensure we get data even if socket connection fails
+    const initialFetchTimeout = setTimeout(() => {
+      console.log('Initial delayed fetch for marketplace');
+      fetchItems();
+      fetchMarketStats();
+    }, 2000);
+    
+    // Set up a backup timer to refresh listings
+    // This is especially important for Render hosting which may sleep
     const intervalId = setInterval(() => {
       console.log('Periodic refresh of listings');
       fetchItems();
-    }, 30000); // 30 seconds
+      fetchMarketStats();
+    }, 20000); // 20 seconds - more frequent for Render
     
-    return () => clearInterval(intervalId);
-  }, [fetchItems]);
+    return () => {
+      clearTimeout(initialFetchTimeout);
+      clearInterval(intervalId);
+    };
+  }, [fetchItems, fetchMarketStats]);
 
   // Handle item click
   const handleItemClick = (item) => {

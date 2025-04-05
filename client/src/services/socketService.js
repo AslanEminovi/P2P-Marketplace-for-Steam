@@ -8,14 +8,31 @@ class SocketService {
     this.connectionEvents = new Map();
     this.events = new Map();
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
+    this.maxReconnectAttempts = 15; // Increased for Render hosting
     this.reconnectDelay = 2000;
     this.reconnectTimer = null;
     this.connectedCallback = null;
     this.disconnectedCallback = null;
+    this.lastConnectionAttempt = 0;
+    this.pingInterval = null;
+  }
+
+  init() {
+    console.log("[SocketService] Initializing service");
+    // Just initialize the service, don't connect yet
+    return this;
   }
 
   connect(token = null) {
+    const now = Date.now();
+    // Prevent rapid connection attempts (throttle to once per second)
+    if (now - this.lastConnectionAttempt < 1000) {
+      console.log("[SocketService] Connection attempt throttled");
+      return this.socket;
+    }
+
+    this.lastConnectionAttempt = now;
+
     console.log(
       "[SocketService] Attempting to connect to socket server:",
       API_URL
@@ -26,6 +43,7 @@ class SocketService {
       console.log(
         "[SocketService] Socket already connected, skipping connection"
       );
+      this.connected = true;
       return this.socket;
     }
 
@@ -47,70 +65,124 @@ class SocketService {
     }
 
     // Initialize socket connection with auth token
-    this.socket = io(API_URL, {
-      query: token ? { token } : {},
-      transports: ["websocket", "polling"],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      timeout: 10000,
-      autoConnect: true,
-      forceNew: true, // Force a new connection
-    });
+    try {
+      // For Render, we need to ensure we're handling their sleep/wake cycle
+      this.socket = io(API_URL, {
+        query: token ? { token } : {},
+        transports: ["websocket", "polling"],
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 10000, // Max 10 second delay between retries
+        timeout: 20000, // Longer timeout for Render
+        autoConnect: true,
+        forceNew: true,
+        extraHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+      });
 
-    // Setup connection event handlers
-    this.socket.on("connect", () => {
-      console.log("[SocketService] Connected to socket server!");
-      this.connected = true;
-      this.reconnectAttempts = 0;
+      // Setup connection event handlers
+      this.socket.on("connect", () => {
+        console.log("[SocketService] Connected to socket server!");
+        this.connected = true;
+        this.reconnectAttempts = 0;
 
-      if (this.connectedCallback) {
-        this.connectedCallback();
-      }
+        // Start a ping interval to keep connection alive (helps with Render)
+        this._startPingInterval();
 
-      // Re-register all event listeners after reconnection
-      this.rebindEvents();
-    });
+        if (this.connectedCallback) {
+          this.connectedCallback();
+        }
 
-    this.socket.on("connect_error", (error) => {
-      console.error("[SocketService] Connection error:", error);
-      this.handleConnectionFailure();
-    });
+        // Re-register all event listeners after reconnection
+        this.rebindEvents();
+      });
 
-    this.socket.on("disconnect", (reason) => {
-      console.log(
-        "[SocketService] Disconnected from socket server, reason:",
-        reason
-      );
+      this.socket.on("connect_error", (error) => {
+        console.error("[SocketService] Connection error:", error);
+        this.handleConnectionFailure();
+      });
+
+      this.socket.on("disconnect", (reason) => {
+        console.log(
+          "[SocketService] Disconnected from socket server, reason:",
+          reason
+        );
+        this.connected = false;
+
+        // Stop ping interval on disconnect
+        this._stopPingInterval();
+
+        if (this.disconnectedCallback) {
+          this.disconnectedCallback();
+        }
+
+        // Handle disconnect reason
+        if (
+          reason === "io server disconnect" ||
+          reason === "transport close" ||
+          reason === "ping timeout"
+        ) {
+          // Server disconnected the client, need to reconnect manually
+          this.scheduleReconnect();
+        }
+      });
+
+      this.socket.on("reconnect_attempt", (attemptNumber) => {
+        console.log(`[SocketService] Reconnection attempt #${attemptNumber}`);
+      });
+
+      this.socket.on("reconnect_failed", () => {
+        console.error("[SocketService] Failed to reconnect after max attempts");
+        this.handleConnectionFailure();
+      });
+
+      // Listen for pong responses
+      this.socket.on("pong", () => {
+        console.log("[SocketService] Received pong from server");
+      });
+
+      return this.socket;
+    } catch (error) {
+      console.error("[SocketService] Error during socket creation:", error);
       this.connected = false;
+      this.socket = null;
+      this.scheduleReconnect();
+      return null;
+    }
+  }
 
-      if (this.disconnectedCallback) {
-        this.disconnectedCallback();
+  // Start a ping interval to keep connection alive (especially for Render hosting)
+  _startPingInterval() {
+    this._stopPingInterval(); // Clear any existing interval first
+
+    // Send a ping every 25 seconds to keep the connection alive
+    // This is especially important for Render which can sleep after inactivity
+    this.pingInterval = setInterval(() => {
+      if (this.socket && this.connected) {
+        console.log("[SocketService] Sending ping to keep connection alive");
+        this.socket.emit("ping");
       }
+    }, 25000);
+  }
 
-      // Handle disconnect reason
-      if (reason === "io server disconnect") {
-        // Server disconnected the client, need to reconnect manually
-        this.scheduleReconnect();
-      }
-    });
-
-    this.socket.on("reconnect_attempt", (attemptNumber) => {
-      console.log(`[SocketService] Reconnection attempt #${attemptNumber}`);
-    });
-
-    this.socket.on("reconnect_failed", () => {
-      console.error("[SocketService] Failed to reconnect after max attempts");
-      this.handleConnectionFailure();
-    });
-
-    return this.socket;
+  // Stop the ping interval
+  _stopPingInterval() {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
   }
 
   disconnect() {
+    this._stopPingInterval();
+
     if (this.socket) {
       console.log("[SocketService] Disconnecting socket");
-      this.socket.disconnect();
+      try {
+        this.socket.disconnect();
+      } catch (err) {
+        console.error("[SocketService] Error during disconnect:", err);
+      }
       this.socket = null;
       this.connected = false;
     }
@@ -129,6 +201,10 @@ class SocketService {
       console.log(
         "[SocketService] Socket already connected, skipping reconnect"
       );
+      this.connected = true;
+
+      // Ensure ping interval is running
+      this._startPingInterval();
       return;
     }
 
@@ -147,6 +223,21 @@ class SocketService {
   scheduleReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error("[SocketService] Max reconnect attempts reached");
+      // Even at max attempts, we should try one more time after a longer delay
+      const finalAttemptDelay = 15000; // 15 seconds - longer for Render
+      console.log(
+        `[SocketService] Scheduling final reconnect attempt in ${finalAttemptDelay}ms`
+      );
+
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+      }
+
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectAttempts = 0; // Reset counter for the final attempt
+        this.reconnect();
+      }, finalAttemptDelay);
+
       return;
     }
 
@@ -154,6 +245,7 @@ class SocketService {
       clearTimeout(this.reconnectTimer);
     }
 
+    // Progressive backoff for reconnection
     const delay = this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts);
     console.log(
       `[SocketService] Scheduling reconnect in ${delay}ms (attempt ${
@@ -169,6 +261,7 @@ class SocketService {
 
   handleConnectionFailure() {
     this.connected = false;
+    this._stopPingInterval();
 
     if (this.disconnectedCallback) {
       this.disconnectedCallback();
@@ -179,6 +272,12 @@ class SocketService {
 
   onConnected(callback) {
     this.connectedCallback = callback;
+
+    // If already connected, call the callback immediately
+    if (this.connected && this.socket && this.socket.connected) {
+      callback();
+    }
+
     return this;
   }
 
@@ -249,9 +348,24 @@ class SocketService {
   isConnected() {
     return this.connected && this.socket && this.socket.connected;
   }
+
+  // Force a fetch of marketplace data (fallback method)
+  forceFetchMarketplace() {
+    if (this.events.has("market_update")) {
+      const callbacks = this.events.get("market_update");
+      if (callbacks && callbacks.length > 0) {
+        // Call first callback with a refresh event
+        callbacks[0]({
+          type: "refresh",
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+  }
 }
 
-// Create singleton instance
+// Create a singleton instance
 const socketService = new SocketService();
 
+// Export the singleton
 export default socketService;
