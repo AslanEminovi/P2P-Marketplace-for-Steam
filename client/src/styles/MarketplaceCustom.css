@@ -10,6 +10,21 @@
   border: none !important;
 }
 
+/* Override stats text colors to white */
+.marketplace-header .stat-label {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.marketplace-header .stat-value {
+  color: white !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.marketplace-header h1,
+.marketplace-header p {
+  color: white !important;
+}
+
 /* Search Bar Container with Flex Layout */
 .search-bar-container {
   margin-bottom: 1rem;
@@ -100,4 +115,9 @@
 .user-listings-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(124, 58, 237, 0.4);
+}
+
+/* Override and remove any conflicting style from the base file */
+.user-listings-button.original-button-style {
+  position: relative !important;
 } 

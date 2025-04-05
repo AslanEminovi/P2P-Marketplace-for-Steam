@@ -11,9 +11,10 @@ const UserListings = ({ show, onClose }) => {
   const fetchUserListings = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/marketplace/my-listings`, {
+      const response = await axios.get(`${API_URL}/marketplace/user-listings`, {
         withCredentials: true
       });
+      console.log('Fetched user listings:', response.data);
       setListings(response.data || []);
       setError('');
     } catch (err) {

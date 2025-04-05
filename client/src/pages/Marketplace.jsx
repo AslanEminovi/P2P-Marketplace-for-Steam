@@ -543,7 +543,10 @@ function Marketplace({ user }) {
         <div className="user-buttons">
           <button
             className="user-listings-button"
-            onClick={() => setShowListingsPanel(true)}
+            onClick={() => {
+              console.log("Opening user listings panel");
+              setShowListingsPanel(true);
+            }}
           >
             <span>My Listings</span>
             {myListings.length > 0 && (
@@ -622,7 +625,10 @@ function Marketplace({ user }) {
 
       <UserListings 
         show={showListingsPanel} 
-        onClose={() => setShowListingsPanel(false)} 
+        onClose={() => {
+          console.log("Closing user listings panel");
+          setShowListingsPanel(false);
+        }}
       />
     </div>
   );
