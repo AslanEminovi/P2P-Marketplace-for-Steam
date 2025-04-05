@@ -174,17 +174,10 @@ function App() {
       }
     );
 
-    // Initialize socketService properly
-    if (!socketService.socket) {
+    // Initialize socketService
+    if (!socketService.isConnected()) {
       console.log("Initializing socket service from App component");
-      socketService.init();
-      
-      // Add a small delay before initial connection to prevent potential issues
-      setTimeout(() => {
-        const token = localStorage.getItem('auth_token');
-        console.log("Connecting socket with token:", token ? "Token exists" : "No token");
-        socketService.connect(token);
-      }, 300);
+      socketService.connect();
     }
 
     // Cleanup function to remove interceptors when component unmounts

@@ -7,16 +7,8 @@ console.log("Environment: ", process.env.NODE_ENV);
 console.log("API URL from env: ", process.env.REACT_APP_API_URL);
 
 // API URL Configuration
-// This supports both local development and production environments
-
-// For development using localhost
-// const API_URL = 'http://localhost:3001';
-
-// For production on Render
-const API_URL = "https://cs2-marketplace-server.onrender.com";
-
-// Export constants
-export { API_URL };
+export const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
+console.log("Using API_URL: ", API_URL);
 
 // Add production settings
 export const IS_PRODUCTION = process.env.NODE_ENV === "production";

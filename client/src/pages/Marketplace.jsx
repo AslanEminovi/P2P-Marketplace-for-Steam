@@ -77,19 +77,12 @@ function Marketplace({ user }) {
         limit: itemsPerPage,
         sort: sortOption,
         search: searchQuery,
-        categories: activeFilters.join(','),
-        _t: Date.now() // Cache busting parameter for Render
+        categories: activeFilters.join(',')
       });
 
-      console.log(`Fetching marketplace items: ${API_URL}/marketplace?${params}`);
-      
       // Don't send credentials for public marketplace view
-      const res = await axios.get(`${API_URL}/marketplace?${params}`, {
-        timeout: 15000 // Longer timeout for Render
-      });
+      const res = await axios.get(`${API_URL}/marketplace?${params}`);
 
-      console.log(`Received ${res.data?.items?.length || 0} marketplace items`);
-      
       if (res.data && Array.isArray(res.data.items)) {
         setItems(res.data.items);
         setFilteredItems(res.data.items);
@@ -107,11 +100,11 @@ function Marketplace({ user }) {
       console.error('Error fetching items:', err);
       setItems([]);
       setFilteredItems([]);
-      toast.error('Failed to load marketplace items');
+      toast.error(t('errors.fetchItems'));
     } finally {
       setLoading(false);
     }
-  }, [currentPage, sortOption, searchQuery, activeFilters]);
+  }, [currentPage, sortOption, searchQuery, activeFilters, t]);
 
   // Fetch market statistics
   const fetchMarketStats = useCallback(async () => {
@@ -283,29 +276,15 @@ function Marketplace({ user }) {
 
   // Auto-refresh listings periodically as backup for socket issues
   useEffect(() => {
-    console.log('Setting up periodic refresh for listings');
-    
-    // Initial fetch on mount with a small delay
-    // This helps ensure we get data even if socket connection fails
-    const initialFetchTimeout = setTimeout(() => {
-      console.log('Initial delayed fetch for marketplace');
-      fetchItems();
-      fetchMarketStats();
-    }, 2000);
-    
-    // Set up a backup timer to refresh listings
-    // This is especially important for Render hosting which may sleep
+    // Set up a backup timer to refresh listings every 30 seconds
+    // This ensures data stays fresh even if WebSocket connection has issues
     const intervalId = setInterval(() => {
       console.log('Periodic refresh of listings');
       fetchItems();
-      fetchMarketStats();
-    }, 20000); // 20 seconds - more frequent for Render
+    }, 30000); // 30 seconds
     
-    return () => {
-      clearTimeout(initialFetchTimeout);
-      clearInterval(intervalId);
-    };
-  }, [fetchItems, fetchMarketStats]);
+    return () => clearInterval(intervalId);
+  }, [fetchItems]);
 
   // Handle item click
   const handleItemClick = (item) => {
