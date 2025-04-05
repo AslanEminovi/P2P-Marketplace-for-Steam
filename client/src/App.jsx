@@ -413,11 +413,13 @@ function App() {
       
       try {
         // Use direct axios request with token in both header and params for maximum compatibility
+        console.log(`Making auth request to ${API_URL}/auth/user with token: ${token.substring(0, 10)}...`);
+        
         const userResponse = await axios.get(`${API_URL}/auth/user`, {
           withCredentials: true,
           params: { auth_token: token },
           headers: { Authorization: `Bearer ${token}` },
-          timeout: 8000 // Give it a bit more time
+          timeout: 10000 // Increased timeout
         });
 
         console.log("User details response:", userResponse.data);
@@ -427,6 +429,12 @@ function App() {
           
           // Set user state
           setUser(userResponse.data.user);
+          
+          // Refresh token in localStorage to ensure it's fresh
+          if (userResponse.data.token) {
+            console.log("Refreshing token in localStorage");
+            localStorage.setItem('auth_token', userResponse.data.token);
+          }
           
           // Show success notification
           if (window.showNotification) {

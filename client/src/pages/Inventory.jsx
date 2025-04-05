@@ -69,6 +69,14 @@ function Inventory({ user }) {
         // Get the auth token from localStorage with the correct key
         const token = localStorage.getItem('auth_token');
 
+        if (!token) {
+          console.log('No auth token found, cannot fetch inventory');
+          setMessage('Authentication required. Please sign in through Steam again.');
+          setMessageType('error');
+          setLoading(false);
+          return;
+        }
+
         console.log('Using auth token:', token ? token.substring(0, 10) + '...' : 'No token found');
         console.log('Current API URL:', API_URL);
         console.log('User object:', JSON.stringify(user, null, 2));
@@ -77,21 +85,15 @@ function Inventory({ user }) {
         const requestUrl = `${API_URL}/inventory/my`;
         console.log('Request URL:', requestUrl);
 
-        // Try a simpler approach - ONLY include the token in the URL query parameter
-        // This is how many Steam integrations expect authentication
-        const requestConfig = {
+        // Use axios directly - the interceptor will add the token to both headers and params
+        const res = await axios.get(requestUrl, {
           withCredentials: true,
           timeout: 30000, // 30 second timeout
+          // Add cache-busting parameter to avoid stale cache issues
           params: {
-            auth_token: token, // Steam authentication typically uses query parameters
-            // Add cache-busting parameter to avoid stale cache issues
             _t: new Date().getTime()
           }
-          // Removing the Authorization header to see if that's causing conflict
-        };
-        console.log('Request config:', JSON.stringify(requestConfig, null, 2));
-
-        const res = await axios.get(requestUrl, requestConfig);
+        });
 
         console.log('Inventory response:', res.data);
 
@@ -131,6 +133,15 @@ function Inventory({ user }) {
           // Wait briefly before retrying
           await new Promise(resolve => setTimeout(resolve, 1000));
           return attemptFetch();
+        }
+
+        // Check for auth errors (401 and 403)
+        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          console.log('Authentication error detected');
+          setMessage('Authentication required. Please sign in through Steam again.');
+          setMessageType('error');
+          setLoading(false);
+          return;
         }
 
         // Specific handling for 403 Forbidden error (private inventory)
