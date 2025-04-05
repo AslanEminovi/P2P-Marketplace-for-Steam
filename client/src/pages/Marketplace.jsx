@@ -57,16 +57,6 @@ function Marketplace({ user }) {
 
   const { t } = useTranslation();
 
-  // Filter options
-  const filterOptions = [
-    { id: 'rifle', label: 'Rifles' },
-    { id: 'knife', label: 'Knives' },
-    { id: 'pistol', label: 'Pistols' },
-    { id: 'glove', label: 'Gloves' },
-    { id: 'case', label: 'Cases' },
-    { id: 'sticker', label: 'Stickers' }
-  ];
-
   // Sort options
   const sortOptions = [
     { id: 'latest', label: 'Latest' },
@@ -304,15 +294,6 @@ function Marketplace({ user }) {
     setSelectedItem(item);
     setSelectedItemId(item._id);
     setItemDetailsOpen(true);
-  };
-
-  // Handle filter click
-  const handleFilterClick = (filterId) => {
-    setActiveFilters(prev =>
-      prev.includes(filterId)
-        ? prev.filter(f => f !== filterId)
-        : [...prev, filterId]
-    );
   };
 
   // Handle item action (buy/offer)
@@ -729,26 +710,41 @@ function Marketplace({ user }) {
           />
         </button>
         
-        <div className="filter-tags">
-          {filterOptions.map((filter) => (
-          <button
-              key={filter.id}
-              className={`filter-tag ${activeFilters.includes(filter.id) ? 'active' : ''}`}
-              onClick={() => handleFilterClick(filter.id)}
-            >
-              {filter.label}
-          </button>
-          ))}
-        </div>
-
         <div className="sort-container">
           <select
             className="sort-select"
             value={sortOption}
             onChange={(e) => setSortOption(e.target.value)}
+            style={{
+              backgroundColor: 'rgba(31, 41, 61, 0.8)',
+              color: 'white',
+              border: '1px solid rgba(51, 115, 242, 0.3)',
+              borderRadius: '8px',
+              padding: '0.75rem 1rem',
+              width: '100%',
+              fontSize: '0.95rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              appearance: 'none', // Remove default arrow
+              WebkitAppearance: 'none', // For Safari
+              MozAppearance: 'none', // For Firefox
+              backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 1rem center',
+              backgroundSize: '1rem',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+            }}
           >
             {sortOptions.map((option) => (
-              <option key={option.id} value={option.id}>
+              <option 
+                key={option.id} 
+                value={option.id}
+                style={{ 
+                  backgroundColor: 'rgba(31, 41, 61, 1)',
+                  color: 'white', 
+                  padding: '0.5rem'
+                }}
+              >
                 {option.label}
               </option>
             ))}
