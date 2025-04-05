@@ -49,8 +49,8 @@ const AdminRoute = ({ user, children }) => {
   }
   
   console.log("AdminRoute - Access granted");
-  // Return children directly without wrapping to ensure full width
-  return <>{children}</>;
+  // Return children directly without any wrapper at all
+  return children;
 };
 
 const loadingScreenStyles = css`

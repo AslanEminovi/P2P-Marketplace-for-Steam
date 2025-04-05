@@ -1,24 +1,111 @@
 /* AdminTools.css - Modern styling for the admin panel */
 
-.admin-tools-container {
-  min-height: 100vh !important;
-  color: #f1f5f9;
-  background-color: #0f172a;
-  padding-bottom: 2rem;
-  width: 100% !important;
-  max-width: 100% !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  display: block !important;
+/* Global admin layout fixes */
+body, html {
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
-/* Override Bootstrap container-fluid if needed */
-.container-fluid.admin-tools-container {
+#root, 
+#root > div,
+.admin-tools-full-width {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  overflow-x: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Completely disable any sidebar */
+[class*="sidebar"], 
+[class*="side-panel"],
+[class*="nav-pills"],
+.nav-pills,
+.offcanvas,
+.offcanvas-start {
+  display: none !important;
+  width: 0 !important;
+  max-width: 0 !important;
+  min-width: 0 !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+}
+
+/* Override all Bootstrap containers */
+.container, 
+.container-fluid, 
+.container-lg, 
+.container-md, 
+.container-sm, 
+.container-xl, 
+.container-xxl {
+  --bs-gutter-x: 0 !important;
+  --bs-gutter-y: 0 !important;
+  width: 100% !important;
   max-width: 100% !important;
-  padding-left: 1rem !important;
-  padding-right: 1rem !important;
+  padding-right: 0 !important;
+  padding-left: 0 !important;
+  margin-right: auto !important;
+  margin-left: auto !important;
+}
+
+/* Fix Admin Tools container */
+.admin-tools-full-width {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  min-height: calc(100vh - 70px) !important;
+  color: #f1f5f9;
+  background-color: #0f172a;
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 10;
+}
+
+/* Make all rows and columns take full width */
+.row {
+  --bs-gutter-x: 1.5rem !important;
+  --bs-gutter-y: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+}
+
+/* Fix column widths */
+.col, .col-md-6, .col-lg-3, .col-lg-6, .col-md-8, .col-md-4, .col-md-12, .col-lg-12, .col-12,
+[class^="col-"], [class*=" col-"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  flex: 0 0 auto !important;
+  padding-right: calc(var(--bs-gutter-x) * 0.5) !important;
+  padding-left: calc(var(--bs-gutter-x) * 0.5) !important;
+}
+
+/* Make specific columns respect their intended width */
+.col-md-6 { width: 50% !important; }
+.col-lg-3 { width: 25% !important; }
+.col-md-8 { width: 66.66666667% !important; }
+.col-md-4 { width: 33.33333333% !important; }
+.col-md-12, .col-lg-12, .col-12 { width: 100% !important; }
+
+@media (min-width: 992px) {
+  .col-lg-3 { width: 25% !important; }
+  .col-lg-6 { width: 50% !important; }
+  .col-lg-12 { width: 100% !important; }
+}
+
+@media (min-width: 768px) {
+  .col-md-4 { width: 33.33333333% !important; }
+  .col-md-6 { width: 50% !important; }
+  .col-md-8 { width: 66.66666667% !important; }
+  .col-md-12 { width: 100% !important; }
 }
 
 /* Tabs Styling */
@@ -284,23 +371,6 @@
   justify-content: center;
 }
 
-/* Fix left sidebar in layout */
-.nav-pills.flex-column {
-  display: none !important;
-}
-
-/* Remove any fixed width constraints */
-#root {
-  max-width: 100% !important;
-  overflow-x: hidden !important;
-}
-
-/* Force bootstrap columns to maintain proper width */
-.col, .col-md-6, .col-lg-3, .col-lg-6, .col-md-8, .col-md-4, .col-md-12, .col-lg-12, .col-12 {
-  width: auto !important;
-  max-width: 100% !important;
-}
-
 /* Media Queries for Responsive Design */
 @media (max-width: 768px) {
   .admin-tabs .nav-link {
@@ -314,20 +384,8 @@
 }
 
 @media (max-width: 576px) {
-  .admin-tools-container {
+  .admin-tools-full-width {
     padding-left: 0.5rem !important;
     padding-right: 0.5rem !important;
   }
-}
-
-/* Override any Bootstrap styles that might constrain width */
-.container, .container-fluid, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl {
-  --bs-gutter-x: 0 !important;
-  --bs-gutter-y: 0 !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  margin-right: auto !important;
-  margin-left: auto !important;
-  padding-left: calc(var(--bs-gutter-x) * .5) !important;
-  padding-right: calc(var(--bs-gutter-x) * .5) !important;
 } 
