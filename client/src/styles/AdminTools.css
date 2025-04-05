@@ -1,13 +1,24 @@
 /* AdminTools.css - Modern styling for the admin panel */
 
 .admin-tools-container {
-  min-height: calc(100vh - 70px);
+  min-height: 100vh !important;
   color: #f1f5f9;
   background-color: #0f172a;
   padding-bottom: 2rem;
-  width: 100%;
-  padding-left: 0;
-  padding-right: 0;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  display: block !important;
+}
+
+/* Override Bootstrap container-fluid if needed */
+.container-fluid.admin-tools-container {
+  max-width: 100% !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
 }
 
 /* Tabs Styling */
@@ -84,6 +95,7 @@
 .table-responsive {
   border-radius: 0.5rem;
   overflow: hidden;
+  width: 100%;
 }
 
 .table-dark {
@@ -96,6 +108,7 @@
   --bs-table-hover-color: #f3f4f6;
   color: #f3f4f6;
   border-color: rgba(75, 85, 99, 0.3);
+  width: 100%;
 }
 
 /* Card Styling */
@@ -111,9 +124,9 @@
 .admin-tabs-card {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   background-color: #1e293b !important;
-  margin-left: 0;
-  margin-right: 0;
-  width: 100%;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  width: 100% !important;
 }
 
 .card-header {
@@ -124,6 +137,7 @@
 .card-body {
   background-color: #0f172a;
   padding: 1.5rem;
+  width: 100%;
 }
 
 .border-primary {
@@ -234,9 +248,9 @@
 /* Fix for System-wide Cleanup section layout */
 .admin-dashboard .row,
 .cleanup-tab .row {
-  margin-left: 0;
-  margin-right: 0;
-  width: 100%;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  width: 100% !important;
 }
 
 /* Additional card styling */
@@ -245,11 +259,11 @@
 }
 
 .tab-content {
-  width: 100%;
+  width: 100% !important;
 }
 
 .tab-pane {
-  width: 100%;
+  width: 100% !important;
 }
 
 /* Activity Timeline */
@@ -270,6 +284,23 @@
   justify-content: center;
 }
 
+/* Fix left sidebar in layout */
+.nav-pills.flex-column {
+  display: none !important;
+}
+
+/* Remove any fixed width constraints */
+#root {
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+/* Force bootstrap columns to maintain proper width */
+.col, .col-md-6, .col-lg-3, .col-lg-6, .col-md-8, .col-md-4, .col-md-12, .col-lg-12, .col-12 {
+  width: auto !important;
+  max-width: 100% !important;
+}
+
 /* Media Queries for Responsive Design */
 @media (max-width: 768px) {
   .admin-tabs .nav-link {
@@ -284,7 +315,19 @@
 
 @media (max-width: 576px) {
   .admin-tools-container {
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
   }
+}
+
+/* Override any Bootstrap styles that might constrain width */
+.container, .container-fluid, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl {
+  --bs-gutter-x: 0 !important;
+  --bs-gutter-y: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-right: auto !important;
+  margin-left: auto !important;
+  padding-left: calc(var(--bs-gutter-x) * .5) !important;
+  padding-right: calc(var(--bs-gutter-x) * .5) !important;
 } 

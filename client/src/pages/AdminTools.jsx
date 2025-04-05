@@ -852,56 +852,52 @@ function AdminTools() {
   };
 
   return (
-    <Container fluid className="admin-tools-container py-4">
-      <Row className="mb-4">
-        <Col>
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <div>
-              <h1 className="text-white mb-1">Admin Tools</h1>
-              <p className="text-white-50 mb-0">Manage users, items, trades and system maintenance</p>
-            </div>
-            <div className="d-flex gap-2">
-              <Button 
-                variant="outline-light" 
-                className="d-flex align-items-center"
-                onClick={() => {
-                  fetchStats();
-                  fetchUsers();
-                  fetchItems();
-                  fetchTrades();
-                }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-                </svg>
-                Refresh Data
-              </Button>
-              <Button 
-                variant="success" 
-                as={Link} 
-                to="/"
-                className="d-flex align-items-center"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 8 8 12 12 16"></polyline>
-                  <line x1="16" y1="12" x2="8" y2="12"></line>
-                </svg>
-                Return to Site
-              </Button>
-            </div>
+    <div className="admin-tools-container py-4" style={{ width: '100%', maxWidth: '100%' }}>
+      <div className="mb-4">
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h1 className="text-white mb-1">Admin Tools</h1>
+            <p className="text-white-50 mb-0">Manage users, items, trades and system maintenance</p>
           </div>
-        </Col>
-      </Row>
+          <div className="d-flex gap-2">
+            <Button 
+              variant="outline-light" 
+              className="d-flex align-items-center"
+              onClick={() => {
+                fetchStats();
+                fetchUsers();
+                fetchItems();
+                fetchTrades();
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+              </svg>
+              Refresh Data
+            </Button>
+            <Button 
+              variant="success" 
+              as={Link} 
+              to="/"
+              className="d-flex align-items-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 8 8 12 12 16"></polyline>
+                <line x1="16" y1="12" x2="8" y2="12"></line>
+              </svg>
+              Return to Site
+            </Button>
+          </div>
+        </div>
+      </div>
 
       {message && (
-        <Row className="mb-4">
-          <Col>
-            <Alert variant={message.type} onClose={() => setMessage(null)} dismissible>
-              {message.text}
-            </Alert>
-          </Col>
-        </Row>
+        <div className="mb-4">
+          <Alert variant={message.type} onClose={() => setMessage(null)} dismissible>
+            {message.text}
+          </Alert>
+        </div>
       )}
 
       <Card bg="dark" text="white" className="admin-tabs-card mb-4">
@@ -1030,7 +1026,7 @@ function AdminTools() {
           )}
         </Card.Body>
       </Card>
-    </Container>
+    </div>
   );
 }
 

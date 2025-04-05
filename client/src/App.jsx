@@ -47,8 +47,10 @@ const AdminRoute = ({ user, children }) => {
     console.log("AdminRoute - Access denied, redirecting to home");
     return <Navigate to="/" replace />;
   }
+  
   console.log("AdminRoute - Access granted");
-  return children;
+  // Return children directly without wrapping to ensure full width
+  return <>{children}</>;
 };
 
 const loadingScreenStyles = css`
@@ -826,82 +828,43 @@ function App() {
           </div>
         ) : (
           <Routes>
-            <Route path="/" element={
-              <PageWrapper key="home">
-                <Home user={user} />
-              </PageWrapper>
-            } />
-
+            <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
             <Route path="/inventory" element={
               <ProtectedRoute user={user}>
-                <PageWrapper key="inventory">
-                  <Inventory user={user} />
-                </PageWrapper>
+                <PageWrapper><Inventory /></PageWrapper>
               </ProtectedRoute>
             } />
-
-            <Route path="/marketplace" element={
-              <PageWrapper key="marketplace">
-                <Marketplace user={user} />
-              </PageWrapper>
-            } />
-
+            <Route path="/marketplace" element={<PageWrapper><Marketplace /></PageWrapper>} />
             <Route path="/my-listings" element={
               <ProtectedRoute user={user}>
-                <PageWrapper key="my-listings">
-                  <MyListings user={user} />
-                </PageWrapper>
+                <PageWrapper><MyListings /></PageWrapper>
               </ProtectedRoute>
             } />
-
-            <Route path="/settings/steam" element={
-              <ProtectedRoute user={user}>
-                <PageWrapper key="steam-settings">
-                  <SteamSettings user={user} />
-                </PageWrapper>
-              </ProtectedRoute>
-            } />
-
-            <Route path="/trades" element={
-              <ProtectedRoute user={user}>
-                <PageWrapper key="trades">
-                  <Trades user={user} />
-                </PageWrapper>
-              </ProtectedRoute>
-            } />
-
-            <Route path="/trades/:tradeId" element={
-              <ProtectedRoute user={user}>
-                <PageWrapper key="trade-detail">
-                  <TradeDetailPage user={user} />
-                </PageWrapper>
-              </ProtectedRoute>
-            } />
-
             <Route path="/profile" element={
               <ProtectedRoute user={user}>
-                <PageWrapper key="profile">
-                  <Profile user={user} onBalanceUpdate={refreshWalletBalance} />
-                </PageWrapper>
+                <PageWrapper><Profile /></PageWrapper>
               </ProtectedRoute>
             } />
-
-            <Route path="/steam-settings" element={
-              <ProtectedRoute>
-                <SteamSettingsPage />
+            <Route path="/trades" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper><Trades /></PageWrapper>
               </ProtectedRoute>
             } />
-
+            <Route path="/trades/:tradeId" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper><TradeDetailPage /></PageWrapper>
+              </ProtectedRoute>
+            } />
             <Route path="/admin/tools" element={
               <AdminRoute user={user}>
-                <PageWrapper key="admin-tools">
-                  <AdminTools />
-                </PageWrapper>
+                <AdminTools />
               </AdminRoute>
             } />
-
-            {/* Catch-all route */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="/steam/settings" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper><SteamSettingsPage /></PageWrapper>
+              </ProtectedRoute>
+            } />
           </Routes>
         )}
       </Suspense>
