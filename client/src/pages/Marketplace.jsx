@@ -483,71 +483,49 @@ function Marketplace({ user }) {
     );
   };
 
-  // Add event listener for custom event from HTML button
-  useEffect(() => {
-    // Event listener for the My Listings button click from the HTML
-    const handleOpenMyListings = () => {
-      console.log("Event listener triggered: openMyListings");
-      setShowListingsPanel(true);
-    };
+  const renderUserListingsButton = () => {
+    if (!user) return null;
     
-    // Add event listener
-    document.addEventListener('openMyListings', handleOpenMyListings);
-    
-    // Cleanup
-    return () => {
-      document.removeEventListener('openMyListings', handleOpenMyListings);
-    };
-  }, []);
+    return (
+      <button 
+        className="user-listings-button"
+        onClick={() => setShowListingsPanel(true)}
+        style={{
+          position: 'fixed',
+          bottom: '2rem',
+          right: '2rem',
+          background: 'linear-gradient(45deg, #4F46E5, #7C3AED)',
+          color: 'white',
+          border: 'none',
+          borderRadius: '12px',
+          padding: '1rem 1.5rem',
+          fontSize: '1rem',
+          fontWeight: '600',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          boxShadow: '0 4px 20px rgba(124, 58, 237, 0.3)',
+          transition: 'all 0.3s ease',
+          zIndex: '90',
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7"></path>
+          <path d="M21 5.618a1 1 0 00-1.447-.894L15 7v13l5.447-2.724A1 1 0 0021 16.382V5.618z"></path>
+          <rect x="9" y="7" width="6" height="13" rx="1"></rect>
+        </svg>
+        My Listings
+        {myListings.length > 0 && (
+          <span className="count">{myListings.length}</span>
+        )}
+      </button>
+    );
+  };
 
   return (
     <div className="marketplace-container">
       <SocketConnectionIndicator />
-      
-      {/* ADD DIRECT MY LISTINGS BUTTON WITH INLINE STYLES */}
-      <div id="direct-my-listings-button"
-        onClick={() => {
-          console.log("DIRECT MY LISTINGS BUTTON CLICKED");
-          setShowListingsPanel(true);
-        }}
-        style={{
-          position: 'fixed',
-          bottom: '30px',
-          right: '30px',
-          zIndex: '999999',
-          background: 'linear-gradient(45deg, #4F46E5, #7C3AED)',
-          padding: '15px 25px',
-          borderRadius: '12px',
-          color: 'white',
-          fontWeight: 'bold',
-          fontSize: '16px',
-          boxShadow: '0 4px 20px rgba(124, 58, 237, 0.4)',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          border: 'none',
-          margin: '0',
-          textTransform: 'none',
-          letterSpacing: 'normal',
-          lineHeight: 'normal',
-          textDecoration: 'none'
-        }}
-      >
-        My Listings
-        {myListings.length > 0 && (
-          <span style={{
-            background: 'rgba(255,255,255,0.2)',
-            borderRadius: '50%',
-            width: '24px',
-            height: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '14px'
-          }}>{myListings.length}</span>
-        )}
-      </div>
       
       {renderHeader()}
       
@@ -660,11 +638,10 @@ function Marketplace({ user }) {
 
       <UserListings 
         show={showListingsPanel} 
-        onClose={() => {
-          console.log("Closing user listings panel");
-          setShowListingsPanel(false);
-        }}
+        onClose={() => setShowListingsPanel(false)} 
       />
+      
+      {renderUserListingsButton()}
     </div>
   );
 }
