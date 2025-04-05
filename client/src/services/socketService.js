@@ -335,38 +335,6 @@ class SocketService {
   isConnected() {
     return this.connected && this.socket && this.socket.connected;
   }
-
-  // Force a fetch of marketplace data (fallback method)
-  forceFetchMarketplace() {
-    // Track when we last forced a refresh to prevent loops
-    if (
-      !this.lastForcedRefresh ||
-      Date.now() - this.lastForcedRefresh > 15000 // Increased from 10000 to 15000 (15 seconds)
-    ) {
-      console.log("[SocketService] Forcing marketplace refresh");
-      this.lastForcedRefresh = Date.now();
-
-      if (this.events.has("market_update")) {
-        const callbacks = this.events.get("market_update");
-        if (callbacks && callbacks.length > 0) {
-          try {
-            // Call first callback with a refresh event
-            callbacks[0]({
-              type: "refresh",
-              timestamp: new Date().toISOString(),
-              forced: true, // Mark this as a forced refresh for tracking
-            });
-          } catch (err) {
-            console.error("[SocketService] Error during forced refresh:", err);
-          }
-        }
-      }
-    } else {
-      console.log(
-        "[SocketService] Skipping forced refresh - too soon since last refresh"
-      );
-    }
-  }
 }
 
 // Create a singleton instance

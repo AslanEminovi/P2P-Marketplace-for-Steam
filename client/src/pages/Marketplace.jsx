@@ -164,11 +164,11 @@ function Marketplace({ user }) {
     }
   }, [user]);
 
-  // Initial data load
+  // Initial data load - ONLY fetch on mount
   useEffect(() => {
     console.log('Marketplace component mounted - initializing data');
     
-    // Initial data fetch
+    // Initial data fetch - ONLY ONCE AT MOUNT
     fetchItems();
     fetchMarketStats();
     
@@ -190,41 +190,19 @@ function Marketplace({ user }) {
       // No need to disconnect as the service manages this
       console.log('Marketplace component unmounting');
     };
-  }, [fetchItems, fetchMarketStats, fetchUserProfile, fetchUserListings, user]);
+  }, []); // Empty dependency array - run ONLY on mount
 
-  // Socket event handlers
+  // REMOVE ALL AUTO-REFRESH LOGIC - only respond to specific events
   useEffect(() => {
-    // Initialize connection status on first render
-    connectionStatusRef.current = {
-      wasConnected: socketService.isConnected(),
-      lastRefresh: Date.now()
-    };
-    
-    // Check connection status and ensure connection
-    if (!socketService.isConnected()) {
-      console.log('Marketplace: Socket not connected, reconnecting...');
-      socketService.reconnect();
-    }
-    
-    // Handle market updates
+    // Handler for ONLY new listings and sales - NO automatic refreshes
     const handleMarketUpdate = (update) => {
       console.log('Market update received:', update);
       
-      // Prevent excessive refreshes by limiting to once every 10 seconds (increased from 5)
-      const now = Date.now();
-      if (update.type === 'refresh' && now - connectionStatusRef.current.lastRefresh > 10000) {
-        console.log('Refresh event received, refetching data');
-        connectionStatusRef.current.lastRefresh = now;
-        fetchItems();
-        fetchMarketStats();
-        return;
-      }
-      
-      // Immediately check if this is a new listing we need to show
+      // Only handle specific item updates, NO general refreshes
       if (update.type === 'new_listing' && update.item) {
         console.log('New listing received:', update.item.marketHashName);
         
-        // Force immediate update for this specific item
+        // Add the new item to the list without full refresh
         setItems(prevItems => {
           // Check if this item already exists to avoid duplicates
           const itemExists = prevItems.some(item => item._id === update.item._id);
@@ -233,7 +211,7 @@ function Marketplace({ user }) {
             return prevItems;
           }
           console.log('Adding new item to list');
-          // Always add at the beginning for "latest" sorting
+          // Add at the beginning for "latest" sorting
           return [update.item, ...prevItems];
         });
         
@@ -242,92 +220,52 @@ function Marketplace({ user }) {
         });
       }
       
-      // For other updates or periodically, refetch all data (with increased delay)
-      if ((update.type === 'new_listing' || update.type === 'item_sold') && 
-          now - connectionStatusRef.current.lastRefresh > 10000) {
-        // Add slight delay to allow server to process the changes
-        setTimeout(() => {
-          console.log('Refreshing items and stats after market update');
-          connectionStatusRef.current.lastRefresh = now;
-          fetchItems();
-          fetchMarketStats();
-        }, 500);
+      // Only refresh stats occasionally for sold items without refreshing all items
+      if (update.type === 'item_sold') {
+        // Just update stats, not full item refresh
+        fetchMarketStats();
       }
     };
     
-    // Register socket event listeners
+    // Register socket event listener - ONLY ONE
     console.log('Registering market_update handler');
     socketService.on('market_update', handleMarketUpdate);
     
-    // Setup connection status handlers - prevent multiple bindings
-    const connectedCallback = () => {
-      // Only show connection toast if we weren't previously connected
-      if (!connectionStatusRef.current.wasConnected) {
-        console.log('Socket connected in Marketplace, refreshing data...');
-        
-        // Immediately fetch new data when connection is established
-        fetchItems();
-        fetchMarketStats();
-        
-        // Show success toast only on initial connection or after disconnection
-        toast.success('Connection established', { duration: 2000 });
-        
-        // Update our tracking variable
-        connectionStatusRef.current.wasConnected = true;
-      }
-    };
-    
-    const disconnectedCallback = () => {
-      console.log('Socket disconnected in Marketplace');
-      // Display toast notification when disconnected
-      toast.error('Connection lost. Attempting to reconnect...', { duration: 3000 });
-      
-      // Update our tracking variable
-      connectionStatusRef.current.wasConnected = false;
-      
-      // Try to reconnect immediately
-      setTimeout(() => {
-        if (!socketService.isConnected()) {
-          socketService.reconnect();
-        }
-      }, 1000);
-    };
-    
-    socketService.onConnected(connectedCallback);
-    socketService.onDisconnected(disconnectedCallback);
-    
-    // Cleanup event listeners
+    // Cleanup event listener
     return () => {
-      console.log('Removing market_update handler and connection listeners');
+      console.log('Removing market_update handler');
       socketService.off('market_update', handleMarketUpdate);
-      // Make sure to remove the connection listeners to prevent memory leaks
-      // and duplicate listeners on component re-render
+    };
+  }, []); // Empty dependency array - only register once
+
+  // Handle connection status with minimal side-effects
+  useEffect(() => {
+    const handleConnected = () => {
+      console.log('Socket connected');
+      toast.success('Connection established', { duration: 2000 });
+    };
+    
+    const handleDisconnected = () => {
+      console.log('Socket disconnected');
+      toast.error('Connection lost', { duration: 3000 });
+    };
+    
+    socketService.onConnected(handleConnected);
+    socketService.onDisconnected(handleDisconnected);
+    
+    return () => {
       socketService.onConnected(null);
       socketService.onDisconnected(null);
     };
-  }, [fetchItems, fetchMarketStats]);
+  }, []); // Empty dependency array - only register once
 
-  // Auto-refresh listings periodically as backup for socket issues
-  useEffect(() => {
-    // Set up a backup timer to refresh listings every 45 seconds (increased from 30)
-    // This ensures data stays fresh even if WebSocket connection has issues
-    const intervalId = setInterval(() => {
-      // Only refresh if we haven't refreshed in the last 30 seconds
-      const now = Date.now();
-      if (now - connectionStatusRef.current.lastRefresh > 30000) {
-        console.log('Periodic refresh of listings');
-        connectionStatusRef.current.lastRefresh = now;
-        fetchItems();
-      } else {
-        console.log('Skipping periodic refresh - recent refresh already occurred');
-      }
-    }, 45000); // 45 seconds
-    
-    return () => {
-      console.log('Clearing periodic refresh interval');
-      clearInterval(intervalId);
-    };
-  }, [fetchItems]);
+  // Add a manual refresh button instead of auto-refresh
+  const handleManualRefresh = () => {
+    console.log('Manual refresh requested');
+    setLoading(true);
+    fetchItems().then(() => setLoading(false));
+    fetchMarketStats();
+  };
 
   // Handle item click
   const handleItemClick = (item) => {
@@ -524,6 +462,15 @@ function Marketplace({ user }) {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        
+        {/* Add refresh button */}
+        <button 
+          className="refresh-button"
+          onClick={handleManualRefresh}
+          disabled={loading}
+        >
+          {loading ? 'Refreshing...' : 'Refresh Items'}
+        </button>
         
         <div className="filter-tags">
           {filterOptions.map((filter) => (
