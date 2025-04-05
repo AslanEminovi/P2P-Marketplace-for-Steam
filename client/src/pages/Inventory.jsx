@@ -13,6 +13,11 @@ function Inventory({ user }) {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showSellModal, setShowSellModal] = useState(false);
 
+  // Add debugging to check if user prop is received
+  useEffect(() => {
+    console.log("Inventory component mounted with user:", user ? `${user.username} (ID: ${user.id})` : "No user");
+  }, [user]);
+
   const translateWear = (shortWear) => {
     const wearTranslations = {
       'fn': 'Factory New',
@@ -58,8 +63,20 @@ function Inventory({ user }) {
         setMessage('');
         setMessageType('');
 
+        // Debug user prop
+        console.log("fetchInventory called, checking user:", user ? `${user.username} (${user.id})` : "No user");
+
         if (!user) {
+          console.error("No user object found in Inventory component");
           setMessage('Please sign in through Steam to view your inventory.');
+          setMessageType('error');
+          setLoading(false);
+          return;
+        }
+
+        if (!user.steamId) {
+          console.error("User object has no steamId:", user);
+          setMessage('Your Steam ID is missing. Please sign in through Steam again.');
           setMessageType('error');
           setLoading(false);
           return;

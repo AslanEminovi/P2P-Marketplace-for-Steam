@@ -34,9 +34,14 @@ import { API_URL } from './config/constants';
 // Auth-protected route component
 const ProtectedRoute = ({ user, children }) => {
   if (!user) {
+    console.log("ProtectedRoute - No user, redirecting to home");
     return <Navigate to="/" replace />;
   }
-  return children;
+  console.log("ProtectedRoute - User authenticated:", user.username || user.displayName);
+  // Explicitly clone the children with the user prop to ensure it's passed down
+  return React.Children.map(children, child => 
+    React.cloneElement(child, { user })
+  );
 };
 
 // Admin-protected route component
@@ -731,7 +736,7 @@ function App() {
               <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
               <Route path="/inventory" element={
                 <ProtectedRoute user={user}>
-                  <PageWrapper><Inventory /></PageWrapper>
+                  <PageWrapper><Inventory user={user} /></PageWrapper>
                 </ProtectedRoute>
               } />
               <Route path="/marketplace" element={<PageWrapper><Marketplace /></PageWrapper>} />
