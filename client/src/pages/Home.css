@@ -277,8 +277,29 @@
   justify-content: center;
   overflow: visible;
   min-height: 80vh;
-  max-height: none;
+  max-height: 100vh;
   z-index: 1;
+}
+
+/* Responsive adjustments for hero section on different screens */
+@media screen and (min-width: 1600px) {
+  .hero-section-container {
+    min-height: 70vh;
+    padding-top: 6rem;
+    padding-bottom: 4rem;
+  }
+  
+  /* Adjust the spacing so the search section is visible right after hero section */
+  .search-section-container {
+    margin-top: -2rem;
+  }
+}
+
+/* Regular sized screens like MacBook */
+@media screen and (max-width: 1440px) {
+  .hero-section-container {
+    min-height: 85vh;
+  }
 }
 
 .hero-section-container::before {
@@ -297,10 +318,14 @@
   opacity: 0.4;
 }
 
-.hero-decoration {
-  position: absolute;
-  pointer-events: none;
-  z-index: 1;
+@keyframes scanlines {
+  0% {
+    background-position: 0 0;
+  }
+
+  100% {
+    background-position: 0 -100px;
+  }
 }
 
 /* Georgian Text Styling */
@@ -556,14 +581,8 @@
 
 .hero-decoration {
   position: absolute;
-  width: 300px;
-  height: 300px;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.2;
-  background: var(--gaming-gradient-blue);
-  z-index: -1;
-  animation: pulseAnimation 8s infinite alternate ease-in-out;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .hero-decoration.top-left {

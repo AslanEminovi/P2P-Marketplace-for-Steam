@@ -168,10 +168,9 @@ function Marketplace({ user }) {
   useEffect(() => {
     console.log('Marketplace component mounted - initializing data');
     
-    // Fix refresh issue: fetch stats first, then items
-    fetchMarketStats().then(() => {
-      fetchItems();
-    });
+    // Initial data fetch - ONLY ONCE AT MOUNT
+    fetchItems();
+    fetchMarketStats();
     
     if (user) {
       fetchUserProfile();
@@ -285,10 +284,8 @@ function Marketplace({ user }) {
   const handleManualRefresh = () => {
     console.log('Manual refresh requested');
     setLoading(true);
-    // Fix refresh issue: fetch stats first, then items
-    fetchMarketStats().then(() => {
-      fetchItems().then(() => setLoading(false));
-    });
+    fetchItems().then(() => setLoading(false));
+    fetchMarketStats();
   };
 
   // Handle item click
@@ -414,16 +411,8 @@ function Marketplace({ user }) {
   // Render header section
   const renderHeader = () => (
     <div className="marketplace-header">
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        textAlign: 'center',
-        marginBottom: '1rem'
-      }}>
-        <h1>CS2 Market</h1>
-        <p className="marketplace-subtitle">Buy and sell CS2 items securely with other players</p>
-      </div>
+      <h1>CS2 Market</h1>
+      <p className="marketplace-subtitle">Buy and sell CS2 items securely with other players</p>
       
       {/* Stats Grid like in Inventory */}
       <div style={{
@@ -526,65 +515,27 @@ function Marketplace({ user }) {
           }}>${calculateTotalMarketValue()}</p>
         </div>
 
-        {/* Replace Active Users with Refresh Button */}
-        <button 
-          onClick={handleManualRefresh}
-          disabled={loading}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '1rem',
-            background: 'rgba(31, 41, 61, 0.5)',
-            borderRadius: '10px',
-            border: '1px solid rgba(51, 115, 242, 0.3)',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            height: '100%'
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.background = 'rgba(51, 65, 85, 0.6)';
-            e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.2)';
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.background = 'rgba(31, 41, 61, 0.5)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-        >
-          <svg
-            style={{ 
-              width: '28px', 
-              height: '28px',
-              color: '#3b82f6',
-              marginBottom: '0.5rem'
-            }}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-          <span style={{
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '1rem',
+          background: 'rgba(31, 41, 61, 0.5)',
+          borderRadius: '10px',
+          border: '1px solid rgba(51, 115, 242, 0.1)'
+        }}>
+          <h3 style={{
+            margin: '0 0 0.5rem 0',
             fontSize: '0.9rem',
-            color: 'var(--gaming-text-dim)',
-            marginBottom: '0.25rem'
-          }}>
-            Refresh Marketplace
-          </span>
-          <span style={{
-            fontSize: '0.8rem',
-            color: loading ? '#94a3b8' : '#3b82f6',
-            fontWeight: loading ? 'normal' : 'bold'
-          }}>
-            {loading ? 'Updating...' : 'Click to update'}
-          </span>
-        </button>
+            color: 'var(--gaming-text-dim)'
+          }}>Active Users</h3>
+          <p style={{
+            margin: 0,
+            fontSize: '1.75rem',
+            fontWeight: 'bold',
+            color: 'var(--gaming-text-bright)'
+          }}>{marketStats.activeUsers || 0}</p>
+        </div>
       </div>
     </div>
   );
@@ -702,6 +653,105 @@ function Marketplace({ user }) {
       
       {renderHeader()}
       
+      <div className="filter-section">
+        {/* Refresh button now takes full width */}
+        <button 
+          className="refresh-button"
+          onClick={handleManualRefresh}
+          disabled={loading}
+          style={{
+            padding: '0.75rem 1.5rem',
+            background: 'linear-gradient(to right, #3373F2, #00D2FF)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            fontSize: '0.95rem',
+            fontWeight: '600',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 0 20px rgba(0, 210, 255, 0.2)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            position: 'relative',
+            overflow: 'hidden',
+            width: '100%',
+            marginBottom: '1rem'
+          }}
+        >
+          <span style={{ position: 'relative', zIndex: 2 }}>
+            {loading ? 'Refreshing...' : 'Refresh Marketplace'}
+          </span>
+          <svg
+            style={{ width: '20px', height: '20px', position: 'relative', zIndex: 2 }}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(to right, #3373F2, #00D2FF)',
+              zIndex: 1
+            }}
+          />
+        </button>
+        
+        <div className="sort-container">
+          <select
+            className="sort-select"
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value)}
+            style={{
+              backgroundColor: 'rgba(31, 41, 61, 0.8)',
+              color: 'white',
+              border: '1px solid rgba(51, 115, 242, 0.3)',
+              borderRadius: '8px',
+              padding: '0.75rem 1rem',
+              width: '100%',
+              fontSize: '0.95rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              appearance: 'none', // Remove default arrow
+              WebkitAppearance: 'none', // For Safari
+              MozAppearance: 'none', // For Firefox
+              backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 1rem center',
+              backgroundSize: '1rem',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            {sortOptions.map((option) => (
+              <option 
+                key={option.id} 
+                value={option.id}
+                style={{ 
+                  backgroundColor: 'rgba(31, 41, 61, 1)',
+                  color: 'white', 
+                  padding: '0.5rem'
+                }}
+              >
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+                  
       {renderItems()}
       {renderPagination()}
 

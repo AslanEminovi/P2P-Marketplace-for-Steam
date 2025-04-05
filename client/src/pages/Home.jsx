@@ -153,10 +153,7 @@ const HeroSection = ({ user, stats, prevStats }) => {
 
   return (
     <section className="hero-section-container">
-      <div className="hero-decoration top-left"></div>
-      <div className="hero-decoration bottom-right"></div>
-
-      {/* Add background image div with imported image */}
+      {/* Background image with responsive styling */}
       <div style={{ 
         position: 'absolute',
         top: 0,
@@ -164,13 +161,19 @@ const HeroSection = ({ user, stats, prevStats }) => {
         right: 0,
         bottom: 0,
         backgroundImage: `url(${backgroundImage})`,
-        backgroundSize: 'cover',
+        backgroundSize: 'contain',
         backgroundPosition: 'center',
-        opacity: 0.1,
+        backgroundRepeat: 'no-repeat',
+        opacity: 0.15,
         zIndex: -2,
         pointerEvents: 'none',
-        filter: 'blur(1px)'
+        maxHeight: '100vh',
+        height: '100%',
+        // Media query handled in CSS
       }}></div>
+      
+      <div className="hero-decoration top-left"></div>
+      <div className="hero-decoration bottom-right"></div>
 
       <div className="hero-content">
         <h1 className="hero-title">
