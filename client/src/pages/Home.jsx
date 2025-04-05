@@ -5,6 +5,8 @@ import { useTranslation } from '../utils/languageUtils';
 import { API_URL, getColorForRarity, getRarityGradient } from '../config/constants';
 import socketService from '../services/socketService';
 import './Home.css';
+// Import background image
+import backgroundImage from '../assets/background.jpg';
 
 // Login Modal Component
 const LoginModal = ({ isOpen, onClose }) => {
@@ -151,8 +153,21 @@ const HeroSection = ({ user, stats, prevStats }) => {
 
   return (
     <section className="hero-section-container">
-      {/* Add background image div */}
-      <div className="hero-background-image"></div>
+      {/* Add background image div with imported image */}
+      <div className="hero-background-image" style={{ 
+        backgroundImage: `url(${backgroundImage})`,
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        opacity: 0.15,
+        zIndex: -2,
+        pointerEvents: 'none',
+        filter: 'blur(2px)'
+      }}></div>
       
       <div className="hero-decoration top-left"></div>
       <div className="hero-decoration bottom-right"></div>
