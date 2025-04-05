@@ -12,12 +12,30 @@ const spinKeyframes = `
   }
 `;
 
+// Mapping for wear names
+const wearFullNames = {
+  'fn': 'Factory New',
+  'mw': 'Minimal Wear',
+  'ft': 'Field-Tested',
+  'ww': 'Well-Worn',
+  'bs': 'Battle-Scarred'
+};
+
 const UserListings = ({ show, onClose }) => {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editingItemId, setEditingItemId] = useState(null);
   const [newPrice, setNewPrice] = useState('');
+  const [newExchangeRate, setNewExchangeRate] = useState('');
+  
+  // Available exchange rates
+  const exchangeRates = [
+    { label: '1.8 GEL/USD', value: 1.8 },
+    { label: '1.9 GEL/USD', value: 1.9 },
+    { label: '2.0 GEL/USD', value: 2.0 },
+    { label: 'Custom', value: 'custom' }
+  ];
 
   const fetchUserListings = async () => {
     try {
@@ -94,12 +112,25 @@ const UserListings = ({ show, onClose }) => {
 
   const startEditingPrice = (item) => {
     setEditingItemId(item._id);
-    setNewPrice(item.price.toString());
+    // Set exact price from the item
+    setNewPrice(item.price.toFixed(2));
+    // Set the exchange rate from the item or default to 1.8
+    setNewExchangeRate(item.currencyRate?.toString() || '1.8');
   };
 
   const cancelEditingPrice = () => {
     setEditingItemId(null);
     setNewPrice('');
+    setNewExchangeRate('');
+  };
+
+  const handleExchangeRateChange = (e) => {
+    const value = e.target.value;
+    setNewExchangeRate(value);
+  };
+
+  const handleCustomRateChange = (e) => {
+    setNewExchangeRate(e.target.value);
   };
 
   const saveNewPrice = async (itemId) => {
@@ -108,13 +139,23 @@ const UserListings = ({ show, onClose }) => {
         alert('Please enter a valid price');
         return;
       }
+      
+      // Validate exchange rate
+      let exchangeRate = parseFloat(newExchangeRate);
+      if (isNaN(exchangeRate) || exchangeRate <= 0) {
+        alert('Please enter a valid exchange rate');
+        return;
+      }
 
       const token = localStorage.getItem('auth_token');
       
-      console.log(`Updating price for item ${itemId} to $${newPrice}`);
+      console.log(`Updating price for item ${itemId} to $${newPrice} with exchange rate ${exchangeRate}`);
       
       await axios.put(`${API_URL}/marketplace/update-price/${itemId}`, 
-        { price: parseFloat(newPrice) }, 
+        { 
+          price: parseFloat(newPrice),
+          currencyRate: exchangeRate
+        }, 
         {
           withCredentials: true,
           headers: {
@@ -127,11 +168,35 @@ const UserListings = ({ show, onClose }) => {
       fetchUserListings();
       setEditingItemId(null);
       setNewPrice('');
+      setNewExchangeRate('');
       
     } catch (err) {
       console.error('Error updating price:', err);
       alert('Failed to update price. Please try again.');
     }
+  };
+
+  // Helper function to extract wear code from item name
+  const getFullWearName = (name) => {
+    // Common wear codes in CS items
+    const wearCodes = ['fn', 'mw', 'ft', 'ww', 'bs'];
+    const nameLower = name.toLowerCase();
+    
+    for (const code of wearCodes) {
+      if (nameLower.includes(`(${code})`)) {
+        // Return the full wear name from our mapping
+        return wearFullNames[code] || code.toUpperCase();
+      }
+    }
+    
+    // Return null if no wear code found
+    return null;
+  };
+  
+  // Helper function to get clean item name without wear
+  const getCleanItemName = (name) => {
+    // Remove the wear code and parentheses if present
+    return name.replace(/\s*\([^)]*\)\s*$/, '');
   };
 
   useEffect(() => {
@@ -165,7 +230,7 @@ const UserListings = ({ show, onClose }) => {
             top: 0,
             right: 0,
             bottom: 0,
-            width: '360px',
+            width: '380px',
             backgroundColor: 'rgba(17, 24, 39, 0.95)',
             backdropFilter: 'blur(10px)',
             boxShadow: '-5px 0 20px rgba(0, 0, 0, 0.5)',
@@ -319,241 +384,312 @@ const UserListings = ({ show, onClose }) => {
               gap: '1rem'
             }}>
               <AnimatePresence>
-                {listings.map((item, index) => (
-                  <motion.div 
-                    key={item._id} 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: -50 }}
-                    transition={{ duration: 0.2, delay: index * 0.05 }}
-                    style={{
-                      backgroundColor: 'rgba(17, 24, 39, 0.6)',
-                      borderRadius: '12px',
-                      padding: '0.75rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.75rem',
-                      border: '1px solid rgba(55, 65, 81, 0.5)',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                    }}
-                  >
-                    <div style={{
-                      display: 'flex',
-                      gap: '0.75rem',
-                      alignItems: 'center'
-                    }}>
+                {listings.map((item, index) => {
+                  const wearName = getFullWearName(item.marketHashName);
+                  const cleanName = getCleanItemName(item.marketHashName);
+                  
+                  return (
+                    <motion.div 
+                      key={item._id} 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: -50 }}
+                      transition={{ duration: 0.2, delay: index * 0.05 }}
+                      style={{
+                        backgroundColor: 'rgba(17, 24, 39, 0.6)',
+                        borderRadius: '12px',
+                        padding: '0.75rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem',
+                        border: '1px solid rgba(55, 65, 81, 0.5)',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                      }}
+                    >
                       <div style={{
-                        position: 'relative',
-                        width: '60px',
-                        height: '60px',
-                        borderRadius: '8px',
-                        overflow: 'hidden',
-                        backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                        border: '1px solid rgba(55, 65, 81, 0.3)'
-                      }}>
-                        <img
-                          src={item.imageUrl}
-                          alt={item.marketHashName}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'contain'
-                          }}
-                        />
-                      </div>
-                      <div style={{
-                        flex: 1,
-                        overflow: 'hidden'
+                        display: 'flex',
+                        gap: '0.75rem',
+                        alignItems: 'center'
                       }}>
                         <div style={{
-                          fontWeight: '500',
-                          fontSize: '0.9rem',
-                          color: '#f1f1f1',
-                          whiteSpace: 'nowrap',
+                          position: 'relative',
+                          width: '60px',
+                          height: '60px',
+                          borderRadius: '8px',
                           overflow: 'hidden',
-                          textOverflow: 'ellipsis'
+                          backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                          border: '1px solid rgba(55, 65, 81, 0.3)'
                         }}>
-                          {item.marketHashName}
+                          <img
+                            src={item.imageUrl}
+                            alt={item.marketHashName}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'contain'
+                            }}
+                          />
                         </div>
                         <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          marginTop: '4px'
+                          flex: 1,
+                          overflow: 'hidden'
                         }}>
                           <div style={{
-                            fontSize: '0.875rem',
-                            fontWeight: '600',
-                            color: '#4ade80'
+                            fontWeight: '500',
+                            fontSize: '0.9rem',
+                            color: '#f1f1f1',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
                           }}>
-                            ${item.price?.toFixed(2)}
+                            {cleanName}
                           </div>
-                          {item.priceGEL && (
+                          
+                          {wearName && (
                             <div style={{
-                              fontSize: '0.75rem',
+                              fontSize: '0.8rem',
                               color: '#9ca3af',
-                              marginLeft: '5px'
+                              marginTop: '2px'
                             }}>
-                              (₾{item.priceGEL?.toFixed(2)})
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexWrap: 'wrap'
-                    }}>
-                      {editingItemId === item._id ? (
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          width: '100%',
-                          marginBottom: '0.5rem'
-                        }}>
-                          <div style={{ position: 'relative', flex: 1 }}>
-                            <span style={{ 
-                              position: 'absolute', 
-                              left: '8px', 
-                              top: '50%', 
-                              transform: 'translateY(-50%)',
-                              color: '#9ca3af'
-                            }}>$</span>
-                            <input
-                              type="number"
-                              value={newPrice}
-                              onChange={(e) => setNewPrice(e.target.value)}
-                              style={{
-                                width: '100%',
-                                padding: '0.5rem 0.5rem 0.5rem 1.5rem',
-                                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                                border: '1px solid rgba(255, 255, 255, 0.2)',
-                                borderRadius: '4px',
-                                color: 'white',
-                                fontSize: '0.875rem'
-                              }}
-                              min="0.01"
-                              step="0.01"
-                              autoFocus
-                            />
-                          </div>
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => saveNewPrice(item._id)}
-                            style={{
-                              backgroundColor: 'rgba(74, 222, 128, 0.2)',
-                              color: '#4ade80',
-                              border: '1px solid rgba(74, 222, 128, 0.3)',
-                              borderRadius: '4px',
-                              padding: '0.5rem 0.75rem',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer',
-                              fontWeight: '500'
-                            }}
-                          >
-                            Save
-                          </motion.button>
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={cancelEditingPrice}
-                            style={{
-                              backgroundColor: 'rgba(156, 163, 175, 0.2)',
-                              color: '#d1d5db',
-                              border: '1px solid rgba(156, 163, 175, 0.3)',
-                              borderRadius: '4px',
-                              padding: '0.5rem 0.75rem',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer',
-                              fontWeight: '500'
-                            }}
-                          >
-                            Cancel
-                          </motion.button>
-                        </div>
-                      ) : (
-                        <>
-                          {item.offers && item.offers.some(offer => offer.status === 'pending') && (
-                            <div style={{
-                              fontSize: '0.75rem',
-                              backgroundColor: 'rgba(139, 92, 246, 0.2)',
-                              color: '#a78bfa',
-                              padding: '0.25rem 0.5rem',
-                              borderRadius: '4px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem'
-                            }}>
-                              <span style={{
-                                width: '6px',
-                                height: '6px',
-                                borderRadius: '50%',
-                                backgroundColor: '#a78bfa'
-                              }}></span>
-                              {item.offers.filter(offer => offer.status === 'pending').length} offers
+                              {wearName}
                             </div>
                           )}
                           
-                          <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => startEditingPrice(item)}
-                              style={{
-                                backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                                color: '#93c5fd',
-                                border: '1px solid rgba(59, 130, 246, 0.3)',
-                                borderRadius: '8px',
-                                padding: '6px 12px',
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            marginTop: '4px'
+                          }}>
+                            <div style={{
+                              fontSize: '0.875rem',
+                              fontWeight: '600',
+                              color: '#4ade80'
+                            }}>
+                              ${item.price?.toFixed(2)}
+                            </div>
+                            {item.priceGEL && (
+                              <div style={{
                                 fontSize: '0.75rem',
-                                cursor: 'pointer',
-                                fontWeight: '500',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M12 20h9"></path>
-                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                              </svg>
-                              Edit Price
-                            </motion.button>
-                            
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => cancelListing(item._id)}
-                              style={{
-                                backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                                color: '#f87171',
-                                border: '1px solid rgba(239, 68, 68, 0.3)',
-                                borderRadius: '8px',
-                                padding: '6px 12px',
-                                fontSize: '0.75rem',
-                                cursor: 'pointer',
-                                fontWeight: '500',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                              </svg>
-                              Cancel Listing
-                            </motion.button>
+                                color: '#9ca3af',
+                                marginLeft: '5px'
+                              }}>
+                                (₾{item.priceGEL?.toFixed(2)})
+                              </div>
+                            )}
                           </div>
-                        </>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
+                        </div>
+                      </div>
+                      
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap'
+                      }}>
+                        {editingItemId === item._id ? (
+                          <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.5rem',
+                            width: '100%'
+                          }}>
+                            <div style={{ position: 'relative', width: '100%' }}>
+                              <span style={{ 
+                                position: 'absolute', 
+                                left: '8px', 
+                                top: '50%', 
+                                transform: 'translateY(-50%)',
+                                color: '#9ca3af'
+                              }}>$</span>
+                              <input
+                                type="number"
+                                value={newPrice}
+                                onChange={(e) => setNewPrice(e.target.value)}
+                                style={{
+                                  width: '100%',
+                                  padding: '0.5rem 0.5rem 0.5rem 1.5rem',
+                                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                                  borderRadius: '4px',
+                                  color: 'white',
+                                  fontSize: '0.875rem'
+                                }}
+                                min="0.01"
+                                step="0.01"
+                                autoFocus
+                              />
+                            </div>
+                            
+                            <div style={{
+                              display: 'flex',
+                              gap: '0.5rem',
+                              width: '100%',
+                              alignItems: 'center'
+                            }}>
+                              <select
+                                value={newExchangeRate}
+                                onChange={handleExchangeRateChange}
+                                style={{
+                                  flex: 1,
+                                  padding: '0.5rem',
+                                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                                  borderRadius: '4px',
+                                  color: 'white',
+                                  fontSize: '0.875rem'
+                                }}
+                              >
+                                {exchangeRates.map(rate => (
+                                  <option key={rate.value} value={rate.value}>
+                                    {rate.label}
+                                  </option>
+                                ))}
+                              </select>
+                              
+                              {newExchangeRate === 'custom' && (
+                                <div style={{ position: 'relative', flex: 1 }}>
+                                  <input
+                                    type="number"
+                                    placeholder="Custom rate"
+                                    onChange={handleCustomRateChange}
+                                    style={{
+                                      width: '100%',
+                                      padding: '0.5rem',
+                                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                                      borderRadius: '4px',
+                                      color: 'white',
+                                      fontSize: '0.875rem'
+                                    }}
+                                    min="0.01"
+                                    step="0.01"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div style={{ 
+                              display: 'flex', 
+                              gap: '0.5rem', 
+                              justifyContent: 'flex-end',
+                              marginTop: '0.5rem'
+                            }}>
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => saveNewPrice(item._id)}
+                                style={{
+                                  backgroundColor: 'rgba(74, 222, 128, 0.2)',
+                                  color: '#4ade80',
+                                  border: '1px solid rgba(74, 222, 128, 0.3)',
+                                  borderRadius: '4px',
+                                  padding: '0.5rem 0.75rem',
+                                  fontSize: '0.75rem',
+                                  cursor: 'pointer',
+                                  fontWeight: '500'
+                                }}
+                              >
+                                Save
+                              </motion.button>
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={cancelEditingPrice}
+                                style={{
+                                  backgroundColor: 'rgba(156, 163, 175, 0.2)',
+                                  color: '#d1d5db',
+                                  border: '1px solid rgba(156, 163, 175, 0.3)',
+                                  borderRadius: '4px',
+                                  padding: '0.5rem 0.75rem',
+                                  fontSize: '0.75rem',
+                                  cursor: 'pointer',
+                                  fontWeight: '500'
+                                }}
+                              >
+                                Cancel
+                              </motion.button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {item.offers && item.offers.some(offer => offer.status === 'pending') && (
+                              <div style={{
+                                fontSize: '0.75rem',
+                                backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                                color: '#a78bfa',
+                                padding: '0.25rem 0.5rem',
+                                borderRadius: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.25rem'
+                              }}>
+                                <span style={{
+                                  width: '6px',
+                                  height: '6px',
+                                  borderRadius: '50%',
+                                  backgroundColor: '#a78bfa'
+                                }}></span>
+                                {item.offers.filter(offer => offer.status === 'pending').length} offers
+                              </div>
+                            )}
+                            
+                            <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => startEditingPrice(item)}
+                                style={{
+                                  backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                                  color: '#93c5fd',
+                                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                                  borderRadius: '8px',
+                                  padding: '6px 12px',
+                                  fontSize: '0.75rem',
+                                  cursor: 'pointer',
+                                  fontWeight: '500',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M12 20h9"></path>
+                                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                                </svg>
+                                Edit Price
+                              </motion.button>
+                              
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => cancelListing(item._id)}
+                                style={{
+                                  backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                                  color: '#f87171',
+                                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  borderRadius: '8px',
+                                  padding: '6px 12px',
+                                  fontSize: '0.75rem',
+                                  cursor: 'pointer',
+                                  fontWeight: '500',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                                Cancel Listing
+                              </motion.button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
             </div>
           )}
