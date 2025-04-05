@@ -13,53 +13,98 @@ class SocketService {
     this.reconnectTimer = null;
     this.connectedCallback = null;
     this.disconnectedCallback = null;
-    this.apiUrl = null;
   }
 
-  connect() {
-    try {
-      if (this.socket) {
-        console.log("[SocketService] Socket already exists, reconnecting...");
-        this.socket.connect();
-        return;
-      }
+  connect(token = null) {
+    console.log(
+      "[SocketService] Attempting to connect to socket server:",
+      API_URL
+    );
 
+    // If we already have a socket, don't create a new one
+    if (this.socket && this.socket.connected) {
       console.log(
-        "[SocketService] Attempting to connect to socket server:",
-        this.apiUrl
+        "[SocketService] Socket already connected, skipping connection"
       );
+      return this.socket;
+    }
 
-      // Get token from localStorage (check both formats for backward compatibility)
-      const token =
-        localStorage.getItem("authToken") || localStorage.getItem("auth_token");
+    // If we have a socket but it's not connected, disconnect it first
+    if (this.socket) {
+      console.log(
+        "[SocketService] Socket exists but not connected, disconnecting first"
+      );
+      this.disconnect();
+    }
 
-      // Set up connection options
-      const options = {
-        transports: ["websocket", "polling"],
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        timeout: 20000,
-      };
+    // Get token from localStorage if not provided
+    if (!token) {
+      token = localStorage.getItem("auth_token");
+      console.log(
+        "[SocketService] Using token from localStorage:",
+        token ? "Token exists" : "No token"
+      );
+    }
 
-      // Add auth query parameters if token exists
-      if (token) {
-        console.log(
-          "[SocketService] Using token from localStorage:",
-          "Token exists"
-        );
-        options.query = { token };
+    // Initialize socket connection with auth token
+    this.socket = io(API_URL, {
+      query: token ? { token } : {},
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 10000,
+      autoConnect: true,
+      forceNew: true, // Force a new connection
+    });
+
+    // Setup connection event handlers
+    this.socket.on("connect", () => {
+      console.log("[SocketService] Connected to socket server!");
+      this.connected = true;
+      this.reconnectAttempts = 0;
+
+      if (this.connectedCallback) {
+        this.connectedCallback();
       }
 
-      // Connect to the socket server
-      this.socket = io(this.apiUrl, options);
+      // Re-register all event listeners after reconnection
+      this.rebindEvents();
+    });
 
-      // Set up event handlers
-      this.setupEventHandlers();
-    } catch (error) {
+    this.socket.on("connect_error", (error) => {
       console.error("[SocketService] Connection error:", error);
-    }
+      this.handleConnectionFailure();
+    });
+
+    this.socket.on("disconnect", (reason) => {
+      console.log(
+        "[SocketService] Disconnected from socket server, reason:",
+        reason
+      );
+      this.connected = false;
+
+      if (this.disconnectedCallback) {
+        this.disconnectedCallback();
+      }
+
+      // Handle disconnect reason
+      if (reason === "io server disconnect") {
+        // Server disconnected the client, need to reconnect manually
+        this.scheduleReconnect();
+      }
+    });
+
+    this.socket.on("reconnect_attempt", (attemptNumber) => {
+      console.log(`[SocketService] Reconnection attempt #${attemptNumber}`);
+    });
+
+    this.socket.on("reconnect_failed", () => {
+      console.error("[SocketService] Failed to reconnect after max attempts");
+      this.handleConnectionFailure();
+    });
+
+    return this.socket;
   }
 
   disconnect() {
@@ -203,128 +248,6 @@ class SocketService {
 
   isConnected() {
     return this.connected && this.socket && this.socket.connected;
-  }
-
-  setupEventHandlers() {
-    if (!this.socket) return;
-
-    // Setup connection event handlers
-    this.socket.on("connect", () => {
-      console.log("[SocketService] Connected to socket server!");
-      this.connected = true;
-      this.reconnectAttempts = 0;
-
-      if (this.connectedCallback) {
-        this.connectedCallback();
-      }
-
-      // Re-register all event listeners after reconnection
-      this.rebindEvents();
-
-      // Emit connection status update
-      this.emit("connection_status", {
-        connected: true,
-        connecting: false,
-        error: null,
-      });
-    });
-
-    this.socket.on("connect_error", (error) => {
-      console.error("[SocketService] Connection error:", error);
-      this.handleConnectionFailure(error);
-
-      // Emit connection status update
-      this.emit("connection_status", {
-        connected: false,
-        connecting: false,
-        error: error.message || "Connection error",
-      });
-    });
-
-    this.socket.on("disconnect", (reason) => {
-      console.log(
-        "[SocketService] Disconnected from socket server, reason:",
-        reason
-      );
-      this.connected = false;
-
-      if (this.disconnectedCallback) {
-        this.disconnectedCallback();
-      }
-
-      // Emit connection status update
-      this.emit("connection_status", {
-        connected: false,
-        connecting: reason !== "io client disconnect",
-        error: null,
-      });
-
-      // Handle disconnect reason
-      if (reason === "io server disconnect") {
-        // Server disconnected the client, need to reconnect manually
-        this.scheduleReconnect();
-      }
-    });
-
-    this.socket.on("reconnect_attempt", (attemptNumber) => {
-      console.log(`[SocketService] Reconnection attempt #${attemptNumber}`);
-
-      // Emit connection status update
-      this.emit("connection_status", {
-        connected: false,
-        connecting: true,
-        error: null,
-        attemptNumber,
-      });
-    });
-
-    this.socket.on("reconnect_failed", () => {
-      console.error("[SocketService] Failed to reconnect after max attempts");
-      this.handleConnectionFailure({ message: "Reconnection failed" });
-
-      // Emit connection status update
-      this.emit("connection_status", {
-        connected: false,
-        connecting: false,
-        error: "Failed to reconnect after max attempts",
-      });
-    });
-  }
-
-  initializeSocket(token = null) {
-    // If we haven't initialized yet, save the API URL
-    if (!this.apiUrl) {
-      this.apiUrl = API_URL;
-    }
-
-    // Get token from parameter, localStorage.authToken, or localStorage.auth_token
-    const authToken =
-      token ||
-      localStorage.getItem("authToken") ||
-      localStorage.getItem("auth_token");
-
-    if (authToken) {
-      console.log("[SocketService] Initializing socket with auth token");
-
-      // Store token for reconnections
-      if (token) {
-        localStorage.setItem("authToken", token);
-      }
-
-      // If already connected, disconnect first to reconnect with token
-      if (this.isConnected()) {
-        console.log(
-          "[SocketService] Already connected, disconnecting to reconnect with token"
-        );
-        this.disconnect();
-      }
-
-      // Then connect with the token
-      this.connect();
-    } else {
-      console.log("[SocketService] Initializing socket without auth token");
-      this.connect();
-    }
   }
 }
 

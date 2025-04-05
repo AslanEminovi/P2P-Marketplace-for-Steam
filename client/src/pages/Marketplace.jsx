@@ -348,8 +348,8 @@ function Marketplace({ user }) {
 
   // Render items section
   const renderItems = () => {
-    if (loading) {
-      return (
+  if (loading) {
+    return (
         <div className="loading-state">
           <div className="loading-spinner" />
           <p>Loading items...</p>

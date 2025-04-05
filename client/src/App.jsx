@@ -80,7 +80,6 @@ const loadingScreenStyles = css`
 
 function App() {
   const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
@@ -370,69 +369,6 @@ function App() {
     };
   }, [loading]);
 
-  // Add more detailed logging in the useEffect for hash handling
-  useEffect(() => {
-    setLoading(true);
-    
-    // Debug auth state on page load
-    console.log('Initial page load - checking auth state');
-    console.log('authToken exists:', !!localStorage.getItem('authToken'));
-    console.log('auth_token exists:', !!localStorage.getItem('auth_token'));
-    console.log('userFullyAuthenticated:', localStorage.getItem('userFullyAuthenticated'));
-    
-    // Fix Steam authentication if needed
-    const authFixed = fixSteamAuthPersistence();
-    if (authFixed) {
-      console.log('Auth fix applied successfully');
-      return; // Let the fix process handle everything
-    }
-    
-    // Parse hash from URL if present (for auth token)
-    const hash = window.location.hash;
-    if (hash && hash.includes('auth_token')) {
-      try {
-        console.log('Found auth token in URL hash, storing it and checking status...');
-        // Parse token from hash format (e.g. #auth_token=abc)
-        let authToken;
-        const authTokenMatch = hash.match(/auth_token=([^&]+)/);
-        if (authTokenMatch && authTokenMatch[1]) {
-          authToken = authTokenMatch[1];
-          console.log('Successfully extracted token from hash');
-        } else {
-          throw new Error('Could not extract token from hash');
-        }
-        
-        localStorage.setItem('authToken', authToken);
-        
-        // Remove hash from URL
-        window.history.replaceState(null, null, window.location.pathname);
-        
-        // Check auth status with new token
-        checkAuthStatus();
-      } catch (err) {
-        console.error('Error parsing auth token from URL hash:', err);
-        setLoading(false);
-      }
-    } else {
-      // Also check URL params for auth_token
-      const urlParams = new URLSearchParams(window.location.search);
-      const paramToken = urlParams.get('auth_token');
-      
-      if (paramToken) {
-        console.log('Found auth token in URL params, storing it and checking status...');
-        localStorage.setItem('authToken', paramToken);
-        
-        // Remove params from URL
-        window.history.replaceState(null, null, window.location.pathname);
-        
-        checkAuthStatus();
-      } else {
-        // No tokens in URL, just check current auth status
-        checkAuthStatus();
-      }
-    }
-  }, []);
-
   // Check authentication status on mount and when URL has auth token
   useEffect(() => {
     // Check for auth token in URL (Steam redirects with token in URL)
@@ -443,116 +379,158 @@ function App() {
       // Immediately remove token from URL to prevent bookmarking with token
       window.history.replaceState({}, document.title, window.location.pathname);
       console.log("Found auth token in URL, storing it and checking status...");
-      localStorage.setItem('authToken', authToken); // Use consistent key name
-      checkAuthStatus();
+      localStorage.setItem('auth_token', authToken);
     }
+
+    checkAuthStatus();
   }, []);
 
-  // Add a function to fix the authentication issue
-  const fixSteamAuthPersistence = () => {
-    const authToken = localStorage.getItem('authToken') || localStorage.getItem('auth_token');
-    const steamAuthRetry = localStorage.getItem('steamAuthRetry');
-    
-    // Handle legacy token if exists
-    if (localStorage.getItem('auth_token')) {
-      localStorage.setItem('authToken', localStorage.getItem('auth_token'));
-      console.log('Migrated legacy auth_token to authToken');
-    }
-    
-    // If we have an auth token but the app still thinks we need authentication
-    if (authToken && (steamAuthRetry === 'true' || !user)) {
-      console.log('Fixing Steam auth persistence, reusing existing token');
-      checkAuthStatus(); // Re-check auth with existing token
-      return true;
-    }
-    return false;
-  };
-
-  // Also modify checkAuthStatus function
   const checkAuthStatus = async () => {
-    console.log('Checking auth status, API URL:', API_URL);
-    
-    // Get token from localStorage (try both key formats)
-    const token = localStorage.getItem('authToken') || localStorage.getItem('auth_token');
-    const refreshToken = localStorage.getItem('refreshToken');
-    
-    // Always clear the steamAuthRetry flag when checking auth
-    localStorage.removeItem('steamAuthRetry');
-    
-    if (token) {
-      console.log('Found token, fetching user details...');
+    try {
+      setLoading(true);
+      console.log("Checking auth status, API URL:", API_URL);
+
+      // Maximum time to wait for auth check
+      const authCheckTimeout = setTimeout(() => {
+        console.log("Auth check timeout - forcing loading to false");
+        setLoading(false);
+      }, 5000);
+
+      // Get the token from localStorage
+      const token = localStorage.getItem('auth_token');
+      
+      if (!token) {
+        console.log("No auth token found, user is not authenticated");
+        setUser(null);
+        clearTimeout(authCheckTimeout);
+        setLoading(false);
+        return;
+      }
+
+      console.log("Found token, fetching user details...");
+      
       try {
-        // Set the authorization header for this specific request
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        
-        const response = await axios.get(`${API_URL}/auth/user`, {
+        // Use direct axios request with token in both header and params for maximum compatibility
+        const userResponse = await axios.get(`${API_URL}/auth/user`, {
           withCredentials: true,
-          params: { auth_token: token } // Add token as query param too
+          params: { auth_token: token },
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 8000 // Give it a bit more time
         });
-        
-        console.log('User details response:', response.data);
-        
-        if (response.data && response.data.user) {
-          // Ensure we're setting the user correctly on authentication
-          setUser(response.data.user);
-          setIsAuthenticated(true);
-          console.log('User authenticated:', response.data.user);
+
+        console.log("User details response:", userResponse.data);
+
+        if (userResponse.data && userResponse.data.authenticated && userResponse.data.user) {
+          console.log("User authenticated:", userResponse.data.user);
           
-          // Set a flag to indicate successful authentication
-          localStorage.setItem('userFullyAuthenticated', 'true');
+          // Set user state
+          setUser(userResponse.data.user);
           
-          // Ensure token is stored in the new consistent location
-          localStorage.setItem('authToken', token);
+          // Show success notification
+          if (window.showNotification) {
+            window.showNotification(
+              'Authentication',
+              'Successfully signed in',
+              'SUCCESS'
+            );
+          }
           
-          // Initialize socket after successful auth
-          socketService.initializeSocket(token);
-          
-          // Set the authorization header for all future requests
-          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          clearTimeout(authCheckTimeout);
+          setLoading(false);
+          return;
         } else {
-          console.error('Invalid user data in response');
-          handleLogout();
+          console.warn("Authentication check failed, response:", userResponse.data);
+          localStorage.removeItem('auth_token');
+          setUser(null);
         }
       } catch (error) {
-        console.error('Error fetching user details:', error);
-        // Only clear if there's a 401 error (invalid token)
-        if (error.response && error.response.status === 401) {
-          console.error('Authentication failed with 401');
-          handleLogout();
+        console.error("User details request failed:", error);
+        
+        // Only remove token if it's an auth error, not a network error
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+          console.log("Invalid token, removing it");
+          localStorage.removeItem('auth_token');
         } else {
-          // For connection errors, don't clear the token
-          console.log('Connection error but keeping token');
+          console.log("Network or server error, preserving token for retry");
         }
-      } finally {
-        setLoading(false);
+        
+        setUser(null);
       }
-    } else {
-      console.log('No auth token found');
-      // Clear any partial auth state
-      handleLogout();
+      
+      clearTimeout(authCheckTimeout);
+      setLoading(false);
+    } catch (err) {
+      console.error('Auth check error:', err);
+      setUser(null);
       setLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    // Clear all authentication data
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('userFullyAuthenticated');
-    
-    // Reset application state
-    setUser(null);
-    setIsAuthenticated(false);
-    
-    // Clear any authorization headers
-    delete axios.defaults.headers.common['Authorization'];
-    
-    // Disconnect socket if needed
-    if (socketService) {
+  const handleLogout = async () => {
+    try {
+      console.log("Logout process started");
+
+      // Set loading state to true to prevent double-clicks
+      setLoading(true);
+
+      // Disconnect all websockets first
+      console.log("Disconnecting websockets...");
       socketService.disconnect();
+
+      // Clear auth token from localStorage
+      console.log("Clearing localStorage tokens...");
+      localStorage.removeItem('auth_token');
+
+      // Reset user state to null
+      console.log("Resetting user state...");
+      setUser(null);
+
+      // Make the logout API call to clear server-side session and cookies
+      console.log("Sending logout request to server...");
+      try {
+        await axios.get(`${API_URL}/auth/logout`, {
+          withCredentials: true,
+          timeout: 5000 // 5 second timeout
+        });
+        console.log("Server logout successful");
+      } catch (apiError) {
+        console.error('Logout API error:', apiError);
+        // Continue with client-side logout even if server request fails
+      }
+
+      // Show notification
+      if (window.showNotification) {
+        window.showNotification(
+          'Sign Out',
+          'Success',
+          'SUCCESS'
+        );
+      }
+
+      // Force a complete page reload rather than using React Router
+      // This ensures all React state is completely reset
+      console.log("Redirecting to homepage...");
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 300); // Slightly longer delay to ensure notification is seen
+
+    } catch (err) {
+      console.error('Logout error:', err);
+
+      // Even if there's an error, still force logout
+      localStorage.removeItem('auth_token');
+      setUser(null);
+
+      // Force reload with slight delay
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 300);
+    } finally {
+      // Ensure loading state is reset if the page doesn't reload for some reason
+      setTimeout(() => {
+        setLoading(false);
+      }, 1000);
     }
-    
-    console.log('User logged out, auth data cleared');
   };
 
   // Get wallet balance from API
@@ -573,19 +551,6 @@ function App() {
     }
   };
 
-  // Add a handleLogin method that will be passed to the Navbar
-  const handleLogin = () => {
-    console.log('Login initiated from App component');
-    const authUrl = `${API_URL}/auth/steam`;
-    console.log('Redirecting to Steam auth:', authUrl);
-    
-    // Set a flag to retry authentication when we get redirected back
-    localStorage.setItem('steamAuthRetry', 'true');
-    
-    // Redirect to the Steam authentication endpoint
-    window.location.href = authUrl;
-  };
-
   return (
     <div style={{
       minHeight: '100vh',
@@ -594,7 +559,7 @@ function App() {
       overflow: 'hidden',
       transition: 'background 0.5s ease-out'
     }}>
-      <Navbar user={user} onLogout={handleLogout} onLogin={handleLogin} />
+      <Navbar user={user} onLogout={handleLogout} />
 
       {/* Toast notifications */}
       <Toaster

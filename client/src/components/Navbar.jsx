@@ -8,7 +8,7 @@ import './Navbar.css';
 // import csLogo from '../assets/cs-logo.png';
 
 // Navbar now receives user and onLogout as props
-const Navbar = ({ user, onLogout, onLogin }) => {
+const Navbar = ({ user, onLogout }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -172,26 +172,6 @@ const Navbar = ({ user, onLogout, onLogin }) => {
     if (!user) {
       e.preventDefault();
       setShowSignInPrompt(true);
-    }
-  };
-
-  // Inside the Navbar component, add logging to debug auth issues
-  useEffect(() => {
-    console.log('Navbar: User state updated:', user);
-    console.log('Navbar: Auth token exists:', !!localStorage.getItem('authToken') || !!localStorage.getItem('auth_token'));
-  }, [user]);
-
-  // Replace the existing handleLogin function with this
-  const handleLoginClick = () => {
-    console.log('Login button clicked in Navbar');
-    if (onLogin) {
-      onLogin();
-    } else {
-      // Fallback if for some reason onLogin wasn't provided
-      console.log('No onLogin handler provided, using default');
-      const authUrl = `${API_URL}/auth/steam`;
-      console.log('Redirecting to:', authUrl);
-      window.location.href = authUrl;
     }
   };
 
@@ -420,18 +400,13 @@ const Navbar = ({ user, onLogout, onLogin }) => {
                 </div>
               </div>
             ) : (
-                <a 
-                  href="#" 
-                  className="sign-in-button" 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleLoginClick();
-                  }}
-                >
+                <a href={`${API_URL}/auth/steam`} className="sign-in-button">
                   <img 
                     src="Steam-Emblem.png" 
                     alt="Steam" 
-                    style={{ width: '24px', height: '24px', marginRight: '8px' }} 
+                    className="steam-icon" 
+                    width="24" 
+                    height="24" 
                   />
                   Sign in with Steam
                 </a>
@@ -524,18 +499,13 @@ const Navbar = ({ user, onLogout, onLogin }) => {
             </NavLink>
             
             {!user && (
-              <a 
-                href="#" 
-                className="mobile-menu-link steam-login" 
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleLoginClick();
-                }}
-              >
+              <a href={`${API_URL}/auth/steam`} className="mobile-menu-link steam-login">
                 <img 
                   src="Steam-Emblem.png" 
                   alt="Steam" 
-                  style={{ width: '20px', height: '20px', marginRight: '8px' }} 
+                  className="steam-icon" 
+                  width="24" 
+                  height="24" 
                 />
                 Sign in with Steam
               </a>
