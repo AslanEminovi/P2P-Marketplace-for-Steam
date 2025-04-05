@@ -4,32 +4,14 @@ const User = require("../models/User");
 exports.getUserInventory = async (req, res) => {
   try {
     // Validate user authentication
-    if (!req.user) {
-      console.error("User not authenticated when accessing inventory");
-      return res.status(401).json({
-        error: "Steam authentication required",
-        code: "AUTHENTICATION_REQUIRED",
-        details: "Please sign in through Steam to access your inventory",
-      });
-    }
-
-    if (!req.user.steamId) {
-      console.error("Steam ID not found for authenticated user:", req.user._id);
-      return res.status(401).json({
-        error: "Steam ID not found",
-        code: "STEAM_ID_MISSING",
-        details:
-          "Your account doesn't have a valid Steam ID. Please sign in through Steam again.",
-      });
+    if (!req.user || !req.user.steamId) {
+      return res
+        .status(401)
+        .json({ error: "User not authenticated or Steam ID not found" });
     }
 
     const steamId = req.user.steamId;
     const apiKey = process.env.STEAMWEBAPI_KEY;
-
-    // Log successful authentication
-    console.log(
-      `User authenticated for inventory access: ID=${req.user._id}, steamId=${steamId}`
-    );
 
     // Validate API key
     if (!apiKey) {

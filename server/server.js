@@ -9,7 +9,6 @@ const path = require("path");
 const http = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
-const { requireAuth } = require("./middlewares/authMiddleware");
 
 // Determine environment
 const isProduction = process.env.NODE_ENV === "production";

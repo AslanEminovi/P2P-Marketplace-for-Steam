@@ -122,19 +122,9 @@ router.post("/verify-token", async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
 
-    // Update last active timestamp
-    try {
-      user.lastActive = new Date();
-      await user.save();
-    } catch (err) {
-      console.log("Error updating last active timestamp:", err);
-      // Non-critical, we can continue
-    }
-
     // Return user data
     return res.json({
       authenticated: true,
-      token: token,
       user: {
         id: user._id,
         steamId: user.steamId,
@@ -142,10 +132,8 @@ router.post("/verify-token", async (req, res) => {
         displayName: user.displayName,
         avatar: user.avatar,
         roles: user.roles || [],
-        isAdmin: user.isAdmin || false,
         tradeUrl: user.tradeUrl || "",
         balance: user.balance || 0,
-        walletBalance: user.balance || 0,
         // Add other necessary user fields
       },
     });
@@ -196,7 +184,6 @@ router.get("/user", async (req, res) => {
 
       return res.json({
         authenticated: true,
-        token: token,
         user: {
           id: req.user._id,
           steamId: req.user.steamId,
@@ -265,19 +252,9 @@ router.get("/user", async (req, res) => {
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
-      // Update last active timestamp
-      try {
-        user.lastActive = new Date();
-        await user.save();
-      } catch (err) {
-        console.log("Error updating last active timestamp:", err);
-        // Non-critical, we can continue
-      }
-
       // Return the user data
       return res.json({
         authenticated: true,
-        token: token,
         user: {
           id: user._id,
           steamId: user.steamId,
@@ -285,10 +262,10 @@ router.get("/user", async (req, res) => {
           displayName: user.displayName,
           avatar: user.avatar,
           roles: user.roles || [],
-          isAdmin: user.isAdmin || false,
           tradeUrl: user.tradeUrl || "",
           balance: user.balance || 0,
           walletBalance: user.balance || 0,
+          isAdmin: user.isAdmin || false,
           // Add other necessary user fields
         },
       });

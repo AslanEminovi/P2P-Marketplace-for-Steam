@@ -1,127 +1,13 @@
 /* AdminTools.css - Modern styling for the admin panel */
 
-/* Global admin layout fixes */
-body, html {
-  overflow-x: hidden;
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  max-width: 100%;
-}
-
-/* Hide the footer when admin page is active */
-.admin-page-active ~ .site-footer,
-.admin-content-wrapper ~ .site-footer {
-  display: none !important;
-}
-
-.admin-content-wrapper {
+.admin-tools-container {
   min-height: calc(100vh - 70px);
-  width: 100%;
-  max-width: 100%;
-  overflow-x: hidden;
-  background-color: #0f172a;
   color: #f1f5f9;
-  position: relative;
-  z-index: 5;
-}
-
-/* Completely disable any sidebar */
-[class*="sidebar"], 
-[class*="side-panel"],
-[class*="nav-pills"],
-.nav-pills,
-.offcanvas,
-.offcanvas-start {
-  display: none !important;
-  width: 0 !important;
-  max-width: 0 !important;
-  min-width: 0 !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-  position: absolute !important;
-  left: -9999px !important;
-}
-
-/* Override all Bootstrap containers */
-.container, 
-.container-fluid, 
-.container-lg, 
-.container-md, 
-.container-sm, 
-.container-xl, 
-.container-xxl {
-  --bs-gutter-x: 0 !important;
-  --bs-gutter-y: 0 !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  padding-right: 0 !important;
-  padding-left: 0 !important;
-  margin-right: auto !important;
-  margin-left: auto !important;
-}
-
-/* Fix Admin Tools container */
-.admin-tools-full-width {
-  width: 100vw !important;
-  max-width: 100vw !important;
-  min-height: calc(100vh - 70px) !important;
-  color: #f1f5f9;
-  background-color: #0f172a;
-  position: absolute;
-  left: 0;
-  right: 0;
-  z-index: 10;
-}
-
-/* Make all rows and columns take full width */
-.row {
-  --bs-gutter-x: 1.5rem;
-  --bs-gutter-y: 0;
-  width: 100%;
-  max-width: 100%;
-  margin-right: 0;
-  margin-left: 0;
-}
-
-/* Fix column widths */
-.col, .col-md-6, .col-lg-3, .col-lg-6, .col-md-8, .col-md-4, .col-md-12, .col-lg-12, .col-12,
-[class^="col-"], [class*=" col-"] {
-  width: 100%;
-  max-width: 100%;
-  flex: 0 0 auto;
-  padding-right: calc(var(--bs-gutter-x) * 0.5);
-  padding-left: calc(var(--bs-gutter-x) * 0.5);
-}
-
-/* Make specific columns respect their intended width */
-.col-md-6 { width: 50%; }
-.col-lg-3 { width: 25%; }
-.col-md-8 { width: 66.66666667%; }
-.col-md-4 { width: 33.33333333%; }
-.col-md-12, .col-lg-12, .col-12 { width: 100%; }
-
-@media (min-width: 992px) {
-  .col-lg-3 { width: 25%; }
-  .col-lg-6 { width: 50%; }
-  .col-lg-12 { width: 100%; }
-}
-
-@media (min-width: 768px) {
-  .col-md-4 { width: 33.33333333%; }
-  .col-md-6 { width: 50%; }
-  .col-md-8 { width: 66.66666667%; }
-  .col-md-12 { width: 100%; }
 }
 
 /* Tabs Styling */
 .admin-tabs {
   border-bottom: none;
-  display: flex;
-  flex-wrap: wrap;
-  width: 100%;
-  margin-bottom: 0;
 }
 
 .admin-tabs .nav-link {
@@ -146,11 +32,6 @@ body, html {
 }
 
 /* Dashboard Styling */
-.admin-dashboard {
-  width: 100%;
-  padding: 0;
-}
-
 .stats-icon {
   width: 48px;
   height: 48px;
@@ -189,7 +70,6 @@ body, html {
 .table-responsive {
   border-radius: 0.5rem;
   overflow: hidden;
-  width: 100%;
 }
 
 .table-dark {
@@ -202,7 +82,6 @@ body, html {
   --bs-table-hover-color: #f3f4f6;
   color: #f3f4f6;
   border-color: rgba(75, 85, 99, 0.3);
-  width: 100%;
 }
 
 /* Card Styling */
@@ -211,27 +90,15 @@ body, html {
   overflow: hidden;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   transition: all 0.3s ease;
-  border: 1px solid rgba(75, 85, 99, 0.3);
-  height: 100%;
 }
 
 .admin-tabs-card {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  background-color: #1e293b !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  width: 100% !important;
 }
 
 .card-header {
   border-bottom: 1px solid rgba(75, 85, 99, 0.3);
   padding: 1rem 1.5rem;
-}
-
-.card-body {
-  background-color: #0f172a;
-  padding: 1.5rem;
-  width: 100%;
 }
 
 .border-primary {
@@ -339,60 +206,10 @@ body, html {
   border-color: var(--bs-pagination-active-border-color);
 }
 
-/* Fix for System-wide Cleanup section layout */
-.admin-dashboard .row,
-.cleanup-tab .row {
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  width: 100% !important;
-}
-
-/* Additional card styling */
-.card.bg-dark {
-  background-color: #1e293b !important;
-}
-
-.tab-content {
-  width: 100% !important;
-}
-
-.tab-pane {
-  width: 100% !important;
-}
-
-/* Activity Timeline */
-.activity-timeline {
-  padding: 0;
-}
-
-.timeline-item {
-  position: relative;
-  padding-bottom: 1rem;
-}
-
-.timeline-icon {
-  min-width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 /* Media Queries for Responsive Design */
 @media (max-width: 768px) {
   .admin-tabs .nav-link {
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
-  }
-
-  .card-body {
-    padding: 1rem;
-  }
-}
-
-@media (max-width: 576px) {
-  .admin-content-wrapper {
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
   }
 } 

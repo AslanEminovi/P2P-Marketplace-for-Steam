@@ -6,7 +6,6 @@
 console.log("Environment: ", process.env.NODE_ENV);
 console.log("API URL from env: ", process.env.REACT_APP_API_URL);
 
-// API URL Configuration
 export const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
 console.log("Using API_URL: ", API_URL);
 

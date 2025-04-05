@@ -483,90 +483,71 @@ function Marketplace({ user }) {
     );
   };
 
+  // Add event listener for custom event from HTML button
+  useEffect(() => {
+    // Event listener for the My Listings button click from the HTML
+    const handleOpenMyListings = () => {
+      console.log("Event listener triggered: openMyListings");
+      setShowListingsPanel(true);
+    };
+    
+    // Add event listener
+    document.addEventListener('openMyListings', handleOpenMyListings);
+    
+    // Cleanup
+    return () => {
+      document.removeEventListener('openMyListings', handleOpenMyListings);
+    };
+  }, []);
+
   return (
     <div className="marketplace-container">
       <SocketConnectionIndicator />
       
-      {/* FIXED MY LISTINGS BUTTON - ABSOLUTELY POSITIONED AND GUARANTEED TO SHOW */}
-      {user && (
-        <div 
-          id="FIXED_MY_LISTINGS_BUTTON"
-          onClick={() => {
-            console.log("FIXED MY LISTINGS BUTTON CLICKED");
-            setShowListingsPanel(true);
-          }}
-          style={{
-            position: 'fixed',
-            bottom: '2rem',
-            right: '2rem',
-            background: 'linear-gradient(45deg, #4F46E5, #7C3AED)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            padding: '1rem 1.5rem',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            boxShadow: '0 4px 20px rgba(124, 58, 237, 0.3)',
-            zIndex: 99999,
+      {/* ADD DIRECT MY LISTINGS BUTTON WITH INLINE STYLES */}
+      <div id="direct-my-listings-button"
+        onClick={() => {
+          console.log("DIRECT MY LISTINGS BUTTON CLICKED");
+          setShowListingsPanel(true);
+        }}
+        style={{
+          position: 'fixed',
+          bottom: '30px',
+          right: '30px',
+          zIndex: '999999',
+          background: 'linear-gradient(45deg, #4F46E5, #7C3AED)',
+          padding: '15px 25px',
+          borderRadius: '12px',
+          color: 'white',
+          fontWeight: 'bold',
+          fontSize: '16px',
+          boxShadow: '0 4px 20px rgba(124, 58, 237, 0.4)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          border: 'none',
+          margin: '0',
+          textTransform: 'none',
+          letterSpacing: 'normal',
+          lineHeight: 'normal',
+          textDecoration: 'none'
+        }}
+      >
+        My Listings
+        {myListings.length > 0 && (
+          <span style={{
+            background: 'rgba(255,255,255,0.2)',
+            borderRadius: '50%',
+            width: '24px',
+            height: '24px',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            fontSize: '16px'
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-          </svg>
-          <span>My Listings</span>
-          {myListings.length > 0 && (
-            <span style={{
-              background: 'rgba(255,255,255,0.2)',
-              borderRadius: '50%',
-              width: '24px',
-              height: '24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '14px'
-            }}>{myListings.length}</span>
-          )}
-        </div>
-      )}
-      
-      {/* FIXED SELL ITEM BUTTON - ABSOLUTELY POSITIONED */}
-      {user && (
-        <div 
-          id="FIXED_SELL_ITEM_BUTTON"
-          onClick={() => {
-            window.location.href = '/inventory';
-          }}
-          style={{
-            position: 'fixed',
-            bottom: '6rem',
-            right: '2rem',
-            background: 'linear-gradient(45deg, #ec4899, #f97316)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            padding: '1rem 1.5rem',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            boxShadow: '0 4px 20px rgba(249, 115, 22, 0.3)',
-            zIndex: 99999,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '16px'
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          <span>Sell Item</span>
-        </div>
-      )}
+            justifyContent: 'center',
+            fontSize: '14px'
+          }}>{myListings.length}</span>
+        )}
+      </div>
       
       {renderHeader()}
       

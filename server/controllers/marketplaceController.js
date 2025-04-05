@@ -16,12 +16,6 @@ exports.listItem = async (req, res) => {
       priceGEL,
     } = req.body;
 
-    console.log("Item listing request received:", {
-      marketHashName,
-      price,
-      assetId,
-    });
-
     if (!assetId) {
       return res
         .status(400)
@@ -97,8 +91,6 @@ exports.listItem = async (req, res) => {
       allowOffers: true, // Default to allowing offers
     });
 
-    console.log(`Item successfully listed with ID: ${newItem._id}`);
-
     // Create notification object
     const notification = {
       type: "system",
@@ -119,39 +111,38 @@ exports.listItem = async (req, res) => {
     socketService.sendNotification(req.user._id, notification);
 
     // Broadcast new listing to all connected clients
-    try {
-      console.log("Broadcasting new listing to marketplace...");
+    socketService.sendMarketUpdate({
+      type: "new_listing",
+      item: newItem,
+    });
 
-      // Populate the owner field before sending to clients
-      const populatedItem = await Item.findById(newItem._id).populate({
-        path: "owner",
-        select: "username steamId displayName avatarUrl",
-      });
-
-      socketService.sendMarketUpdate({
-        type: "new_listing",
-        item: populatedItem,
-        timestamp: new Date().toISOString(),
-      });
-
-      console.log("Market update broadcast complete");
-
-      // Emit socket event for new listing
-      socketService.emitMarketActivity({
-        type: "listing",
-        itemName: newItem.marketHashName,
-        price: newItem.price,
-        user: req.user.username || req.user.displayName || "A user",
-        timestamp: new Date().toISOString(),
-      });
-    } catch (socketErr) {
-      console.error("Error broadcasting socket updates:", socketErr);
-      // Continue despite socket errors - still return success to user
+    // Update site stats since we've added a new listing
+    if (server && typeof server.updateSiteStats === "function") {
+      server.updateSiteStats();
+    } else {
+      // Try to require server.js to access the function
+      try {
+        const server = require("../server");
+        if (typeof server.updateSiteStats === "function") {
+          server.updateSiteStats();
+        }
+      } catch (err) {
+        console.log("Could not trigger site stats update:", err.message);
+      }
     }
+
+    // Emit socket event for new listing
+    socketService.emitMarketActivity({
+      type: "listing",
+      itemName: newItem.marketHashName,
+      price: newItem.price,
+      user: req.user.username || req.user.steamName || "A user",
+      timestamp: new Date().toISOString(),
+    });
 
     return res.status(201).json(newItem);
   } catch (err) {
-    console.error("Error in listItem controller:", err);
+    console.error(err);
     return res.status(500).json({ error: "Failed to list item for sale." });
   }
 };
