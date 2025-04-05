@@ -210,9 +210,9 @@ function Marketplace({ user }) {
     const handleMarketUpdate = (update) => {
       console.log('Market update received:', update);
       
-      // Prevent excessive refreshes by limiting to once every 5 seconds
+      // Prevent excessive refreshes by limiting to once every 10 seconds (increased from 5)
       const now = Date.now();
-      if (update.type === 'refresh' && now - connectionStatusRef.current.lastRefresh > 5000) {
+      if (update.type === 'refresh' && now - connectionStatusRef.current.lastRefresh > 10000) {
         console.log('Refresh event received, refetching data');
         connectionStatusRef.current.lastRefresh = now;
         fetchItems();
@@ -242,9 +242,9 @@ function Marketplace({ user }) {
         });
       }
       
-      // For other updates or periodically, refetch all data
+      // For other updates or periodically, refetch all data (with increased delay)
       if ((update.type === 'new_listing' || update.type === 'item_sold') && 
-          now - connectionStatusRef.current.lastRefresh > 5000) {
+          now - connectionStatusRef.current.lastRefresh > 10000) {
         // Add slight delay to allow server to process the changes
         setTimeout(() => {
           console.log('Refreshing items and stats after market update');
@@ -259,8 +259,8 @@ function Marketplace({ user }) {
     console.log('Registering market_update handler');
     socketService.on('market_update', handleMarketUpdate);
     
-    // Setup connection status handlers
-    socketService.onConnected(() => {
+    // Setup connection status handlers - prevent multiple bindings
+    const connectedCallback = () => {
       // Only show connection toast if we weren't previously connected
       if (!connectionStatusRef.current.wasConnected) {
         console.log('Socket connected in Marketplace, refreshing data...');
@@ -275,9 +275,9 @@ function Marketplace({ user }) {
         // Update our tracking variable
         connectionStatusRef.current.wasConnected = true;
       }
-    });
+    };
     
-    socketService.onDisconnected(() => {
+    const disconnectedCallback = () => {
       console.log('Socket disconnected in Marketplace');
       // Display toast notification when disconnected
       toast.error('Connection lost. Attempting to reconnect...', { duration: 3000 });
@@ -291,25 +291,42 @@ function Marketplace({ user }) {
           socketService.reconnect();
         }
       }, 1000);
-    });
+    };
+    
+    socketService.onConnected(connectedCallback);
+    socketService.onDisconnected(disconnectedCallback);
     
     // Cleanup event listeners
     return () => {
-      console.log('Removing market_update handler');
+      console.log('Removing market_update handler and connection listeners');
       socketService.off('market_update', handleMarketUpdate);
+      // Make sure to remove the connection listeners to prevent memory leaks
+      // and duplicate listeners on component re-render
+      socketService.onConnected(null);
+      socketService.onDisconnected(null);
     };
   }, [fetchItems, fetchMarketStats]);
 
   // Auto-refresh listings periodically as backup for socket issues
   useEffect(() => {
-    // Set up a backup timer to refresh listings every 30 seconds
+    // Set up a backup timer to refresh listings every 45 seconds (increased from 30)
     // This ensures data stays fresh even if WebSocket connection has issues
     const intervalId = setInterval(() => {
-      console.log('Periodic refresh of listings');
-      fetchItems();
-    }, 30000); // 30 seconds
+      // Only refresh if we haven't refreshed in the last 30 seconds
+      const now = Date.now();
+      if (now - connectionStatusRef.current.lastRefresh > 30000) {
+        console.log('Periodic refresh of listings');
+        connectionStatusRef.current.lastRefresh = now;
+        fetchItems();
+      } else {
+        console.log('Skipping periodic refresh - recent refresh already occurred');
+      }
+    }, 45000); // 45 seconds
     
-    return () => clearInterval(intervalId);
+    return () => {
+      console.log('Clearing periodic refresh interval');
+      clearInterval(intervalId);
+    };
   }, [fetchItems]);
 
   // Handle item click

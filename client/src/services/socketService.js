@@ -154,6 +154,16 @@ class SocketService {
   reconnect() {
     console.log("[SocketService] Manual reconnect requested");
 
+    // Throttle reconnection attempts to prevent excessive requests
+    const now = Date.now();
+    if (now - this.lastConnectionAttempt < 3000) {
+      // 3 seconds throttle
+      console.log(
+        "[SocketService] Reconnect throttled - attempting too frequently"
+      );
+      return;
+    }
+
     // If we already have a connected socket, don't reconnect
     if (this.socket && this.socket.connected) {
       console.log(
@@ -225,6 +235,12 @@ class SocketService {
   }
 
   onConnected(callback) {
+    // Allow removing the callback by passing null
+    if (callback === null) {
+      this.connectedCallback = null;
+      return this;
+    }
+
     // Only set the callback if it's not already set to avoid duplicates
     if (!this.connectedCallback || this.connectedCallback !== callback) {
       this.connectedCallback = callback;
@@ -233,7 +249,9 @@ class SocketService {
       if (this.connected && this.socket && this.socket.connected) {
         // Use a delay to ensure we don't create infinite loops
         setTimeout(() => {
-          callback();
+          if (this.connectedCallback === callback) {
+            callback();
+          }
         }, 100);
       }
     }
@@ -242,6 +260,12 @@ class SocketService {
   }
 
   onDisconnected(callback) {
+    // Allow removing the callback by passing null
+    if (callback === null) {
+      this.disconnectedCallback = null;
+      return this;
+    }
+
     // Only set the callback if it's not already set to avoid duplicates
     if (!this.disconnectedCallback || this.disconnectedCallback !== callback) {
       this.disconnectedCallback = callback;
@@ -317,7 +341,7 @@ class SocketService {
     // Track when we last forced a refresh to prevent loops
     if (
       !this.lastForcedRefresh ||
-      Date.now() - this.lastForcedRefresh > 10000
+      Date.now() - this.lastForcedRefresh > 15000 // Increased from 10000 to 15000 (15 seconds)
     ) {
       console.log("[SocketService] Forcing marketplace refresh");
       this.lastForcedRefresh = Date.now();
@@ -325,11 +349,16 @@ class SocketService {
       if (this.events.has("market_update")) {
         const callbacks = this.events.get("market_update");
         if (callbacks && callbacks.length > 0) {
-          // Call first callback with a refresh event
-          callbacks[0]({
-            type: "refresh",
-            timestamp: new Date().toISOString(),
-          });
+          try {
+            // Call first callback with a refresh event
+            callbacks[0]({
+              type: "refresh",
+              timestamp: new Date().toISOString(),
+              forced: true, // Mark this as a forced refresh for tracking
+            });
+          } catch (err) {
+            console.error("[SocketService] Error during forced refresh:", err);
+          }
         }
       }
     } else {
