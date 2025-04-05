@@ -8,6 +8,8 @@ import {
 import { API_URL } from '../config/constants';
 import { Link } from 'react-router-dom';
 import '../styles/AdminTools.css';
+import { FaUsers, FaUserPlus, FaBoxOpen, FaExchangeAlt, FaTag, FaCog, FaInfo, 
+  FaExclamationTriangle, FaMoneyBillWave, FaUserCog } from 'react-icons/fa';
 
 function AdminTools() {
   // Shared states
@@ -947,50 +949,43 @@ function AdminTools() {
   }, []);
 
   return (
-    <div 
-      className="admin-content-wrapper" 
-      style={{
-        width: '100%',
-        minHeight: 'calc(100vh - 70px)',
-        padding: '20px',
-        backgroundColor: '#0f172a',
-        color: '#f1f5f9'
-      }}
-    >
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 className="text-white mb-1">Admin Tools</h1>
-          <p className="text-white-50 mb-0">Manage users, items, trades and system maintenance</p>
-        </div>
-        <div className="d-flex gap-2">
-          <Button 
-            variant="outline-light" 
-            className="d-flex align-items-center"
-            onClick={() => {
-              fetchStats();
-              fetchUsers();
-              fetchItems();
-              fetchTrades();
-            }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-            </svg>
-            Refresh Data
-          </Button>
-          <Button 
-            variant="success" 
-            as={Link} 
-            to="/"
-            className="d-flex align-items-center"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 8 8 12 12 16"></polyline>
-              <line x1="16" y1="12" x2="8" y2="12"></line>
-            </svg>
-            Return to Site
-          </Button>
+    <div className="admin-page">
+      <div className="admin-header mb-4">
+        <div className="d-flex justify-content-between align-items-center">
+          <div>
+            <h1 className="text-white mb-1">Admin Dashboard</h1>
+            <p className="text-white-50 mb-0">Manage marketplace users, items, trades and maintenance</p>
+          </div>
+          <div className="d-flex gap-2">
+            <Button 
+              variant="outline-light" 
+              className="d-flex align-items-center"
+              onClick={() => {
+                fetchStats();
+                fetchUsers();
+                fetchItems();
+                fetchTrades();
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+              </svg>
+              Refresh Data
+            </Button>
+            <Button 
+              variant="success" 
+              as={Link} 
+              to="/"
+              className="d-flex align-items-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 8 8 12 12 16"></polyline>
+                <line x1="16" y1="12" x2="8" y2="12"></line>
+              </svg>
+              Return to Site
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -1002,388 +997,434 @@ function AdminTools() {
         </div>
       )}
 
-      <Card bg="dark" text="white" className="admin-tabs-card mb-4" style={{ width: '100%' }}>
-        <Card.Header className="bg-dark border-bottom border-secondary">
-          <Tabs
-            activeKey={activeTab}
-            onSelect={(k) => setActiveTab(k)}
-            className="admin-tabs"
-          >
-            <Tab 
-              eventKey="dashboard" 
-              title={
-                <div className="d-flex align-items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                    <rect x="3" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="14" width="7" height="7"></rect>
-                    <rect x="3" y="14" width="7" height="7"></rect>
-                  </svg>
-                  Dashboard
-                </div>
-              }
-            />
-            <Tab 
-              eventKey="users" 
-              title={
-                <div className="d-flex align-items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                  </svg>
-                  Users
-                </div>
-              }
-            />
-            <Tab 
-              eventKey="items" 
-              title={
-                <div className="d-flex align-items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                    <line x1="8" y1="21" x2="16" y2="21"></line>
-                    <line x1="12" y1="17" x2="12" y2="21"></line>
-                  </svg>
-                  Items
-                </div>
-              }
-            />
-            <Tab 
-              eventKey="trades" 
-              title={
-                <div className="d-flex align-items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                    <polyline points="17 1 21 5 17 9"></polyline>
-                    <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                    <polyline points="7 23 3 19 7 15"></polyline>
-                    <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                  </svg>
-                  Trades
-                </div>
-              }
-            />
-            <Tab 
-              eventKey="cleanup" 
-              title={
-                <div className="d-flex align-items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="8" y1="12" x2="16" y2="12"></line>
-                    <line x1="12" y1="16" x2="12" y2="16"></line>
-                    <line x1="12" y1="8" x2="12" y2="8"></line>
-                  </svg>
-                  Cleanup
-                </div>
-              }
-            />
-          </Tabs>
-        </Card.Header>
-        <Card.Body className="pt-4 pb-4" style={{ width: '100%' }}>
-          {activeTab === "dashboard" && (
-            <DashboardTab stats={stats} loading={statsLoading} />
-          )}
-          
-          {activeTab === "users" && (
-            <UsersTab 
-              users={users}
-              loading={usersLoading}
-              pagination={usersPagination}
-              userSearch={userSearch}
-              setUserSearch={setUserSearch}
-              handleUserSearch={handleUserSearch}
-              fetchUsers={fetchUsers}
-              viewUserDetails={viewUserDetails}
-              renderPagination={renderPagination}
-            />
-          )}
-          
-          {activeTab === "items" && (
-            <ItemsTab 
-              items={items}
-              loading={itemsLoading}
-              pagination={itemsPagination}
-              itemSearch={itemSearch}
-              setItemSearch={setItemSearch}
-              itemFilter={itemFilter}
-              handleItemFilter={handleItemFilter}
-              handleItemSearch={handleItemSearch}
-              fetchItems={fetchItems}
-              renderPagination={renderPagination}
-            />
-          )}
-          
-          {activeTab === "trades" && renderTradesTab()}
-          
-          {activeTab === "cleanup" && (
-            <CleanupTab 
-              userId={userId}
-              setUserId={setUserId}
-              loading={loading}
-              results={cleanupResults}
-              cleanupAllListings={cleanupAllListings}
-              cleanupUserListings={cleanupUserListings}
-            />
-          )}
-        </Card.Body>
-      </Card>
+      <div className="admin-tabs-container mb-4">
+        <Tabs
+          activeKey={activeTab}
+          onSelect={(k) => setActiveTab(k)}
+          className="admin-tabs mb-3"
+        >
+          <Tab 
+            eventKey="dashboard" 
+            title={
+              <div className="d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                Dashboard
+              </div>
+            }
+          />
+          <Tab 
+            eventKey="users" 
+            title={
+              <div className="d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                Users
+              </div>
+            }
+          />
+          <Tab 
+            eventKey="items" 
+            title={
+              <div className="d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                  <line x1="8" y1="21" x2="16" y2="21"></line>
+                  <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+                Items
+              </div>
+            }
+          />
+          <Tab 
+            eventKey="trades" 
+            title={
+              <div className="d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                  <polyline points="17 1 21 5 17 9"></polyline>
+                  <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                  <polyline points="7 23 3 19 7 15"></polyline>
+                  <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                </svg>
+                Trades
+              </div>
+            }
+          />
+          <Tab 
+            eventKey="cleanup" 
+            title={
+              <div className="d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="8" y1="12" x2="16" y2="12"></line>
+                  <line x1="12" y1="16" x2="12" y2="16"></line>
+                  <line x1="12" y1="8" x2="12" y2="8"></line>
+                </svg>
+                Cleanup
+              </div>
+            }
+          />
+        </Tabs>
+      </div>
+
+      <div className="admin-content">
+        {activeTab === "dashboard" && (
+          <DashboardTab stats={stats} loading={statsLoading} />
+        )}
+        
+        {activeTab === "users" && (
+          <UsersTab 
+            users={users}
+            loading={usersLoading}
+            pagination={usersPagination}
+            userSearch={userSearch}
+            setUserSearch={setUserSearch}
+            handleUserSearch={handleUserSearch}
+            fetchUsers={fetchUsers}
+            viewUserDetails={viewUserDetails}
+            renderPagination={renderPagination}
+          />
+        )}
+        
+        {activeTab === "items" && (
+          <ItemsTab 
+            items={items}
+            loading={itemsLoading}
+            pagination={itemsPagination}
+            itemSearch={itemSearch}
+            setItemSearch={setItemSearch}
+            itemFilter={itemFilter}
+            handleItemFilter={handleItemFilter}
+            handleItemSearch={handleItemSearch}
+            fetchItems={fetchItems}
+            renderPagination={renderPagination}
+          />
+        )}
+        
+        {activeTab === "trades" && renderTradesTab()}
+        
+        {activeTab === "cleanup" && (
+          <CleanupTab 
+            userId={userId}
+            setUserId={setUserId}
+            loading={loading}
+            results={cleanupResults}
+            cleanupAllListings={cleanupAllListings}
+            cleanupUserListings={cleanupUserListings}
+          />
+        )}
+      </div>
     </div>
   );
 }
 
 // Dashboard Tab Component
 function DashboardTab({ stats, loading }) {
+  const [localStats, setLocalStats] = useState({
+    totalUsers: 0,
+    marketItems: 0,
+    activeTrades: 0,
+    totalRevenue: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [systemStatus, setSystemStatus] = useState({
+    api: 'online',
+    steamApi: 'warning',
+    database: 'online',
+    cache: 'online',
+    jobQueue: 'online',
+  });
+
+  useEffect(() => {
+    // Simulate fetching dashboard data
+    setTimeout(() => {
+      setLocalStats({
+        totalUsers: 235,
+        marketItems: 1289,
+        activeTrades: 47,
+        totalRevenue: 8976.50,
+      });
+      
+      setRecentActivity([
+        { 
+          id: 1, 
+          type: 'user',
+          title: 'New User Registration', 
+          description: 'User m4sturbaiter joined the platform',
+          time: new Date(Date.now() - 15 * 60000), 
+        },
+        { 
+          id: 2, 
+          type: 'trade',
+          title: 'Trade Completed', 
+          description: 'Trade #1234 completed successfully',
+          details: 'AWP | Asiimov (Field-Tested) for 120.50 GEL',
+          time: new Date(Date.now() - 45 * 60000), 
+        },
+        { 
+          id: 3, 
+          type: 'item',
+          title: 'New Item Listed', 
+          description: 'AK-47 | Redline listed on marketplace',
+          details: 'Listed for 75.25 GEL by user knife_collector',
+          time: new Date(Date.now() - 120 * 60000), 
+        },
+        { 
+          id: 4, 
+          type: 'admin',
+          title: 'System Update', 
+          description: 'Platform updated to version 1.2.5',
+          time: new Date(Date.now() - 360 * 60000), 
+        },
+        { 
+          id: 5, 
+          type: 'alert',
+          title: 'Suspicious Activity Detected', 
+          description: 'Multiple failed login attempts for user VACbanned88',
+          time: new Date(Date.now() - 720 * 60000), 
+        }
+      ]);
+      
+      setIsLoading(false);
+    }, 1000);
+  }, []);
+  
+  // Helper function for activity icon and color
+  const getActivityIcon = (type) => {
+    switch (type) {
+      case 'user':
+        return { icon: <FaUserPlus />, color: 'primary' };
+      case 'trade':
+        return { icon: <FaExchangeAlt />, color: 'success' };
+      case 'item':
+        return { icon: <FaTag />, color: 'info' };
+      case 'admin':
+        return { icon: <FaCog />, color: 'secondary' };
+      case 'alert':
+        return { icon: <FaExclamationTriangle />, color: 'warning' };
+      default:
+        return { icon: <FaInfo />, color: 'secondary' };
+    }
+  };
+  
+  // Format activity time
+  const formatActivityTime = (time) => {
+    const now = new Date();
+    const diff = Math.floor((now - time) / 60000); // difference in minutes
+    
+    if (diff < 1) return 'Just now';
+    if (diff < 60) return `${diff} minutes ago`;
+    if (diff < 1440) return `${Math.floor(diff / 60)} hours ago`;
+    return `${Math.floor(diff / 1440)} days ago`;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="d-flex justify-content-center p-5">
+        <Spinner animation="border" variant="primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="admin-dashboard">
-      {loading ? (
-        <div className="d-flex justify-content-center my-5">
-          <Spinner animation="border" variant="primary" />
+      {/* Dashboard Header */}
+      <div className="mb-4">
+        <h2 className="mb-1">Dashboard</h2>
+        <p className="text-muted">Welcome to the CS2 Marketplace admin dashboard</p>
+      </div>
+      
+      {/* Stats Cards */}
+      <div className="row mb-4">
+        <div className="col-md-6 col-lg-3 mb-3">
+          <div className="stat-card bg-gradient-primary">
+            <div className="stat-card-body d-flex align-items-center">
+              <div className="stat-icon">
+                <FaUsers />
+              </div>
+              <div className="stat-content">
+                <h4 className="stat-value">{localStats.totalUsers}</h4>
+                <p className="stat-label">Total Users</p>
+              </div>
+            </div>
+          </div>
         </div>
-      ) : stats ? (
-        <>
-          <div className="mb-4">
-            <h3 className="text-white mb-0 fs-4">System Overview</h3>
-            <p className="text-white-50 mb-0">Key metrics and platform statistics</p>
-          </div>
-          
-          <div className="row g-4 mb-5">
-            <div className="col-lg-3 col-md-6">
-              <div className="card h-100 bg-dark border-primary">
-                <div className="card-body d-flex align-items-center">
-                  <div className="stats-icon bg-primary-subtle me-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="9" cy="7" r="4"></circle>
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <h6 className="text-white-50 mb-1 fw-normal small">Total Users</h6>
-                    <h3 className="card-title mb-0 text-white fw-bold">{stats.userCount || 0}</h3>
-                  </div>
-                </div>
+        
+        <div className="col-md-6 col-lg-3 mb-3">
+          <div className="stat-card bg-gradient-success">
+            <div className="stat-card-body d-flex align-items-center">
+              <div className="stat-icon">
+                <FaBoxOpen />
               </div>
-            </div>
-            
-            <div className="col-lg-3 col-md-6">
-              <div className="card h-100 bg-dark border-success">
-                <div className="card-body d-flex align-items-center">
-                  <div className="stats-icon bg-success-subtle me-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                      <line x1="8" y1="21" x2="16" y2="21"></line>
-                      <line x1="12" y1="17" x2="12" y2="21"></line>
-                    </svg>
-                  </div>
-                  <div>
-                    <h6 className="text-white-50 mb-1 fw-normal small">Market Items</h6>
-                    <h3 className="card-title mb-0 text-white fw-bold">{stats.listedItemsCount || 0}</h3>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="col-lg-3 col-md-6">
-              <div className="card h-100 bg-dark border-info">
-                <div className="card-body d-flex align-items-center">
-                  <div className="stats-icon bg-info-subtle me-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="17 1 21 5 17 9"></polyline>
-                      <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                      <polyline points="7 23 3 19 7 15"></polyline>
-                      <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <h6 className="text-white-50 mb-1 fw-normal small">Active Trades</h6>
-                    <h3 className="card-title mb-0 text-white fw-bold">{stats.activeTrades || 0}</h3>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="col-lg-3 col-md-6">
-              <div className="card h-100 bg-dark border-warning">
-                <div className="card-body d-flex align-items-center">
-                  <div className="stats-icon bg-warning-subtle me-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="1" x2="12" y2="23"></line>
-                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <h6 className="text-white-50 mb-1 fw-normal small">Total Revenue</h6>
-                    <h3 className="card-title mb-0 text-white fw-bold">{stats.totalRevenue ? `${stats.totalRevenue.toFixed(2)} GEL` : '0.00 GEL'}</h3>
-                  </div>
-                </div>
+              <div className="stat-content">
+                <h4 className="stat-value">{localStats.marketItems}</h4>
+                <p className="stat-label">Market Items</p>
               </div>
             </div>
           </div>
-          
-          <div className="row g-4">
-            <div className="col-lg-8">
-              <div className="card bg-dark h-100">
-                <div className="card-header bg-dark border-bottom border-secondary">
-                  <h5 className="card-title text-white mb-0">Recent Activity</h5>
-                </div>
-                <div className="card-body p-0">
-                  <div className="list-group list-group-flush activity-timeline">
-                    {stats.recentActivity && stats.recentActivity.length > 0 ? (
-                      stats.recentActivity.map((activity, index) => (
-                        <div key={index} className="list-group-item bg-dark text-white border-secondary d-flex align-items-start p-3">
-                          <div className={`timeline-icon me-3 rounded-circle bg-${getActivityTypeColor(activity.type)}-subtle`}>
-                            {getActivityTypeIcon(activity.type)}
-                          </div>
-                          <div className="ms-2 w-100">
-                            <div className="d-flex w-100 justify-content-between">
-                              <h6 className="mb-1 text-white">{activity.title}</h6>
-                              <small className="text-white-50">{formatActivityTime(activity.timestamp)}</small>
-                            </div>
-                            <p className="mb-1 text-white-50">{activity.description}</p>
-                            {activity.details && (
-                              <small className="text-white-50">{activity.details}</small>
-                            )}
-                          </div>
+        </div>
+        
+        <div className="col-md-6 col-lg-3 mb-3">
+          <div className="stat-card bg-gradient-info">
+            <div className="stat-card-body d-flex align-items-center">
+              <div className="stat-icon">
+                <FaExchangeAlt />
+              </div>
+              <div className="stat-content">
+                <h4 className="stat-value">{localStats.activeTrades}</h4>
+                <p className="stat-label">Active Trades</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="col-md-6 col-lg-3 mb-3">
+          <div className="stat-card bg-gradient-warning">
+            <div className="stat-card-body d-flex align-items-center">
+              <div className="stat-icon">
+                <FaMoneyBillWave />
+              </div>
+              <div className="stat-content">
+                <h4 className="stat-value">{localStats.totalRevenue.toFixed(2)} GEL</h4>
+                <p className="stat-label">Total Revenue</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Recent Activity and System Status Section */}
+      <div className="row">
+        <div className="col-lg-8 mb-4">
+          <div className="card h-100">
+            <div className="card-header d-flex justify-content-between align-items-center">
+              <h5 className="m-0">Recent Activity</h5>
+              <Button variant="outline-light" size="sm">View All</Button>
+            </div>
+            <div className="card-body p-0">
+              {recentActivity.length > 0 ? (
+                <div className="activity-list">
+                  {recentActivity.map(activity => {
+                    const { icon, color } = getActivityIcon(activity.type);
+                    return (
+                      <div key={activity.id} className="activity-item">
+                        <div className={`activity-icon ${color}`}>
+                          {icon}
                         </div>
-                      ))
-                    ) : (
-                      <div className="list-group-item bg-dark text-white-50 border-secondary p-3 text-center">
-                        No recent activity to display
+                        <div className="activity-content">
+                          <h6 className="activity-title">{activity.title}</h6>
+                          <p className="activity-description">{activity.description}</p>
+                          {activity.details && (
+                            <p className="activity-details">{activity.details}</p>
+                          )}
+                          <small className="activity-time">{formatActivityTime(activity.time)}</small>
+                        </div>
                       </div>
-                    )}
-                  </div>
+                    );
+                  })}
                 </div>
-              </div>
+              ) : (
+                <div className="no-activity">
+                  <p>No recent activity</p>
+                </div>
+              )}
             </div>
-            
-            <div className="col-lg-4">
-              <div className="card bg-dark h-100">
-                <div className="card-header bg-dark border-bottom border-secondary">
-                  <h5 className="card-title text-white mb-0">System Status</h5>
+          </div>
+        </div>
+        
+        <div className="col-lg-4 mb-4">
+          <div className="card h-100">
+            <div className="card-header">
+              <h5 className="m-0">System Status</h5>
+            </div>
+            <div className="card-body">
+              <div className="status-list">
+                <div className="status-item">
+                  <span className="status-label">API Status</span>
+                  <span className={`status-badge ${systemStatus.api}`}>
+                    {systemStatus.api === 'online' ? 'Operational' : 
+                     systemStatus.api === 'warning' ? 'Degraded' : 'Offline'}
+                  </span>
                 </div>
-                <div className="card-body">
-                  <div className="system-status-items">
-                    <div className="status-item d-flex justify-content-between">
-                      <span className="text-white-50">API Status</span>
-                      <span className="badge bg-success">Online</span>
-                    </div>
-                    <div className="status-item d-flex justify-content-between">
-                      <span className="text-white-50">Steam API</span>
-                      <span className="badge bg-success">Connected</span>
-                    </div>
-                    <div className="status-item d-flex justify-content-between">
-                      <span className="text-white-50">Database</span>
-                      <span className="badge bg-success">Healthy</span>
-                    </div>
-                    <div className="status-item d-flex justify-content-between">
-                      <span className="text-white-50">Cache</span>
-                      <span className="badge bg-success">Operational</span>
-                    </div>
-                    <div className="status-item d-flex justify-content-between">
-                      <span className="text-white-50">Job Queue</span>
-                      <span className="badge bg-success">Active</span>
-                    </div>
-                  </div>
+                <div className="status-item">
+                  <span className="status-label">Steam API</span>
+                  <span className={`status-badge ${systemStatus.steamApi}`}>
+                    {systemStatus.steamApi === 'online' ? 'Operational' : 
+                     systemStatus.steamApi === 'warning' ? 'Degraded' : 'Offline'}
+                  </span>
+                </div>
+                <div className="status-item">
+                  <span className="status-label">Database</span>
+                  <span className={`status-badge ${systemStatus.database}`}>
+                    {systemStatus.database === 'online' ? 'Operational' : 
+                     systemStatus.database === 'warning' ? 'Degraded' : 'Offline'}
+                  </span>
+                </div>
+                <div className="status-item">
+                  <span className="status-label">Cache</span>
+                  <span className={`status-badge ${systemStatus.cache}`}>
+                    {systemStatus.cache === 'online' ? 'Operational' : 
+                     systemStatus.cache === 'warning' ? 'Degraded' : 'Offline'}
+                  </span>
+                </div>
+                <div className="status-item">
+                  <span className="status-label">Job Queue</span>
+                  <span className={`status-badge ${systemStatus.jobQueue}`}>
+                    {systemStatus.jobQueue === 'online' ? 'Operational' : 
+                     systemStatus.jobQueue === 'warning' ? 'Degraded' : 'Offline'}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
-        </>
-      ) : (
-        <div className="alert alert-info">No statistics available. Try refreshing the data.</div>
-      )}
+        </div>
+      </div>
+      
+      {/* Quick Access Section */}
+      <div className="row">
+        <div className="col-12 mb-4">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="m-0">Quick Actions</h5>
+            </div>
+            <div className="card-body">
+              <div className="row">
+                <div className="col-md-3 col-sm-6 mb-3 mb-md-0">
+                  <Button variant="primary" className="w-100 py-2">
+                    <FaUserCog className="me-2" /> Manage Users
+                  </Button>
+                </div>
+                <div className="col-md-3 col-sm-6 mb-3 mb-md-0">
+                  <Button variant="success" className="w-100 py-2">
+                    <FaBoxOpen className="me-2" /> View Items
+                  </Button>
+                </div>
+                <div className="col-md-3 col-sm-6 mb-3 mb-sm-0">
+                  <Button variant="info" className="w-100 py-2">
+                    <FaExchangeAlt className="me-2" /> Manage Trades
+                  </Button>
+                </div>
+                <div className="col-md-3 col-sm-6">
+                  <Button variant="warning" className="w-100 py-2">
+                    <FaCog className="me-2" /> System Settings
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
-}
-
-// Helper functions for dashboard
-function getActivityTypeColor(type) {
-  switch (type?.toLowerCase()) {
-    case 'trade':
-      return 'info';
-    case 'listing':
-      return 'success';
-    case 'auth':
-      return 'primary';
-    case 'error':
-      return 'danger';
-    case 'admin':
-      return 'warning';
-    default:
-      return 'secondary';
-  }
-}
-
-function getActivityTypeIcon(type) {
-  switch (type?.toLowerCase()) {
-    case 'trade':
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="17 1 21 5 17 9"></polyline>
-          <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-          <polyline points="7 23 3 19 7 15"></polyline>
-          <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-        </svg>
-      );
-    case 'listing':
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-          <line x1="8" y1="21" x2="16" y2="21"></line>
-          <line x1="12" y1="17" x2="12" y2="21"></line>
-        </svg>
-      );
-    case 'auth':
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-          <circle cx="9" cy="7" r="4"></circle>
-        </svg>
-      );
-    case 'error':
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="8" x2="12" y2="12"></line>
-          <line x1="12" y1="16" x2="12.01" y2="16"></line>
-        </svg>
-      );
-    case 'admin':
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-        </svg>
-      );
-    default:
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="16" x2="12" y2="12"></line>
-          <line x1="12" y1="8" x2="12.01" y2="8"></line>
-        </svg>
-      );
-  }
-}
-
-function formatActivityTime(timestamp) {
-  if (!timestamp) return 'Unknown time';
-  
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now - date;
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 30) return `${diffDays}d ago`;
-  
-  return date.toLocaleDateString();
 }
 
 // Cleanup Tab Component
