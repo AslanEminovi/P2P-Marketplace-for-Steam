@@ -153,6 +153,21 @@ const HeroSection = ({ user, stats, prevStats }) => {
 
   return (
     <section className="hero-section-container">
+      {/* Background image with original styling */}
+      <div style={{ 
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        opacity: 0.15,
+        zIndex: -2,
+        pointerEvents: 'none',
+      }}></div>
+      
       <div className="hero-decoration top-left"></div>
       <div className="hero-decoration bottom-right"></div>
 
