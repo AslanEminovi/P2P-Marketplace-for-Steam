@@ -165,12 +165,17 @@ const Trades = ({ user }) => {
       if (Array.isArray(response.data)) {
         const tradesWithImages = await enhanceTradesWithUserImages(response.data);
         
+        // Merge with active cached trades to ensure we don't lose any in-progress trades
+        const existingTradeIds = new Set(tradesWithImages.map(t => t._id));
+        const uniqueCachedTrades = activeCachedTrades.filter(ct => !existingTradeIds.has(ct._id));
+        const mergedTrades = [...tradesWithImages, ...uniqueCachedTrades];
+        
         // Save to state
-        setTrades(tradesWithImages);
+        setTrades(mergedTrades);
         
         // Save to localStorage with timestamp
         try {
-          localStorage.setItem(TRADES_STORAGE_KEY, JSON.stringify(tradesWithImages));
+          localStorage.setItem(TRADES_STORAGE_KEY, JSON.stringify(mergedTrades));
           localStorage.setItem(TRADES_TIMESTAMP_KEY, Date.now().toString());
         } catch (storageError) {
           // If localStorage fails (e.g., quota exceeded), just log it but continue
@@ -325,7 +330,7 @@ const Trades = ({ user }) => {
     // Apply status filter (tab)
     if (activeTab === 'active') {
       filtered = filtered.filter(trade => 
-        ['awaiting_seller', 'offer_sent', 'awaiting_confirmation', 'created', 'pending'].includes(trade?.status)
+        ['awaiting_seller', 'offer_sent', 'awaiting_confirmation', 'created', 'pending', 'accepted'].includes(trade?.status)
       );
     } else if (activeTab === 'history') {
       filtered = filtered.filter(trade => 

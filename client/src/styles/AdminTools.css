@@ -9,14 +9,21 @@ body, html {
   max-width: 100%;
 }
 
-#root, 
-#root > div,
-.admin-tools-full-width {
-  width: 100vw !important;
-  max-width: 100vw !important;
-  overflow-x: hidden !important;
-  padding: 0 !important;
-  margin: 0 !important;
+/* Hide the footer when admin page is active */
+.admin-page-active ~ .site-footer,
+.admin-content-wrapper ~ .site-footer {
+  display: none !important;
+}
+
+.admin-content-wrapper {
+  min-height: calc(100vh - 70px);
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  background-color: #0f172a;
+  color: #f1f5f9;
+  position: relative;
+  z-index: 5;
 }
 
 /* Completely disable any sidebar */
@@ -70,42 +77,42 @@ body, html {
 
 /* Make all rows and columns take full width */
 .row {
-  --bs-gutter-x: 1.5rem !important;
-  --bs-gutter-y: 0 !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  margin-right: 0 !important;
-  margin-left: 0 !important;
+  --bs-gutter-x: 1.5rem;
+  --bs-gutter-y: 0;
+  width: 100%;
+  max-width: 100%;
+  margin-right: 0;
+  margin-left: 0;
 }
 
 /* Fix column widths */
 .col, .col-md-6, .col-lg-3, .col-lg-6, .col-md-8, .col-md-4, .col-md-12, .col-lg-12, .col-12,
 [class^="col-"], [class*=" col-"] {
-  width: 100% !important;
-  max-width: 100% !important;
-  flex: 0 0 auto !important;
-  padding-right: calc(var(--bs-gutter-x) * 0.5) !important;
-  padding-left: calc(var(--bs-gutter-x) * 0.5) !important;
+  width: 100%;
+  max-width: 100%;
+  flex: 0 0 auto;
+  padding-right: calc(var(--bs-gutter-x) * 0.5);
+  padding-left: calc(var(--bs-gutter-x) * 0.5);
 }
 
 /* Make specific columns respect their intended width */
-.col-md-6 { width: 50% !important; }
-.col-lg-3 { width: 25% !important; }
-.col-md-8 { width: 66.66666667% !important; }
-.col-md-4 { width: 33.33333333% !important; }
-.col-md-12, .col-lg-12, .col-12 { width: 100% !important; }
+.col-md-6 { width: 50%; }
+.col-lg-3 { width: 25%; }
+.col-md-8 { width: 66.66666667%; }
+.col-md-4 { width: 33.33333333%; }
+.col-md-12, .col-lg-12, .col-12 { width: 100%; }
 
 @media (min-width: 992px) {
-  .col-lg-3 { width: 25% !important; }
-  .col-lg-6 { width: 50% !important; }
-  .col-lg-12 { width: 100% !important; }
+  .col-lg-3 { width: 25%; }
+  .col-lg-6 { width: 50%; }
+  .col-lg-12 { width: 100%; }
 }
 
 @media (min-width: 768px) {
-  .col-md-4 { width: 33.33333333% !important; }
-  .col-md-6 { width: 50% !important; }
-  .col-md-8 { width: 66.66666667% !important; }
-  .col-md-12 { width: 100% !important; }
+  .col-md-4 { width: 33.33333333%; }
+  .col-md-6 { width: 50%; }
+  .col-md-8 { width: 66.66666667%; }
+  .col-md-12 { width: 100%; }
 }
 
 /* Tabs Styling */
@@ -384,8 +391,8 @@ body, html {
 }
 
 @media (max-width: 576px) {
-  .admin-tools-full-width {
-    padding-left: 0.5rem !important;
-    padding-right: 0.5rem !important;
+  .admin-content-wrapper {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
   }
 } 

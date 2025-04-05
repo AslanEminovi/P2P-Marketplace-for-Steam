@@ -9,6 +9,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import SocketConnectionIndicator from './components/SocketConnectionIndicator';
 import LiveActivityFeed from './components/LiveActivityFeed';
+import { Spinner } from 'react-bootstrap';
 
 // Pages
 import Home from './pages/Home';
@@ -49,8 +50,12 @@ const AdminRoute = ({ user, children }) => {
   }
   
   console.log("AdminRoute - Access granted");
-  // Return children directly without any wrapper at all
-  return children;
+  // Return children in a special container that won't include the footer
+  return (
+    <div className="admin-route-container">
+      {children}
+    </div>
+  );
 };
 
 const loadingScreenStyles = css`
@@ -706,166 +711,53 @@ function App() {
         </div>
       }>
         {loading ? (
-          <div className="loading-screen-background" style={{
-            opacity: 1,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '100vh',
-            width: '100%',
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            zIndex: 9999,
-            flexDirection: 'column',
-            gap: '30px',
-            transition: 'opacity 0.3s ease-out'
-          }}>
-            <div className="loading-logo" style={{
-              fontSize: '2.5rem',
-              fontWeight: '800',
-              marginBottom: '20px',
-              background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #38BDF8 100%)',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              color: 'transparent',
-              textShadow: '0 0 20px rgba(99, 102, 241, 0.3)'
-            }}>
-              CS2 Marketplace
-            </div>
-            
-            {/* Modern loading animation */}
-            <div style={{
-              position: 'relative',
-              width: '120px',
-              height: '120px'
-            }}>
-              {/* Outer spinning ring */}
-              <div style={{
-                position: 'absolute',
-                width: '100%',
-                height: '100%',
-                border: '3px solid transparent',
-                borderTopColor: '#4F46E5',
-                borderRightColor: '#7C3AED',
-                borderRadius: '50%',
-                animation: 'spin 1.5s linear infinite'
-              }}></div>
-              
-              {/* Middle spinning ring - opposite direction */}
-              <div style={{
-                position: 'absolute',
-                width: '80%',
-                height: '80%',
-                top: '10%',
-                left: '10%',
-                border: '3px solid transparent',
-                borderTopColor: '#38BDF8',
-                borderLeftColor: '#38BDF8',
-                borderRadius: '50%',
-                animation: 'spin 1.8s linear infinite reverse'
-              }}></div>
-              
-              {/* Inner pulsing circle */}
-              <div style={{
-                position: 'absolute',
-                width: '60%',
-                height: '60%',
-                top: '20%',
-                left: '20%',
-                backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                borderRadius: '50%',
-                animation: 'pulse 2s ease-in-out infinite'
-              }}></div>
-              
-              {/* Center dot */}
-              <div style={{
-                position: 'absolute',
-                width: '15%',
-                height: '15%',
-                top: '42.5%',
-                left: '42.5%',
-                backgroundColor: '#38BDF8',
-                borderRadius: '50%',
-                boxShadow: '0 0 15px #38BDF8'
-              }}></div>
-            </div>
-            
-            {/* Loading text with dots animation */}
-            <div style={{
-              marginTop: '10px',
-              color: '#e2e8f0',
-              fontSize: '1.2rem',
-              fontWeight: '500',
-              letterSpacing: '0.05em',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}>
-              <span>Loading</span>
-              <span className="loading-dot" style={{ animationDelay: '0s' }}>.</span>
-              <span className="loading-dot" style={{ animationDelay: '0.2s' }}>.</span>
-              <span className="loading-dot" style={{ animationDelay: '0.4s' }}>.</span>
-            </div>
-            
-            {/* Progress bar */}
-            <div style={{
-              width: '200px',
-              height: '4px',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              borderRadius: '4px',
-              overflow: 'hidden',
-              marginTop: '10px'
-            }}>
-              <div style={{
-                height: '100%',
-                borderRadius: '4px',
-                background: 'linear-gradient(90deg, #4F46E5, #7C3AED, #38BDF8)',
-                backgroundSize: '200% 100%',
-                animation: 'gradientFlow 2s ease infinite'
-              }}></div>
-            </div>
+          <div className="loading-screen-background">
+            <Spinner variant="light" animation="border" role="status" />
+            <p className="text-white mt-3">Loading...</p>
           </div>
         ) : (
-          <Routes>
-            <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
-            <Route path="/inventory" element={
-              <ProtectedRoute user={user}>
-                <PageWrapper><Inventory /></PageWrapper>
-              </ProtectedRoute>
-            } />
-            <Route path="/marketplace" element={<PageWrapper><Marketplace /></PageWrapper>} />
-            <Route path="/my-listings" element={
-              <ProtectedRoute user={user}>
-                <PageWrapper><MyListings /></PageWrapper>
-              </ProtectedRoute>
-            } />
-            <Route path="/profile" element={
-              <ProtectedRoute user={user}>
-                <PageWrapper><Profile /></PageWrapper>
-              </ProtectedRoute>
-            } />
-            <Route path="/trades" element={
-              <ProtectedRoute user={user}>
-                <PageWrapper><Trades /></PageWrapper>
-              </ProtectedRoute>
-            } />
-            <Route path="/trades/:tradeId" element={
-              <ProtectedRoute user={user}>
-                <PageWrapper><TradeDetailPage /></PageWrapper>
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/tools" element={
-              <AdminRoute user={user}>
-                <AdminTools />
-              </AdminRoute>
-            } />
-            <Route path="/steam/settings" element={
-              <ProtectedRoute user={user}>
-                <PageWrapper><SteamSettingsPage /></PageWrapper>
-              </ProtectedRoute>
-            } />
-          </Routes>
+          <>
+            <Routes>
+              <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
+              <Route path="/inventory" element={
+                <ProtectedRoute user={user}>
+                  <PageWrapper><Inventory /></PageWrapper>
+                </ProtectedRoute>
+              } />
+              <Route path="/marketplace" element={<PageWrapper><Marketplace /></PageWrapper>} />
+              <Route path="/my-listings" element={
+                <ProtectedRoute user={user}>
+                  <PageWrapper><MyListings /></PageWrapper>
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute user={user}>
+                  <PageWrapper><Profile /></PageWrapper>
+                </ProtectedRoute>
+              } />
+              <Route path="/trades" element={
+                <ProtectedRoute user={user}>
+                  <PageWrapper><Trades /></PageWrapper>
+                </ProtectedRoute>
+              } />
+              <Route path="/trades/:tradeId" element={
+                <ProtectedRoute user={user}>
+                  <PageWrapper><TradeDetailPage /></PageWrapper>
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/tools" element={
+                <AdminRoute user={user}>
+                  <AdminTools />
+                </AdminRoute>
+              } />
+              <Route path="/steam/settings" element={
+                <ProtectedRoute user={user}>
+                  <PageWrapper><SteamSettingsPage /></PageWrapper>
+                </ProtectedRoute>
+              } />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </>
         )}
       </Suspense>
 

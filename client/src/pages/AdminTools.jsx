@@ -853,51 +853,56 @@ function AdminTools() {
 
   // Apply page-level styles to fix the admin layout issues
   useEffect(() => {
-    // Force the body to allow the admin tools to take full width
-    document.body.style.overflowX = 'hidden';
+    // Hide the footer when on the admin page
+    const footer = document.querySelector('.site-footer');
+    if (footer) {
+      footer.style.display = 'none';
+    }
     
     // Apply styles to root div to ensure admin content can expand
     const rootDiv = document.getElementById('root');
     if (rootDiv) {
       rootDiv.style.maxWidth = '100%';
       rootDiv.style.width = '100%';
-      rootDiv.style.padding = '0';
-      rootDiv.style.margin = '0';
-      rootDiv.style.overflow = 'hidden';
+      rootDiv.style.paddingBottom = '0';
+      rootDiv.style.marginBottom = '0';
+      rootDiv.style.overflow = 'auto';
+      rootDiv.classList.add('admin-page-active');
     }
+    
+    // Fix the body overflow
+    document.body.style.overflow = 'auto';
+    document.body.style.height = 'auto';
     
     return () => {
       // Clean up styles when component unmounts
-      document.body.style.overflowX = '';
+      if (footer) {
+        footer.style.display = '';
+      }
       
       if (rootDiv) {
         rootDiv.style.maxWidth = '';
         rootDiv.style.width = '';
-        rootDiv.style.padding = '';
-        rootDiv.style.margin = '';
+        rootDiv.style.paddingBottom = '';
+        rootDiv.style.marginBottom = '';
         rootDiv.style.overflow = '';
+        rootDiv.classList.remove('admin-page-active');
       }
+      
+      document.body.style.overflow = '';
+      document.body.style.height = '';
     };
   }, []);
 
   return (
     <div 
-      className="admin-tools-full-width" 
+      className="admin-content-wrapper" 
       style={{
-        position: 'absolute',
-        top: '70px', // Adjust based on your navbar height
-        left: 0,
-        right: 0,
-        bottom: 0,
-        width: '100vw',
-        paddingLeft: '20px',
-        paddingRight: '20px',
-        paddingTop: '20px',
-        paddingBottom: '20px',
+        width: '100%',
+        minHeight: 'calc(100vh - 70px)',
+        padding: '20px',
         backgroundColor: '#0f172a',
-        color: '#f1f5f9',
-        zIndex: 10,
-        overflowX: 'hidden'
+        color: '#f1f5f9'
       }}
     >
       <div className="d-flex justify-content-between align-items-center mb-4">

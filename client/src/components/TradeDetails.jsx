@@ -1077,10 +1077,10 @@ const TradeDetails = ({ tradeId }) => {
         // Reload the trade details to show the updated status
         loadTradeDetails();
         
-        // Redirect to trades page after a short delay
-        setTimeout(() => {
-          window.location.href = '/trades';
-        }, 1500);
+        // Remove redirect - allow user to stay on the trade details page
+        // setTimeout(() => {
+        //   window.location.href = '/trades';
+        // }, 1500);
       } else {
         throw new Error(response.data.error || 'Unknown error occurred');
       }
