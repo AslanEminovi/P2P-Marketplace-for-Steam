@@ -1169,7 +1169,7 @@ function DashboardTab({ stats, loading }) {
           </Row>
 
           <Row className="mb-4">
-            <Col md={6}>
+            <Col md={8}>
               <Card bg="dark" text="white" className="h-100">
                 <Card.Header className="d-flex justify-content-between align-items-center">
                   <h5 className="mb-0">Recent Trades</h5>
@@ -1183,6 +1183,8 @@ function DashboardTab({ stats, loading }) {
                       <thead>
                         <tr>
                           <th>Item</th>
+                          <th>Buyer</th>
+                          <th>Seller</th>
                           <th>Status</th>
                           <th>Price</th>
                           <th>Date</th>
@@ -1192,6 +1194,8 @@ function DashboardTab({ stats, loading }) {
                         {stats.recentTrades.slice(0, 5).map((trade, index) => (
                           <tr key={index}>
                             <td className="text-nowrap">{trade.itemName || 'Unknown Item'}</td>
+                            <td>{trade.buyer?.displayName || 'Unknown'}</td>
+                            <td>{trade.seller?.displayName || 'Unknown'}</td>
                             <td>
                               <Badge
                                 bg={
@@ -1216,7 +1220,7 @@ function DashboardTab({ stats, loading }) {
               </Card>
             </Col>
             
-            <Col md={6}>
+            <Col md={4}>
               <Card bg="dark" text="white" className="h-100">
                 <Card.Header className="d-flex justify-content-between align-items-center">
                   <h5 className="mb-0">System Status</h5>
@@ -1270,6 +1274,143 @@ function DashboardTab({ stats, loading }) {
                       </>
                     )}
                   </div>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+
+          <Row className="mb-4">
+            <Col md={6}>
+              <Card bg="dark" text="white" className="h-100">
+                <Card.Header className="d-flex justify-content-between align-items-center">
+                  <h5 className="mb-0">Activity Log</h5>
+                </Card.Header>
+                <Card.Body>
+                  <div className="activity-timeline">
+                    <div className="timeline-item d-flex mb-3">
+                      <div className="timeline-icon bg-success-subtle me-3 rounded-circle p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="mb-0 text-light">New user registered</p>
+                        <small className="text-muted">2 minutes ago</small>
+                      </div>
+                    </div>
+                    <div className="timeline-item d-flex mb-3">
+                      <div className="timeline-icon bg-primary-subtle me-3 rounded-circle p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="23 4 23 10 17 10"></polyline>
+                          <polyline points="1 20 1 14 7 14"></polyline>
+                          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="mb-0 text-light">Trade completed successfully</p>
+                        <small className="text-muted">15 minutes ago</small>
+                      </div>
+                    </div>
+                    <div className="timeline-item d-flex mb-3">
+                      <div className="timeline-icon bg-warning-subtle me-3 rounded-circle p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" y1="12" r="10"></circle>
+                          <line x1="12" y1="8" x2="12" y2="12"></line>
+                          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="mb-0 text-light">Payment processing delayed</p>
+                        <small className="text-muted">1 hour ago</small>
+                      </div>
+                    </div>
+                    <div className="timeline-item d-flex">
+                      <div className="timeline-icon bg-info-subtle me-3 rounded-circle p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="mb-0 text-light">System maintenance completed</p>
+                        <small className="text-muted">3 hours ago</small>
+                      </div>
+                    </div>
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={6}>
+              <Card bg="dark" text="white" className="h-100">
+                <Card.Header className="d-flex justify-content-between align-items-center">
+                  <h5 className="mb-0">Top Items</h5>
+                </Card.Header>
+                <Card.Body>
+                  <Table responsive borderless variant="dark" className="mb-0">
+                    <thead>
+                      <tr>
+                        <th>Item</th>
+                        <th>Category</th>
+                        <th>Trades</th>
+                        <th>Avg. Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className="text-nowrap">
+                          <div className="d-flex align-items-center">
+                            <div className="me-2" style={{ width: 32, height: 32 }}>
+                              <div className="rounded bg-secondary" style={{ width: 32, height: 32 }}></div>
+                            </div>
+                            <span>AK-47 | Asiimov</span>
+                          </div>
+                        </td>
+                        <td>Rifle</td>
+                        <td>24</td>
+                        <td>85.50 GEL</td>
+                      </tr>
+                      <tr>
+                        <td className="text-nowrap">
+                          <div className="d-flex align-items-center">
+                            <div className="me-2" style={{ width: 32, height: 32 }}>
+                              <div className="rounded bg-secondary" style={{ width: 32, height: 32 }}></div>
+                            </div>
+                            <span>AWP | Dragon Lore</span>
+                          </div>
+                        </td>
+                        <td>Sniper Rifle</td>
+                        <td>18</td>
+                        <td>1250.00 GEL</td>
+                      </tr>
+                      <tr>
+                        <td className="text-nowrap">
+                          <div className="d-flex align-items-center">
+                            <div className="me-2" style={{ width: 32, height: 32 }}>
+                              <div className="rounded bg-secondary" style={{ width: 32, height: 32 }}></div>
+                            </div>
+                            <span>Butterfly Knife | Fade</span>
+                          </div>
+                        </td>
+                        <td>Knife</td>
+                        <td>15</td>
+                        <td>450.25 GEL</td>
+                      </tr>
+                      <tr>
+                        <td className="text-nowrap">
+                          <div className="d-flex align-items-center">
+                            <div className="me-2" style={{ width: 32, height: 32 }}>
+                              <div className="rounded bg-secondary" style={{ width: 32, height: 32 }}></div>
+                            </div>
+                            <span>M4A4 | Howl</span>
+                          </div>
+                        </td>
+                        <td>Rifle</td>
+                        <td>12</td>
+                        <td>325.75 GEL</td>
+                      </tr>
+                    </tbody>
+                  </Table>
                 </Card.Body>
               </Card>
             </Col>

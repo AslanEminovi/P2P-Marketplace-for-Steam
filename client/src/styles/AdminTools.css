@@ -5,6 +5,9 @@
   color: #f1f5f9;
   background-color: #0f172a;
   padding-bottom: 2rem;
+  width: 100%;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 /* Tabs Styling */
@@ -38,6 +41,11 @@
 }
 
 /* Dashboard Styling */
+.admin-dashboard {
+  width: 100%;
+  padding: 0;
+}
+
 .stats-icon {
   width: 48px;
   height: 48px;
@@ -97,11 +105,15 @@
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   transition: all 0.3s ease;
   border: 1px solid rgba(75, 85, 99, 0.3);
+  height: 100%;
 }
 
 .admin-tabs-card {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   background-color: #1e293b !important;
+  margin-left: 0;
+  margin-right: 0;
+  width: 100%;
 }
 
 .card-header {
@@ -111,6 +123,7 @@
 
 .card-body {
   background-color: #0f172a;
+  padding: 1.5rem;
 }
 
 .border-primary {
@@ -239,10 +252,39 @@
   width: 100%;
 }
 
+/* Activity Timeline */
+.activity-timeline {
+  padding: 0;
+}
+
+.timeline-item {
+  position: relative;
+  padding-bottom: 1rem;
+}
+
+.timeline-icon {
+  min-width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Media Queries for Responsive Design */
 @media (max-width: 768px) {
   .admin-tabs .nav-link {
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .admin-tools-container {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
   }
 } 
