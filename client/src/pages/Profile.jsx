@@ -4,8 +4,8 @@ import { API_URL } from '../config/constants';
 import Wallet from '../components/Wallet';
 import { Link } from 'react-router-dom';
 
-const Profile = ({ user, onBalanceUpdate }) => {
-  const [activeTab, setActiveTab] = useState('wallet');
+const Profile = ({ user, onBalanceUpdate, defaultTab = 'wallet' }) => {
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

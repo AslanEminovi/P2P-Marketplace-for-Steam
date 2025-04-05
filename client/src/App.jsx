@@ -886,6 +886,14 @@ function App() {
               </ProtectedRoute>
             } />
 
+            <Route path="/settings" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper key="settings">
+                  <Profile user={user} onBalanceUpdate={refreshWalletBalance} defaultTab="settings" />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
+
             <Route path="/steam-settings" element={
               <ProtectedRoute>
                 <SteamSettingsPage />
