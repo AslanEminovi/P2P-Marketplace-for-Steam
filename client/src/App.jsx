@@ -110,19 +110,21 @@ function App() {
           console.log("Axios interceptor - token exists:", !!token);
 
           if (token) {
-            // Set up query parameters if they don't exist
+            // Always initialize params object if it doesn't exist
             if (!config.params) {
               config.params = {};
             }
 
-            // Add token to query params - this is the most reliable way to pass it
+            // Always add token to query params - this is the most reliable way to pass it
             // especially for Steam-related authentication
             config.params.auth_token = token;
 
-            // Also add token as Authorization header for better compatibility
+            // Always initialize headers object if it doesn't exist
             if (!config.headers) {
               config.headers = {};
             }
+            
+            // Always add token as Authorization header for better compatibility
             config.headers.Authorization = `Bearer ${token}`;
 
             console.log("Added auth token to request:", config.url);

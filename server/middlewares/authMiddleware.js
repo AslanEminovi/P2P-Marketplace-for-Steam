@@ -14,9 +14,15 @@ const requireAuth = async (req, res, next) => {
 
     // If not authenticated via session, check for token authentication
 
-    // Look for token in the authorization header
+    // First, check for token in query parameters (highest priority for API requests)
     let token = null;
+    if (req.query && req.query.auth_token) {
+      token = req.query.auth_token;
+    }
+
+    // If no token in query, look for token in the authorization header
     if (
+      !token &&
       req.headers.authorization &&
       req.headers.authorization.startsWith("Bearer ")
     ) {
