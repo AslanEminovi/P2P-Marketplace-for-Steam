@@ -370,31 +370,66 @@ function App() {
     };
   }, [loading]);
 
-  // Add the call to fixSteamAuthPersistence in a useEffect
+  // Add more detailed logging in the useEffect for hash handling
   useEffect(() => {
     setLoading(true);
     
+    // Debug auth state on page load
+    console.log('Initial page load - checking auth state');
+    console.log('authToken exists:', !!localStorage.getItem('authToken'));
+    console.log('auth_token exists:', !!localStorage.getItem('auth_token'));
+    console.log('userFullyAuthenticated:', localStorage.getItem('userFullyAuthenticated'));
+    
     // Fix Steam authentication if needed
-    fixSteamAuthPersistence();
+    const authFixed = fixSteamAuthPersistence();
+    if (authFixed) {
+      console.log('Auth fix applied successfully');
+      return; // Let the fix process handle everything
+    }
     
     // Parse hash from URL if present (for auth token)
     const hash = window.location.hash;
     if (hash && hash.includes('auth_token')) {
       try {
-        console.log('Found auth token in URL, storing it and checking status...');
-        const authToken = hash.split('auth_token=')[1].split('&')[0];
+        console.log('Found auth token in URL hash, storing it and checking status...');
+        // Parse token from hash format (e.g. #auth_token=abc)
+        let authToken;
+        const authTokenMatch = hash.match(/auth_token=([^&]+)/);
+        if (authTokenMatch && authTokenMatch[1]) {
+          authToken = authTokenMatch[1];
+          console.log('Successfully extracted token from hash');
+        } else {
+          throw new Error('Could not extract token from hash');
+        }
+        
         localStorage.setItem('authToken', authToken);
         
         // Remove hash from URL
         window.history.replaceState(null, null, window.location.pathname);
         
+        // Check auth status with new token
         checkAuthStatus();
       } catch (err) {
-        console.error('Error parsing auth token from URL', err);
+        console.error('Error parsing auth token from URL hash:', err);
         setLoading(false);
       }
     } else {
-      checkAuthStatus();
+      // Also check URL params for auth_token
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramToken = urlParams.get('auth_token');
+      
+      if (paramToken) {
+        console.log('Found auth token in URL params, storing it and checking status...');
+        localStorage.setItem('authToken', paramToken);
+        
+        // Remove params from URL
+        window.history.replaceState(null, null, window.location.pathname);
+        
+        checkAuthStatus();
+      } else {
+        // No tokens in URL, just check current auth status
+        checkAuthStatus();
+      }
     }
   }, []);
 
@@ -408,19 +443,24 @@ function App() {
       // Immediately remove token from URL to prevent bookmarking with token
       window.history.replaceState({}, document.title, window.location.pathname);
       console.log("Found auth token in URL, storing it and checking status...");
-      localStorage.setItem('auth_token', authToken);
+      localStorage.setItem('authToken', authToken); // Use consistent key name
+      checkAuthStatus();
     }
-
-    checkAuthStatus();
   }, []);
 
   // Add a function to fix the authentication issue
   const fixSteamAuthPersistence = () => {
-    const authToken = localStorage.getItem('authToken');
+    const authToken = localStorage.getItem('authToken') || localStorage.getItem('auth_token');
     const steamAuthRetry = localStorage.getItem('steamAuthRetry');
     
+    // Handle legacy token if exists
+    if (localStorage.getItem('auth_token')) {
+      localStorage.setItem('authToken', localStorage.getItem('auth_token'));
+      console.log('Migrated legacy auth_token to authToken');
+    }
+    
     // If we have an auth token but the app still thinks we need authentication
-    if (authToken && steamAuthRetry === 'true') {
+    if (authToken && (steamAuthRetry === 'true' || !user)) {
       console.log('Fixing Steam auth persistence, reusing existing token');
       checkAuthStatus(); // Re-check auth with existing token
       return true;
@@ -432,8 +472,8 @@ function App() {
   const checkAuthStatus = async () => {
     console.log('Checking auth status, API URL:', API_URL);
     
-    // Get token from localStorage
-    const token = localStorage.getItem('authToken');
+    // Get token from localStorage (try both key formats)
+    const token = localStorage.getItem('authToken') || localStorage.getItem('auth_token');
     const refreshToken = localStorage.getItem('refreshToken');
     
     // Always clear the steamAuthRetry flag when checking auth
@@ -442,8 +482,12 @@ function App() {
     if (token) {
       console.log('Found token, fetching user details...');
       try {
+        // Set the authorization header for this specific request
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        
         const response = await axios.get(`${API_URL}/auth/user`, {
-          withCredentials: true
+          withCredentials: true,
+          params: { auth_token: token } // Add token as query param too
         });
         
         console.log('User details response:', response.data);
@@ -457,27 +501,36 @@ function App() {
           // Set a flag to indicate successful authentication
           localStorage.setItem('userFullyAuthenticated', 'true');
           
+          // Ensure token is stored in the new consistent location
+          localStorage.setItem('authToken', token);
+          
           // Initialize socket after successful auth
           socketService.initializeSocket(token);
           
           // Set the authorization header for all future requests
           axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         } else {
+          console.error('Invalid user data in response');
           handleLogout();
         }
       } catch (error) {
         console.error('Error fetching user details:', error);
         // Only clear if there's a 401 error (invalid token)
         if (error.response && error.response.status === 401) {
+          console.error('Authentication failed with 401');
           handleLogout();
         } else {
           // For connection errors, don't clear the token
           console.log('Connection error but keeping token');
         }
+      } finally {
+        setLoading(false);
       }
     } else {
+      console.log('No auth token found');
       // Clear any partial auth state
       handleLogout();
+      setLoading(false);
     }
   };
 
@@ -520,6 +573,19 @@ function App() {
     }
   };
 
+  // Add a handleLogin method that will be passed to the Navbar
+  const handleLogin = () => {
+    console.log('Login initiated from App component');
+    const authUrl = `${API_URL}/auth/steam`;
+    console.log('Redirecting to Steam auth:', authUrl);
+    
+    // Set a flag to retry authentication when we get redirected back
+    localStorage.setItem('steamAuthRetry', 'true');
+    
+    // Redirect to the Steam authentication endpoint
+    window.location.href = authUrl;
+  };
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -528,7 +594,7 @@ function App() {
       overflow: 'hidden',
       transition: 'background 0.5s ease-out'
     }}>
-      <Navbar user={user} onLogout={handleLogout} />
+      <Navbar user={user} onLogout={handleLogout} onLogin={handleLogin} />
 
       {/* Toast notifications */}
       <Toaster
