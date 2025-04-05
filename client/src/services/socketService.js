@@ -14,6 +14,7 @@ class SocketService {
     this.connectedCallback = null;
     this.disconnectedCallback = null;
     this.lastConnectionAttempt = 0;
+    this.lastForcedRefresh = null;
   }
 
   init() {
@@ -313,15 +314,28 @@ class SocketService {
 
   // Force a fetch of marketplace data (fallback method)
   forceFetchMarketplace() {
-    if (this.events.has("market_update")) {
-      const callbacks = this.events.get("market_update");
-      if (callbacks && callbacks.length > 0) {
-        // Call first callback with a refresh event
-        callbacks[0]({
-          type: "refresh",
-          timestamp: new Date().toISOString(),
-        });
+    // Track when we last forced a refresh to prevent loops
+    if (
+      !this.lastForcedRefresh ||
+      Date.now() - this.lastForcedRefresh > 10000
+    ) {
+      console.log("[SocketService] Forcing marketplace refresh");
+      this.lastForcedRefresh = Date.now();
+
+      if (this.events.has("market_update")) {
+        const callbacks = this.events.get("market_update");
+        if (callbacks && callbacks.length > 0) {
+          // Call first callback with a refresh event
+          callbacks[0]({
+            type: "refresh",
+            timestamp: new Date().toISOString(),
+          });
+        }
       }
+    } else {
+      console.log(
+        "[SocketService] Skipping forced refresh - too soon since last refresh"
+      );
     }
   }
 }

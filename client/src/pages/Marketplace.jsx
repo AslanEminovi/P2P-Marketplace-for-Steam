@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../utils/languageUtils';
@@ -47,6 +47,12 @@ function Marketplace({ user }) {
   const [showActivityFeed, setShowActivityFeed] = useState(true);
   const itemsPerPage = 12;
   const [showSellModal, setShowSellModal] = useState(false);
+  
+  // Ref to track connection status
+  const connectionStatusRef = useRef({
+    wasConnected: false,
+    lastRefresh: Date.now()
+  });
 
   const { t } = useTranslation();
 
@@ -188,8 +194,11 @@ function Marketplace({ user }) {
 
   // Socket event handlers
   useEffect(() => {
-    // Track connection status to prevent duplicate notifications
-    let wasConnected = socketService.isConnected();
+    // Initialize connection status on first render
+    connectionStatusRef.current = {
+      wasConnected: socketService.isConnected(),
+      lastRefresh: Date.now()
+    };
     
     // Check connection status and ensure connection
     if (!socketService.isConnected()) {
@@ -201,8 +210,11 @@ function Marketplace({ user }) {
     const handleMarketUpdate = (update) => {
       console.log('Market update received:', update);
       
-      if (update.type === 'refresh') {
+      // Prevent excessive refreshes by limiting to once every 5 seconds
+      const now = Date.now();
+      if (update.type === 'refresh' && now - connectionStatusRef.current.lastRefresh > 5000) {
         console.log('Refresh event received, refetching data');
+        connectionStatusRef.current.lastRefresh = now;
         fetchItems();
         fetchMarketStats();
         return;
@@ -231,10 +243,12 @@ function Marketplace({ user }) {
       }
       
       // For other updates or periodically, refetch all data
-      if (update.type === 'new_listing' || update.type === 'item_sold') {
+      if ((update.type === 'new_listing' || update.type === 'item_sold') && 
+          now - connectionStatusRef.current.lastRefresh > 5000) {
         // Add slight delay to allow server to process the changes
         setTimeout(() => {
           console.log('Refreshing items and stats after market update');
+          connectionStatusRef.current.lastRefresh = now;
           fetchItems();
           fetchMarketStats();
         }, 500);
@@ -248,7 +262,7 @@ function Marketplace({ user }) {
     // Setup connection status handlers
     socketService.onConnected(() => {
       // Only show connection toast if we weren't previously connected
-      if (!wasConnected) {
+      if (!connectionStatusRef.current.wasConnected) {
         console.log('Socket connected in Marketplace, refreshing data...');
         
         // Immediately fetch new data when connection is established
@@ -259,7 +273,7 @@ function Marketplace({ user }) {
         toast.success('Connection established', { duration: 2000 });
         
         // Update our tracking variable
-        wasConnected = true;
+        connectionStatusRef.current.wasConnected = true;
       }
     });
     
@@ -269,7 +283,7 @@ function Marketplace({ user }) {
       toast.error('Connection lost. Attempting to reconnect...', { duration: 3000 });
       
       // Update our tracking variable
-      wasConnected = false;
+      connectionStatusRef.current.wasConnected = false;
       
       // Try to reconnect immediately
       setTimeout(() => {

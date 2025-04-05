@@ -247,10 +247,11 @@ const SellModal = ({ item, onClose, onConfirm }) => {
         
         // Force marketplace to refresh to show the new listing
         if (socketService && typeof socketService.forceFetchMarketplace === 'function') {
-          console.log("Triggering manual marketplace refresh");
+          console.log("Triggering manual marketplace refresh after listing");
+          // Add a 2 second delay before forcing the refresh to avoid immediate loop
           setTimeout(() => {
             socketService.forceFetchMarketplace();
-          }, 1000);
+          }, 2000);
         }
       } else {
         console.warn("Unexpected response from listing endpoint:", response);
