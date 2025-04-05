@@ -151,6 +151,9 @@ const HeroSection = ({ user, stats, prevStats }) => {
 
   return (
     <section className="hero-section-container">
+      {/* Add background image div */}
+      <div className="hero-background-image"></div>
+      
       <div className="hero-decoration top-left"></div>
       <div className="hero-decoration bottom-right"></div>
 
