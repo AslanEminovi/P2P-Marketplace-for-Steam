@@ -171,6 +171,16 @@ const SellModal = ({ item, onClose, onConfirm, onListingComplete }) => {
     if (isSubmitting) return;
     
     console.log("Starting item listing process");
+    console.log("ITEM DEBUG:", {
+      name: item.name,
+      marketHashName: item.marketHashName,
+      markethashname: item.markethashname,
+      marketName: item.marketName,
+      marketname: item.marketname,
+      market_hash_name: item.market_hash_name,
+      market_name: item.market_name,
+      fullItem: item
+    });
     
     try {
       // Start by setting submitting flag to prevent double-submissions
@@ -192,11 +202,28 @@ const SellModal = ({ item, onClose, onConfirm, onListingComplete }) => {
       const sellingPriceUSD = basePrice * currencyRate;
       const sellingPriceGEL = (basePrice * currencyRate * 2.79).toFixed(2); // Current GEL rate
       
+      // EXTRACT THE CORRECT ITEM NAME - Try all possible variations
+      let itemName = item.name || 
+                    item.marketHashName || 
+                    item.markethashname || 
+                    item.market_hash_name || 
+                    item.marketName || 
+                    item.marketname || 
+                    item.market_name;
+                    
+      // If we're displaying an item name already in the modal, use that
+      const displayedItemName = document.querySelector("h3")?.innerText;
+      if (displayedItemName && displayedItemName.length > 3) {
+        itemName = displayedItemName;
+      }
+      
+      console.log("Using item name:", itemName);
+      
       // Create listing payload
       const listingData = {
         steamItemId: item.classid || item.id || '',
         assetId: item.assetid || item.asset_id || '',
-        marketHashName: item.marketHashName || item.markethashname || item.name || 'Unknown Item',
+        marketHashName: itemName || 'CS2 Item',
         price: sellingPriceUSD,
         imageUrl: item.image || item.icon_url || '',
         wear: item.wear || translateWear(item.wear_name) || 'Unknown',

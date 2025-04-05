@@ -59,14 +59,14 @@ const UserListings = ({ show, onClose }) => {
             top: 0,
             right: 0,
             bottom: 0,
-            width: '320px',
+            width: '360px',
             backgroundColor: 'rgba(17, 24, 39, 0.95)',
             backdropFilter: 'blur(10px)',
             boxShadow: '-5px 0 20px rgba(0, 0, 0, 0.5)',
-            zIndex: 1000,
+            zIndex: 99999,
             padding: '1.5rem 1rem',
             overflowY: 'auto',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            border: '2px solid rgba(99, 102, 241, 0.6)',
             borderRight: 'none',
             borderTopLeftRadius: '16px',
             borderBottomLeftRadius: '16px'
@@ -79,10 +79,13 @@ const UserListings = ({ show, onClose }) => {
             marginBottom: '1.5rem'
           }}>
             <h2 style={{
-              fontSize: '1.25rem',
+              fontSize: '1.5rem',
               margin: 0,
-              color: '#e2e8f0',
-              fontWeight: 'bold'
+              color: 'white',
+              fontWeight: 'bold',
+              background: 'linear-gradient(45deg, #4F46E5, #7C3AED)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
             }}>
               Your Listings
             </h2>
@@ -91,11 +94,11 @@ const UserListings = ({ show, onClose }) => {
               whileTap={{ scale: 0.9 }}
               onClick={onClose}
               style={{
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                color: '#e2e8f0',
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                color: 'white',
                 cursor: 'pointer',
-                padding: '0.25rem',
+                padding: '0.5rem',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
