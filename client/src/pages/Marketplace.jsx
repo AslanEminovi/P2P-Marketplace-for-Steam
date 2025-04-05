@@ -394,23 +394,166 @@ function Marketplace({ user }) {
     setShowSellModal(true);
   };
 
+  // Calculate total marketplace value
+  const calculateTotalMarketValue = () => {
+    if (!items || items.length === 0) return '0.00';
+
+    const total = items.reduce((sum, item) => {
+      return sum + (item.price || 0);
+    }, 0);
+
+    return total.toFixed(2);
+  };
+
+  // Find the most valuable item price
+  const findMostValuableItem = () => {
+    if (!items || items.length === 0) return '0.00';
+
+    const mostValuable = items.reduce((max, item) => {
+      return item.price > max ? item.price : max;
+    }, 0);
+
+    return mostValuable.toFixed(2);
+  };
+
+  // Calculate the average item price
+  const calculateAveragePrice = () => {
+    if (!items || items.length === 0) return '0.00';
+
+    const total = items.reduce((sum, item) => {
+      return sum + (item.price || 0);
+    }, 0);
+
+    return (total / items.length).toFixed(2);
+  };
+
   // Render header section
   const renderHeader = () => (
     <div className="marketplace-header">
       <h1>CS2 Market</h1>
       <p className="marketplace-subtitle">Buy and sell CS2 items securely with other players</p>
-      <div className="marketplace-stats">
-        <div className="stat-item">
-          <span className="stat-label">Active Listings</span>
-          <span className="stat-value">{marketStats.totalListings || 0}</span>
+      
+      {/* Stats Grid like in Inventory */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '1.5rem',
+        margin: '1.5rem 0',
+        padding: '1.25rem',
+        borderRadius: '12px',
+        background: 'rgba(21, 28, 43, 0.6)',
+        backdropFilter: 'blur(10px)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+        border: '1px solid rgba(51, 115, 242, 0.15)'
+      }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '1rem',
+          background: 'rgba(31, 41, 61, 0.5)',
+          borderRadius: '10px',
+          border: '1px solid rgba(51, 115, 242, 0.1)'
+        }}>
+          <h3 style={{
+            margin: '0 0 0.5rem 0',
+            fontSize: '0.9rem',
+            color: 'var(--gaming-text-dim)'
+          }}>Active Listings</h3>
+          <p style={{
+            margin: 0,
+            fontSize: '1.75rem',
+            fontWeight: 'bold',
+            color: 'var(--gaming-text-bright)'
+          }}>{marketStats.totalListings || 0}</p>
         </div>
-        <div className="stat-item">
-          <span className="stat-label">Active Users</span>
-          <span className="stat-value">{marketStats.activeUsers || 0}</span>
+
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '1rem',
+          background: 'rgba(31, 41, 61, 0.5)',
+          borderRadius: '10px',
+          border: '1px solid rgba(51, 115, 242, 0.1)'
+        }}>
+          <h3 style={{
+            margin: '0 0 0.5rem 0',
+            fontSize: '0.9rem',
+            color: 'var(--gaming-text-dim)'
+          }}>Most Valuable</h3>
+          <p style={{
+            margin: 0,
+            fontSize: '1.75rem',
+            fontWeight: 'bold',
+            color: '#4ade80'
+          }}>${findMostValuableItem()}</p>
         </div>
-        <div className="stat-item">
-          <span className="stat-label">Completed Trades</span>
-          <span className="stat-value">{marketStats.completedTrades || 0}</span>
+
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '1rem',
+          background: 'rgba(31, 41, 61, 0.5)',
+          borderRadius: '10px',
+          border: '1px solid rgba(51, 115, 242, 0.1)'
+        }}>
+          <h3 style={{
+            margin: '0 0 0.5rem 0',
+            fontSize: '0.9rem',
+            color: 'var(--gaming-text-dim)'
+          }}>Average Price</h3>
+          <p style={{
+            margin: 0,
+            fontSize: '1.75rem',
+            fontWeight: 'bold',
+            color: 'var(--gaming-text-bright)'
+          }}>${calculateAveragePrice()}</p>
+        </div>
+
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '1rem',
+          background: 'rgba(31, 41, 61, 0.5)',
+          borderRadius: '10px',
+          border: '1px solid rgba(51, 115, 242, 0.1)'
+        }}>
+          <h3 style={{
+            margin: '0 0 0.5rem 0',
+            fontSize: '0.9rem',
+            color: 'var(--gaming-text-dim)'
+          }}>Total Market Value</h3>
+          <p style={{
+            margin: 0,
+            fontSize: '1.75rem',
+            fontWeight: 'bold',
+            color: '#4ade80'
+          }}>${calculateTotalMarketValue()}</p>
+        </div>
+
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '1rem',
+          background: 'rgba(31, 41, 61, 0.5)',
+          borderRadius: '10px',
+          border: '1px solid rgba(51, 115, 242, 0.1)'
+        }}>
+          <h3 style={{
+            margin: '0 0 0.5rem 0',
+            fontSize: '0.9rem',
+            color: 'var(--gaming-text-dim)'
+          }}>Active Users</h3>
+          <p style={{
+            margin: 0,
+            fontSize: '1.75rem',
+            fontWeight: 'bold',
+            color: 'var(--gaming-text-bright)'
+          }}>{marketStats.activeUsers || 0}</p>
         </div>
       </div>
     </div>
@@ -530,24 +673,61 @@ function Marketplace({ user }) {
       {renderHeader()}
       
       <div className="filter-section">
-        <div className="search-bar-container">
-          <input
-            type="text"
-            className="search-bar"
-            placeholder="Search for items..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          
-          {/* Refresh button positioned within search bar container */}
-          <button 
-            className="refresh-button"
-            onClick={handleManualRefresh}
-            disabled={loading}
+        {/* Refresh button now takes full width */}
+        <button 
+          className="refresh-button"
+          onClick={handleManualRefresh}
+          disabled={loading}
+          style={{
+            padding: '0.75rem 1.5rem',
+            background: 'linear-gradient(to right, #3373F2, #00D2FF)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            fontSize: '0.95rem',
+            fontWeight: '600',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 0 20px rgba(0, 210, 255, 0.2)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            position: 'relative',
+            overflow: 'hidden',
+            width: '100%',
+            marginBottom: '1rem'
+          }}
+        >
+          <span style={{ position: 'relative', zIndex: 2 }}>
+            {loading ? 'Refreshing...' : 'Refresh Marketplace'}
+          </span>
+          <svg
+            style={{ width: '20px', height: '20px', position: 'relative', zIndex: 2 }}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            {loading ? 'Refreshing...' : 'Refresh Items'}
-          </button>
-        </div>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(to right, #3373F2, #00D2FF)',
+              zIndex: 1
+            }}
+          />
+        </button>
         
         <div className="filter-tags">
           {filterOptions.map((filter) => (
@@ -573,8 +753,8 @@ function Marketplace({ user }) {
               </option>
             ))}
           </select>
-                    </div>
-                  </div>
+        </div>
+      </div>
                   
       {renderItems()}
       {renderPagination()}
