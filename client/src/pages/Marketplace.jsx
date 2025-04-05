@@ -539,10 +539,29 @@ function Marketplace({ user }) {
       {renderItems()}
       {renderPagination()}
 
+      {/* ABSOLUTELY POSITIONED USER BUTTONS */}
       {user && (
-        <div className="user-buttons">
+        <div style={{
+          position: 'fixed',
+          bottom: '2rem',
+          right: '2rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem',
+          zIndex: 9999
+        }}>
           <button
             className="user-listings-button"
+            style={{
+              background: 'linear-gradient(45deg, #4F46E5, #7C3AED)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              padding: '1rem 1.5rem',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 4px 20px rgba(124, 58, 237, 0.3)'
+            }}
             onClick={() => {
               console.log("Opening user listings panel");
               setShowListingsPanel(true);
@@ -556,6 +575,16 @@ function Marketplace({ user }) {
 
           <button
             className="sell-item-button"
+            style={{
+              background: 'linear-gradient(45deg, #ec4899, #f97316)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              padding: '1rem 1.5rem',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 4px 20px rgba(249, 115, 22, 0.3)'
+            }}
             onClick={() => {
               // Redirect to inventory page where user can select an item to sell
               window.location.href = '/inventory';

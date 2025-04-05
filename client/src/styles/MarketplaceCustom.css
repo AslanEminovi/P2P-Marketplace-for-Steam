@@ -63,13 +63,13 @@
 
 /* User Buttons Container */
 .user-buttons {
-  position: fixed;
-  bottom: 2rem;
-  right: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  z-index: 90;
+  position: fixed !important;
+  bottom: 2rem !important;
+  right: 2rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1rem !important;
+  z-index: 9999 !important; /* Extremely high z-index to ensure visibility */
 }
 
 /* Sell Item Button */
