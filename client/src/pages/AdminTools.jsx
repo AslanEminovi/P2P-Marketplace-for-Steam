@@ -198,34 +198,33 @@ function AdminTools() {
   const fetchTrades = async (page = 1) => {
     try {
       setTradesLoading(true);
-      
-      const response = await axios.get(`${API_URL}/trades/history`, {
-        params: {
-          page,
-          limit: 10,
-          search: tradeSearch
-        }
+      const response = await axios.get(`${API_URL}/trades/history`, { 
+        params: { page, search: tradeSearch },
+        withCredentials: true 
       });
       
-      if (response.data && response.data.trades) {
-        setTrades(response.data.trades);
-        setTradesPagination({
-          page: response.data.currentPage || 1,
-          pages: response.data.totalPages || 1,
-          total: response.data.totalTrades || 0
+      if (Array.isArray(response.data)) {
+        setTrades(response.data);
+        setTradesPagination({ 
+          page: page, 
+          pages: Math.ceil(response.data.length / 10),
+          total: response.data.length 
         });
       } else {
+        console.error('Invalid response format:', response.data);
+        setTrades([]);
         setMessage({
-          type: 'warning',
-          text: 'Could not fetch trade data. Please try again.'
+          type: 'danger',
+          text: `Error fetching trades: ${response.data?.error || 'Invalid data format received from server'}`
         });
       }
     } catch (error) {
       console.error('Error fetching trades:', error);
       setMessage({
         type: 'danger',
-        text: `Failed to load trades: ${error.response?.data?.message || error.message}`
+        text: `Error fetching trades: ${error.response?.data?.error || error.message}`
       });
+      setTrades([]);
     } finally {
       setTradesLoading(false);
     }
@@ -466,181 +465,112 @@ function AdminTools() {
   // Render the trades tab
   const renderTradesTab = () => {
   return (
-      <div>
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <div>
-            <h4 className="mb-1 text-white">Trade Management</h4>
-            <p className="text-white-50 mb-0">View and manage all trades in the system</p>
-          </div>
-          
-          <Form className="d-flex">
-            <Form.Control
-              type="search"
-              placeholder="Search by trade ID, item, or user"
-              value={tradeSearch}
-              onChange={handleTradeSearch}
-              className="me-2"
-              style={{ maxWidth: '300px' }}
-            />
-            <Button 
-              variant="primary" 
-              onClick={() => fetchTrades()}
-              disabled={tradesLoading}
-            >
-              {tradesLoading ? <Spinner animation="border" size="sm" /> : 'Search'}
-            </Button>
-          </Form>
+      <>
+        <Row className="mb-4">
+          <Col>
+            <Card bg="dark" text="white">
+              <Card.Header>
+                <h5 className="mb-0">Trade Management</h5>
+              </Card.Header>
+              <Card.Body>
+                <Form onSubmit={handleTradeSearch} className="mb-4">
+                  <InputGroup>
+                    <FormControl
+                      placeholder="Search by trade ID, item name, or user..."
+                      value={tradeSearch}
+                      onChange={(e) => setTradeSearch(e.target.value)}
+                    />
+                    <Button variant="primary" type="submit">
+                      Search
+                    </Button>
+                  </InputGroup>
+                </Form>
+
+                {tradesLoading ? (
+                  <div className="text-center py-4">
+                    <Spinner animation="border" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </Spinner>
             </div>
-        
-        {tradesLoading ? (
-          <div className="text-center py-5">
-            <Spinner animation="border" variant="primary" />
-            <p className="mt-3 text-white-50">Loading trades data...</p>
-          </div>
-        ) : trades.length > 0 ? (
-          <>
-            <div className="table-responsive">
-              <Table bordered hover variant="dark" className="align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Item</th>
-                    <th>Buyer</th>
-                    <th>Seller</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th className="text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trades.map((trade) => (
-                    <tr key={trade._id}>
-                      <td className="text-nowrap">
-                        <small className="text-white-50">{trade._id.substr(-8)}</small>
-                      </td>
-                      <td>
-                        {trade.item ? (
-                          <div className="d-flex align-items-center">
-                            {trade.item.image && (
-                              <img 
-                                src={trade.item.image} 
-                                alt={trade.item.name} 
-                                className="me-2"
-                                width="32"
-                                height="32"
-                                style={{ objectFit: 'contain' }}
-                              />
-                            )}
-                            <div>
-                              <div className="fw-semibold">{trade.item.name || 'Unknown Item'}</div>
-                              <small className="text-white-50">{trade.item.exterior || ''}</small>
-                            </div>
-                          </div>
-                        ) : (
-                          'Unknown Item'
-                        )}
-                      </td>
-                      <td>
-                        {trade.buyer ? (
-                          <div>
-                            <div>{trade.buyer.displayName}</div>
-                            <small className="text-white-50">{trade.buyer.steamId}</small>
-                          </div>
-                        ) : (
-                          'Unknown'
-                        )}
-                      </td>
-                      <td>
-                        {trade.seller ? (
-                          <div>
-                            <div>{trade.seller.displayName}</div>
-                            <small className="text-white-50">{trade.seller.steamId}</small>
-                          </div>
-                        ) : (
-                          'Unknown'
-                        )}
-                      </td>
-                      <td>
-                        <span className="fw-semibold">
-                          {parseFloat(trade.price).toFixed(2)} GEL
-                        </span>
-                      </td>
-                      <td>
-                        <Badge 
-                          bg={
-                            trade.status === 'completed' ? 'success' : 
-                            trade.status === 'cancelled' || trade.status === 'failed' ? 'danger' :
-                            trade.status === 'pending' ? 'warning' : 'primary'
-                          }
-                        >
-                          {trade.status}
-                        </Badge>
-                      </td>
-                      <td className="text-nowrap">
-                        {new Date(trade.createdAt).toLocaleString()}
-                      </td>
-                      <td className="text-center">
-                        <div className="d-flex justify-content-center gap-2">
-                      <Button 
-                            variant="info"
-                        size="sm"
-                            onClick={() => viewTradeDetails(trade._id)}
-                            title="View Details"
-                      >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                              <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
-                      </Button>
-                    
-                          {trade.status === 'pending' && (
-                            <>
-                      <Button 
-                                variant="success"
-                        size="sm"
-                                onClick={() => handleTransferFunds(trade._id)}
-                                title="Complete Trade"
-                      >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="20 6 9 17 4 12"></polyline>
-                                </svg>
-                      </Button>
-                              
-                      <Button 
-                                variant="danger"
-                        size="sm"
-                                onClick={() => handleCancelTrade(trade._id)}
-                                title="Cancel Trade"
+                ) : trades.length === 0 ? (
+                  <Alert variant="info">No trades found</Alert>
+                ) : (
+                  <>
+                    <Table variant="dark" striped bordered hover responsive>
+                      <thead>
+                        <tr>
+                          <th>Trade ID</th>
+                          <th>Item</th>
+                          <th>Price</th>
+                          <th>Buyer</th>
+                          <th>Seller</th>
+                          <th>Status</th>
+                          <th>Created</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {trades.map(trade => (
+                          <tr key={trade._id}>
+                            <td>{trade._id}</td>
+                            <td>
+                              {trade.item?.marketHashName || trade.itemName || 'Unknown Item'}
+                            </td>
+                            <td>{((trade.price || 0) / 100).toFixed(2)} GEL</td>
+                            <td>
+                              {trade.buyer?.displayName || 'Unknown'}
+                            </td>
+                            <td>
+                              {trade.seller?.displayName || 'Unknown'}
+                            </td>
+                            <td>
+                              <Badge
+                                bg={
+                                  trade.status === 'completed' ? 'success' :
+                                  trade.status === 'cancelled' || trade.status === 'failed' ? 'danger' :
+                                  'primary'
+                                }
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                                </svg>
+                                {trade.status}
+                              </Badge>
+                            </td>
+                            <td>{new Date(trade.createdAt).toLocaleString()}</td>
+                            <td>
+                      <Button 
+                                variant="info" 
+                        size="sm"
+                                onClick={() => viewTradeDetails(trade._id)}
+                                className="me-1"
+                      >
+                                Details
                       </Button>
-                            </>
+                              {!['completed', 'cancelled', 'failed'].includes(trade.status) && (
+                      <Button 
+                                  variant="danger" 
+                        size="sm"
+                                  onClick={() => {
+                                    setSelectedTrade(trade);
+                                    setTradeDetailModalOpen(true);
+                                    setCancelReason('');
+                                  }}
+                                >
+                                  Cancel
+                      </Button>
                     )}
-                  </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-            </div>
-            
-            <div className="d-flex justify-content-between align-items-center mt-4">
-              <div className="text-white-50">
-                Showing {trades.length} of {tradesPagination.total} trades
-              </div>
-              {renderPagination(tradesPagination, fetchTrades)}
-            </div>
-          </>
-        ) : (
-          <div className="alert alert-secondary">
-            No trades found. Try adjusting your search criteria.
-          </div>
-        )}
-        
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+
+                    {renderPagination(tradesPagination, fetchTrades)}
+                  </>
+                )}
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+
         {/* Trade Detail Modal */}
         <Modal
           show={tradeDetailModalOpen}
@@ -648,258 +578,276 @@ function AdminTools() {
           size="lg"
           centered
           backdrop="static"
-          className="dark-modal"
         >
-          <Modal.Header closeButton className="bg-dark text-white border-secondary">
+          <Modal.Header closeButton className="bg-dark text-white">
             <Modal.Title>Trade Details</Modal.Title>
           </Modal.Header>
           <Modal.Body className="bg-dark text-white">
-            {selectedTrade ? (
-              <div>
+            {!selectedTrade ? (
+              <div className="text-center py-4">
+                <Spinner animation="border" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </Spinner>
+              </div>
+            ) : (
+              <>
                 <Row className="mb-4">
                   <Col md={6}>
-                    <h5 className="text-white-50 mb-2">General Information</h5>
-                    <Table bordered variant="dark" size="sm">
+                    <h5>General Information</h5>
+                    <Table variant="dark" size="sm" borderless>
                       <tbody>
                         <tr>
-                          <td className="text-white-50">Trade ID</td>
+                          <td><strong>Trade ID:</strong></td>
                           <td>{selectedTrade._id}</td>
-                    </tr>
+                        </tr>
                         <tr>
-                          <td className="text-white-50">Status</td>
+                          <td><strong>Status:</strong></td>
                           <td>
-                            <Badge 
+                            <Badge
                               bg={
-                                selectedTrade.status === 'completed' ? 'success' : 
-                                selectedTrade.status === 'cancelled' ? 'danger' :
-                                selectedTrade.status === 'pending' ? 'warning' : 'primary'
+                                selectedTrade.status === 'completed' ? 'success' :
+                                selectedTrade.status === 'cancelled' || selectedTrade.status === 'failed' ? 'danger' :
+                                'primary'
                               }
                             >
                               {selectedTrade.status}
-                          </Badge>
+                            </Badge>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td><strong>Item:</strong></td>
+                          <td>{selectedTrade.item?.marketHashName || selectedTrade.itemName || 'Unknown Item'}</td>
+                        </tr>
+                        <tr>
+                          <td><strong>Price:</strong></td>
+                          <td>{((selectedTrade.price || 0) / 100).toFixed(2)} GEL</td>
+                        </tr>
+                        <tr>
+                          <td><strong>Created:</strong></td>
+                          <td>{new Date(selectedTrade.createdAt).toLocaleString()}</td>
+                        </tr>
+                        {selectedTrade.completedAt && (
+                          <tr>
+                            <td><strong>Completed:</strong></td>
+                            <td>{new Date(selectedTrade.completedAt).toLocaleString()}</td>
+                          </tr>
+                        )}
+                        {selectedTrade.cancelledAt && (
+                          <tr>
+                            <td><strong>Cancelled:</strong></td>
+                            <td>{new Date(selectedTrade.cancelledAt).toLocaleString()}</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </Table>
+                  </Col>
+                  <Col md={6}>
+                    <h5>Participants</h5>
+                    <Table variant="dark" size="sm" borderless>
+                      <tbody>
+                        <tr>
+                          <td><strong>Buyer:</strong></td>
+                          <td>
+                            {selectedTrade.buyer?.displayName || 'Unknown'}
+                            {selectedTrade.buyer && (
+                      <Button 
+                                variant="link" 
+                        size="sm"
+                                onClick={() => viewUserDetails(selectedTrade.buyer._id)}
+                                className="p-0 ms-2"
+                              >
+                                View Profile
+                      </Button>
+                    )}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td><strong>Buyer ID:</strong></td>
+                          <td>{selectedTrade.buyer?._id || 'Unknown'}</td>
+                    </tr>
+                        <tr>
+                          <td><strong>Seller:</strong></td>
+                          <td>
+                            {selectedTrade.seller?.displayName || 'Unknown'}
+                            {selectedTrade.seller && (
+                              <Button 
+                                variant="link" 
+                                size="sm" 
+                                onClick={() => viewUserDetails(selectedTrade.seller._id)}
+                                className="p-0 ms-2"
+                              >
+                                View Profile
+                              </Button>
+                          )}
                         </td>
                       </tr>
                         <tr>
-                          <td className="text-white-50">Created At</td>
-                          <td>{new Date(selectedTrade.createdAt).toLocaleString()}</td>
-                        </tr>
-                        <tr>
-                          <td className="text-white-50">Updated At</td>
-                          <td>{new Date(selectedTrade.updatedAt).toLocaleString()}</td>
-                        </tr>
-                        <tr>
-                          <td className="text-white-50">Amount</td>
-                          <td>{parseFloat(selectedTrade.price).toFixed(2)} GEL</td>
+                          <td><strong>Seller ID:</strong></td>
+                          <td>{selectedTrade.seller?._id || 'Unknown'}</td>
                         </tr>
                   </tbody>
                 </Table>
                   </Col>
-                  <Col md={6}>
-                    <h5 className="text-white-50 mb-2">Item Information</h5>
-                    {selectedTrade.item ? (
-                      <div className="card bg-dark border-secondary">
-                        <div className="card-body">
-                          <div className="d-flex align-items-center mb-3">
-                            {selectedTrade.item.image && (
-                              <img 
-                                src={selectedTrade.item.image} 
-                                alt={selectedTrade.item.name}
-                                className="me-3"
-                                style={{ width: '64px', height: '64px', objectFit: 'contain' }}
-                              />
-                            )}
-                            <div>
-                              <h5 className="mb-0">{selectedTrade.item.name}</h5>
-                              <p className="mb-0 text-white-50">{selectedTrade.item.exterior}</p>
-                            </div>
-                          </div>
-                          <div className="d-flex mb-2">
-                            <div className="text-white-50 me-2">Float:</div>
-                            <div>{selectedTrade.item.float || 'N/A'}</div>
-                          </div>
-                          <div className="d-flex mb-2">
-                            <div className="text-white-50 me-2">Type:</div>
-                            <div>{selectedTrade.item.type || 'N/A'}</div>
-                          </div>
-                          <div className="d-flex">
-                            <div className="text-white-50 me-2">Rarity:</div>
-                            <div>{selectedTrade.item.rarity || 'N/A'}</div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="alert alert-warning">Item information not available</div>
-                    )}
-                  </Col>
                 </Row>
-                
-                <Row className="mb-4">
-                  <Col md={6}>
-                    <h5 className="text-white-50 mb-2">Buyer Information</h5>
-                    {selectedTrade.buyer ? (
-                      <div className="card bg-dark border-secondary">
-                        <div className="card-body">
-                          <div className="d-flex align-items-center mb-3">
-                            {selectedTrade.buyer.avatarUrl && (
-                              <img 
-                                src={selectedTrade.buyer.avatarUrl} 
-                                alt={selectedTrade.buyer.displayName}
-                                className="me-3 rounded-circle"
-                                width="48"
-                                height="48"
-                              />
-                            )}
-                            <div>
-                              <h5 className="mb-0">{selectedTrade.buyer.displayName}</h5>
-                              <p className="mb-0 text-white-50">{selectedTrade.buyer.steamId}</p>
-                            </div>
-                          </div>
-                          <div className="d-flex mb-2">
-                            <div className="text-white-50 me-2">Email:</div>
-                            <div>{selectedTrade.buyer.email || 'N/A'}</div>
-                          </div>
-                          <div className="d-flex">
-                            <div className="text-white-50 me-2">User ID:</div>
-                            <div>{selectedTrade.buyer._id}</div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="alert alert-warning">Buyer information not available</div>
-                    )}
-                  </Col>
-                  <Col md={6}>
-                    <h5 className="text-white-50 mb-2">Seller Information</h5>
-                    {selectedTrade.seller ? (
-                      <div className="card bg-dark border-secondary">
-                        <div className="card-body">
-                          <div className="d-flex align-items-center mb-3">
-                            {selectedTrade.seller.avatarUrl && (
-                              <img 
-                                src={selectedTrade.seller.avatarUrl} 
-                                alt={selectedTrade.seller.displayName}
-                                className="me-3 rounded-circle"
-                                width="48"
-                                height="48"
-                              />
-                            )}
-                            <div>
-                              <h5 className="mb-0">{selectedTrade.seller.displayName}</h5>
-                              <p className="mb-0 text-white-50">{selectedTrade.seller.steamId}</p>
-                            </div>
-                          </div>
-                          <div className="d-flex mb-2">
-                            <div className="text-white-50 me-2">Email:</div>
-                            <div>{selectedTrade.seller.email || 'N/A'}</div>
-                          </div>
-                          <div className="d-flex">
-                            <div className="text-white-50 me-2">User ID:</div>
-                            <div>{selectedTrade.seller._id}</div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="alert alert-warning">Seller information not available</div>
-                    )}
-                  </Col>
-                </Row>
-                
-                {selectedTrade.status === 'pending' && (
-                  <div className="card bg-dark border-warning mt-4">
-                    <div className="card-header bg-dark text-white border-warning">
-                      Admin Actions
-                    </div>
-                    <div className="card-body">
-                      <Row>
-                        <Col md={6} className="mb-3 mb-md-0">
-                          <h6 className="text-white-50 mb-3">Complete Trade</h6>
-                          <p className="text-white-50 mb-3">
-                            Manually complete this trade and transfer funds to the seller.
-                          </p>
-                          <Button 
-                            variant="success" 
-                            className="w-100"
-                            onClick={() => {
-                              handleTransferFunds(selectedTrade._id);
-                              setTradeDetailModalOpen(false);
-                            }}
-                            disabled={tradeActionLoading}
-                          >
-                            {tradeActionLoading ? (
-                              <Spinner animation="border" size="sm" />
-                            ) : (
-                              <>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                                  <polyline points="20 6 9 17 4 12"></polyline>
-                                </svg>
-                                Complete Trade
-                              </>
-                            )}
-                          </Button>
-                        </Col>
-                        <Col md={6}>
-                          <h6 className="text-white-50 mb-3">Cancel Trade</h6>
-                          <div className="mb-3">
-                            <Form.Label>Reason for cancellation</Form.Label>
-                            <Form.Control
-                              as="textarea"
-                              rows={2}
-                              value={cancelReason}
-                              onChange={(e) => setCancelReason(e.target.value)}
-                              placeholder="Enter a reason for cancellation"
+
+                {/* Trade Actions */}
+                {!['completed', 'cancelled', 'failed'].includes(selectedTrade.status) && (
+                  <Card bg="secondary" text="white" className="mb-4">
+                    <Card.Header>
+                      <h5 className="mb-0">Cancel Trade</h5>
+                    </Card.Header>
+                    <Card.Body>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Reason for Cancellation</Form.Label>
+                        <Form.Control
+                          as="textarea"
+                          rows={3}
+                          value={cancelReason}
+                          onChange={(e) => setCancelReason(e.target.value)}
+                          placeholder="Explain why this trade is being cancelled..."
+                        />
+                      </Form.Group>
+                      <Button
+                        variant="danger"
+                        onClick={() => handleCancelTrade(selectedTrade._id)}
+                        disabled={tradeActionLoading}
+                      >
+                        {tradeActionLoading ? (
+                          <>
+                            <Spinner
+                              as="span"
+                              animation="border"
+                              size="sm"
+                              role="status"
+                              aria-hidden="true"
+                              className="me-2"
                             />
-                          </div>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Refund to</Form.Label>
-                            <Form.Select 
-                              value={refundTarget}
-                              onChange={(e) => setRefundTarget(e.target.value)}
-                            >
-                              <option value="buyer">Buyer</option>
-                              <option value="both">Split between both parties</option>
-                            </Form.Select>
-                          </Form.Group>
-                          <Button 
-                            variant="danger" 
-                            className="w-100"
-                            onClick={() => {
-                              handleCancelTrade(selectedTrade._id);
-                              setTradeDetailModalOpen(false);
-                            }}
-                            disabled={tradeActionLoading}
-                          >
-                            {tradeActionLoading ? (
-                              <Spinner animation="border" size="sm" />
-                            ) : (
-                              <>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                                </svg>
-                                Cancel Trade
-                              </>
-                            )}
-                          </Button>
-                        </Col>
-                      </Row>
-                    </div>
-                  </div>
+                            Processing...
+                          </>
+                        ) : (
+                          'Cancel Trade'
+                        )}
+                      </Button>
+                    </Card.Body>
+                  </Card>
                 )}
-              </div>
-            ) : (
-              <div className="text-center py-5">
-                <Spinner animation="border" variant="light" />
-                <p className="mt-3">Loading trade details...</p>
-              </div>
+
+                {/* Fund Transfer */}
+                <Card bg="secondary" text="white" className="mb-4">
+                  <Card.Header>
+                    <h5 className="mb-0">Transfer Funds</h5>
+                  </Card.Header>
+                  <Card.Body>
+                    <p className="text-warning">
+                      Use this feature to compensate users in case of issues or fraud. The amount 
+                      will be added to the selected user's account balance.
+                    </p>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Amount (GEL)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={refundAmount}
+                        onChange={(e) => setRefundAmount(e.target.value)}
+                        placeholder="Enter amount to transfer"
+                      />
+                    </Form.Group>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Recipient</Form.Label>
+                      <div>
+                        <Form.Check
+                          inline
+                          type="radio"
+                          label={`Buyer (${selectedTrade.buyer?.displayName || 'Unknown'})`}
+                          name="refundTarget"
+                          id="refund-buyer"
+                          checked={refundTarget === 'buyer'}
+                          onChange={() => setRefundTarget('buyer')}
+                        />
+                        <Form.Check
+                          inline
+                          type="radio"
+                          label={`Seller (${selectedTrade.seller?.displayName || 'Unknown'})`}
+                          name="refundTarget"
+                          id="refund-seller"
+                          checked={refundTarget === 'seller'}
+                          onChange={() => setRefundTarget('seller')}
+                        />
+                      </div>
+                    </Form.Group>
+                    <Button
+                      variant="success"
+                      onClick={() => handleTransferFunds(selectedTrade._id)}
+                      disabled={tradeActionLoading}
+                    >
+                      {tradeActionLoading ? (
+                        <>
+                          <Spinner
+                            as="span"
+                            animation="border"
+                            size="sm"
+                            role="status"
+                            aria-hidden="true"
+                            className="me-2"
+                          />
+                          Processing...
+                        </>
+                      ) : (
+                        'Transfer Funds'
+                      )}
+                    </Button>
+                  </Card.Body>
+                </Card>
+
+                {/* Status History */}
+                {selectedTrade.statusHistory && selectedTrade.statusHistory.length > 0 && (
+                  <Card bg="dark" text="white">
+                    <Card.Header>
+                      <h5 className="mb-0">Status History</h5>
+                    </Card.Header>
+                    <Card.Body>
+                      <Table variant="dark" striped bordered responsive>
+                  <thead>
+                    <tr>
+                      <th>Status</th>
+                            <th>Timestamp</th>
+                            <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                          {selectedTrade.statusHistory.map((status, index) => (
+                            <tr key={index}>
+                              <td>
+                                <Badge
+                                  bg={
+                                    status.status === 'completed' ? 'success' :
+                                    status.status === 'cancelled' || status.status === 'failed' ? 'danger' :
+                                    'primary'
+                                  }
+                                >
+                                  {status.status}
+                          </Badge>
+                        </td>
+                              <td>{new Date(status.timestamp).toLocaleString()}</td>
+                              <td>{status.message || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+                    </Card.Body>
+                  </Card>
+              )}
+            </>
           )}
         </Modal.Body>
-          <Modal.Footer className="bg-dark text-white border-secondary">
+        <Modal.Footer className="bg-dark text-white">
             <Button variant="secondary" onClick={() => setTradeDetailModalOpen(false)}>
             Close
           </Button>
         </Modal.Footer>
       </Modal>
-      </div>
+      </>
     );
   };
 
@@ -1137,253 +1085,386 @@ function DashboardTab({ stats, loading }) {
   return (
     <div className="admin-dashboard">
       {loading ? (
-        <div className="d-flex justify-content-center my-5">
-          <Spinner animation="border" variant="primary" />
+        <div className="text-center py-5">
+          <Spinner animation="border" variant="light" />
+          <p className="mt-3 text-light">Loading dashboard statistics...</p>
         </div>
-      ) : stats ? (
+      ) : !stats ? (
+        <Alert variant="warning">
+          No statistics available. Try refreshing the page.
+        </Alert>
+      ) : (
         <>
-          <div className="mb-4">
-            <h3 className="text-white mb-0 fs-4">System Overview</h3>
-            <p className="text-white-50 mb-0">Key metrics and platform statistics</p>
-          </div>
-          
-          <div className="row g-4 mb-5">
-            <div className="col-lg-3 col-md-6">
-              <div className="card h-100 bg-dark border-primary">
-                <div className="card-body d-flex align-items-center">
-                  <div className="stats-icon bg-primary-subtle me-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="9" cy="7" r="4"></circle>
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
+          <Row className="mb-4">
+            <Col lg={3} md={6} className="mb-4">
+              <Card bg="dark" text="white" className="h-100 border-primary">
+                <Card.Body>
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                      <h6 className="text-white-50 text-uppercase mb-0">Total Users</h6>
+                      <h2 className="mt-2 mb-0 text-white">{stats.totalUsers || 0}</h2>
+                    </div>
+                    <div className="stats-icon bg-primary-subtle rounded p-3">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                      </svg>
+                    </div>
                   </div>
-                  <div>
-                    <h6 className="text-white-50 mb-1 fw-normal small">Total Users</h6>
-                    <h3 className="card-title mb-0 text-white fw-bold">{stats.userCount || 0}</h3>
+                  <p className="text-white-50 mb-0">
+                    <span className={stats.userGrowth >= 0 ? "text-success" : "text-danger"}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-1">
+                        {stats.userGrowth >= 0 ? (
+                          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                        ) : (
+                          <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline>
+                        )}
+                      </svg>
+                      {Math.abs(stats.userGrowth || 0)}% 
+                    </span>
+                    &nbsp;since last month
+                  </p>
+                </Card.Body>
+              </Card>
+        </Col>
+      
+            <Col lg={3} md={6} className="mb-4">
+              <Card bg="dark" text="white" className="h-100 border-success">
+            <Card.Body>
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                      <h6 className="text-white-50 text-uppercase mb-0">Active Trades</h6>
+                      <h2 className="mt-2 mb-0 text-white">{stats.activeTrades || 0}</h2>
+                    </div>
+                    <div className="stats-icon bg-success-subtle rounded p-3">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="17 1 21 5 17 9"></polyline>
+                        <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                        <polyline points="7 23 3 19 7 15"></polyline>
+                        <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                      </svg>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
+                  <p className="text-white-50 mb-0">
+                    <span className="text-success">
+                      Active vs Completed: {stats.tradeRatio || 0}%
+                    </span>
+              </p>
+            </Card.Body>
+          </Card>
+        </Col>
+        
+            <Col lg={3} md={6} className="mb-4">
+              <Card bg="dark" text="white" className="h-100 border-info">
+            <Card.Body>
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                      <h6 className="text-white-50 text-uppercase mb-0">Market Items</h6>
+                      <h2 className="mt-2 mb-0 text-white">{stats.totalItems || 0}</h2>
+                    </div>
+                    <div className="stats-icon bg-info-subtle rounded p-3">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                      </svg>
+                    </div>
+                  </div>
+                  <p className="text-white-50 mb-0">
+                    <span className="text-info">
+                      Listed items: {stats.listedItems || 0} ({stats.listingRatio || 0}%)
+                    </span>
+              </p>
+            </Card.Body>
+          </Card>
+        </Col>
+        
+            <Col lg={3} md={6} className="mb-4">
+              <Card bg="dark" text="white" className="h-100 border-warning">
+            <Card.Body>
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                      <h6 className="text-white-50 text-uppercase mb-0">Total Revenue</h6>
+                      <h2 className="mt-2 mb-0 text-white">{stats.totalRevenue ? (stats.totalRevenue / 100).toFixed(2) : "0.00"} GEL</h2>
+                    </div>
+                    <div className="stats-icon bg-warning-subtle rounded p-3">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                      </svg>
+                    </div>
+                  </div>
+                  <p className="text-white-50 mb-0">
+                    <span className={stats.revenueChange >= 0 ? "text-success" : "text-danger"}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-1">
+                        {stats.revenueChange >= 0 ? (
+                          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                        ) : (
+                          <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline>
+                        )}
+                      </svg>
+                      {Math.abs(stats.revenueChange || 0)}% 
+                    </span>
+                    &nbsp;since last month
+              </p>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+          <Row className="mb-4">
+            <Col md={8}>
+              <Card bg="dark" text="white" className="h-100">
+                <Card.Header className="d-flex justify-content-between align-items-center">
+                  <h5 className="mb-0">Recent Trades</h5>
+                  <Button variant="outline-light" size="sm" as={Link} to="/admin/tools?tab=trades">
+                    View All
+                  </Button>
+                </Card.Header>
+                <Card.Body>
+                  {stats.recentTrades && stats.recentTrades.length > 0 ? (
+                    <Table responsive borderless variant="dark" className="mb-0">
+                      <thead>
+                        <tr>
+                          <th>Item</th>
+                          <th>Buyer</th>
+                          <th>Seller</th>
+                          <th>Status</th>
+                          <th>Price</th>
+                          <th>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stats.recentTrades.slice(0, 5).map((trade, index) => (
+                          <tr key={index}>
+                            <td className="text-nowrap">{trade.itemName || 'Unknown Item'}</td>
+                            <td>{trade.buyer?.displayName || 'Unknown'}</td>
+                            <td>{trade.seller?.displayName || 'Unknown'}</td>
+                            <td>
+                              <Badge
+                                bg={
+                                  trade.status === 'completed' ? 'success' :
+                                  trade.status === 'cancelled' || trade.status === 'failed' ? 'danger' :
+                                  'primary'
+                                }
+                              >
+                                {trade.status}
+                              </Badge>
+                            </td>
+                            <td>{((trade.price || 0) / 100).toFixed(2)} GEL</td>
+                            <td className="text-nowrap">{new Date(trade.createdAt).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  ) : (
+                    <p className="text-center text-muted my-4">No recent trades found</p>
+                  )}
+                </Card.Body>
+              </Card>
+            </Col>
             
-            <div className="col-lg-3 col-md-6">
-              <div className="card h-100 bg-dark border-success">
-                <div className="card-body d-flex align-items-center">
-                  <div className="stats-icon bg-success-subtle me-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                      <line x1="8" y1="21" x2="16" y2="21"></line>
-                      <line x1="12" y1="17" x2="12" y2="21"></line>
-                    </svg>
-                  </div>
-                  <div>
-                    <h6 className="text-white-50 mb-1 fw-normal small">Market Items</h6>
-                    <h3 className="card-title mb-0 text-white fw-bold">{stats.listedItemsCount || 0}</h3>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="col-lg-3 col-md-6">
-              <div className="card h-100 bg-dark border-info">
-                <div className="card-body d-flex align-items-center">
-                  <div className="stats-icon bg-info-subtle me-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="17 1 21 5 17 9"></polyline>
-                      <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                      <polyline points="7 23 3 19 7 15"></polyline>
-                      <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <h6 className="text-white-50 mb-1 fw-normal small">Active Trades</h6>
-                    <h3 className="card-title mb-0 text-white fw-bold">{stats.activeTrades || 0}</h3>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="col-lg-3 col-md-6">
-              <div className="card h-100 bg-dark border-warning">
-                <div className="card-body d-flex align-items-center">
-                  <div className="stats-icon bg-warning-subtle me-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="1" x2="12" y2="23"></line>
-                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <h6 className="text-white-50 mb-1 fw-normal small">Total Revenue</h6>
-                    <h3 className="card-title mb-0 text-white fw-bold">{stats.totalRevenue ? `${stats.totalRevenue.toFixed(2)} GEL` : '0.00 GEL'}</h3>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="row g-4">
-            <div className="col-lg-8">
-              <div className="card bg-dark h-100">
-                <div className="card-header bg-dark border-bottom border-secondary">
-                  <h5 className="card-title text-white mb-0">Recent Activity</h5>
-                </div>
-                <div className="card-body p-0">
-                  <div className="list-group list-group-flush activity-timeline">
-                    {stats.recentActivity && stats.recentActivity.length > 0 ? (
-                      stats.recentActivity.map((activity, index) => (
-                        <div key={index} className="list-group-item bg-dark text-white border-secondary d-flex align-items-start p-3">
-                          <div className={`timeline-icon me-3 rounded-circle bg-${getActivityTypeColor(activity.type)}-subtle`}>
-                            {getActivityTypeIcon(activity.type)}
-                          </div>
-                          <div className="ms-2 w-100">
-                            <div className="d-flex w-100 justify-content-between">
-                              <h6 className="mb-1 text-white">{activity.title}</h6>
-                              <small className="text-white-50">{formatActivityTime(activity.timestamp)}</small>
-                            </div>
-                            <p className="mb-1 text-white-50">{activity.description}</p>
-                            {activity.details && (
-                              <small className="text-white-50">{activity.details}</small>
-                            )}
-                          </div>
+            <Col md={4}>
+              <Card bg="dark" text="white" className="h-100">
+                <Card.Header className="d-flex justify-content-between align-items-center">
+                  <h5 className="mb-0">System Status</h5>
+                  <span className="badge bg-success">Operational</span>
+                </Card.Header>
+                <Card.Body>
+                  <div className="system-status-items">
+                    {stats.systemStatus?.components?.map((component, index) => (
+                      <div key={index} className="status-item d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                          <h6 className="mb-0">{component.name}</h6>
+                          <small className="text-muted">{component.description}</small>
                         </div>
-                      ))
-                    ) : (
-                      <div className="list-group-item bg-dark text-white-50 border-secondary p-3 text-center">
-                        No recent activity to display
+                        <Badge 
+                          bg={component.status === 'operational' ? 'success' : 
+                             component.status === 'degraded' ? 'warning' : 'danger'}
+                        >
+                          {component.status}
+                        </Badge>
                       </div>
+                    )) || (
+                      <>
+                        <div className="status-item d-flex justify-content-between align-items-center mb-3">
+                          <div>
+                            <h6 className="mb-0">API Services</h6>
+                            <small className="text-muted">Backend services status</small>
+                          </div>
+                          <Badge bg="success">Operational</Badge>
+                        </div>
+                        <div className="status-item d-flex justify-content-between align-items-center mb-3">
+                          <div>
+                            <h6 className="mb-0">Database Services</h6>
+                            <small className="text-muted">MongoDB status</small>
+                          </div>
+                          <Badge bg="success">Operational</Badge>
+                        </div>
+                        <div className="status-item d-flex justify-content-between align-items-center mb-3">
+                          <div>
+                            <h6 className="mb-0">Steam Integration</h6>
+                            <small className="text-muted">Steam API connection</small>
+                          </div>
+                          <Badge bg="success">Operational</Badge>
+                        </div>
+                        <div className="status-item d-flex justify-content-between align-items-center">
+                          <div>
+                            <h6 className="mb-0">Payment Gateway</h6>
+                            <small className="text-muted">Payment processing status</small>
+                          </div>
+                          <Badge bg="success">Operational</Badge>
+                        </div>
+                      </>
                     )}
                   </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="col-lg-4">
-              <div className="card bg-dark h-100">
-                <div className="card-header bg-dark border-bottom border-secondary">
-                  <h5 className="card-title text-white mb-0">System Status</h5>
-                </div>
-                <div className="card-body">
-                  <div className="system-status-items">
-                    <div className="status-item d-flex justify-content-between">
-                      <span className="text-white-50">API Status</span>
-                      <span className="badge bg-success">Online</span>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+
+          <Row className="mb-4">
+            <Col md={6}>
+              <Card bg="dark" text="white" className="h-100">
+                <Card.Header className="d-flex justify-content-between align-items-center">
+                  <h5 className="mb-0">Activity Log</h5>
+                </Card.Header>
+                <Card.Body>
+                  <div className="activity-timeline">
+                    <div className="timeline-item d-flex mb-3">
+                      <div className="timeline-icon bg-success-subtle me-3 rounded-circle p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="mb-0 text-light">New user registered</p>
+                        <small className="text-muted">2 minutes ago</small>
+                      </div>
                     </div>
-                    <div className="status-item d-flex justify-content-between">
-                      <span className="text-white-50">Steam API</span>
-                      <span className="badge bg-success">Connected</span>
+                    <div className="timeline-item d-flex mb-3">
+                      <div className="timeline-icon bg-primary-subtle me-3 rounded-circle p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="23 4 23 10 17 10"></polyline>
+                          <polyline points="1 20 1 14 7 14"></polyline>
+                          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="mb-0 text-light">Trade completed successfully</p>
+                        <small className="text-muted">15 minutes ago</small>
+                      </div>
                     </div>
-                    <div className="status-item d-flex justify-content-between">
-                      <span className="text-white-50">Database</span>
-                      <span className="badge bg-success">Healthy</span>
+                    <div className="timeline-item d-flex mb-3">
+                      <div className="timeline-icon bg-warning-subtle me-3 rounded-circle p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" y1="12" r="10"></circle>
+                          <line x1="12" y1="8" x2="12" y2="12"></line>
+                          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="mb-0 text-light">Payment processing delayed</p>
+                        <small className="text-muted">1 hour ago</small>
+                      </div>
                     </div>
-                    <div className="status-item d-flex justify-content-between">
-                      <span className="text-white-50">Cache</span>
-                      <span className="badge bg-success">Operational</span>
-                    </div>
-                    <div className="status-item d-flex justify-content-between">
-                      <span className="text-white-50">Job Queue</span>
-                      <span className="badge bg-success">Active</span>
+                    <div className="timeline-item d-flex">
+                      <div className="timeline-icon bg-info-subtle me-3 rounded-circle p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="mb-0 text-light">System maintenance completed</p>
+                        <small className="text-muted">3 hours ago</small>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-          </div>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={6}>
+              <Card bg="dark" text="white" className="h-100">
+                <Card.Header className="d-flex justify-content-between align-items-center">
+                  <h5 className="mb-0">Top Items</h5>
+                </Card.Header>
+                <Card.Body>
+                  <Table responsive borderless variant="dark" className="mb-0">
+                    <thead>
+                      <tr>
+                        <th>Item</th>
+                        <th>Category</th>
+                        <th>Trades</th>
+                        <th>Avg. Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className="text-nowrap">
+                          <div className="d-flex align-items-center">
+                            <div className="me-2" style={{ width: 32, height: 32 }}>
+                              <div className="rounded bg-secondary" style={{ width: 32, height: 32 }}></div>
+                            </div>
+                            <span>AK-47 | Asiimov</span>
+                          </div>
+                        </td>
+                        <td>Rifle</td>
+                        <td>24</td>
+                        <td>85.50 GEL</td>
+                      </tr>
+                      <tr>
+                        <td className="text-nowrap">
+                          <div className="d-flex align-items-center">
+                            <div className="me-2" style={{ width: 32, height: 32 }}>
+                              <div className="rounded bg-secondary" style={{ width: 32, height: 32 }}></div>
+                            </div>
+                            <span>AWP | Dragon Lore</span>
+                          </div>
+                        </td>
+                        <td>Sniper Rifle</td>
+                        <td>18</td>
+                        <td>1250.00 GEL</td>
+                      </tr>
+                      <tr>
+                        <td className="text-nowrap">
+                          <div className="d-flex align-items-center">
+                            <div className="me-2" style={{ width: 32, height: 32 }}>
+                              <div className="rounded bg-secondary" style={{ width: 32, height: 32 }}></div>
+                            </div>
+                            <span>Butterfly Knife | Fade</span>
+                          </div>
+                        </td>
+                        <td>Knife</td>
+                        <td>15</td>
+                        <td>450.25 GEL</td>
+                      </tr>
+                      <tr>
+                        <td className="text-nowrap">
+                          <div className="d-flex align-items-center">
+                            <div className="me-2" style={{ width: 32, height: 32 }}>
+                              <div className="rounded bg-secondary" style={{ width: 32, height: 32 }}></div>
+                            </div>
+                            <span>M4A4 | Howl</span>
+                          </div>
+                        </td>
+                        <td>Rifle</td>
+                        <td>12</td>
+                        <td>325.75 GEL</td>
+                      </tr>
+                    </tbody>
+                  </Table>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
         </>
-      ) : (
-        <div className="alert alert-info">No statistics available. Try refreshing the data.</div>
       )}
     </div>
   );
-}
-
-// Helper functions for dashboard
-function getActivityTypeColor(type) {
-  switch (type?.toLowerCase()) {
-    case 'trade':
-      return 'info';
-    case 'listing':
-      return 'success';
-    case 'auth':
-      return 'primary';
-    case 'error':
-      return 'danger';
-    case 'admin':
-      return 'warning';
-    default:
-      return 'secondary';
-  }
-}
-
-function getActivityTypeIcon(type) {
-  switch (type?.toLowerCase()) {
-    case 'trade':
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="17 1 21 5 17 9"></polyline>
-          <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-          <polyline points="7 23 3 19 7 15"></polyline>
-          <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-        </svg>
-      );
-    case 'listing':
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-          <line x1="8" y1="21" x2="16" y2="21"></line>
-          <line x1="12" y1="17" x2="12" y2="21"></line>
-        </svg>
-      );
-    case 'auth':
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-          <circle cx="9" cy="7" r="4"></circle>
-        </svg>
-      );
-    case 'error':
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="8" x2="12" y2="12"></line>
-          <line x1="12" y1="16" x2="12.01" y2="16"></line>
-        </svg>
-      );
-    case 'admin':
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-        </svg>
-      );
-    default:
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="16" x2="12" y2="12"></line>
-          <line x1="12" y1="8" x2="12.01" y2="8"></line>
-        </svg>
-      );
-  }
-}
-
-function formatActivityTime(timestamp) {
-  if (!timestamp) return 'Unknown time';
-  
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now - date;
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 30) return `${diffDays}d ago`;
-  
-  return date.toLocaleDateString();
 }
 
 // Cleanup Tab Component
@@ -1393,172 +1474,207 @@ function CleanupTab({
 }) {
   return (
     <div className="cleanup-tab">
-      <div className="mb-4">
-        <h4 className="text-white mb-1">System Maintenance</h4>
-        <p className="text-white-50">Clean up database records and fix inconsistencies</p>
-      </div>
-
-      <div className="row g-4">
-        <div className="col-lg-6">
-          <div className="card bg-dark h-100">
-            <div className="card-header bg-dark text-white border-bottom border-secondary">
-              <h5 className="mb-0">System-wide Cleanup</h5>
-            </div>
-            <div className="card-body">
-              <p className="text-white-50 mb-4">
-                This will clean up all outdated or invalid listings in the marketplace database. Use with caution as this is a system-wide operation.
+    <Row>
+        <Col lg={6} className="mb-4">
+          <Card bg="dark" text="white" className="h-100">
+            <Card.Header className="bg-dark border-danger">
+              <h5 className="mb-0 d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2 text-danger">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                System-wide Cleanup
+              </h5>
+            </Card.Header>
+          <Card.Body>
+              <p className="text-light">
+                This will check all listings in the system and cleanup any that are no longer valid. 
+                Items will be unlisted and trades will be marked as cancelled if:
               </p>
-              
-              <div className="d-grid">
+              <ul className="text-light">
+                <li>The item no longer exists in the owner's Steam inventory</li>
+                <li>The trade has been pending for more than 7 days</li>
+                <li>The item has been removed from Steam</li>
+              </ul>
+              <div className="d-grid gap-2">
             <Button 
               variant="danger" 
+                  size="lg"
               onClick={cleanupAllListings} 
               disabled={loading}
-                  className="d-flex align-items-center justify-content-center"
+                  className="mb-3"
                 >
                   {loading ? (
-                    <Spinner animation="border" size="sm" className="me-2" />
+                    <>
+                      <Spinner
+                        as="span"
+                        animation="border"
+                        size="sm"
+                        role="status"
+                        aria-hidden="true"
+                        className="me-2"
+                      />
+                      Running System Cleanup...
+                    </>
                   ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                      <path d="M3 6h18"></path>
-                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                      <line x1="10" y1="11" x2="10" y2="17"></line>
-                      <line x1="14" y1="11" x2="14" y2="17"></line>
-                    </svg>
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                      </svg>
+                      Run System-wide Cleanup
+                    </>
                   )}
-                  Clean Up All Listings
             </Button>
+                <Alert variant="dark" className="border border-danger text-white-50 mb-0">
+                  <Alert.Heading className="fs-6 text-danger">Warning!</Alert.Heading>
+                  <p className="mb-0 small">
+                    This operation can take a long time and will affect all users. 
+                    Use with caution during low-traffic periods.
+                  </p>
+                </Alert>
               </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="col-lg-6">
-          <div className="card bg-dark h-100">
-            <div className="card-header bg-dark text-white border-bottom border-secondary">
-              <h5 className="mb-0">User-specific Cleanup</h5>
-            </div>
-            <div className="card-body">
-              <p className="text-white-50 mb-4">
-                Clean up listings for a specific user. Enter the user's ID to remove all their invalid or outdated listings.
+          </Card.Body>
+        </Card>
+      </Col>
+      
+        <Col lg={6} className="mb-4">
+          <Card bg="dark" text="white" className="h-100">
+            <Card.Header className="bg-dark border-warning">
+              <h5 className="mb-0 d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2 text-warning">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                User-specific Cleanup
+              </h5>
+            </Card.Header>
+          <Card.Body>
+              <p className="text-light">
+                Clean up all listings and trades for a specific user. 
+                This is useful when a user has reported issues with their listings 
+                or when investigating potential fraud.
               </p>
-              
             <Form onSubmit={cleanupUserListings}>
               <Form.Group className="mb-3">
-                <Form.Label>User ID</Form.Label>
+                  <Form.Label className="text-light">User ID</Form.Label>
                 <Form.Control 
                   type="text" 
+                    placeholder="Enter user ID"
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
-                    placeholder="Enter user ID"
                     required
+                    className="bg-dark text-light border-secondary"
                 />
-                  <Form.Text className="text-white-50">
-                    Enter the MongoDB ID of the user whose listings you want to clean up
+                  <Form.Text className="text-light">
+                    Enter the MongoDB ObjectId or Steam ID of the user.
                 </Form.Text>
               </Form.Group>
-                
                 <div className="d-grid">
               <Button 
                 variant="warning" 
+                    size="lg" 
                 type="submit" 
-                    disabled={loading || !userId}
-                    className="d-flex align-items-center justify-content-center"
+                    disabled={loading || !userId.trim()}
+                    className="mb-3"
                   >
                     {loading ? (
-                      <Spinner animation="border" size="sm" className="me-2" />
+                      <>
+                        <Spinner
+                          as="span"
+                          animation="border"
+                          size="sm"
+                          role="status"
+                          aria-hidden="true"
+                          className="me-2"
+                        />
+                        Cleaning User Data...
+                      </>
                     ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-                      </svg>
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+                          <path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"></path>
+                          <polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon>
+                        </svg>
+                        Run User Cleanup
+                      </>
                     )}
-                    Clean User Listings
               </Button>
                 </div>
             </Form>
-            </div>
-          </div>
-        </div>
-      </div>
+          </Card.Body>
+        </Card>
+      </Col>
+      </Row>
       
       {results && (
-        <div className="mt-4">
-          <div className={`alert ${
-            results.success ? 'alert-success' : 'alert-danger'
-          }`}>
-            <h5 className="alert-heading">{results.success ? 'Success!' : 'Error!'}</h5>
-            <p className="mb-0">{results.message}</p>
-            
-            {results.details && (
-              <>
-                <hr />
-                <div className="small">
-                  {Object.keys(results.details).map((key) => (
-                    <div key={key} className="mb-1">
-                      <strong>{key}:</strong> {results.details[key]}
+        <Row>
+        <Col md={12}>
+            <Card bg="dark" text="white" className="mb-4">
+              <Card.Header className="bg-dark border-success">
+                <h5 className="mb-0 d-flex align-items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2 text-success">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  Cleanup Results
+                </h5>
+              </Card.Header>
+            <Card.Body>
+                <div className="bg-dark text-light p-3 rounded border border-secondary" style={{ maxHeight: '300px', overflow: 'auto' }}>
+                  <Row className="mb-3">
+                    <Col md={6}>
+                      <Card bg="secondary" className="mb-3">
+                        <Card.Body>
+                          <h6 className="text-white mb-2">Items Updated</h6>
+                          <h3 className="text-white mb-0">{results.itemsUpdated || 0}</h3>
+            </Card.Body>
+          </Card>
+        </Col>
+                    <Col md={6}>
+                      <Card bg="secondary" className="mb-3">
+                        <Card.Body>
+                          <h6 className="text-white mb-2">Trades Updated</h6>
+                          <h3 className="text-white mb-0">{results.tradesUpdated || 0}</h3>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  </Row>
+                  
+                  {(results.items && results.items.length > 0) && (
+                    <div className="mb-4">
+                      <h6 className="text-white">Items Details:</h6>
+                      <ul className="list-group bg-dark">
+                        {results.items.map((item, i) => (
+                          <li key={i} className="list-group-item bg-dark text-light border-secondary">
+                            Item: {item.marketHashName || 'Unknown'} - {item.message}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  ))}
+                  )}
+                  
+                  {(results.trades && results.trades.length > 0) && (
+                    <div>
+                      <h6 className="text-white">Trades Details:</h6>
+                      <ul className="list-group bg-dark">
+                        {results.trades.map((trade, i) => (
+                          <li key={i} className="list-group-item bg-dark text-light border-secondary">
+                            Trade {trade._id || i}: {trade.message}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
-              </>
-            )}
-          </div>
-        </div>
+              </Card.Body>
+            </Card>
+          </Col>
+    </Row>
       )}
-      
-      <div className="mt-5">
-        <div className="card bg-dark">
-          <div className="card-header bg-dark text-white border-bottom border-secondary">
-            <h5 className="mb-0">Local Storage Cleanup</h5>
-          </div>
-          <div className="card-body">
-            <p className="text-white-50 mb-4">
-              The following script can be provided to users who need to clear their local browser storage for the CS2 Marketplace. This can help resolve issues with persistent data.
-            </p>
-            
-            <div className="bg-dark-secondary p-3 rounded">
-              <pre className="text-white mb-0" style={{ whiteSpace: 'pre-wrap' }}>
-{`// Copy this script and paste it in the browser console
-(function() {
-  // List of localStorage keys to remove
-  const keysToRemove = [
-    'cs2marketplace_cart',
-    'cs2marketplace_filters',
-    'cs2marketplace_theme',
-    'cs2marketplace_notifications',
-    'cs2marketplace_recentlyViewed',
-    'cs2marketplace_lastSearch'
-  ];
-
-  // Remove each key
-  keysToRemove.forEach(key => {
-    localStorage.removeItem(key);
-    console.log(\`Removed \${key} from localStorage\`);
-  });
-
-  console.log('Local storage cleanup completed!');
-})();`}
-              </pre>
-            </div>
-            
-            <div className="d-flex justify-content-end mt-3">
-              <Button 
-                variant="outline-light"
-                onClick={() => {
-                  navigator.clipboard.writeText(document.querySelector('pre').textContent);
-                  window.showNotification('Success', 'Script copied to clipboard', 'SUCCESS');
-                }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-                Copy Script
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
