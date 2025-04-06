@@ -107,14 +107,45 @@ exports.listItem = async (req, res) => {
       },
     });
 
-    // Send real-time notification via WebSocket
-    socketService.sendNotification(req.user._id, notification);
+    // Send real-time notification via WebSocket (if available)
+    try {
+      socketService.sendNotification(req.user._id, notification);
+    } catch (err) {
+      console.log("Failed to send socket notification:", err.message);
+    }
 
     // Broadcast new listing to all connected clients
-    socketService.sendMarketUpdate({
-      type: "new_listing",
-      item: newItem,
-    });
+    try {
+      socketService.sendMarketUpdate({
+        type: "new_listing",
+        item: newItem,
+      });
+    } catch (err) {
+      console.log("Failed to send market update:", err.message);
+    }
+
+    // Emit market activity for the live feed
+    try {
+      console.log("Emitting market activity for new listing");
+
+      // Format the listing data for the activity feed
+      const activityData = {
+        type: "listing",
+        itemName: newItem.marketHashName,
+        itemImage: newItem.imageUrl,
+        price: newItem.price,
+        user: req.user.username || req.user.steamName || "User",
+        userAvatar: req.user.avatar || "/default-avatar.png",
+        timestamp: new Date().toISOString(),
+      };
+
+      // Emit the activity
+      socketService.emitMarketActivity(activityData);
+
+      console.log("Market activity emission completed");
+    } catch (err) {
+      console.error("Failed to emit market activity:", err);
+    }
 
     // Update site stats since we've added a new listing
     if (server && typeof server.updateSiteStats === "function") {
@@ -131,18 +162,9 @@ exports.listItem = async (req, res) => {
       }
     }
 
-    // Emit socket event for new listing
-    socketService.emitMarketActivity({
-      type: "listing",
-      itemName: newItem.marketHashName,
-      price: newItem.price,
-      user: req.user.username || req.user.steamName || "A user",
-      timestamp: new Date().toISOString(),
-    });
-
     return res.status(201).json(newItem);
   } catch (err) {
-    console.error(err);
+    console.error("Error listing item:", err);
     return res.status(500).json({ error: "Failed to list item for sale." });
   }
 };

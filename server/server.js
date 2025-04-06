@@ -395,7 +395,16 @@ io.on("connection", (socket) => {
     // Emit only to the requesting client
     socket.emit("market_activity", testActivity);
 
+    // Also broadcast to all clients for better testing
+    io.emit("market_activity", testActivity);
+
     console.log("Emitted test market activity");
+  });
+
+  // Handle marketplace events from controllers
+  socket.on("market_activity", (activity) => {
+    console.log("Broadcasting market activity:", activity);
+    io.emit("market_activity", activity);
   });
 
   // Handle disconnect
@@ -404,7 +413,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// Initialize socket service
+// Initialize socket service with io instance
 const socketService = require("./services/socketService");
 socketService.init(io);
 

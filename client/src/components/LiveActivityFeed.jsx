@@ -8,13 +8,14 @@ const LiveActivityFeed = () => {
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [lastActivity, setLastActivity] = useState(null);
+  const [debug, setDebug] = useState({});
   const feedRef = useRef(null);
   const dropdownRef = useRef(null);
-  const maxActivitiesShown = 5; // Show more activities
+  const maxActivitiesShown = 5;
 
   // Connect to socket if not already connected
   useEffect(() => {
-    console.log('[LiveActivityFeed] Initializing and checking socket connection');
+    console.log('[LiveActivityFeed] Component mounted');
     
     // Always try to connect when component mounts
     socketService.connect();
@@ -22,18 +23,26 @@ const LiveActivityFeed = () => {
     const onConnect = () => {
       console.log('[LiveActivityFeed] Socket connected successfully');
       setIsConnected(true);
+      setDebug(prev => ({ ...prev, lastConnected: new Date() }));
     };
 
     const onDisconnect = () => {
       console.log('[LiveActivityFeed] Socket disconnected');
       setIsConnected(false);
+      setDebug(prev => ({ ...prev, lastDisconnected: new Date() }));
     };
 
     socketService.onConnected(onConnect);
     socketService.onDisconnected(onDisconnect);
     
     // Check initial connection state
-    setIsConnected(socketService.isConnected());
+    const connected = socketService.isConnected();
+    setIsConnected(connected);
+    setDebug(prev => ({ 
+      ...prev, 
+      initialConnectionState: connected ? 'connected' : 'disconnected',
+      componentMounted: new Date()
+    }));
 
     return () => {
       console.log('[LiveActivityFeed] Cleaning up connection listeners');
@@ -46,9 +55,62 @@ const LiveActivityFeed = () => {
   useEffect(() => {
     console.log('[LiveActivityFeed] Setting up activity event listeners');
     
+    const handleMarketActivity = (activity) => {
+      console.log('[LiveActivityFeed] Market activity received:', activity);
+      setLastActivity({ type: 'market', data: activity, time: new Date() });
+      setDebug(prev => ({ 
+        ...prev, 
+        lastMarketActivity: new Date(),
+        marketActivityReceived: (prev.marketActivityReceived || 0) + 1,
+        lastMarketActivityData: activity
+      }));
+      
+      if (!activity) {
+        console.warn('[LiveActivityFeed] Received null/undefined market activity');
+        return;
+      }
+      
+      try {
+        // Convert the server's format to our expected format
+        const enhancedActivity = {
+          ...activity,
+          timestamp: activity.timestamp || new Date().toISOString(),
+          id: `market-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          user: {
+            name: typeof activity.user === 'string' ? activity.user : (activity.user?.name || 'User'),
+            avatar: activity.userAvatar || activity.user?.avatar || '/default-avatar.png'
+          },
+          item: {
+            name: activity.itemName || activity.item?.name || 'Item',
+            image: activity.itemImage || activity.item?.image || '/default-item.png'
+          },
+          price: parseFloat(activity.price) || 0,
+          type: activity.type || 'listing'
+        };
+        
+        setActivities(prev => {
+          console.log('[LiveActivityFeed] Adding new market activity. Current count:', prev.length);
+          return [enhancedActivity, ...prev].slice(0, 20);
+        });
+      } catch (error) {
+        console.error('[LiveActivityFeed] Error processing market activity:', error);
+        console.error('Activity data that caused error:', activity);
+        setDebug(prev => ({ 
+          ...prev, 
+          lastError: { time: new Date(), message: error.message, data: activity }
+        }));
+      }
+    };
+
     const handleUserActivity = (activity) => {
       console.log('[LiveActivityFeed] User activity received:', activity);
       setLastActivity({ type: 'user', data: activity, time: new Date() });
+      setDebug(prev => ({ 
+        ...prev, 
+        lastUserActivity: new Date(),
+        userActivityReceived: (prev.userActivityReceived || 0) + 1,
+        lastUserActivityData: activity
+      }));
       
       if (!activity) {
         console.warn('[LiveActivityFeed] Received null/undefined user activity');
@@ -77,45 +139,7 @@ const LiveActivityFeed = () => {
       });
     };
 
-    const handleMarketActivity = (activity) => {
-      console.log('[LiveActivityFeed] Market activity received:', JSON.stringify(activity));
-      setLastActivity({ type: 'market', data: activity, time: new Date() });
-      
-      if (!activity) {
-        console.warn('[LiveActivityFeed] Received null/undefined market activity');
-        return;
-      }
-      
-      try {
-        // Convert the server's format to our expected format
-        const enhancedActivity = {
-          ...activity,
-          timestamp: activity.timestamp || new Date().toISOString(),
-          id: `market-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-          user: {
-            name: typeof activity.user === 'string' ? activity.user : (activity.user?.name || 'User'),
-            avatar: activity.userAvatar || activity.user?.avatar || '/default-avatar.png'
-          },
-          item: {
-            name: activity.itemName || activity.item?.name || 'Item',
-            image: activity.itemImage || activity.item?.image || '/default-item.png'
-          },
-          price: parseFloat(activity.price) || 0,
-          type: activity.type || 'listing'
-        };
-        
-        setActivities(prev => {
-          console.log('[LiveActivityFeed] Adding new market activity to state. Current count:', prev.length);
-          // Add new activity and limit to 20 recent items
-          return [enhancedActivity, ...prev].slice(0, 20);
-        });
-      } catch (error) {
-        console.error('[LiveActivityFeed] Error processing market activity:', error);
-        console.error('Activity data that caused error:', activity);
-      }
-    };
-
-    // Clear any existing listeners to prevent duplicates
+    // Make sure to clean existing listeners to prevent duplicates
     socketService.off('user_activity');
     socketService.off('market_activity');
     
@@ -138,12 +162,21 @@ const LiveActivityFeed = () => {
 
     document.addEventListener('mousedown', handleClickOutside);
 
+    // Add reconnection logic
+    const reconnectInterval = setInterval(() => {
+      if (!socketService.isConnected()) {
+        console.log('[LiveActivityFeed] Attempting reconnection...');
+        socketService.connect();
+      }
+    }, 10000); // Try reconnecting every 10 seconds if disconnected
+
     return () => {
       console.log('[LiveActivityFeed] Cleaning up event listeners');
       socketService.off('user_activity', handleUserActivity);
       socketService.off('market_activity', handleMarketActivity);
       document.removeEventListener('mousedown', handleClickOutside);
       clearTimeout(timer);
+      clearInterval(reconnectInterval);
     };
   }, []);
 
@@ -151,6 +184,7 @@ const LiveActivityFeed = () => {
   const requestTestActivity = () => {
     console.log('[LiveActivityFeed] Manually requesting test activity');
     socketService.emitTestActivity();
+    setDebug(prev => ({ ...prev, manualTestRequested: new Date() }));
   };
 
   const handleActivityClick = (activity) => {
@@ -183,9 +217,23 @@ const LiveActivityFeed = () => {
     }
   };
 
+  const formatPrice = (price) => {
+    if (!price) return '$0.00';
+    return `$${parseFloat(price).toFixed(2)}`;
+  };
+
+  const reconnectSocket = () => {
+    console.log('[LiveActivityFeed] Manual reconnection requested');
+    socketService.disconnect();
+    setTimeout(() => {
+      socketService.connect();
+    }, 500);
+    setDebug(prev => ({ ...prev, manualReconnectRequested: new Date() }));
+  };
+
   return (
     <>
-      {/* Live Feed Container - button positioned on right side */}
+      {/* Live Feed Container */}
       <div 
         ref={dropdownRef}
         className="live-feed-container"
@@ -247,23 +295,44 @@ const LiveActivityFeed = () => {
           </span>
         </button>
         
-        {/* Debug button in dev mode */}
+        {/* Debug buttons in dev mode */}
         {process.env.NODE_ENV !== 'production' && (
-          <button 
-            onClick={requestTestActivity}
-            style={{
-              marginTop: '4px',
-              padding: '4px 8px',
-              fontSize: '10px',
-              backgroundColor: '#374151',
-              color: '#e2e8f0',
-              border: '1px solid #4b5563',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Test Activity
-          </button>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            marginTop: '4px', 
+            gap: '4px' 
+          }}>
+            <button 
+              onClick={requestTestActivity}
+              style={{
+                padding: '4px 8px',
+                fontSize: '10px',
+                backgroundColor: '#374151',
+                color: '#e2e8f0',
+                border: '1px solid #4b5563',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Test Activity
+            </button>
+            
+            <button 
+              onClick={reconnectSocket}
+              style={{
+                padding: '4px 8px',
+                fontSize: '10px',
+                backgroundColor: '#374151',
+                color: '#e2e8f0',
+                border: '1px solid #4b5563',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Reconnect
+            </button>
+          </div>
         )}
         
         {/* Connection status debug info */}
@@ -278,25 +347,29 @@ const LiveActivityFeed = () => {
             maxWidth: '200px'
           }}>
             <div>Socket: {isConnected ? 'Connected' : 'Disconnected'}</div>
+            <div>Activities: {activities.length}</div>
             {lastActivity && (
               <div>
                 Last: {lastActivity.type} ({Math.round((Date.now() - lastActivity.time) / 1000)}s ago)
               </div>
             )}
+            <div>
+              Market: {debug.marketActivityReceived || 0} / User: {debug.userActivityReceived || 0}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Live Feed Dropdown Content - Full width version */}
+      {/* Live Feed Dropdown Content */}
       <div 
         className="live-feed-dropdown-content"
         style={{
           position: 'fixed',
-          top: '80px', // Positioned right below navbar
+          top: '80px',
           left: '0',
           right: '0',
           width: '100%',
-          backgroundColor: 'rgba(15, 23, 42, 0.85)', // More transparent
+          backgroundColor: 'rgba(15, 23, 42, 0.85)',
           backdropFilter: 'blur(5px)',
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
           maxHeight: visible ? '400px' : '0px',
@@ -304,212 +377,185 @@ const LiveActivityFeed = () => {
           overflow: 'hidden',
           transition: 'max-height 0.3s ease, opacity 0.3s ease',
           borderBottom: visible ? '1px solid rgba(59, 130, 246, 0.2)' : 'none',
-          zIndex: 29 // Lower than the button
+          zIndex: 29
         }}
       >
         <div 
           className="live-feed-content"
           ref={feedRef}
           style={{
-            padding: visible ? '15px' : '0 15px',
-            maxWidth: '1200px', // Match navbar width constraint
+            padding: '16px',
+            maxWidth: '1200px',
             margin: '0 auto',
             display: 'flex',
-            flexWrap: 'wrap',
-            gap: '12px',
-            justifyContent: 'center',
-            transition: 'padding 0.3s ease'
+            flexDirection: 'column',
+            gap: '8px'
           }}
         >
-          {activities.length > 0 ? (
-            activities.slice(0, maxActivitiesShown).map((activity, index) => (
-              <div
-                key={activity.id}
-                onClick={() => handleActivityClick(activity)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  backgroundColor: 'rgba(31, 43, 69, 0.8)',
-                  padding: '10px 15px',
-                  borderRadius: '8px',
-                  borderLeft: `3px solid ${getActivityColor(activity.type)}`,
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 5px rgba(0, 0, 0, 0.2)',
-                  overflow: 'hidden',
-                  transition: 'all 0.2s ease',
-                  marginBottom: '2px',
-                  width: 'calc(100% / 3 - 12px)', // 3 per row with gap
-                  minWidth: '300px',
-                  maxWidth: '380px',
-                  flexGrow: 1,
-                  animation: `fade-in 0.5s ease-out ${index * 0.1}s backwards`
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(51, 65, 85, 0.9)';
-                  e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.3)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(31, 43, 69, 0.8)';
-                  e.currentTarget.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.2)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                <style>
-                  {`
-                    @keyframes fade-in {
-                      from { opacity: 0; transform: translateY(10px); }
-                      to { opacity: 1; transform: translateY(0); }
-                    }
-                  `}
-                </style>
-                <div 
-                  className="avatar"
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    overflow: 'hidden',
-                    marginRight: '12px',
-                    flexShrink: 0,
-                    border: '2px solid rgba(255, 255, 255, 0.1)'
-                  }}
-                >
-                  <img 
-                    src={activity.user?.avatar || '/default-avatar.png'}
-                    alt={activity.user?.name || 'User'}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover'
-                    }}
-                  />
-                </div>
-
-                {(activity.type === 'listing' || activity.type === 'new_listing') && (
-                  <div style={{ display: 'flex', flexGrow: 1, flexWrap: 'wrap' }}>
-                    <div style={{ 
-                      color: '#4ade80', 
-                      fontWeight: 'bold', 
-                      fontSize: '14px', 
-                      marginRight: '5px' 
-                    }}>
-                      {activity.user?.name || 'User'}
-                    </div>
-                    <div style={{ color: '#e2e8f0', fontSize: '14px', marginRight: '5px' }}>
-                      listed
-                    </div>
-                    <div style={{ 
-                      color: '#e2e8f0', 
-                      fontWeight: 'bold', 
-                      fontSize: '14px',
-                      marginRight: '5px'
-                    }}>
-                      {activity.item?.name || activity.itemName || 'Item'}
-                    </div>
-                    <div style={{ 
-                      color: '#4ade80', 
-                      fontWeight: 'bold', 
-                      fontSize: '14px', 
-                      marginLeft: 'auto' 
-                    }}>
-                      ${typeof activity.price === 'number' ? activity.price.toFixed(2) : '0.00'}
-                    </div>
-                  </div>
-                )}
-
-                {(activity.type === 'purchase' || activity.type === 'sale') && (
-                  <div style={{ display: 'flex', flexGrow: 1, flexWrap: 'wrap' }}>
-                    <div style={{ 
-                      color: '#8b5cf6', 
-                      fontWeight: 'bold', 
-                      fontSize: '14px', 
-                      marginRight: '5px' 
-                    }}>
-                      {activity.user?.name || 'User'}
-                    </div>
-                    <div style={{ color: '#e2e8f0', fontSize: '14px', marginRight: '5px' }}>
-                      bought
-                    </div>
-                    <div style={{ 
-                      color: '#e2e8f0', 
-                      fontWeight: 'bold', 
-                      fontSize: '14px',
-                      marginRight: '5px'
-                    }}>
-                      {activity.item?.name || activity.itemName || 'Item'}
-                    </div>
-                    <div style={{ 
-                      color: '#e2e8f0', 
-                      fontSize: '14px', 
-                      marginRight: '5px' 
-                    }}>
-                      from
-                    </div>
-                    <div style={{ 
-                      color: '#fb923c', 
-                      fontWeight: 'bold', 
-                      fontSize: '14px' 
-                    }}>
-                      {activity.seller?.name || 'Seller'}
-                    </div>
-                  </div>
-                )}
-
-                <div 
-                  className="timestamp"
-                  style={{
-                    color: '#94a3b8',
-                    fontSize: '12px',
-                    marginLeft: '10px',
-                    flexShrink: 0
-                  }}
-                >
-                  {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
-                </div>
-              </div>
-            ))
-          ) : (
+          <h3 style={{ 
+            fontSize: '16px', 
+            color: '#e2e8f0', 
+            marginBottom: '12px',
+            textAlign: 'center' 
+          }}>
+            Recent Activities
+          </h3>
+          
+          {activities.length === 0 ? (
             <div style={{ 
-              padding: '20px', 
               textAlign: 'center', 
-              color: '#e2e8f0',
-              fontSize: '16px',
+              color: '#94a3b8', 
+              padding: '16px',
+              fontSize: '14px'
+            }}>
+              No recent activities to display. 
+              {!isConnected && (
+                <div style={{ marginTop: '8px', color: '#f87171' }}>
+                  Socket disconnected. Reconnecting...
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+              gap: '12px',
               width: '100%'
             }}>
-              No recent marketplace activity
+              {activities.slice(0, maxActivitiesShown).map((activity, index) => (
+                <div
+                  key={activity.id || index}
+                  onClick={() => handleActivityClick(activity)}
+                  style={{
+                    backgroundColor: 'rgba(30, 41, 59, 0.7)',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    borderLeft: `3px solid ${getActivityColor(activity.type)}`,
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    animation: 'fadeIn 0.5s',
+                    boxShadow: '0 2px 5px rgba(0, 0, 0, 0.1)',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.1)';
+                  }}
+                >
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    marginBottom: '8px',
+                    gap: '8px'
+                  }}>
+                    <img 
+                      src={activity.user?.avatar || '/default-avatar.png'} 
+                      alt="User" 
+                      style={{ 
+                        width: '24px', 
+                        height: '24px', 
+                        borderRadius: '50%',
+                        objectFit: 'cover' 
+                      }}
+                    />
+                    <span style={{ 
+                      fontSize: '13px', 
+                      fontWeight: 'bold',
+                      color: '#e2e8f0',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      maxWidth: '120px'
+                    }}>
+                      {activity.user?.name || 'User'}
+                    </span>
+                  </div>
+                
+                  <div style={{
+                    fontSize: '12px',
+                    color: '#94a3b8',
+                    marginBottom: '8px'
+                  }}>
+                    {activity.type === 'listing' ? 'Listed' : 
+                     activity.type === 'purchase' ? 'Purchased' : 
+                     activity.type === 'offer' ? 'Made an offer for' : 
+                     'Activity'}
+                  </div>
+                  
+                  {activity.item && (
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      marginBottom: '8px',
+                      gap: '8px'
+                    }}>
+                      <img 
+                        src={activity.item.image || '/default-item.png'} 
+                        alt="Item" 
+                        style={{ 
+                          width: '32px', 
+                          height: '32px', 
+                          borderRadius: '4px',
+                          objectFit: 'cover',
+                          background: 'rgba(15, 23, 42, 0.5)'
+                        }}
+                      />
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column'
+                      }}>
+                        <span style={{ 
+                          fontSize: '12px', 
+                          fontWeight: 'bold',
+                          color: '#e2e8f0',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          maxWidth: '150px'
+                        }}>
+                          {activity.item.name || 'Item'}
+                        </span>
+                        {activity.price > 0 && (
+                          <span style={{ 
+                            fontSize: '11px', 
+                            color: '#10b981',
+                            fontWeight: 'bold'
+                          }}>
+                            {formatPrice(activity.price)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div style={{ 
+                    fontSize: '11px', 
+                    color: '#64748b',
+                    marginTop: 'auto'
+                  }}>
+                    {activity.timestamp ? formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true }) : 'Just now'}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-
-          {activities.length > 0 && (
-            <div 
-              style={{
-                borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                marginTop: '10px',
-                paddingTop: '10px',
-                textAlign: 'center',
-                width: '100%'
-              }}
-            >
-              <button 
-                style={{
-                  background: 'rgba(59, 130, 246, 0.15)',
-                  border: '1px solid rgba(59, 130, 246, 0.3)',
-                  color: '#3b82f6',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  padding: '8px 15px',
-                  borderRadius: '6px',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.25)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.15)';
-                }}
-              >
+          
+          {activities.length > maxActivitiesShown && (
+            <div style={{ 
+              textAlign: 'center', 
+              marginTop: '12px'
+            }}>
+              <button style={{
+                fontSize: '12px',
+                color: '#3b82f6',
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                outline: 'none'
+              }}>
                 View all activities
               </button>
             </div>
@@ -517,255 +563,143 @@ const LiveActivityFeed = () => {
         </div>
       </div>
 
+      {/* Activity Details Modal */}
       {selectedActivity && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            backdropFilter: 'blur(3px)',
-            zIndex: 50,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}
-          onClick={closeActivityDetails}
-        >
-          <div
-            style={{
-              width: '90%',
-              maxWidth: '500px',
-              backgroundColor: 'rgba(31, 43, 69, 0.95)',
-              borderRadius: '12px',
-              boxShadow: '0 0 30px rgba(0, 0, 0, 0.4)',
-              overflow: 'hidden',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(59, 130, 246, 0.3)',
-              animation: 'scale-in 0.2s ease-out'
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <style>
-              {`
-                @keyframes scale-in {
-                  from { transform: scale(0.9); opacity: 0; }
-                  to { transform: scale(1); opacity: 1; }
-                }
-              `}
-            </style>
-            <div style={{
-              padding: '20px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              background: 'rgba(15, 23, 42, 0.5)'
-            }}>
-              <h3 style={{ 
-                fontSize: '18px', 
-                fontWeight: '600', 
-                color: '#ffffff'
-              }}>
-                {selectedActivity.type === 'listing' ? 'Item Listed' : 
-                 selectedActivity.type === 'purchase' || selectedActivity.type === 'sale' ? 'Item Purchased' : 
-                 'Activity Details'}
-              </h3>
-              <button
-                onClick={closeActivityDetails}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#94a3b8',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  padding: '0',
-                  transition: 'color 0.2s ease'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.color = '#ffffff';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.color = '#94a3b8';
-                }}
-              >
-                ×
-              </button>
-            </div>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            backgroundColor: '#1e293b',
+            borderRadius: '12px',
+            padding: '20px',
+            maxWidth: '500px',
+            width: '100%',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+            position: 'relative'
+          }}>
+            <button 
+              onClick={closeActivityDetails}
+              style={{
+                position: 'absolute',
+                top: '10px',
+                right: '10px',
+                background: 'none',
+                border: 'none',
+                color: '#94a3b8',
+                fontSize: '20px',
+                cursor: 'pointer'
+              }}
+            >
+              ×
+            </button>
             
-            <div style={{ padding: '20px' }}>
-              {selectedActivity.item && (
-                <div style={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.5)',
-                  borderRadius: '10px',
-                  padding: '15px',
-                  marginBottom: '15px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '15px',
-                  border: '1px solid rgba(255, 255, 255, 0.05)'
-                }}>
-                  <div style={{
-                    width: '80px',
-                    height: '80px',
-                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    border: '1px solid rgba(255, 255, 255, 0.1)'
-                  }}>
-                    <img 
-                      src={selectedActivity.item.image || '/default-item.png'} 
-                      alt={selectedActivity.item.name || 'Item'}
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '100%',
-                        objectFit: 'contain'
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <h4 style={{ 
-                      color: '#ffffff', 
-                      fontWeight: '600', 
-                      fontSize: '16px', 
-                      marginBottom: '6px' 
-                    }}>
-                      {selectedActivity.item.name || selectedActivity.itemName || 'Unknown Item'}
-                    </h4>
-                    {selectedActivity.price && (
-                      <div style={{ 
-                        color: '#4ade80', 
-                        fontWeight: '700', 
-                        fontSize: '18px' 
-                      }}>
-                        ${typeof selectedActivity.price === 'number' ? selectedActivity.price.toFixed(2) : '0.00'}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              
+            <h3 style={{
+              color: '#e2e8f0',
+              marginBottom: '16px',
+              borderBottom: '1px solid #334155',
+              paddingBottom: '10px'
+            }}>
+              Activity Details
+            </h3>
+            
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
               <div style={{
-                backgroundColor: 'rgba(15, 23, 42, 0.5)',
-                borderRadius: '10px',
-                padding: '15px',
-                marginBottom: '15px',
-                border: '1px solid rgba(255, 255, 255, 0.05)'
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
               }}>
-                <h4 style={{ 
-                  color: '#94a3b8', 
-                  fontWeight: '600', 
-                  fontSize: '14px', 
-                  marginBottom: '12px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}>
-                  {selectedActivity.type === 'purchase' || selectedActivity.type === 'sale' ? 'Transaction Details' : 'User Details'}
-                </h4>
-                
-                {/* User/buyer */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  marginBottom: (selectedActivity.type === 'purchase' || selectedActivity.type === 'sale') ? '10px' : '0',
-                  backgroundColor: 'rgba(31, 43, 69, 0.6)',
-                  padding: '10px 15px',
-                  borderRadius: '8px',
-                }}>
-                  <div style={{
+                <img 
+                  src={selectedActivity.user?.avatar || '/default-avatar.png'}
+                  alt="User"
+                  style={{
                     width: '40px',
                     height: '40px',
                     borderRadius: '50%',
-                    overflow: 'hidden',
-                    marginRight: '12px',
-                    border: '2px solid rgba(255, 255, 255, 0.1)'
+                    objectFit: 'cover'
+                  }}
+                />
+                <div>
+                  <div style={{
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    color: '#e2e8f0'
                   }}>
-                    <img 
-                      src={selectedActivity.user?.avatar || '/default-avatar.png'} 
-                      alt={selectedActivity.user?.name || 'User'}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover'
-                      }}
-                    />
+                    {selectedActivity.user?.name || 'User'}
                   </div>
+                  <div style={{
+                    fontSize: '12px',
+                    color: '#94a3b8'
+                  }}>
+                    {selectedActivity.timestamp ? 
+                      new Date(selectedActivity.timestamp).toLocaleString() : 
+                      'Just now'}
+                  </div>
+                </div>
+              </div>
+              
+              {selectedActivity.item && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px',
+                  backgroundColor: 'rgba(30, 41, 59, 0.5)',
+                  borderRadius: '8px'
+                }}>
+                  <img 
+                    src={selectedActivity.item.image || '/default-item.png'}
+                    alt="Item"
+                    style={{
+                      width: '60px',
+                      height: '60px',
+                      borderRadius: '4px',
+                      objectFit: 'cover',
+                      background: 'rgba(15, 23, 42, 0.5)'
+                    }}
+                  />
                   <div>
-                    <div style={{ 
-                      color: '#ffffff', 
-                      fontWeight: '600', 
-                      fontSize: '15px' 
+                    <div style={{
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      color: '#e2e8f0'
                     }}>
-                      {selectedActivity.user?.name || 'Unknown User'}
+                      {selectedActivity.item.name || 'Item'}
                     </div>
-                    <div style={{ 
-                      color: '#94a3b8', 
-                      fontSize: '13px' 
+                    {selectedActivity.price > 0 && (
+                      <div style={{
+                        fontSize: '14px',
+                        color: '#10b981',
+                        fontWeight: 'bold'
+                      }}>
+                        {formatPrice(selectedActivity.price)}
+                      </div>
+                    )}
+                    <div style={{
+                      fontSize: '12px',
+                      color: '#94a3b8',
+                      marginTop: '4px'
                     }}>
-                      {selectedActivity.type === 'listing' ? 'Seller' : 'Buyer'}
+                      {selectedActivity.type === 'listing' ? 'Listed for sale' : 
+                       selectedActivity.type === 'purchase' ? 'Purchased' : 
+                       selectedActivity.type === 'offer' ? 'Offer made' : 
+                       'Activity'}
                     </div>
                   </div>
                 </div>
-                
-                {/* Seller (for purchase) */}
-                {(selectedActivity.type === 'purchase' || selectedActivity.type === 'sale') && selectedActivity.seller && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    backgroundColor: 'rgba(31, 43, 69, 0.6)',
-                    padding: '10px 15px',
-                    borderRadius: '8px',
-                  }}>
-                    <div style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      overflow: 'hidden',
-                      marginRight: '12px',
-                      border: '2px solid rgba(255, 255, 255, 0.1)'
-                    }}>
-                      <img 
-                        src={selectedActivity.seller.avatar || '/default-avatar.png'} 
-                        alt={selectedActivity.seller.name || 'Seller'}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover'
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <div style={{ 
-                        color: '#ffffff', 
-                        fontWeight: '600', 
-                        fontSize: '15px' 
-                      }}>
-                        {selectedActivity.seller.name || 'Unknown Seller'}
-                      </div>
-                      <div style={{ 
-                        color: '#94a3b8', 
-                        fontSize: '13px' 
-                      }}>
-                        Seller
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              {/* Timestamp */}
-              <div style={{ 
-                color: '#94a3b8', 
-                fontSize: '14px',
-                textAlign: 'center',
-                padding: '5px',
-                backgroundColor: 'rgba(15, 23, 42, 0.3)',
-                borderRadius: '6px'
-              }}>
-                {new Date(selectedActivity.timestamp).toLocaleString()}
-              </div>
+              )}
             </div>
           </div>
         </div>
