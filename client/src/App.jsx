@@ -553,6 +553,7 @@ function App() {
       transition: 'background 0.5s ease-out'
     }}>
       <Navbar user={user} onLogout={handleLogout} />
+      <LiveActivityFeed />
 
       {/* Toast notifications */}
       <Toaster
@@ -914,7 +915,6 @@ function App() {
         )}
       </Suspense>
 
-      <LiveActivityFeed />
       <Footer />
     </div>
   );
