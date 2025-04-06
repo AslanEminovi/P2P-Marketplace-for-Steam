@@ -182,6 +182,9 @@ const SellModal = ({ item, onClose, onConfirm, onListingComplete }) => {
       fullItem: item
     });
     
+    // Show loading toast immediately before any operations
+    const loadingToastId = toast.loading("Listing your item...");
+    
     try {
       // Start by setting submitting flag to prevent double-submissions
       setIsSubmitting(true);
@@ -190,6 +193,7 @@ const SellModal = ({ item, onClose, onConfirm, onListingComplete }) => {
       const basePrice = item.pricelatest || item.pricereal || 0;
       if (!basePrice) {
         console.error("Item has no price information");
+        toast.dismiss(loadingToastId); // Dismiss loading toast
         toast.error("Could not determine item price");
         setIsSubmitting(false);
         return;
@@ -232,10 +236,7 @@ const SellModal = ({ item, onClose, onConfirm, onListingComplete }) => {
       // Log listing data for debugging
       console.log("Sending listing request with data:", listingData);
       
-      // Show loading toast to indicate request is processing
-      const loadingToastId = toast.loading("Listing your item...");
-      
-      // Now send the request first, THEN handle the UI based on response
+      // Now send the request
       const response = await axios.post(
         `${API_URL}/marketplace/list`,
         listingData,
@@ -265,6 +266,9 @@ const SellModal = ({ item, onClose, onConfirm, onListingComplete }) => {
       
     } catch (error) {
       console.error("Error listing item:", error);
+      
+      // Always dismiss the loading toast first
+      toast.dismiss(loadingToastId);
       
       // Handle error responses from the server
       if (error.response) {
