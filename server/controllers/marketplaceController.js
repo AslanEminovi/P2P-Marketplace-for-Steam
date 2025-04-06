@@ -575,6 +575,15 @@ exports.cancelListing = async (req, res) => {
       `Found item: ${item._id}, owner: ${item.owner}, is listed: ${item.isListed}`
     );
 
+    // If the item is already unlisted, just return success
+    if (!item.isListed) {
+      console.log(`Item ${itemId} is already unlisted, returning success`);
+      return res.json({
+        success: true,
+        message: "Listing is already cancelled.",
+      });
+    }
+
     // Check if this is a force cancel request (for cleaning up listings)
     const forceCancel = req.query.force === "true";
     console.log(`Force cancel: ${forceCancel}`);
@@ -631,9 +640,27 @@ exports.cancelListing = async (req, res) => {
 
     // Update the item to not be listed
     item.isListed = false;
-    await item.save();
-
-    console.log(`Item ${itemId} successfully unlisted`);
+    try {
+      await item.save();
+      console.log(`Item ${itemId} successfully unlisted`);
+    } catch (saveErr) {
+      // If this is a duplicate key error, it means another concurrent request already
+      // unlisted this item. We can consider this a success.
+      if (
+        saveErr.code === 11000 &&
+        saveErr.message.includes("duplicate key error")
+      ) {
+        console.log(
+          `Duplicate key error for item ${itemId}, item was already unlisted`
+        );
+        return res.json({
+          success: true,
+          message: "Listing is already cancelled.",
+        });
+      }
+      // For other errors, rethrow to be caught by the main catch block
+      throw saveErr;
+    }
 
     // Add notification to the user
     await User.findByIdAndUpdate(userId, {
@@ -664,11 +691,9 @@ exports.cancelListing = async (req, res) => {
     });
   } catch (err) {
     console.error("Error cancelling listing:", err);
-    return res
-      .status(500)
-      .json({
-        error: "Failed to cancel listing: " + (err.message || "Unknown error"),
-      });
+    return res.status(500).json({
+      error: "Failed to cancel listing: " + (err.message || "Unknown error"),
+    });
   }
 };
 
