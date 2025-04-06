@@ -601,8 +601,11 @@ exports.cancelListing = async (req, res) => {
     const item = await Item.findById(itemId);
 
     if (!item) {
-      console.log("Item not found");
-      return res.status(404).json({ error: "Item not found." });
+      console.log(`Item ${itemId} not found for cancellation`);
+      return res.status(404).json({
+        error: "Item not found.",
+        success: false,
+      });
     }
 
     // Check if this is a force cancel request (for cleaning up listings)
@@ -623,14 +626,24 @@ exports.cancelListing = async (req, res) => {
       });
 
       if (!originalListedByUser) {
-        return res
-          .status(403)
-          .json({ error: "You don't have permission to cancel this listing." });
+        return res.status(403).json({
+          error: "You don't have permission to cancel this listing.",
+          success: false,
+        });
       }
 
       console.log(
         `Item was listed by user ${userId} but ownership has changed. Cleaning up listing.`
       );
+    }
+
+    // Check if the item is actually listed
+    if (!item.isListed) {
+      console.log(`Item ${itemId} is not currently listed`);
+      return res.status(400).json({
+        error: "This item is not currently listed and cannot be cancelled.",
+        success: false,
+      });
     }
 
     // Update the item to not be listed
@@ -640,35 +653,76 @@ exports.cancelListing = async (req, res) => {
     console.log(`Item ${itemId} successfully unlisted`);
 
     // Add notification to the user
-    await User.findByIdAndUpdate(userId, {
-      $push: {
-        notifications: {
+    try {
+      await User.findByIdAndUpdate(userId, {
+        $push: {
+          notifications: {
+            type: "system",
+            title: "Listing Cancelled",
+            message: `Your listing for ${item.marketHashName} has been cancelled.`,
+            relatedItemId: item._id,
+            createdAt: new Date(),
+          },
+        },
+      });
+    } catch (notificationError) {
+      console.error(
+        "Error adding notification for cancelled listing:",
+        notificationError
+      );
+      // Continue even if notification fails
+    }
+
+    // Send WebSocket notification if available
+    try {
+      if (socketService?.sendNotification) {
+        socketService.sendNotification(userId, {
           type: "system",
           title: "Listing Cancelled",
           message: `Your listing for ${item.marketHashName} has been cancelled.`,
           relatedItemId: item._id,
-          createdAt: new Date(),
-        },
-      },
-    });
+        });
+      }
+    } catch (socketError) {
+      console.error(
+        "Error sending socket notification for cancelled listing:",
+        socketError
+      );
+      // Continue even if socket notification fails
+    }
 
-    // Send WebSocket notification if available
-    if (socketService?.sendNotification) {
-      socketService.sendNotification(userId, {
-        type: "system",
-        title: "Listing Cancelled",
-        message: `Your listing for ${item.marketHashName} has been cancelled.`,
-        relatedItemId: item._id,
+    // Emit market activity for the cancellation
+    try {
+      socketService.emitMarketActivity({
+        type: "cancelled",
+        itemName: item.marketHashName,
+        price: item.price,
+        user: req.user.username || req.user.steamName || "User",
+        timestamp: new Date().toISOString(),
       });
+    } catch (activityError) {
+      console.error(
+        "Error emitting market activity for cancelled listing:",
+        activityError
+      );
+      // Continue even if activity emission fails
     }
 
     return res.json({
       success: true,
       message: "Listing cancelled successfully.",
+      item: {
+        id: item._id,
+        name: item.marketHashName,
+      },
     });
   } catch (err) {
     console.error("Error cancelling listing:", err);
-    return res.status(500).json({ error: "Failed to cancel listing." });
+    return res.status(500).json({
+      error: "Failed to cancel listing. Please try again.",
+      success: false,
+      details: err.message,
+    });
   }
 };
 

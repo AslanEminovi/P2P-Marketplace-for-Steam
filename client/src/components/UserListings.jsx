@@ -94,19 +94,54 @@ const UserListings = ({ show, onClose }) => {
       console.log('Cancelling listing:', itemId);
       const token = localStorage.getItem('auth_token');
       
-      await axios.put(`${API_URL}/marketplace/cancel/${itemId}`, {}, {
+      // Show a loading message while cancellation is in progress
+      setError('Cancelling listing...');
+      
+      // Make the API call to cancel the listing
+      const response = await axios.put(`${API_URL}/marketplace/cancel/${itemId}`, {}, {
         withCredentials: true,
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''
-        }
+        },
+        // Add a timeout to prevent hanging requests
+        timeout: 10000
       });
       
-      console.log('Successfully cancelled listing');
-      // Update the listings list
-      fetchUserListings();
+      console.log('Cancel listing response:', response.data);
+      
+      // Check if the response indicates success
+      if (response.data.success) {
+        setError(''); // Clear any error message
+        // Update the listings list
+        fetchUserListings();
+      } else {
+        // Handle unexpected successful response without success: true
+        setError(response.data.message || 'Failed to cancel listing - please try again');
+      }
     } catch (err) {
       console.error('Error cancelling listing:', err);
-      setError('Failed to cancel listing');
+      
+      // Provide more specific error messages based on the response
+      if (err.response) {
+        console.error('Error status:', err.response.status);
+        console.error('Error data:', err.response.data);
+        
+        // Set a specific error message based on the response
+        setError(err.response.data.error || `Server error (${err.response.status}): Failed to cancel listing`);
+      } else if (err.request) {
+        // Request was made but no response received
+        console.error('No response received:', err.request);
+        setError('Network error: Server did not respond. Please try again.');
+      } else {
+        // Error in setting up the request
+        setError('Failed to cancel listing. Please try again.');
+      }
+      
+      // Try to refresh the listings anyway after an error
+      // This helps if the cancellation actually succeeded but the response failed
+      setTimeout(() => {
+        fetchUserListings();
+      }, 2000);
     }
   };
 
