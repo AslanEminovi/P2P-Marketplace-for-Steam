@@ -7,6 +7,7 @@ const LiveActivityFeed = () => {
   const [visible, setVisible] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const feedRef = useRef(null);
+  const dropdownRef = useRef(null);
   const maxActivitiesShown = 4; // Reduced number for better fit
 
   useEffect(() => {
@@ -42,9 +43,19 @@ const LiveActivityFeed = () => {
     socketService.on('user_activity', handleUserActivity);
     socketService.on('market_activity', handleMarketActivity);
 
+    // Add click outside listener to close dropdown
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setVisible(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+
     return () => {
       socketService.off('user_activity', handleUserActivity);
       socketService.off('market_activity', handleMarketActivity);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
@@ -79,72 +90,93 @@ const LiveActivityFeed = () => {
 
   return (
     <>
-      {/* Live Feed Dropdown Button */}
+      {/* Live Feed Container - positioned on right side */}
       <div 
-        className="live-feed-dropdown-button"
-        onClick={toggleVisibility}
+        ref={dropdownRef}
+        className="live-feed-container"
         style={{
-          position: 'relative',
+          position: 'absolute',
+          top: '60px', // position right under navbar
+          right: '20px',
+          zIndex: 41,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '100%',
-          backgroundColor: 'rgba(15, 23, 42, 0.95)',
-          padding: '5px 0',
-          cursor: 'pointer',
-          borderBottom: visible ? 'none' : '1px solid rgba(49, 62, 80, 0.5)',
-          zIndex: 41
+          flexDirection: 'column',
+          alignItems: 'flex-end'
         }}
       >
-        <span 
+        {/* Live Feed Button - styled similar to My Listings */}
+        <button 
+          className="live-feed-button"
+          onClick={toggleVisibility}
           style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            backgroundColor: '#4ade80',
-            display: 'inline-block',
-            marginRight: '6px'
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '8px 16px',
+            backgroundColor: 'rgba(31, 43, 69, 0.95)',
+            color: '#e2e8f0',
+            border: '1px solid rgba(59, 130, 246, 0.5)',
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            transition: 'all 0.2s ease'
           }}
-        ></span>
-        <span style={{ 
-          color: '#e2e8f0', 
-          fontSize: '12px',
-          fontWeight: 'bold' 
-        }}>
+          onMouseOver={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(51, 65, 85, 0.95)';
+            e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.8)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(31, 43, 69, 0.95)';
+            e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+          }}
+        >
+          <span 
+            style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              backgroundColor: '#4ade80',
+              display: 'inline-block',
+              marginRight: '8px'
+            }}
+          ></span>
           Live Feed
-        </span>
-        <span style={{ 
-          color: '#e2e8f0', 
-          fontSize: '10px',
-          marginLeft: '5px',
-          transform: visible ? 'rotate(180deg)' : 'rotate(0deg)',
-          transition: 'transform 0.2s ease'
-        }}>
-          ▼
-        </span>
-      </div>
+          <span style={{ 
+            marginLeft: '6px',
+            transform: visible ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.3s ease'
+          }}>
+            ▼
+          </span>
+        </button>
 
-      {/* Live Feed Dropdown Content */}
-      {visible && (
+        {/* Live Feed Dropdown Content with animation */}
         <div 
           className="live-feed-dropdown-content"
           style={{
-            width: '100%',
-            backgroundColor: 'rgba(15, 23, 42, 0.9)',
-            borderBottom: '1px solid rgba(49, 62, 80, 0.5)',
-            maxHeight: '300px',
-            overflow: 'auto',
-            zIndex: 40
+            width: '350px',
+            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+            borderRadius: '8px',
+            marginTop: '5px',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+            maxHeight: visible ? '400px' : '0px',
+            opacity: visible ? 1 : 0,
+            overflow: 'hidden',
+            transition: 'max-height 0.3s ease, opacity 0.3s ease',
+            border: visible ? '1px solid rgba(59, 130, 246, 0.3)' : 'none'
           }}
         >
           <div 
             className="live-feed-content"
             ref={feedRef}
             style={{
-              padding: '10px',
+              padding: visible ? '12px' : '0 12px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '8px'
+              gap: '8px',
+              transition: 'padding 0.3s ease'
             }}
           >
             {activities.length > 0 ? (
@@ -161,7 +193,15 @@ const LiveActivityFeed = () => {
                     borderLeft: `3px solid ${getActivityColor(activity.type)}`,
                     cursor: 'pointer',
                     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    transition: 'background-color 0.2s ease',
+                    marginBottom: '2px'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(51, 65, 85, 0.7)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(31, 43, 69, 0.7)';
                   }}
                 >
                   <div 
@@ -279,9 +319,41 @@ const LiveActivityFeed = () => {
                 No recent marketplace activity
               </div>
             )}
+
+            {activities.length > 0 && (
+              <div 
+                style={{
+                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                  marginTop: '5px',
+                  paddingTop: '8px',
+                  textAlign: 'center'
+                }}
+              >
+                <button 
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#3b82f6',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    padding: '5px 10px',
+                    borderRadius: '4px',
+                    transition: 'background-color 0.2s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  View all activities
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
       {selectedActivity && (
         <div
