@@ -1,14 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import socketService from '../services/socketService';
 import { formatDistanceToNow } from 'date-fns';
-import { motion, AnimatePresence } from 'framer-motion';
 
 const LiveActivityFeed = () => {
-  const { t } = useTranslation();
   const [activities, setActivities] = useState([]);
-  const [visible, setVisible] = useState(true);
-  const [showSidePanel, setShowSidePanel] = useState(false);
+  const [visible, setVisible] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const feedRef = useRef(null);
   const maxActivitiesShown = 4; // Reduced number for better fit
@@ -54,33 +50,14 @@ const LiveActivityFeed = () => {
 
   const handleActivityClick = (activity) => {
     setSelectedActivity(activity);
-    setShowSidePanel(true);
   };
 
-  const handleCloseSidePanel = () => {
-    setShowSidePanel(false);
+  const closeActivityDetails = () => {
     setSelectedActivity(null);
   };
 
   const toggleVisibility = () => {
     setVisible(!visible);
-  };
-
-  const getActivityIcon = (type) => {
-    switch (type) {
-      case 'join':
-        return '👋';
-      case 'logout':
-        return '👋';
-      case 'listing':
-        return '📝';
-      case 'purchase':
-        return '💰';
-      case 'offer':
-        return '🤝';
-      default:
-        return '📢';
-    }
   };
 
   const getActivityColor = (type) => {
@@ -100,176 +77,211 @@ const LiveActivityFeed = () => {
     }
   };
 
-  // Only render if there are activities
-  if (activities.length === 0) return null;
-
   return (
     <>
+      {/* Live Feed Dropdown Button */}
       <div 
-        className="live-feed-container"
+        className="live-feed-dropdown-button"
+        onClick={toggleVisibility}
         style={{
           position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           width: '100%',
           backgroundColor: 'rgba(15, 23, 42, 0.95)',
-          borderBottom: '1px solid rgba(49, 62, 80, 0.5)',
-          height: visible ? '40px' : '25px',
-          overflow: 'hidden',
-          transition: 'height 0.2s ease',
-          zIndex: 40
+          padding: '5px 0',
+          cursor: 'pointer',
+          borderBottom: visible ? 'none' : '1px solid rgba(49, 62, 80, 0.5)',
+          zIndex: 41
         }}
       >
-        <div 
-          className="live-feed-toggle"
-          onClick={toggleVisibility}
+        <span 
           style={{
-            position: 'absolute',
-            right: '10px',
-            top: '0px',
-            padding: '2px 8px',
-            fontSize: '12px',
-            color: '#e2e8f0',
-            cursor: 'pointer',
-            zIndex: 42
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: '#4ade80',
+            display: 'inline-block',
+            marginRight: '6px'
+          }}
+        ></span>
+        <span style={{ 
+          color: '#e2e8f0', 
+          fontSize: '12px',
+          fontWeight: 'bold' 
+        }}>
+          Live Feed
+        </span>
+        <span style={{ 
+          color: '#e2e8f0', 
+          fontSize: '10px',
+          marginLeft: '5px',
+          transform: visible ? 'rotate(180deg)' : 'rotate(0deg)',
+          transition: 'transform 0.2s ease'
+        }}>
+          ▼
+        </span>
+      </div>
+
+      {/* Live Feed Dropdown Content */}
+      {visible && (
+        <div 
+          className="live-feed-dropdown-content"
+          style={{
+            width: '100%',
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            borderBottom: '1px solid rgba(49, 62, 80, 0.5)',
+            maxHeight: '300px',
+            overflow: 'auto',
+            zIndex: 40
           }}
         >
-          {visible ? 'Hide' : 'Show'}
-        </div>
-
-        <div 
-          className="live-feed-title"
-          style={{
-            position: 'absolute',
-            left: '10px',
-            top: '0',
-            height: '25px',
-            display: 'flex',
-            alignItems: 'center',
-            color: '#e2e8f0',
-            fontWeight: 'bold',
-            fontSize: '12px',
-            zIndex: 41
-          }}
-        >
-          <span 
-            style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              backgroundColor: '#4ade80',
-              display: 'inline-block',
-              marginRight: '6px'
-            }}
-          ></span>
-          LIVE
-        </div>
-
-        {visible && (
           <div 
             className="live-feed-content"
             ref={feedRef}
             style={{
+              padding: '10px',
               display: 'flex',
-              alignItems: 'center',
-              height: '40px',
-              width: '100%',
-              overflowX: 'hidden',
-              paddingLeft: '70px',
-              paddingRight: '60px',
-              position: 'relative',
-              whiteSpace: 'nowrap'
+              flexDirection: 'column',
+              gap: '8px'
             }}
           >
-            {activities.slice(0, maxActivitiesShown).map((activity) => (
-              <div
-                key={activity.id}
-                onClick={() => handleActivityClick(activity)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  height: '28px',
-                  backgroundColor: 'rgba(31, 43, 69, 0.5)',
-                  margin: '0 8px',
-                  padding: '0 10px',
-                  borderRadius: '14px',
-                  borderLeft: `2px solid ${getActivityColor(activity.type)}`,
-                  cursor: 'pointer',
-                  maxWidth: '250px',
-                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  flexShrink: 0
-                }}
-              >
-                <div 
-                  className="avatar"
+            {activities.length > 0 ? (
+              activities.slice(0, maxActivitiesShown).map((activity) => (
+                <div
+                  key={activity.id}
+                  onClick={() => handleActivityClick(activity)}
                   style={{
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    overflow: 'hidden',
-                    marginRight: '8px',
-                    flexShrink: 0
+                    display: 'flex',
+                    alignItems: 'center',
+                    backgroundColor: 'rgba(31, 43, 69, 0.7)',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    borderLeft: `3px solid ${getActivityColor(activity.type)}`,
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                    overflow: 'hidden'
                   }}
                 >
-                  <img 
-                    src={activity.user?.avatar || '/default-avatar.png'}
-                    alt={activity.user?.name || 'User'}
+                  <div 
+                    className="avatar"
                     style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover'
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      marginRight: '10px',
+                      flexShrink: 0
                     }}
-                  />
-                </div>
-
-                {activity.type === 'listing' && (
-                  <div style={{ display: 'flex', alignItems: 'center', flexGrow: 1, overflow: 'hidden' }}>
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', color: '#e2e8f0', fontSize: '11px', marginRight: '4px' }}>
-                      <span style={{ color: '#4ade80', fontWeight: 'bold' }}>{activity.user?.name || 'User'}</span>
-                    </div>
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', color: '#e2e8f0', fontSize: '11px', marginRight: '4px' }}>
-                      listed
-                    </div>
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', color: '#e2e8f0', fontSize: '11px', fontWeight: 'bold', marginRight: '4px' }}>
-                      <span title={activity.item?.name}>{(activity.item?.name || 'Item').length > 10 ? (activity.item?.name || 'Item').substring(0, 10) + '...' : (activity.item?.name || 'Item')}</span>
-                    </div>
-                    <div style={{ color: '#4ade80', fontWeight: 'bold', fontSize: '11px', flexShrink: 0 }}>
-                      ${activity.price?.toFixed(2) || '0.00'}
-                    </div>
+                  >
+                    <img 
+                      src={activity.user?.avatar || '/default-avatar.png'}
+                      alt={activity.user?.name || 'User'}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
                   </div>
-                )}
 
-                {activity.type === 'purchase' && (
-                  <div style={{ display: 'flex', alignItems: 'center', flexGrow: 1, overflow: 'hidden' }}>
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', color: '#e2e8f0', fontSize: '11px', marginRight: '4px' }}>
-                      <span style={{ color: '#8b5cf6', fontWeight: 'bold' }}>{activity.user?.name || 'User'}</span>
+                  {activity.type === 'listing' && (
+                    <div style={{ display: 'flex', flexGrow: 1, flexWrap: 'wrap' }}>
+                      <div style={{ 
+                        color: '#4ade80', 
+                        fontWeight: 'bold', 
+                        fontSize: '13px', 
+                        marginRight: '5px' 
+                      }}>
+                        {activity.user?.name || 'User'}
+                      </div>
+                      <div style={{ color: '#e2e8f0', fontSize: '13px', marginRight: '5px' }}>
+                        listed
+                      </div>
+                      <div style={{ 
+                        color: '#e2e8f0', 
+                        fontWeight: 'bold', 
+                        fontSize: '13px',
+                        marginRight: '5px'
+                      }}>
+                        {activity.item?.name || 'Item'}
+                      </div>
+                      <div style={{ 
+                        color: '#4ade80', 
+                        fontWeight: 'bold', 
+                        fontSize: '13px', 
+                        marginLeft: 'auto' 
+                      }}>
+                        ${activity.price?.toFixed(2) || '0.00'}
+                      </div>
                     </div>
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', color: '#e2e8f0', fontSize: '11px', marginRight: '4px' }}>
-                      bought
+                  )}
+
+                  {activity.type === 'purchase' && (
+                    <div style={{ display: 'flex', flexGrow: 1, flexWrap: 'wrap' }}>
+                      <div style={{ 
+                        color: '#8b5cf6', 
+                        fontWeight: 'bold', 
+                        fontSize: '13px', 
+                        marginRight: '5px' 
+                      }}>
+                        {activity.user?.name || 'User'}
+                      </div>
+                      <div style={{ color: '#e2e8f0', fontSize: '13px', marginRight: '5px' }}>
+                        bought
+                      </div>
+                      <div style={{ 
+                        color: '#e2e8f0', 
+                        fontWeight: 'bold', 
+                        fontSize: '13px',
+                        marginRight: '5px'
+                      }}>
+                        {activity.item?.name || 'Item'}
+                      </div>
+                      <div style={{ 
+                        color: '#e2e8f0', 
+                        fontSize: '13px', 
+                        marginRight: '5px' 
+                      }}>
+                        from
+                      </div>
+                      <div style={{ 
+                        color: '#fb923c', 
+                        fontWeight: 'bold', 
+                        fontSize: '13px' 
+                      }}>
+                        {activity.seller?.name || 'Seller'}
+                      </div>
                     </div>
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', color: '#e2e8f0', fontSize: '11px', fontWeight: 'bold', marginRight: '4px' }}>
-                      <span title={activity.item?.name}>{(activity.item?.name || 'Item').length > 10 ? (activity.item?.name || 'Item').substring(0, 10) + '...' : (activity.item?.name || 'Item')}</span>
-                    </div>
+                  )}
+
+                  <div 
+                    className="timestamp"
+                    style={{
+                      color: '#94a3b8',
+                      fontSize: '11px',
+                      marginLeft: '10px',
+                      flexShrink: 0
+                    }}
+                  >
+                    {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
                   </div>
-                )}
-
-                <div 
-                  className="timestamp"
-                  style={{
-                    color: '#94a3b8',
-                    fontSize: '9px',
-                    marginLeft: '6px',
-                    flexShrink: 0
-                  }}
-                >
-                  {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
                 </div>
+              ))
+            ) : (
+              <div style={{ 
+                padding: '15px', 
+                textAlign: 'center', 
+                color: '#94a3b8',
+                fontSize: '14px'
+              }}>
+                No recent marketplace activity
               </div>
-            ))}
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {selectedActivity && (
         <div
@@ -282,7 +294,7 @@ const LiveActivityFeed = () => {
             justifyContent: 'center',
             alignItems: 'center'
           }}
-          onClick={handleCloseSidePanel}
+          onClick={closeActivityDetails}
         >
           <div
             style={{
@@ -314,7 +326,7 @@ const LiveActivityFeed = () => {
                  'Activity Details'}
               </h3>
               <button
-                onClick={handleCloseSidePanel}
+                onClick={closeActivityDetails}
                 style={{
                   background: 'none',
                   border: 'none',
