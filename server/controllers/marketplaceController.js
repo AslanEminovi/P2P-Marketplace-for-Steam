@@ -22,39 +22,19 @@ exports.listItem = async (req, res) => {
         .json({ error: "Asset ID is required to list an item." });
     }
 
-    // Check if this item is already listed by ANY user (not just current user)
+    // Check if this item is already listed by this user
     const existingListing = await Item.findOne({
+      owner: req.user._id,
       assetId: assetId,
       isListed: true,
     });
 
     if (existingListing) {
-      console.log(
-        `Item with assetId ${assetId} is already listed by user ${existingListing.owner}`
-      );
-
-      // Check if it's listed by the current user
-      if (existingListing.owner.toString() === req.user._id.toString()) {
-        return res.status(400).json({
-          error:
-            "You have already listed this item for sale. Please check your active listings.",
-          existingListing: {
-            id: existingListing._id,
-            price: existingListing.price,
-            listedOn: existingListing.createdAt,
-          },
-        });
-      } else {
-        // Item is listed by another user - shouldn't normally happen, but possible if inventory data is stale
-        return res.status(400).json({
-          error:
-            "This item appears to be already listed by another user. If you believe this is an error, please refresh your inventory.",
-        });
-      }
+      return res.status(400).json({
+        error:
+          "This item is already listed for sale. Please remove the existing listing first.",
+      });
     }
-
-    // Check if this asset exists in the user's inventory
-    // This would require an additional endpoint to verify with Steam, omitted for brevity
 
     // Extract wear from marketHashName if not provided
     let itemWear = wear;
@@ -109,7 +89,6 @@ exports.listItem = async (req, res) => {
       rarity,
       isListed: true,
       allowOffers: true, // Default to allowing offers
-      listingDate: new Date(),
     });
 
     // Create notification object
@@ -128,45 +107,14 @@ exports.listItem = async (req, res) => {
       },
     });
 
-    // Send real-time notification via WebSocket (if available)
-    try {
-      socketService.sendNotification(req.user._id, notification);
-    } catch (err) {
-      console.log("Failed to send socket notification:", err.message);
-    }
+    // Send real-time notification via WebSocket
+    socketService.sendNotification(req.user._id, notification);
 
     // Broadcast new listing to all connected clients
-    try {
-      socketService.sendMarketUpdate({
-        type: "new_listing",
-        item: newItem,
-      });
-    } catch (err) {
-      console.log("Failed to send market update:", err.message);
-    }
-
-    // Emit market activity for the live feed
-    try {
-      console.log("Emitting market activity for new listing");
-
-      // Format the listing data for the activity feed
-      const activityData = {
-        type: "listing",
-        itemName: newItem.marketHashName,
-        itemImage: newItem.imageUrl,
-        price: newItem.price,
-        user: req.user.username || req.user.steamName || "User",
-        userAvatar: req.user.avatar || "/default-avatar.png",
-        timestamp: new Date().toISOString(),
-      };
-
-      // Emit the activity
-      socketService.emitMarketActivity(activityData);
-
-      console.log("Market activity emission completed");
-    } catch (err) {
-      console.error("Failed to emit market activity:", err);
-    }
+    socketService.sendMarketUpdate({
+      type: "new_listing",
+      item: newItem,
+    });
 
     // Update site stats since we've added a new listing
     if (server && typeof server.updateSiteStats === "function") {
@@ -183,9 +131,18 @@ exports.listItem = async (req, res) => {
       }
     }
 
+    // Emit socket event for new listing
+    socketService.emitMarketActivity({
+      type: "listing",
+      itemName: newItem.marketHashName,
+      price: newItem.price,
+      user: req.user.username || req.user.steamName || "A user",
+      timestamp: new Date().toISOString(),
+    });
+
     return res.status(201).json(newItem);
   } catch (err) {
-    console.error("Error listing item:", err);
+    console.error(err);
     return res.status(500).json({ error: "Failed to list item for sale." });
   }
 };
@@ -601,11 +558,8 @@ exports.cancelListing = async (req, res) => {
     const item = await Item.findById(itemId);
 
     if (!item) {
-      console.log(`Item ${itemId} not found for cancellation`);
-      return res.status(404).json({
-        error: "Item not found.",
-        success: false,
-      });
+      console.log("Item not found");
+      return res.status(404).json({ error: "Item not found." });
     }
 
     // Check if this is a force cancel request (for cleaning up listings)
@@ -626,24 +580,14 @@ exports.cancelListing = async (req, res) => {
       });
 
       if (!originalListedByUser) {
-        return res.status(403).json({
-          error: "You don't have permission to cancel this listing.",
-          success: false,
-        });
+        return res
+          .status(403)
+          .json({ error: "You don't have permission to cancel this listing." });
       }
 
       console.log(
         `Item was listed by user ${userId} but ownership has changed. Cleaning up listing.`
       );
-    }
-
-    // Check if the item is actually listed
-    if (!item.isListed) {
-      console.log(`Item ${itemId} is not currently listed`);
-      return res.status(400).json({
-        error: "This item is not currently listed and cannot be cancelled.",
-        success: false,
-      });
     }
 
     // Update the item to not be listed
@@ -653,76 +597,35 @@ exports.cancelListing = async (req, res) => {
     console.log(`Item ${itemId} successfully unlisted`);
 
     // Add notification to the user
-    try {
-      await User.findByIdAndUpdate(userId, {
-        $push: {
-          notifications: {
-            type: "system",
-            title: "Listing Cancelled",
-            message: `Your listing for ${item.marketHashName} has been cancelled.`,
-            relatedItemId: item._id,
-            createdAt: new Date(),
-          },
-        },
-      });
-    } catch (notificationError) {
-      console.error(
-        "Error adding notification for cancelled listing:",
-        notificationError
-      );
-      // Continue even if notification fails
-    }
-
-    // Send WebSocket notification if available
-    try {
-      if (socketService?.sendNotification) {
-        socketService.sendNotification(userId, {
+    await User.findByIdAndUpdate(userId, {
+      $push: {
+        notifications: {
           type: "system",
           title: "Listing Cancelled",
           message: `Your listing for ${item.marketHashName} has been cancelled.`,
           relatedItemId: item._id,
-        });
-      }
-    } catch (socketError) {
-      console.error(
-        "Error sending socket notification for cancelled listing:",
-        socketError
-      );
-      // Continue even if socket notification fails
-    }
+          createdAt: new Date(),
+        },
+      },
+    });
 
-    // Emit market activity for the cancellation
-    try {
-      socketService.emitMarketActivity({
-        type: "cancelled",
-        itemName: item.marketHashName,
-        price: item.price,
-        user: req.user.username || req.user.steamName || "User",
-        timestamp: new Date().toISOString(),
+    // Send WebSocket notification if available
+    if (socketService?.sendNotification) {
+      socketService.sendNotification(userId, {
+        type: "system",
+        title: "Listing Cancelled",
+        message: `Your listing for ${item.marketHashName} has been cancelled.`,
+        relatedItemId: item._id,
       });
-    } catch (activityError) {
-      console.error(
-        "Error emitting market activity for cancelled listing:",
-        activityError
-      );
-      // Continue even if activity emission fails
     }
 
     return res.json({
       success: true,
       message: "Listing cancelled successfully.",
-      item: {
-        id: item._id,
-        name: item.marketHashName,
-      },
     });
   } catch (err) {
     console.error("Error cancelling listing:", err);
-    return res.status(500).json({
-      error: "Failed to cancel listing. Please try again.",
-      success: false,
-      details: err.message,
-    });
+    return res.status(500).json({ error: "Failed to cancel listing." });
   }
 };
 

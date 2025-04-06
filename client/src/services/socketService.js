@@ -15,11 +15,10 @@ class SocketService {
     this.disconnectedCallback = null;
     this.lastConnectionAttempt = 0;
     this.lastForcedRefresh = null;
-    this.socketDebug = true; // Enable debug logging
   }
 
   init() {
-    if (this.socketDebug) console.log("[SocketService] Initializing service");
+    console.log("[SocketService] Initializing service");
     // Just initialize the service, don't connect yet
     return this;
   }
@@ -28,46 +27,41 @@ class SocketService {
     const now = Date.now();
     // Prevent rapid connection attempts (throttle to once per second)
     if (now - this.lastConnectionAttempt < 1000) {
-      if (this.socketDebug)
-        console.log("[SocketService] Connection attempt throttled");
+      console.log("[SocketService] Connection attempt throttled");
       return this.socket;
     }
 
     this.lastConnectionAttempt = now;
 
-    if (this.socketDebug)
-      console.log(
-        "[SocketService] Attempting to connect to socket server:",
-        API_URL
-      );
+    console.log(
+      "[SocketService] Attempting to connect to socket server:",
+      API_URL
+    );
 
     // If we already have a socket, don't create a new one
     if (this.socket && this.socket.connected) {
-      if (this.socketDebug)
-        console.log(
-          "[SocketService] Socket already connected, skipping connection"
-        );
+      console.log(
+        "[SocketService] Socket already connected, skipping connection"
+      );
       this.connected = true;
       return this.socket;
     }
 
     // If we have a socket but it's not connected, disconnect it first
     if (this.socket) {
-      if (this.socketDebug)
-        console.log(
-          "[SocketService] Socket exists but not connected, disconnecting first"
-        );
+      console.log(
+        "[SocketService] Socket exists but not connected, disconnecting first"
+      );
       this.disconnect();
     }
 
     // Get token from localStorage if not provided
     if (!token) {
       token = localStorage.getItem("auth_token");
-      if (this.socketDebug)
-        console.log(
-          "[SocketService] Using token from localStorage:",
-          token ? "Token exists" : "No token"
-        );
+      console.log(
+        "[SocketService] Using token from localStorage:",
+        token ? "Token exists" : "No token"
+      );
     }
 
     // Initialize socket connection with auth token
@@ -85,8 +79,7 @@ class SocketService {
 
       // Setup connection event handlers
       this.socket.on("connect", () => {
-        if (this.socketDebug)
-          console.log("[SocketService] Connected to socket server!");
+        console.log("[SocketService] Connected to socket server!");
         this.connected = true;
         this.reconnectAttempts = 0;
 
@@ -104,11 +97,10 @@ class SocketService {
       });
 
       this.socket.on("disconnect", (reason) => {
-        if (this.socketDebug)
-          console.log(
-            "[SocketService] Disconnected from socket server, reason:",
-            reason
-          );
+        console.log(
+          "[SocketService] Disconnected from socket server, reason:",
+          reason
+        );
         this.connected = false;
 
         if (this.disconnectedCallback) {
@@ -123,8 +115,7 @@ class SocketService {
       });
 
       this.socket.on("reconnect_attempt", (attemptNumber) => {
-        if (this.socketDebug)
-          console.log(`[SocketService] Reconnection attempt #${attemptNumber}`);
+        console.log(`[SocketService] Reconnection attempt #${attemptNumber}`);
       });
 
       this.socket.on("reconnect_failed", () => {
@@ -142,126 +133,9 @@ class SocketService {
     }
   }
 
-  rebindEvents() {
-    if (this.socketDebug)
-      console.log("[SocketService] Rebinding events after reconnection");
-
-    // First make sure the map exists and has events
-    if (!this.events || this.events.size === 0) {
-      if (this.socketDebug) console.log("[SocketService] No events to rebind");
-      return;
-    }
-
-    // For each event, rebind all handlers
-    for (const [event, handlers] of this.events.entries()) {
-      if (handlers && handlers.length > 0) {
-        if (this.socketDebug)
-          console.log(
-            `[SocketService] Rebinding ${handlers.length} handlers for event: ${event}`
-          );
-
-        for (const handler of handlers) {
-          this.socket.on(event, handler);
-        }
-      }
-    }
-  }
-
-  // Register an event handler
-  on(event, callback) {
-    if (!this.socket) {
-      if (this.socketDebug)
-        console.log(
-          `[SocketService] Queuing ${event} event for when socket connects`
-        );
-
-      // Initialize the array for this event if it doesn't exist
-      if (!this.events.has(event)) {
-        this.events.set(event, []);
-      }
-
-      // Add callback to the queue
-      this.events.get(event).push(callback);
-
-      // Connect to ensure we're listening
-      this.connect();
-      return;
-    }
-
-    // If we already have the socket, add the event directly
-    if (this.socketDebug)
-      console.log(`[SocketService] Adding handler for ${event} event`);
-
-    // Initialize the array for this event if it doesn't exist
-    if (!this.events.has(event)) {
-      this.events.set(event, []);
-    }
-
-    // Add to our tracking array
-    this.events.get(event).push(callback);
-
-    // Add to socket
-    this.socket.on(event, callback);
-  }
-
-  // Remove an event handler
-  off(event, callback = null) {
-    if (!this.socket) {
-      if (this.socketDebug)
-        console.log(
-          `[SocketService] No socket to remove ${event} handler from`
-        );
-
-      // But still clean up our queued events
-      if (callback && this.events.has(event)) {
-        const handlers = this.events.get(event);
-        const index = handlers.indexOf(callback);
-        if (index !== -1) {
-          handlers.splice(index, 1);
-        }
-      } else if (!callback) {
-        this.events.delete(event);
-      }
-
-      return;
-    }
-
-    if (this.socketDebug)
-      console.log(`[SocketService] Removing handler for ${event} event`);
-
-    // If a specific callback was provided, remove just that one
-    if (callback && this.events.has(event)) {
-      const handlers = this.events.get(event);
-      const index = handlers.indexOf(callback);
-      if (index !== -1) {
-        handlers.splice(index, 1);
-        this.socket.off(event, callback);
-      }
-    } else {
-      // Remove all handlers for this event
-      this.events.delete(event);
-      this.socket.off(event);
-    }
-  }
-
-  emit(event, data) {
-    if (!this.socket || !this.connected) {
-      if (this.socketDebug)
-        console.log(
-          `[SocketService] Cannot emit ${event}, socket not connected`
-        );
-      return false;
-    }
-
-    if (this.socketDebug)
-      console.log(`[SocketService] Emitting ${event} event:`, data);
-    this.socket.emit(event, data);
-    return true;
-  }
-
   disconnect() {
     if (this.socket) {
-      if (this.socketDebug) console.log("[SocketService] Disconnecting socket");
+      console.log("[SocketService] Disconnecting socket");
       try {
         this.socket.disconnect();
       } catch (err) {
@@ -278,26 +152,23 @@ class SocketService {
   }
 
   reconnect() {
-    if (this.socketDebug)
-      console.log("[SocketService] Manual reconnect requested");
+    console.log("[SocketService] Manual reconnect requested");
 
     // Throttle reconnection attempts to prevent excessive requests
     const now = Date.now();
     if (now - this.lastConnectionAttempt < 3000) {
       // 3 seconds throttle
-      if (this.socketDebug)
-        console.log(
-          "[SocketService] Reconnect throttled - attempting too frequently"
-        );
+      console.log(
+        "[SocketService] Reconnect throttled - attempting too frequently"
+      );
       return;
     }
 
     // If we already have a connected socket, don't reconnect
     if (this.socket && this.socket.connected) {
-      if (this.socketDebug)
-        console.log(
-          "[SocketService] Socket already connected, skipping reconnect"
-        );
+      console.log(
+        "[SocketService] Socket already connected, skipping reconnect"
+      );
       this.connected = true;
       return;
     }
@@ -319,10 +190,9 @@ class SocketService {
       console.error("[SocketService] Max reconnect attempts reached");
       // Even at max attempts, we should try one more time after a longer delay
       const finalAttemptDelay = 10000; // 10 seconds
-      if (this.socketDebug)
-        console.log(
-          `[SocketService] Scheduling final reconnect attempt in ${finalAttemptDelay}ms`
-        );
+      console.log(
+        `[SocketService] Scheduling final reconnect attempt in ${finalAttemptDelay}ms`
+      );
 
       if (this.reconnectTimer) {
         clearTimeout(this.reconnectTimer);
@@ -342,12 +212,11 @@ class SocketService {
 
     // Progressive backoff for reconnection
     const delay = this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts);
-    if (this.socketDebug)
-      console.log(
-        `[SocketService] Scheduling reconnect in ${delay}ms (attempt ${
-          this.reconnectAttempts + 1
-        }/${this.maxReconnectAttempts})`
-      );
+    console.log(
+      `[SocketService] Scheduling reconnect in ${delay}ms (attempt ${
+        this.reconnectAttempts + 1
+      }/${this.maxReconnectAttempts})`
+    );
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempts++;
@@ -379,7 +248,11 @@ class SocketService {
       // If already connected, call the callback immediately but only do it once
       if (this.connected && this.socket && this.socket.connected) {
         // Use a delay to ensure we don't create infinite loops
-        setTimeout(callback, 0);
+        setTimeout(() => {
+          if (this.connectedCallback === callback) {
+            callback();
+          }
+        }, 100);
       }
     }
 
@@ -397,26 +270,75 @@ class SocketService {
     if (!this.disconnectedCallback || this.disconnectedCallback !== callback) {
       this.disconnectedCallback = callback;
     }
+    return this;
+  }
+
+  on(event, callback) {
+    if (!this.events.has(event)) {
+      this.events.set(event, []);
+    }
+
+    this.events.get(event).push(callback);
+
+    // If socket exists, bind immediately
+    if (this.socket) {
+      this.socket.on(event, callback);
+    }
 
     return this;
+  }
+
+  off(event, callback) {
+    if (this.events.has(event)) {
+      const callbacks = this.events.get(event);
+      const index = callbacks.indexOf(callback);
+
+      if (index !== -1) {
+        callbacks.splice(index, 1);
+
+        if (this.socket) {
+          this.socket.off(event, callback);
+        }
+      }
+
+      if (callbacks.length === 0) {
+        this.events.delete(event);
+      }
+    }
+
+    return this;
+  }
+
+  emit(event, data, callback) {
+    if (!this.socket || !this.connected) {
+      console.warn(
+        `[SocketService] Cannot emit '${event}' - socket not connected`
+      );
+      return false;
+    }
+
+    console.log(`[SocketService] Emitting event: ${event}`, data);
+    this.socket.emit(event, data, callback);
+    return true;
+  }
+
+  rebindEvents() {
+    // Re-attach all event listeners
+    this.events.forEach((callbacks, event) => {
+      callbacks.forEach((callback) => {
+        console.log(`[SocketService] Rebinding event: ${event}`);
+        this.socket.on(event, callback);
+      });
+    });
   }
 
   isConnected() {
     return this.connected && this.socket && this.socket.connected;
   }
-
-  // For testing purposes - emit a market activity
-  emitTestActivity() {
-    if (this.socket && this.isConnected()) {
-      if (this.socketDebug) console.log("Emitting test activity request");
-      this.emit("request_test_activity", {});
-    } else {
-      console.warn("Socket not connected, cannot emit test activity");
-    }
-  }
 }
 
-// Create singleton instance
-const socketService = new SocketService().init();
+// Create a singleton instance
+const socketService = new SocketService();
 
+// Export the singleton
 export default socketService;

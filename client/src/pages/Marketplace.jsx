@@ -169,9 +169,9 @@ function Marketplace({ user }) {
     console.log('Marketplace component mounted - initializing data');
     
     // Initial data fetch - ONLY ONCE AT MOUNT
-    fetchItems();
+      fetchItems();
     fetchMarketStats();
-    
+
     if (user) {
       fetchUserProfile();
       fetchUserListings();
@@ -415,7 +415,7 @@ function Marketplace({ user }) {
       <p className="marketplace-subtitle">Buy and sell CS2 items securely with other players</p>
       
       {/* Stats Grid like in Inventory */}
-      <div style={{
+      <div style={{ 
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap: '1.5rem',
@@ -428,9 +428,9 @@ function Marketplace({ user }) {
         border: '1px solid rgba(51, 115, 242, 0.15)'
       }}>
         <div style={{
-          display: 'flex',
+        display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
+        alignItems: 'center',
           padding: '1rem',
           background: 'rgba(31, 41, 61, 0.5)',
           borderRadius: '10px',
@@ -471,7 +471,7 @@ function Marketplace({ user }) {
           }}>${findMostValuableItem()}</p>
         </div>
 
-        <div style={{
+    <div style={{ 
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -493,7 +493,7 @@ function Marketplace({ user }) {
           }}>${calculateAveragePrice()}</p>
         </div>
 
-        <div style={{
+      <div style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -526,7 +526,7 @@ function Marketplace({ user }) {
         }}>
           <h3 style={{
             margin: '0 0 0.5rem 0',
-            fontSize: '0.9rem',
+              fontSize: '0.9rem',
             color: 'var(--gaming-text-dim)'
           }}>Active Users</h3>
           <p style={{
@@ -611,26 +611,26 @@ function Marketplace({ user }) {
     if (!user) return null;
     
     return (
-      <button 
+          <button
         className="user-listings-button"
         onClick={() => setShowListingsPanel(true)}
-        style={{
+            style={{
           position: 'fixed',
           bottom: '2rem',
           right: '2rem',
           background: 'linear-gradient(45deg, #4F46E5, #7C3AED)',
           color: 'white',
-          border: 'none',
-          borderRadius: '12px',
+              border: 'none',
+              borderRadius: '12px',
           padding: '1rem 1.5rem',
           fontSize: '1rem',
-          fontWeight: '600',
+              fontWeight: '600',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem',
           boxShadow: '0 4px 20px rgba(124, 58, 237, 0.3)',
-          transition: 'all 0.3s ease',
+              transition: 'all 0.3s ease',
           zIndex: '90',
         }}
       >
@@ -638,12 +638,12 @@ function Marketplace({ user }) {
           <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7"></path>
           <path d="M21 5.618a1 1 0 00-1.447-.894L15 7v13l5.447-2.724A1 1 0 0021 16.382V5.618z"></path>
           <rect x="9" y="7" width="6" height="13" rx="1"></rect>
-        </svg>
-        My Listings
+              </svg>
+              My Listings
         {myListings.length > 0 && (
           <span className="count">{myListings.length}</span>
-        )}
-      </button>
+            )}
+          </button>
     );
   };
 
@@ -655,24 +655,24 @@ function Marketplace({ user }) {
       
       <div className="filter-section">
         {/* Refresh button now takes full width */}
-        <button 
+          <button
           className="refresh-button"
           onClick={handleManualRefresh}
           disabled={loading}
-          style={{
-            padding: '0.75rem 1.5rem',
+            style={{
+              padding: '0.75rem 1.5rem',
             background: 'linear-gradient(to right, #3373F2, #00D2FF)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            cursor: 'pointer',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              cursor: 'pointer',
             fontSize: '0.95rem',
-            fontWeight: '600',
-            transition: 'all 0.3s ease',
+              fontWeight: '600',
+              transition: 'all 0.3s ease',
             boxShadow: '0 0 20px rgba(0, 210, 255, 0.2)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            display: 'flex',
-            alignItems: 'center',
+              border: '1px solid rgba(255,255,255,0.1)',
+              display: 'flex',
+              alignItems: 'center',
             justifyContent: 'center',
             gap: '0.5rem',
             position: 'relative',
@@ -686,17 +686,17 @@ function Marketplace({ user }) {
           </span>
           <svg
             style={{ width: '20px', height: '20px', position: 'relative', zIndex: 2 }}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+              />
+            </svg>
           <div
             style={{
               position: 'absolute',
@@ -739,7 +739,7 @@ function Marketplace({ user }) {
               <option 
                 key={option.id} 
                 value={option.id}
-                style={{ 
+            style={{ 
                   backgroundColor: 'rgba(31, 41, 61, 1)',
                   color: 'white', 
                   padding: '0.5rem'
@@ -749,8 +749,8 @@ function Marketplace({ user }) {
               </option>
             ))}
           </select>
-        </div>
-      </div>
+                    </div>
+                  </div>
                   
       {renderItems()}
       {renderPagination()}

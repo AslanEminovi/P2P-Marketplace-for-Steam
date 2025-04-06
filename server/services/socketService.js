@@ -16,17 +16,113 @@ const USER_ACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
  * @param {Object} ioInstance - The Socket.io instance
  */
 const init = (ioInstance) => {
-  if (!ioInstance) {
-    console.error(
-      "Socket service initialization failed: io instance is required"
-    );
-    return;
-  }
-
   io = ioInstance;
-  console.log("Socket service initialized with io instance");
 
-  // Setup global connection events handled in server.js
+  // Setup global connection events
+  io.on("connection", async (socket) => {
+    console.log("New socket connection:", socket.id);
+
+    // We'll get the userId from the socket handshake auth in server.js
+    const userId = socket.userId;
+
+    if (userId) {
+      // Check if user already has an active socket
+      const existingSocketId = activeSockets.get(userId);
+      if (existingSocketId) {
+        // If user has an existing socket, disconnect it first
+        const existingSocket = io.sockets.sockets.get(existingSocketId);
+        if (existingSocket) {
+          existingSocket.disconnect(true);
+        }
+      }
+
+      // Store socket association for authenticated users
+      activeSockets.set(userId, socket.id);
+      socket.join(`user:${userId}`); // Join user-specific room
+
+      // Update user activity timestamp
+      activeUsers.set(userId, Date.now());
+
+      // Emit user activity
+      emitUserActivity({
+        action: "join",
+        user: socket.username || "A user",
+      });
+    } else {
+      // Track anonymous connections with a timestamp
+      anonymousSockets.add(socket.id);
+    }
+
+    // Send initial stats to the new connection
+    const stats = await getLatestStats();
+    socket.emit("stats_update", stats);
+
+    // Handle stats request
+    socket.on("request_stats_update", async () => {
+      const stats = await getLatestStats();
+      socket.emit("stats_update", stats);
+    });
+
+    // Handle user activity
+    socket.on("user_active", () => {
+      if (userId) {
+        activeUsers.set(userId, Date.now());
+      }
+    });
+
+    // Handle disconnection
+    socket.on("disconnect", () => {
+      if (userId) {
+        // Only remove socket if it's still the current one for this user
+        if (activeSockets.get(userId) === socket.id) {
+          activeSockets.delete(userId);
+          // Don't immediately remove from activeUsers to allow for reconnection
+          setTimeout(() => {
+            // Only remove if they haven't reconnected
+            if (!activeSockets.has(userId)) {
+              activeUsers.delete(userId);
+              emitUserActivity({
+                action: "logout",
+                user: socket.username || "A user",
+              });
+            }
+          }, 5000); // 5 second grace period for reconnection
+        }
+      } else {
+        anonymousSockets.delete(socket.id);
+      }
+
+      // Broadcast updated stats after disconnection
+      broadcastStats();
+    });
+
+    // Update stats for all clients
+    broadcastStats();
+  });
+
+  // Set up periodic stats broadcasting
+  setInterval(async () => {
+    await broadcastStats();
+  }, STATS_UPDATE_INTERVAL);
+
+  // Set up periodic cleanup of inactive users
+  setInterval(() => {
+    const now = Date.now();
+    for (const [userId, lastActive] of activeUsers.entries()) {
+      if (now - lastActive > USER_ACTIVITY_TIMEOUT) {
+        activeUsers.delete(userId);
+        if (activeSockets.has(userId)) {
+          const socketId = activeSockets.get(userId);
+          const socket = io.sockets.sockets.get(socketId);
+          if (socket) {
+            socket.disconnect(true);
+          }
+          activeSockets.delete(userId);
+        }
+      }
+    }
+    broadcastStats();
+  }, USER_ACTIVITY_TIMEOUT);
 };
 
 /**
@@ -90,10 +186,7 @@ const getLatestStats = async () => {
  * Broadcast marketplace statistics to all connected clients
  */
 const broadcastStats = async () => {
-  if (!io) {
-    console.error("Cannot broadcast stats: Socket.io not initialized");
-    return;
-  }
+  if (!io) return;
 
   try {
     const stats = await getLatestStats();
@@ -109,10 +202,7 @@ const broadcastStats = async () => {
  * @param {string} [userId] - Optional user ID to send the update to
  */
 const sendMarketUpdate = (update, userId = null) => {
-  if (!io) {
-    console.error("Cannot send market update: Socket.io not initialized");
-    return;
-  }
+  if (!io) return;
 
   const enrichedUpdate = {
     ...update,
@@ -132,30 +222,17 @@ const sendMarketUpdate = (update, userId = null) => {
  * @param {Object} activity - The market activity object
  */
 const emitMarketActivity = (activity) => {
-  if (!io) {
-    console.error("Cannot emit market activity: Socket.io not initialized");
-    return;
-  }
+  if (!io) return;
 
-  console.log("Emitting market activity:", activity);
-
-  // Format the activity data for consistency
   const activityData = {
     type: activity.type || "listing",
     itemName: activity.itemName || activity.item?.marketHashName || "an item",
-    itemImage:
-      activity.imageUrl || activity.item?.imageUrl || "/default-item.png",
-    price: activity.price || activity.item?.price || 0,
+    price: activity.price || activity.item?.price,
     user: activity.userName || activity.user || "Anonymous",
-    userAvatar: activity.userAvatar || "/default-avatar.png",
     timestamp: activity.timestamp || new Date().toISOString(),
   };
 
-  // Send to all clients
   io.emit("market_activity", activityData);
-
-  // Debug log the activity that was sent
-  console.log("Emitted market_activity event:", activityData);
 };
 
 /**
@@ -163,10 +240,7 @@ const emitMarketActivity = (activity) => {
  * @param {Object} activity - The user activity object
  */
 const emitUserActivity = (activity) => {
-  if (!io) {
-    console.error("Cannot emit user activity: Socket.io not initialized");
-    return;
-  }
+  if (!io) return;
 
   const activityData = {
     action: activity.action,
@@ -175,39 +249,23 @@ const emitUserActivity = (activity) => {
   };
 
   io.emit("user_activity", activityData);
+  broadcastStats(); // Update stats when user activity occurs
 };
 
 /**
- * Get count of connected clients
+ * Get the total count of connected clients (both authenticated and anonymous)
+ * @returns {number} The number of connected clients
  */
 const getConnectedClientsCount = () => {
   if (!io) return 0;
-  return io.sockets.sockets.size;
-};
-
-/**
- * Send notification to a specific user
- * @param {string} userId - The user ID to send the notification to
- * @param {Object} notification - The notification object
- */
-const sendNotification = (userId, notification) => {
-  if (!io || !userId) return;
-
-  const socketId = activeSockets.get(userId);
-  if (socketId) {
-    const socket = io.sockets.sockets.get(socketId);
-    if (socket) {
-      socket.emit("notification", notification);
-    }
-  }
+  return activeSockets.size + anonymousSockets.size;
 };
 
 module.exports = {
   init,
   broadcastStats,
   sendMarketUpdate,
+  getConnectedClientsCount,
   emitMarketActivity,
   emitUserActivity,
-  getConnectedClientsCount,
-  sendNotification,
 };
