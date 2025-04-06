@@ -334,10 +334,8 @@ const updateSiteStats = async () => {
   }
 };
 
-// Create HTTP server
+// Create HTTP server for Socket.IO
 const server = http.createServer(app);
-
-// Set up Socket.io with CORS and connection settings
 const io = new Server(server, {
   cors: {
     origin: config.CLIENT_URL,
@@ -346,42 +344,64 @@ const io = new Server(server, {
   },
 });
 
-// Socket middleware for authentication
-io.use(async (socket, next) => {
-  try {
-    const token =
-      socket.handshake.auth.token ||
-      socket.handshake.headers.authorization?.split(" ")[1];
+// Middleware to share session data with Socket.IO
+io.use((socket, next) => {
+  sessionMiddleware(socket.request, {}, next);
+});
 
-    if (!token) {
-      // Allow anonymous connections but mark them as such
-      socket.userId = null;
-      socket.username = null;
-      socket.isAuthenticated = false;
-      return next();
+// Socket authentication middleware
+io.use((socket, next) => {
+  const token = socket.handshake.query.token;
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded && decoded.id) {
+        socket.userId = decoded.id;
+        return next();
+      }
+    } catch (error) {
+      console.error("Socket auth error:", error);
     }
-
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Find user
-    const user = await User.findById(decoded.id);
-    if (!user) {
-      return next(new Error("User not found"));
-    }
-
-    // Attach user data to socket
-    socket.userId = user._id.toString();
-    socket.username = user.username || user.steamName || "User";
-    socket.isAuthenticated = true;
-    next();
-  } catch (err) {
-    // If token verification fails, allow as anonymous
-    socket.userId = null;
-    socket.username = null;
-    socket.isAuthenticated = false;
-    next();
   }
+
+  // Allow unauthenticated connections too
+  next();
+});
+
+// Socket.IO connection handling
+io.on("connection", (socket) => {
+  console.log(
+    `Socket connected: ${socket.id}, User ID: ${
+      socket.userId || "unauthenticated"
+    }`
+  );
+
+  // Handle test activity request
+  socket.on("request_test_activity", () => {
+    console.log(`Received test activity request from ${socket.id}`);
+
+    // Create a test market activity
+    const testActivity = {
+      type: "listing",
+      user: "TestUser",
+      userAvatar: "/avatars/default.png",
+      itemName: "AWP | Dragon Lore (Factory New)",
+      itemImage: "/item-images/awp-dragon-lore.png",
+      price: 1999.99,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Emit only to the requesting client
+    socket.emit("market_activity", testActivity);
+
+    console.log("Emitted test market activity");
+  });
+
+  // Handle disconnect
+  socket.on("disconnect", () => {
+    console.log(`Socket disconnected: ${socket.id}`);
+  });
 });
 
 // Initialize socket service
@@ -415,25 +435,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start the server
+// Start the server (changed from app.listen to server.listen for Socket.IO)
 server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`WebSocket server initialized`);
-  console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
-
-  // Debug info for troubleshooting cross-domain authentication
-  console.log(`CLIENT_URL: ${config.CLIENT_URL}`);
-  console.log(`CORS origin: ${config.CLIENT_URL}`);
-  console.log(`Cookie secure: ${process.env.NODE_ENV === "production"}`);
-  console.log(
-    `Cookie sameSite: ${process.env.NODE_ENV === "production" ? "none" : "lax"}`
-  );
-
-  if (isProduction) {
-    console.log(
-      `Serving static files from: ${path.join(__dirname, "../client/build")}`
-    );
-  }
+  console.log(`Server running on port ${PORT}`);
+  startScheduledTasks();
 });
 
 // Handle server error events (e.g., port in use)

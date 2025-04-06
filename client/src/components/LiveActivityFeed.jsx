@@ -6,6 +6,8 @@ const LiveActivityFeed = () => {
   const [activities, setActivities] = useState([]);
   const [visible, setVisible] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [lastActivity, setLastActivity] = useState(null);
   const feedRef = useRef(null);
   const dropdownRef = useRef(null);
   const maxActivitiesShown = 5; // Show more activities
@@ -14,25 +16,27 @@ const LiveActivityFeed = () => {
   useEffect(() => {
     console.log('[LiveActivityFeed] Initializing and checking socket connection');
     
-    if (!socketService.isConnected()) {
-      console.log('[LiveActivityFeed] Socket not connected, connecting...');
-      socketService.connect();
-    } else {
-      console.log('[LiveActivityFeed] Socket already connected');
-    }
+    // Always try to connect when component mounts
+    socketService.connect();
 
     const onConnect = () => {
-      console.log('[LiveActivityFeed] Socket connected event');
+      console.log('[LiveActivityFeed] Socket connected successfully');
+      setIsConnected(true);
     };
 
     const onDisconnect = () => {
-      console.log('[LiveActivityFeed] Socket disconnected event');
+      console.log('[LiveActivityFeed] Socket disconnected');
+      setIsConnected(false);
     };
 
     socketService.onConnected(onConnect);
     socketService.onDisconnected(onDisconnect);
+    
+    // Check initial connection state
+    setIsConnected(socketService.isConnected());
 
     return () => {
+      console.log('[LiveActivityFeed] Cleaning up connection listeners');
       socketService.onConnected(null);
       socketService.onDisconnected(null);
     };
@@ -40,12 +44,16 @@ const LiveActivityFeed = () => {
 
   // Listen for activity events
   useEffect(() => {
-    console.log('[LiveActivityFeed] Setting up event listeners');
+    console.log('[LiveActivityFeed] Setting up activity event listeners');
     
     const handleUserActivity = (activity) => {
       console.log('[LiveActivityFeed] User activity received:', activity);
+      setLastActivity({ type: 'user', data: activity, time: new Date() });
       
-      if (!activity) return;
+      if (!activity) {
+        console.warn('[LiveActivityFeed] Received null/undefined user activity');
+        return;
+      }
       
       const enhancedActivity = {
         ...activity,
@@ -70,39 +78,42 @@ const LiveActivityFeed = () => {
     };
 
     const handleMarketActivity = (activity) => {
-      console.log('[LiveActivityFeed] Market activity received:', activity);
+      console.log('[LiveActivityFeed] Market activity received:', JSON.stringify(activity));
+      setLastActivity({ type: 'market', data: activity, time: new Date() });
       
-      if (!activity) return;
+      if (!activity) {
+        console.warn('[LiveActivityFeed] Received null/undefined market activity');
+        return;
+      }
       
-      // Convert the server's format to our expected format
-      const enhancedActivity = {
-        ...activity,
-        timestamp: activity.timestamp || new Date().toISOString(),
-        id: `market-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        user: {
-          name: typeof activity.user === 'string' ? activity.user : (activity.user?.name || 'User'),
-          avatar: activity.userAvatar || activity.user?.avatar || '/default-avatar.png'
-        },
-        item: {
-          name: activity.itemName || activity.item?.name || 'Item',
-          image: activity.itemImage || activity.item?.image || '/default-item.png'
-        },
-        price: parseFloat(activity.price) || 0,
-        type: activity.type || 'listing'
-      };
-      
-      setActivities(prev => {
-        console.log('[LiveActivityFeed] Adding new market activity to state. Current count:', prev.length);
-        // Add new activity and limit to 20 recent items
-        return [enhancedActivity, ...prev].slice(0, 20);
-      });
+      try {
+        // Convert the server's format to our expected format
+        const enhancedActivity = {
+          ...activity,
+          timestamp: activity.timestamp || new Date().toISOString(),
+          id: `market-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          user: {
+            name: typeof activity.user === 'string' ? activity.user : (activity.user?.name || 'User'),
+            avatar: activity.userAvatar || activity.user?.avatar || '/default-avatar.png'
+          },
+          item: {
+            name: activity.itemName || activity.item?.name || 'Item',
+            image: activity.itemImage || activity.item?.image || '/default-item.png'
+          },
+          price: parseFloat(activity.price) || 0,
+          type: activity.type || 'listing'
+        };
+        
+        setActivities(prev => {
+          console.log('[LiveActivityFeed] Adding new market activity to state. Current count:', prev.length);
+          // Add new activity and limit to 20 recent items
+          return [enhancedActivity, ...prev].slice(0, 20);
+        });
+      } catch (error) {
+        console.error('[LiveActivityFeed] Error processing market activity:', error);
+        console.error('Activity data that caused error:', activity);
+      }
     };
-
-    // Debug broadcast a test activity after 3 seconds
-    setTimeout(() => {
-      console.log('[LiveActivityFeed] Broadcasting test activity');
-      socketService.emit('request_test_activity', {});
-    }, 3000);
 
     // Clear any existing listeners to prevent duplicates
     socketService.off('user_activity');
@@ -111,6 +122,12 @@ const LiveActivityFeed = () => {
     // Register the listeners
     socketService.on('user_activity', handleUserActivity);
     socketService.on('market_activity', handleMarketActivity);
+
+    // Request a test activity after 2 seconds
+    const timer = setTimeout(() => {
+      console.log('[LiveActivityFeed] Requesting test market activity');
+      socketService.emitTestActivity();
+    }, 2000);
 
     // Add click outside listener to close dropdown
     const handleClickOutside = (event) => {
@@ -126,8 +143,15 @@ const LiveActivityFeed = () => {
       socketService.off('user_activity', handleUserActivity);
       socketService.off('market_activity', handleMarketActivity);
       document.removeEventListener('mousedown', handleClickOutside);
+      clearTimeout(timer);
     };
   }, []);
+
+  // Debug button to request test activities
+  const requestTestActivity = () => {
+    console.log('[LiveActivityFeed] Manually requesting test activity');
+    socketService.emitTestActivity();
+  };
 
   const handleActivityClick = (activity) => {
     setSelectedActivity(activity);
@@ -167,15 +191,15 @@ const LiveActivityFeed = () => {
         className="live-feed-container"
         style={{
           position: 'absolute',
-          top: '80px', // Increased from 72px to move it further down
+          top: '80px',
           right: '20px',
-          zIndex: 30, // Lower z-index than navbar (which is likely 40+)
+          zIndex: 30,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-end'
         }}
       >
-        {/* Live Feed Button - styled similar to My Listings */}
+        {/* Live Feed Button */}
         <button 
           className="live-feed-button"
           onClick={toggleVisibility}
@@ -208,7 +232,7 @@ const LiveActivityFeed = () => {
               width: '6px',
               height: '6px',
               borderRadius: '50%',
-              backgroundColor: '#4ade80',
+              backgroundColor: isConnected ? '#4ade80' : '#f87171', // Green if connected, red if disconnected
               display: 'inline-block',
               marginRight: '8px'
             }}
@@ -222,6 +246,45 @@ const LiveActivityFeed = () => {
             ▼
           </span>
         </button>
+        
+        {/* Debug button in dev mode */}
+        {process.env.NODE_ENV !== 'production' && (
+          <button 
+            onClick={requestTestActivity}
+            style={{
+              marginTop: '4px',
+              padding: '4px 8px',
+              fontSize: '10px',
+              backgroundColor: '#374151',
+              color: '#e2e8f0',
+              border: '1px solid #4b5563',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Test Activity
+          </button>
+        )}
+        
+        {/* Connection status debug info */}
+        {process.env.NODE_ENV !== 'production' && (
+          <div style={{ 
+            marginTop: '4px', 
+            fontSize: '10px',
+            color: '#e2e8f0',
+            backgroundColor: 'rgba(31, 41, 55, 0.8)',
+            padding: '4px',
+            borderRadius: '4px',
+            maxWidth: '200px'
+          }}>
+            <div>Socket: {isConnected ? 'Connected' : 'Disconnected'}</div>
+            {lastActivity && (
+              <div>
+                Last: {lastActivity.type} ({Math.round((Date.now() - lastActivity.time) / 1000)}s ago)
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Live Feed Dropdown Content - Full width version */}
