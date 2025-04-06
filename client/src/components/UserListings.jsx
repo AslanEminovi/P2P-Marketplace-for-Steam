@@ -93,15 +93,33 @@ const UserListings = ({ show, onClose }) => {
     try {
       console.log('Cancelling listing:', itemId);
       const token = localStorage.getItem('auth_token');
+      console.log('Auth token exists:', !!token, 'Length:', token ? token.length : 0);
       
-      await axios.put(`${API_URL}/marketplace/cancel/${itemId}`, {}, {
+      // Check if token looks valid
+      if (!token || token.length < 10) {
+        console.warn('Auth token seems invalid or missing');
+        // Try to get a new token or re-authenticate
+        if (window.showNotification) {
+          window.showNotification(
+            "Authentication Error",
+            "Your session may have expired. Please refresh the page and try again.",
+            "ERROR"
+          );
+        }
+        return;
+      }
+      
+      console.log('Sending cancel request to:', `${API_URL}/marketplace/cancel/${itemId}`);
+      
+      const response = await axios.put(`${API_URL}/marketplace/cancel/${itemId}`, {}, {
         withCredentials: true,
         headers: {
-          'Authorization': token ? `Bearer ${token}` : ''
+          'Authorization': `Bearer ${token}`
         }
       });
       
-      console.log('Successfully cancelled listing');
+      console.log('Cancel response:', response.data);
+      
       // Update the listings list
       fetchUserListings();
       
@@ -115,6 +133,14 @@ const UserListings = ({ show, onClose }) => {
       }
     } catch (err) {
       console.error('Error cancelling listing:', err);
+      
+      // Log more detailed error information
+      if (err.response) {
+        console.error('Error response status:', err.response.status);
+        console.error('Error response data:', err.response.data);
+      } else if (err.request) {
+        console.error('No response received:', err.request);
+      }
       
       // Get the specific error message from the server or use a default
       const errorMessage = err.response?.data?.error || 'Failed to cancel listing';

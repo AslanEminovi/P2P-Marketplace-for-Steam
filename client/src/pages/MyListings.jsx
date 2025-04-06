@@ -47,7 +47,7 @@ function MyListings() {
       
       if (response.data.success) {
         // Handle successful cancellation
-        fetchListings();
+        fetchMyListings();
         
         // Show success notification
         if (window.showNotification) {

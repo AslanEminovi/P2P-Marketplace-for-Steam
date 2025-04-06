@@ -554,6 +554,14 @@ exports.cancelListing = async (req, res) => {
     const userId = req.user._id;
 
     console.log(`Cancelling listing for item ${itemId} by user ${userId}`);
+    console.log(
+      `User auth info: ${JSON.stringify({
+        id: req.user._id,
+        authenticated: !!req.user,
+        hasId: !!req.user?._id,
+        requestHasToken: !!req.query.auth_token || !!req.headers.authorization,
+      })}`
+    );
 
     // Find the item
     const item = await Item.findById(itemId);
@@ -563,8 +571,13 @@ exports.cancelListing = async (req, res) => {
       return res.status(404).json({ error: "Item not found." });
     }
 
+    console.log(
+      `Found item: ${item._id}, owner: ${item.owner}, is listed: ${item.isListed}`
+    );
+
     // Check if this is a force cancel request (for cleaning up listings)
     const forceCancel = req.query.force === "true";
+    console.log(`Force cancel: ${forceCancel}`);
 
     // Check if the item is involved in an active trade
     const Trade = mongoose.model("Trade");
@@ -573,14 +586,22 @@ exports.cancelListing = async (req, res) => {
       status: { $nin: ["cancelled", "completed", "failed"] },
     });
 
-    if (activeTrade && !forceCancel) {
+    if (activeTrade) {
       console.log(
-        `Cannot cancel listing for item ${itemId} - active trade ${activeTrade._id} exists`
+        `Found active trade: ${activeTrade._id}, status: ${activeTrade.status}`
       );
-      return res.status(400).json({
-        error:
-          "Cannot cancel this listing as it's currently in an active trade process. Please wait for the trade to complete or be canceled.",
-      });
+
+      if (!forceCancel) {
+        console.log(
+          `Cannot cancel listing for item ${itemId} - active trade ${activeTrade._id} exists`
+        );
+        return res.status(400).json({
+          error:
+            "Cannot cancel this listing as it's currently in an active trade process. Please wait for the trade to complete or be canceled.",
+        });
+      } else {
+        console.log(`Force cancelling despite active trade ${activeTrade._id}`);
+      }
     }
 
     // Verify ownership unless this is a force cancel
@@ -643,7 +664,11 @@ exports.cancelListing = async (req, res) => {
     });
   } catch (err) {
     console.error("Error cancelling listing:", err);
-    return res.status(500).json({ error: "Failed to cancel listing." });
+    return res
+      .status(500)
+      .json({
+        error: "Failed to cancel listing: " + (err.message || "Unknown error"),
+      });
   }
 };
 
