@@ -335,6 +335,16 @@ class SocketService {
   isConnected() {
     return this.connected && this.socket && this.socket.connected;
   }
+
+  // For testing purposes - emit a market activity
+  emitTestActivity() {
+    if (this.socket && this.isConnected()) {
+      console.log("Emitting test activity request");
+      this.emit("request_test_activity", {});
+    } else {
+      console.warn("Socket not connected, cannot emit test activity");
+    }
+  }
 }
 
 // Create a singleton instance

@@ -10,30 +10,99 @@ const LiveActivityFeed = () => {
   const dropdownRef = useRef(null);
   const maxActivitiesShown = 5; // Show more activities
 
+  // Connect to socket if not already connected
   useEffect(() => {
+    console.log('[LiveActivityFeed] Initializing and checking socket connection');
+    
+    if (!socketService.isConnected()) {
+      console.log('[LiveActivityFeed] Socket not connected, connecting...');
+      socketService.connect();
+    } else {
+      console.log('[LiveActivityFeed] Socket already connected');
+    }
+
+    const onConnect = () => {
+      console.log('[LiveActivityFeed] Socket connected event');
+    };
+
+    const onDisconnect = () => {
+      console.log('[LiveActivityFeed] Socket disconnected event');
+    };
+
+    socketService.onConnected(onConnect);
+    socketService.onDisconnected(onDisconnect);
+
+    return () => {
+      socketService.onConnected(null);
+      socketService.onDisconnected(null);
+    };
+  }, []);
+
+  // Listen for activity events
+  useEffect(() => {
+    console.log('[LiveActivityFeed] Setting up event listeners');
+    
     const handleUserActivity = (activity) => {
+      console.log('[LiveActivityFeed] User activity received:', activity);
+      
       if (!activity) return;
       
       const enhancedActivity = {
         ...activity,
         timestamp: activity.timestamp || new Date().toISOString(),
-        id: `activity-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+        id: `activity-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        user: {
+          name: activity.user || 'User',
+          avatar: activity.userAvatar || '/default-avatar.png'
+        },
+        item: {
+          name: activity.itemName || 'Item',
+          image: activity.itemImage || '/default-item.png'
+        },
+        price: activity.price || 0,
+        type: activity.type || 'activity'
       };
       
-      setActivities(prev => [enhancedActivity, ...prev].slice(0, 20));
+      setActivities(prev => {
+        console.log('[LiveActivityFeed] Adding new user activity to state');
+        return [enhancedActivity, ...prev].slice(0, 20);
+      });
     };
 
     const handleMarketActivity = (activity) => {
+      console.log('[LiveActivityFeed] Market activity received:', activity);
+      
       if (!activity) return;
       
+      // Convert the server's format to our expected format
       const enhancedActivity = {
         ...activity,
         timestamp: activity.timestamp || new Date().toISOString(),
-        id: `market-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+        id: `market-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        user: {
+          name: typeof activity.user === 'string' ? activity.user : (activity.user?.name || 'User'),
+          avatar: activity.userAvatar || activity.user?.avatar || '/default-avatar.png'
+        },
+        item: {
+          name: activity.itemName || activity.item?.name || 'Item',
+          image: activity.itemImage || activity.item?.image || '/default-item.png'
+        },
+        price: parseFloat(activity.price) || 0,
+        type: activity.type || 'listing'
       };
       
-      setActivities(prev => [enhancedActivity, ...prev].slice(0, 20));
+      setActivities(prev => {
+        console.log('[LiveActivityFeed] Adding new market activity to state. Current count:', prev.length);
+        // Add new activity and limit to 20 recent items
+        return [enhancedActivity, ...prev].slice(0, 20);
+      });
     };
+
+    // Debug broadcast a test activity after 3 seconds
+    setTimeout(() => {
+      console.log('[LiveActivityFeed] Broadcasting test activity');
+      socketService.emit('request_test_activity', {});
+    }, 3000);
 
     // Clear any existing listeners to prevent duplicates
     socketService.off('user_activity');
@@ -53,6 +122,7 @@ const LiveActivityFeed = () => {
     document.addEventListener('mousedown', handleClickOutside);
 
     return () => {
+      console.log('[LiveActivityFeed] Cleaning up event listeners');
       socketService.off('user_activity', handleUserActivity);
       socketService.off('market_activity', handleMarketActivity);
       document.removeEventListener('mousedown', handleClickOutside);
@@ -80,6 +150,7 @@ const LiveActivityFeed = () => {
       case 'listing':
         return '#3b82f6'; // blue
       case 'purchase':
+      case 'sale':  
         return '#8b5cf6'; // purple
       case 'offer':
         return '#fbbf24'; // yellow
@@ -96,7 +167,7 @@ const LiveActivityFeed = () => {
         className="live-feed-container"
         style={{
           position: 'absolute',
-          top: '72px', // Increased from 60px to ensure it's below navbar
+          top: '80px', // Increased from 72px to move it further down
           right: '20px',
           zIndex: 30, // Lower z-index than navbar (which is likely 40+)
           display: 'flex',
@@ -158,7 +229,7 @@ const LiveActivityFeed = () => {
         className="live-feed-dropdown-content"
         style={{
           position: 'fixed',
-          top: '72px', // Positioned right below navbar
+          top: '80px', // Positioned right below navbar
           left: '0',
           right: '0',
           width: '100%',
@@ -188,7 +259,7 @@ const LiveActivityFeed = () => {
           }}
         >
           {activities.length > 0 ? (
-            activities.slice(0, maxActivitiesShown).map((activity) => (
+            activities.slice(0, maxActivitiesShown).map((activity, index) => (
               <div
                 key={activity.id}
                 onClick={() => handleActivityClick(activity)}
@@ -207,7 +278,8 @@ const LiveActivityFeed = () => {
                   width: 'calc(100% / 3 - 12px)', // 3 per row with gap
                   minWidth: '300px',
                   maxWidth: '380px',
-                  flexGrow: 1
+                  flexGrow: 1,
+                  animation: `fade-in 0.5s ease-out ${index * 0.1}s backwards`
                 }}
                 onMouseOver={(e) => {
                   e.currentTarget.style.backgroundColor = 'rgba(51, 65, 85, 0.9)';
@@ -220,6 +292,14 @@ const LiveActivityFeed = () => {
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
+                <style>
+                  {`
+                    @keyframes fade-in {
+                      from { opacity: 0; transform: translateY(10px); }
+                      to { opacity: 1; transform: translateY(0); }
+                    }
+                  `}
+                </style>
                 <div 
                   className="avatar"
                   style={{
@@ -243,7 +323,7 @@ const LiveActivityFeed = () => {
                   />
                 </div>
 
-                {activity.type === 'listing' && (
+                {(activity.type === 'listing' || activity.type === 'new_listing') && (
                   <div style={{ display: 'flex', flexGrow: 1, flexWrap: 'wrap' }}>
                     <div style={{ 
                       color: '#4ade80', 
@@ -262,7 +342,7 @@ const LiveActivityFeed = () => {
                       fontSize: '14px',
                       marginRight: '5px'
                     }}>
-                      {activity.item?.name || 'Item'}
+                      {activity.item?.name || activity.itemName || 'Item'}
                     </div>
                     <div style={{ 
                       color: '#4ade80', 
@@ -270,12 +350,12 @@ const LiveActivityFeed = () => {
                       fontSize: '14px', 
                       marginLeft: 'auto' 
                     }}>
-                      ${activity.price?.toFixed(2) || '0.00'}
+                      ${typeof activity.price === 'number' ? activity.price.toFixed(2) : '0.00'}
                     </div>
                   </div>
                 )}
 
-                {activity.type === 'purchase' && (
+                {(activity.type === 'purchase' || activity.type === 'sale') && (
                   <div style={{ display: 'flex', flexGrow: 1, flexWrap: 'wrap' }}>
                     <div style={{ 
                       color: '#8b5cf6', 
@@ -294,7 +374,7 @@ const LiveActivityFeed = () => {
                       fontSize: '14px',
                       marginRight: '5px'
                     }}>
-                      {activity.item?.name || 'Item'}
+                      {activity.item?.name || activity.itemName || 'Item'}
                     </div>
                     <div style={{ 
                       color: '#e2e8f0', 
@@ -424,7 +504,7 @@ const LiveActivityFeed = () => {
                 color: '#ffffff'
               }}>
                 {selectedActivity.type === 'listing' ? 'Item Listed' : 
-                 selectedActivity.type === 'purchase' ? 'Item Purchased' : 
+                 selectedActivity.type === 'purchase' || selectedActivity.type === 'sale' ? 'Item Purchased' : 
                  'Activity Details'}
               </h3>
               <button
@@ -489,7 +569,7 @@ const LiveActivityFeed = () => {
                       fontSize: '16px', 
                       marginBottom: '6px' 
                     }}>
-                      {selectedActivity.item.name || 'Unknown Item'}
+                      {selectedActivity.item.name || selectedActivity.itemName || 'Unknown Item'}
                     </h4>
                     {selectedActivity.price && (
                       <div style={{ 
@@ -497,7 +577,7 @@ const LiveActivityFeed = () => {
                         fontWeight: '700', 
                         fontSize: '18px' 
                       }}>
-                        ${selectedActivity.price.toFixed(2)}
+                        ${typeof selectedActivity.price === 'number' ? selectedActivity.price.toFixed(2) : '0.00'}
                       </div>
                     )}
                   </div>
@@ -519,14 +599,14 @@ const LiveActivityFeed = () => {
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px'
                 }}>
-                  {selectedActivity.type === 'purchase' ? 'Transaction Details' : 'User Details'}
+                  {selectedActivity.type === 'purchase' || selectedActivity.type === 'sale' ? 'Transaction Details' : 'User Details'}
                 </h4>
                 
                 {/* User/buyer */}
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  marginBottom: selectedActivity.type === 'purchase' ? '10px' : '0',
+                  marginBottom: (selectedActivity.type === 'purchase' || selectedActivity.type === 'sale') ? '10px' : '0',
                   backgroundColor: 'rgba(31, 43, 69, 0.6)',
                   padding: '10px 15px',
                   borderRadius: '8px',
@@ -567,7 +647,7 @@ const LiveActivityFeed = () => {
                 </div>
                 
                 {/* Seller (for purchase) */}
-                {selectedActivity.type === 'purchase' && selectedActivity.seller && (
+                {(selectedActivity.type === 'purchase' || selectedActivity.type === 'sale') && selectedActivity.seller && (
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
