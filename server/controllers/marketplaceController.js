@@ -22,19 +22,39 @@ exports.listItem = async (req, res) => {
         .json({ error: "Asset ID is required to list an item." });
     }
 
-    // Check if this item is already listed by this user
+    // Check if this item is already listed by ANY user (not just current user)
     const existingListing = await Item.findOne({
-      owner: req.user._id,
       assetId: assetId,
       isListed: true,
     });
 
     if (existingListing) {
-      return res.status(400).json({
-        error:
-          "This item is already listed for sale. Please remove the existing listing first.",
-      });
+      console.log(
+        `Item with assetId ${assetId} is already listed by user ${existingListing.owner}`
+      );
+
+      // Check if it's listed by the current user
+      if (existingListing.owner.toString() === req.user._id.toString()) {
+        return res.status(400).json({
+          error:
+            "You have already listed this item for sale. Please check your active listings.",
+          existingListing: {
+            id: existingListing._id,
+            price: existingListing.price,
+            listedOn: existingListing.createdAt,
+          },
+        });
+      } else {
+        // Item is listed by another user - shouldn't normally happen, but possible if inventory data is stale
+        return res.status(400).json({
+          error:
+            "This item appears to be already listed by another user. If you believe this is an error, please refresh your inventory.",
+        });
+      }
     }
+
+    // Check if this asset exists in the user's inventory
+    // This would require an additional endpoint to verify with Steam, omitted for brevity
 
     // Extract wear from marketHashName if not provided
     let itemWear = wear;
@@ -89,6 +109,7 @@ exports.listItem = async (req, res) => {
       rarity,
       isListed: true,
       allowOffers: true, // Default to allowing offers
+      listingDate: new Date(),
     });
 
     // Create notification object

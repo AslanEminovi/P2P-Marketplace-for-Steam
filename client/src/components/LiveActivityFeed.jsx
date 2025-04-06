@@ -2,7 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import socketService from '../services/socketService';
 import { formatDistanceToNow } from 'date-fns';
 
-const LiveActivityFeed = () => {
+// Accept props to allow customization from different usage contexts
+const LiveActivityFeed = (props) => {
+  // If props.isControlled is true, then the parent component controls the visibility
+  const isControlled = props.isOpen !== undefined && props.onToggle !== undefined;
+  
+  // Use either controlled or internal state based on props
   const [activities, setActivities] = useState([]);
   const [visible, setVisible] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
@@ -12,9 +17,40 @@ const LiveActivityFeed = () => {
   const feedRef = useRef(null);
   const dropdownRef = useRef(null);
   const maxActivitiesShown = 5;
+  
+  // Use the rendered attribute to track if this component is duplicated
+  const [isAlreadyMounted, setIsAlreadyMounted] = useState(false);
+
+  // Check if another instance of LiveActivityFeed is already rendered
+  useEffect(() => {
+    // Use a global window variable to track instances
+    if (window.__liveActivityFeedMounted) {
+      setIsAlreadyMounted(true);
+      
+      // If this component is in App.jsx (global), don't render it if a marketplace specific one exists
+      if (!isControlled) {
+        console.log('[LiveActivityFeed] Another instance is already mounted, not rendering global instance');
+        return; // Don't render anything else from this component
+      }
+    } else {
+      window.__liveActivityFeedMounted = true;
+      console.log('[LiveActivityFeed] First instance mounted');
+    }
+
+    return () => {
+      // Cleanup when unmounting
+      if (!isAlreadyMounted) {
+        window.__liveActivityFeedMounted = false;
+        console.log('[LiveActivityFeed] Instance unmounted');
+      }
+    };
+  }, [isControlled, isAlreadyMounted]);
 
   // Connect to socket if not already connected
   useEffect(() => {
+    // Don't initialize if this is a duplicate uncontrolled instance
+    if (isAlreadyMounted && !isControlled) return;
+    
     console.log('[LiveActivityFeed] Component mounted');
     
     // Always try to connect when component mounts
@@ -45,14 +81,20 @@ const LiveActivityFeed = () => {
     }));
 
     return () => {
+      // Don't cleanup if this is a duplicate uncontrolled instance
+      if (isAlreadyMounted && !isControlled) return;
+      
       console.log('[LiveActivityFeed] Cleaning up connection listeners');
       socketService.onConnected(null);
       socketService.onDisconnected(null);
     };
-  }, []);
+  }, [isAlreadyMounted, isControlled]);
 
   // Listen for activity events
   useEffect(() => {
+    // Don't set up listeners if this is a duplicate uncontrolled instance
+    if (isAlreadyMounted && !isControlled) return;
+    
     console.log('[LiveActivityFeed] Setting up activity event listeners');
     
     const handleMarketActivity = (activity) => {
@@ -156,7 +198,14 @@ const LiveActivityFeed = () => {
     // Add click outside listener to close dropdown
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setVisible(false);
+        // If controlled by parent, call the toggle function
+        if (isControlled) {
+          if (props.isOpen) {
+            props.onToggle();
+          }
+        } else {
+          setVisible(false);
+        }
       }
     };
 
@@ -171,6 +220,9 @@ const LiveActivityFeed = () => {
     }, 10000); // Try reconnecting every 10 seconds if disconnected
 
     return () => {
+      // Don't clean up if this is a duplicate uncontrolled instance
+      if (isAlreadyMounted && !isControlled) return;
+      
       console.log('[LiveActivityFeed] Cleaning up event listeners');
       socketService.off('user_activity', handleUserActivity);
       socketService.off('market_activity', handleMarketActivity);
@@ -178,7 +230,7 @@ const LiveActivityFeed = () => {
       clearTimeout(timer);
       clearInterval(reconnectInterval);
     };
-  }, []);
+  }, [isAlreadyMounted, isControlled, props]);
 
   // Debug button to request test activities
   const requestTestActivity = () => {
@@ -196,7 +248,12 @@ const LiveActivityFeed = () => {
   };
 
   const toggleVisibility = () => {
-    setVisible(!visible);
+    // If controlled by parent, call the toggle function
+    if (isControlled) {
+      props.onToggle();
+    } else {
+      setVisible(!visible);
+    }
   };
 
   const getActivityColor = (type) => {
@@ -230,6 +287,14 @@ const LiveActivityFeed = () => {
     }, 500);
     setDebug(prev => ({ ...prev, manualReconnectRequested: new Date() }));
   };
+  
+  // Don't render if this is a duplicate uncontrolled instance
+  if (isAlreadyMounted && !isControlled) {
+    return null;
+  }
+  
+  // Get actual visibility state based on whether the component is controlled or not
+  const isVisible = isControlled ? props.isOpen : visible;
 
   return (
     <>
@@ -288,7 +353,7 @@ const LiveActivityFeed = () => {
           Live Feed
           <span style={{ 
             marginLeft: '6px',
-            transform: visible ? 'rotate(180deg)' : 'rotate(0deg)',
+            transform: isVisible ? 'rotate(180deg)' : 'rotate(0deg)',
             transition: 'transform 0.3s ease'
           }}>
             ▼
@@ -372,11 +437,11 @@ const LiveActivityFeed = () => {
           backgroundColor: 'rgba(15, 23, 42, 0.85)',
           backdropFilter: 'blur(5px)',
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-          maxHeight: visible ? '400px' : '0px',
-          opacity: visible ? 1 : 0,
+          maxHeight: isVisible ? '400px' : '0px',
+          opacity: isVisible ? 1 : 0,
           overflow: 'hidden',
           transition: 'max-height 0.3s ease, opacity 0.3s ease',
-          borderBottom: visible ? '1px solid rgba(59, 130, 246, 0.2)' : 'none',
+          borderBottom: isVisible ? '1px solid rgba(59, 130, 246, 0.2)' : 'none',
           zIndex: 29
         }}
       >
