@@ -8,7 +8,7 @@ const LiveActivityFeed = () => {
   const [selectedActivity, setSelectedActivity] = useState(null);
   const feedRef = useRef(null);
   const dropdownRef = useRef(null);
-  const maxActivitiesShown = 4; // Reduced number for better fit
+  const maxActivitiesShown = 5; // Show more activities
 
   useEffect(() => {
     const handleUserActivity = (activity) => {
@@ -90,15 +90,15 @@ const LiveActivityFeed = () => {
 
   return (
     <>
-      {/* Live Feed Container - positioned on right side */}
+      {/* Live Feed Container - button positioned on right side */}
       <div 
         ref={dropdownRef}
         className="live-feed-container"
         style={{
           position: 'absolute',
-          top: '60px', // position right under navbar
+          top: '72px', // Increased from 60px to ensure it's below navbar
           right: '20px',
-          zIndex: 41,
+          zIndex: 30, // Lower z-index than navbar (which is likely 40+)
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-end'
@@ -151,207 +151,226 @@ const LiveActivityFeed = () => {
             ▼
           </span>
         </button>
+      </div>
 
-        {/* Live Feed Dropdown Content with animation */}
+      {/* Live Feed Dropdown Content - Full width version */}
+      <div 
+        className="live-feed-dropdown-content"
+        style={{
+          position: 'fixed',
+          top: '72px', // Positioned right below navbar
+          left: '0',
+          right: '0',
+          width: '100%',
+          backgroundColor: 'rgba(15, 23, 42, 0.85)', // More transparent
+          backdropFilter: 'blur(5px)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+          maxHeight: visible ? '400px' : '0px',
+          opacity: visible ? 1 : 0,
+          overflow: 'hidden',
+          transition: 'max-height 0.3s ease, opacity 0.3s ease',
+          borderBottom: visible ? '1px solid rgba(59, 130, 246, 0.2)' : 'none',
+          zIndex: 29 // Lower than the button
+        }}
+      >
         <div 
-          className="live-feed-dropdown-content"
+          className="live-feed-content"
+          ref={feedRef}
           style={{
-            width: '350px',
-            backgroundColor: 'rgba(15, 23, 42, 0.95)',
-            borderRadius: '8px',
-            marginTop: '5px',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-            maxHeight: visible ? '400px' : '0px',
-            opacity: visible ? 1 : 0,
-            overflow: 'hidden',
-            transition: 'max-height 0.3s ease, opacity 0.3s ease',
-            border: visible ? '1px solid rgba(59, 130, 246, 0.3)' : 'none'
+            padding: visible ? '15px' : '0 15px',
+            maxWidth: '1200px', // Match navbar width constraint
+            margin: '0 auto',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '12px',
+            justifyContent: 'center',
+            transition: 'padding 0.3s ease'
           }}
         >
-          <div 
-            className="live-feed-content"
-            ref={feedRef}
-            style={{
-              padding: visible ? '12px' : '0 12px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-              transition: 'padding 0.3s ease'
-            }}
-          >
-            {activities.length > 0 ? (
-              activities.slice(0, maxActivitiesShown).map((activity) => (
-                <div
-                  key={activity.id}
-                  onClick={() => handleActivityClick(activity)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    backgroundColor: 'rgba(31, 43, 69, 0.7)',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    borderLeft: `3px solid ${getActivityColor(activity.type)}`,
-                    cursor: 'pointer',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                    overflow: 'hidden',
-                    transition: 'background-color 0.2s ease',
-                    marginBottom: '2px'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(51, 65, 85, 0.7)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(31, 43, 69, 0.7)';
-                  }}
-                >
-                  <div 
-                    className="avatar"
-                    style={{
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '50%',
-                      overflow: 'hidden',
-                      marginRight: '10px',
-                      flexShrink: 0
-                    }}
-                  >
-                    <img 
-                      src={activity.user?.avatar || '/default-avatar.png'}
-                      alt={activity.user?.name || 'User'}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover'
-                      }}
-                    />
-                  </div>
-
-                  {activity.type === 'listing' && (
-                    <div style={{ display: 'flex', flexGrow: 1, flexWrap: 'wrap' }}>
-                      <div style={{ 
-                        color: '#4ade80', 
-                        fontWeight: 'bold', 
-                        fontSize: '13px', 
-                        marginRight: '5px' 
-                      }}>
-                        {activity.user?.name || 'User'}
-                      </div>
-                      <div style={{ color: '#e2e8f0', fontSize: '13px', marginRight: '5px' }}>
-                        listed
-                      </div>
-                      <div style={{ 
-                        color: '#e2e8f0', 
-                        fontWeight: 'bold', 
-                        fontSize: '13px',
-                        marginRight: '5px'
-                      }}>
-                        {activity.item?.name || 'Item'}
-                      </div>
-                      <div style={{ 
-                        color: '#4ade80', 
-                        fontWeight: 'bold', 
-                        fontSize: '13px', 
-                        marginLeft: 'auto' 
-                      }}>
-                        ${activity.price?.toFixed(2) || '0.00'}
-                      </div>
-                    </div>
-                  )}
-
-                  {activity.type === 'purchase' && (
-                    <div style={{ display: 'flex', flexGrow: 1, flexWrap: 'wrap' }}>
-                      <div style={{ 
-                        color: '#8b5cf6', 
-                        fontWeight: 'bold', 
-                        fontSize: '13px', 
-                        marginRight: '5px' 
-                      }}>
-                        {activity.user?.name || 'User'}
-                      </div>
-                      <div style={{ color: '#e2e8f0', fontSize: '13px', marginRight: '5px' }}>
-                        bought
-                      </div>
-                      <div style={{ 
-                        color: '#e2e8f0', 
-                        fontWeight: 'bold', 
-                        fontSize: '13px',
-                        marginRight: '5px'
-                      }}>
-                        {activity.item?.name || 'Item'}
-                      </div>
-                      <div style={{ 
-                        color: '#e2e8f0', 
-                        fontSize: '13px', 
-                        marginRight: '5px' 
-                      }}>
-                        from
-                      </div>
-                      <div style={{ 
-                        color: '#fb923c', 
-                        fontWeight: 'bold', 
-                        fontSize: '13px' 
-                      }}>
-                        {activity.seller?.name || 'Seller'}
-                      </div>
-                    </div>
-                  )}
-
-                  <div 
-                    className="timestamp"
-                    style={{
-                      color: '#94a3b8',
-                      fontSize: '11px',
-                      marginLeft: '10px',
-                      flexShrink: 0
-                    }}
-                  >
-                    {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div style={{ 
-                padding: '15px', 
-                textAlign: 'center', 
-                color: '#94a3b8',
-                fontSize: '14px'
-              }}>
-                No recent marketplace activity
-              </div>
-            )}
-
-            {activities.length > 0 && (
-              <div 
+          {activities.length > 0 ? (
+            activities.slice(0, maxActivitiesShown).map((activity) => (
+              <div
+                key={activity.id}
+                onClick={() => handleActivityClick(activity)}
                 style={{
-                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                  marginTop: '5px',
-                  paddingTop: '8px',
-                  textAlign: 'center'
+                  display: 'flex',
+                  alignItems: 'center',
+                  backgroundColor: 'rgba(31, 43, 69, 0.8)',
+                  padding: '10px 15px',
+                  borderRadius: '8px',
+                  borderLeft: `3px solid ${getActivityColor(activity.type)}`,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 5px rgba(0, 0, 0, 0.2)',
+                  overflow: 'hidden',
+                  transition: 'all 0.2s ease',
+                  marginBottom: '2px',
+                  width: 'calc(100% / 3 - 12px)', // 3 per row with gap
+                  minWidth: '300px',
+                  maxWidth: '380px',
+                  flexGrow: 1
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(51, 65, 85, 0.9)';
+                  e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.3)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(31, 43, 69, 0.8)';
+                  e.currentTarget.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.2)';
+                  e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
-                <button 
+                <div 
+                  className="avatar"
                   style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#3b82f6',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    padding: '5px 10px',
-                    borderRadius: '4px',
-                    transition: 'background-color 0.2s ease'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    marginRight: '12px',
+                    flexShrink: 0,
+                    border: '2px solid rgba(255, 255, 255, 0.1)'
                   }}
                 >
-                  View all activities
-                </button>
+                  <img 
+                    src={activity.user?.avatar || '/default-avatar.png'}
+                    alt={activity.user?.name || 'User'}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover'
+                    }}
+                  />
+                </div>
+
+                {activity.type === 'listing' && (
+                  <div style={{ display: 'flex', flexGrow: 1, flexWrap: 'wrap' }}>
+                    <div style={{ 
+                      color: '#4ade80', 
+                      fontWeight: 'bold', 
+                      fontSize: '14px', 
+                      marginRight: '5px' 
+                    }}>
+                      {activity.user?.name || 'User'}
+                    </div>
+                    <div style={{ color: '#e2e8f0', fontSize: '14px', marginRight: '5px' }}>
+                      listed
+                    </div>
+                    <div style={{ 
+                      color: '#e2e8f0', 
+                      fontWeight: 'bold', 
+                      fontSize: '14px',
+                      marginRight: '5px'
+                    }}>
+                      {activity.item?.name || 'Item'}
+                    </div>
+                    <div style={{ 
+                      color: '#4ade80', 
+                      fontWeight: 'bold', 
+                      fontSize: '14px', 
+                      marginLeft: 'auto' 
+                    }}>
+                      ${activity.price?.toFixed(2) || '0.00'}
+                    </div>
+                  </div>
+                )}
+
+                {activity.type === 'purchase' && (
+                  <div style={{ display: 'flex', flexGrow: 1, flexWrap: 'wrap' }}>
+                    <div style={{ 
+                      color: '#8b5cf6', 
+                      fontWeight: 'bold', 
+                      fontSize: '14px', 
+                      marginRight: '5px' 
+                    }}>
+                      {activity.user?.name || 'User'}
+                    </div>
+                    <div style={{ color: '#e2e8f0', fontSize: '14px', marginRight: '5px' }}>
+                      bought
+                    </div>
+                    <div style={{ 
+                      color: '#e2e8f0', 
+                      fontWeight: 'bold', 
+                      fontSize: '14px',
+                      marginRight: '5px'
+                    }}>
+                      {activity.item?.name || 'Item'}
+                    </div>
+                    <div style={{ 
+                      color: '#e2e8f0', 
+                      fontSize: '14px', 
+                      marginRight: '5px' 
+                    }}>
+                      from
+                    </div>
+                    <div style={{ 
+                      color: '#fb923c', 
+                      fontWeight: 'bold', 
+                      fontSize: '14px' 
+                    }}>
+                      {activity.seller?.name || 'Seller'}
+                    </div>
+                  </div>
+                )}
+
+                <div 
+                  className="timestamp"
+                  style={{
+                    color: '#94a3b8',
+                    fontSize: '12px',
+                    marginLeft: '10px',
+                    flexShrink: 0
+                  }}
+                >
+                  {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                </div>
               </div>
-            )}
-          </div>
+            ))
+          ) : (
+            <div style={{ 
+              padding: '20px', 
+              textAlign: 'center', 
+              color: '#e2e8f0',
+              fontSize: '16px',
+              width: '100%'
+            }}>
+              No recent marketplace activity
+            </div>
+          )}
+
+          {activities.length > 0 && (
+            <div 
+              style={{
+                borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                marginTop: '10px',
+                paddingTop: '10px',
+                textAlign: 'center',
+                width: '100%'
+              }}
+            >
+              <button 
+                style={{
+                  background: 'rgba(59, 130, 246, 0.15)',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  color: '#3b82f6',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  padding: '8px 15px',
+                  borderRadius: '6px',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.25)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.15)';
+                }}
+              >
+                View all activities
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -360,7 +379,8 @@ const LiveActivityFeed = () => {
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(3px)',
             zIndex: 50,
             display: 'flex',
             justifyContent: 'center',
@@ -371,25 +391,35 @@ const LiveActivityFeed = () => {
           <div
             style={{
               width: '90%',
-              maxWidth: '450px',
+              maxWidth: '500px',
               backgroundColor: 'rgba(31, 43, 69, 0.95)',
               borderRadius: '12px',
-              boxShadow: '0 0 20px rgba(0, 0, 0, 0.3)',
+              boxShadow: '0 0 30px rgba(0, 0, 0, 0.4)',
               overflow: 'hidden',
               backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)'
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              animation: 'scale-in 0.2s ease-out'
             }}
             onClick={e => e.stopPropagation()}
           >
+            <style>
+              {`
+                @keyframes scale-in {
+                  from { transform: scale(0.9); opacity: 0; }
+                  to { transform: scale(1); opacity: 1; }
+                }
+              `}
+            </style>
             <div style={{
-              padding: '15px',
+              padding: '20px',
               borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: 'center',
+              background: 'rgba(15, 23, 42, 0.5)'
             }}>
               <h3 style={{ 
-                fontSize: '16px', 
+                fontSize: '18px', 
                 fontWeight: '600', 
                 color: '#ffffff'
               }}>
@@ -403,36 +433,44 @@ const LiveActivityFeed = () => {
                   background: 'none',
                   border: 'none',
                   color: '#94a3b8',
-                  fontSize: '20px',
+                  fontSize: '24px',
                   cursor: 'pointer',
-                  padding: '0'
+                  padding: '0',
+                  transition: 'color 0.2s ease'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.color = '#ffffff';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.color = '#94a3b8';
                 }}
               >
                 ×
               </button>
             </div>
             
-            <div style={{ padding: '15px' }}>
+            <div style={{ padding: '20px' }}>
               {selectedActivity.item && (
                 <div style={{
                   backgroundColor: 'rgba(15, 23, 42, 0.5)',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  marginBottom: '12px',
+                  borderRadius: '10px',
+                  padding: '15px',
+                  marginBottom: '15px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '12px',
+                  gap: '15px',
                   border: '1px solid rgba(255, 255, 255, 0.05)'
                 }}>
                   <div style={{
-                    width: '60px',
-                    height: '60px',
+                    width: '80px',
+                    height: '80px',
                     backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     overflow: 'hidden',
                     display: 'flex',
                     justifyContent: 'center',
-                    alignItems: 'center'
+                    alignItems: 'center',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
                   }}>
                     <img 
                       src={selectedActivity.item.image || '/default-item.png'} 
@@ -448,8 +486,8 @@ const LiveActivityFeed = () => {
                     <h4 style={{ 
                       color: '#ffffff', 
                       fontWeight: '600', 
-                      fontSize: '14px', 
-                      marginBottom: '4px' 
+                      fontSize: '16px', 
+                      marginBottom: '6px' 
                     }}>
                       {selectedActivity.item.name || 'Unknown Item'}
                     </h4>
@@ -457,7 +495,7 @@ const LiveActivityFeed = () => {
                       <div style={{ 
                         color: '#4ade80', 
                         fontWeight: '700', 
-                        fontSize: '16px' 
+                        fontSize: '18px' 
                       }}>
                         ${selectedActivity.price.toFixed(2)}
                       </div>
@@ -468,17 +506,18 @@ const LiveActivityFeed = () => {
               
               <div style={{
                 backgroundColor: 'rgba(15, 23, 42, 0.5)',
-                borderRadius: '8px',
-                padding: '12px',
-                marginBottom: '12px',
+                borderRadius: '10px',
+                padding: '15px',
+                marginBottom: '15px',
                 border: '1px solid rgba(255, 255, 255, 0.05)'
               }}>
                 <h4 style={{ 
                   color: '#94a3b8', 
                   fontWeight: '600', 
-                  fontSize: '12px', 
-                  marginBottom: '10px',
-                  textTransform: 'uppercase'
+                  fontSize: '14px', 
+                  marginBottom: '12px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
                 }}>
                   {selectedActivity.type === 'purchase' ? 'Transaction Details' : 'User Details'}
                 </h4>
@@ -487,17 +526,18 @@ const LiveActivityFeed = () => {
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  marginBottom: selectedActivity.type === 'purchase' ? '8px' : '0',
-                  backgroundColor: 'rgba(31, 43, 69, 0.4)',
-                  padding: '8px',
-                  borderRadius: '6px',
+                  marginBottom: selectedActivity.type === 'purchase' ? '10px' : '0',
+                  backgroundColor: 'rgba(31, 43, 69, 0.6)',
+                  padding: '10px 15px',
+                  borderRadius: '8px',
                 }}>
                   <div style={{
-                    width: '32px',
-                    height: '32px',
+                    width: '40px',
+                    height: '40px',
                     borderRadius: '50%',
                     overflow: 'hidden',
-                    marginRight: '8px'
+                    marginRight: '12px',
+                    border: '2px solid rgba(255, 255, 255, 0.1)'
                   }}>
                     <img 
                       src={selectedActivity.user?.avatar || '/default-avatar.png'} 
@@ -513,13 +553,13 @@ const LiveActivityFeed = () => {
                     <div style={{ 
                       color: '#ffffff', 
                       fontWeight: '600', 
-                      fontSize: '13px' 
+                      fontSize: '15px' 
                     }}>
                       {selectedActivity.user?.name || 'Unknown User'}
                     </div>
                     <div style={{ 
                       color: '#94a3b8', 
-                      fontSize: '11px' 
+                      fontSize: '13px' 
                     }}>
                       {selectedActivity.type === 'listing' ? 'Seller' : 'Buyer'}
                     </div>
@@ -531,16 +571,17 @@ const LiveActivityFeed = () => {
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    backgroundColor: 'rgba(31, 43, 69, 0.4)',
-                    padding: '8px',
-                    borderRadius: '6px',
+                    backgroundColor: 'rgba(31, 43, 69, 0.6)',
+                    padding: '10px 15px',
+                    borderRadius: '8px',
                   }}>
                     <div style={{
-                      width: '32px',
-                      height: '32px',
+                      width: '40px',
+                      height: '40px',
                       borderRadius: '50%',
                       overflow: 'hidden',
-                      marginRight: '8px'
+                      marginRight: '12px',
+                      border: '2px solid rgba(255, 255, 255, 0.1)'
                     }}>
                       <img 
                         src={selectedActivity.seller.avatar || '/default-avatar.png'} 
@@ -556,13 +597,13 @@ const LiveActivityFeed = () => {
                       <div style={{ 
                         color: '#ffffff', 
                         fontWeight: '600', 
-                        fontSize: '13px' 
+                        fontSize: '15px' 
                       }}>
                         {selectedActivity.seller.name || 'Unknown Seller'}
                       </div>
                       <div style={{ 
                         color: '#94a3b8', 
-                        fontSize: '11px' 
+                        fontSize: '13px' 
                       }}>
                         Seller
                       </div>
@@ -574,8 +615,11 @@ const LiveActivityFeed = () => {
               {/* Timestamp */}
               <div style={{ 
                 color: '#94a3b8', 
-                fontSize: '12px',
-                textAlign: 'center'
+                fontSize: '14px',
+                textAlign: 'center',
+                padding: '5px',
+                backgroundColor: 'rgba(15, 23, 42, 0.3)',
+                borderRadius: '6px'
               }}>
                 {new Date(selectedActivity.timestamp).toLocaleString()}
               </div>
