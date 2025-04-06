@@ -104,9 +104,30 @@ const UserListings = ({ show, onClose }) => {
       console.log('Successfully cancelled listing');
       // Update the listings list
       fetchUserListings();
+      
+      // Show success notification
+      if (window.showNotification) {
+        window.showNotification(
+          "Success",
+          "Listing has been successfully cancelled",
+          "SUCCESS"
+        );
+      }
     } catch (err) {
       console.error('Error cancelling listing:', err);
-      setError('Failed to cancel listing');
+      
+      // Get the specific error message from the server or use a default
+      const errorMessage = err.response?.data?.error || 'Failed to cancel listing';
+      setError(errorMessage);
+      
+      // Show error notification
+      if (window.showNotification) {
+        window.showNotification(
+          "Error",
+          errorMessage,
+          "ERROR"
+        );
+      }
     }
   };
 

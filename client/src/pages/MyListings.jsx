@@ -42,26 +42,56 @@ function MyListings() {
       const url = forceCancel 
         ? `${API_URL}/marketplace/cancel/${itemId}?force=true` 
         : `${API_URL}/marketplace/cancel/${itemId}`;
-        
-      await axios.put(url, {}, { withCredentials: true });
       
-      // Update the UI by removing the cancelled listing
-      setListings(listings.filter(item => item._id !== itemId));
-      setSuccessMessage('Listing cancelled successfully');
+      const response = await axios.put(url, {}, { withCredentials: true });
+      
+      if (response.data.success) {
+        // Handle successful cancellation
+        fetchListings();
+        
+        // Show success notification
+        if (window.showNotification) {
+          window.showNotification(
+            'Success',
+            'Listing has been successfully cancelled',
+            'SUCCESS'
+          );
+        }
+      }
     } catch (err) {
       console.error('Error cancelling listing:', err);
       
-      // If regular cancel failed, try force cancel
-      if (!forceCancel && err.response && (err.response.status === 403 || err.response.status === 404)) {
-        try {
-          await handleCancelListing(itemId, true);
-          return; // Successfully force cancelled
-        } catch (forceErr) {
-          console.error('Force cancel also failed:', forceErr);
+      // Check if this is a conflict error (item in trade process)
+      if (err.response && err.response.status === 400 && err.response.data.error) {
+        // If the server tells us the item is in a trade process, we can show that message
+        setError(err.response.data.error);
+        
+        // Show specific error notification
+        if (window.showNotification) {
+          window.showNotification(
+            'Cannot Cancel Listing',
+            err.response.data.error,
+            'ERROR'
+          );
+        }
+        
+        // If this was a normal cancel attempt, try force cancel
+        if (!forceCancel && err.response.data.error.includes('active trade')) {
+          console.log('Normal cancel failed due to active trade. Not attempting force cancel as that would disrupt the trade.');
+        }
+      } else {
+        // For other errors
+        setError('Failed to cancel listing. Please try again.');
+        
+        // Show generic error notification
+        if (window.showNotification) {
+          window.showNotification(
+            'Error',
+            'Failed to cancel listing. Please try again.',
+            'ERROR'
+          );
         }
       }
-      
-      setError('Failed to cancel listing. Please try again.');
     } finally {
       setLoading(false);
     }

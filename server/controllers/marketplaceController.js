@@ -1,6 +1,7 @@
 const Item = require("../models/Item");
 const User = require("../models/User");
 const socketService = require("../services/socketService");
+const mongoose = require("mongoose");
 
 // POST /marketplace/list
 exports.listItem = async (req, res) => {
@@ -564,6 +565,23 @@ exports.cancelListing = async (req, res) => {
 
     // Check if this is a force cancel request (for cleaning up listings)
     const forceCancel = req.query.force === "true";
+
+    // Check if the item is involved in an active trade
+    const Trade = mongoose.model("Trade");
+    const activeTrade = await Trade.findOne({
+      item: itemId,
+      status: { $nin: ["cancelled", "completed", "failed"] },
+    });
+
+    if (activeTrade && !forceCancel) {
+      console.log(
+        `Cannot cancel listing for item ${itemId} - active trade ${activeTrade._id} exists`
+      );
+      return res.status(400).json({
+        error:
+          "Cannot cancel this listing as it's currently in an active trade process. Please wait for the trade to complete or be canceled.",
+      });
+    }
 
     // Verify ownership unless this is a force cancel
     if (!forceCancel && item.owner.toString() !== userId.toString()) {
