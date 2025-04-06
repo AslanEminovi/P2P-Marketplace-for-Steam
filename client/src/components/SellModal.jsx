@@ -232,6 +232,9 @@ const SellModal = ({ item, onClose, onConfirm, onListingComplete }) => {
       // Log listing data for debugging
       console.log("Sending listing request with data:", listingData);
       
+      // Show loading toast to indicate request is processing
+      const loadingToastId = toast.loading("Listing your item...");
+      
       // Now send the request first, THEN handle the UI based on response
       const response = await axios.post(
         `${API_URL}/marketplace/list`,
@@ -243,6 +246,9 @@ const SellModal = ({ item, onClose, onConfirm, onListingComplete }) => {
       );
       
       console.log("Listing response received:", response.status, response.data);
+      
+      // Dismiss the loading toast
+      toast.dismiss(loadingToastId);
       
       // Only show success and close modal if the request was successful
       toast.success("Item listed successfully!");
