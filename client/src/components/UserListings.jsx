@@ -26,6 +26,7 @@ const UserListings = ({ show, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editingItemId, setEditingItemId] = useState(null);
+  const [cancellingItemId, setCancellingItemId] = useState(null);
   const [newPrice, setNewPrice] = useState('');
   const [newExchangeRate, setNewExchangeRate] = useState('');
   
@@ -92,6 +93,7 @@ const UserListings = ({ show, onClose }) => {
   const cancelListing = async (itemId) => {
     try {
       console.log('Cancelling listing:', itemId);
+      setCancellingItemId(itemId);
       const token = localStorage.getItem('auth_token');
       console.log('Auth token exists:', !!token, 'Length:', token ? token.length : 0);
       
@@ -106,6 +108,7 @@ const UserListings = ({ show, onClose }) => {
             "ERROR"
           );
         }
+        setCancellingItemId(null);
         return;
       }
       
@@ -154,6 +157,8 @@ const UserListings = ({ show, onClose }) => {
           "ERROR"
         );
       }
+    } finally {
+      setCancellingItemId(null);
     }
   };
 
@@ -723,9 +728,9 @@ const UserListings = ({ show, onClose }) => {
                               </motion.button>
                               
                               <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => cancelListing(item._id)}
+                                whileHover={cancellingItemId !== item._id ? { scale: 1.05 } : {}}
+                                whileTap={cancellingItemId !== item._id ? { scale: 0.95 } : {}}
+                                onClick={() => cancellingItemId === null && cancelListing(item._id)}
                                 style={{
                                   backgroundColor: 'rgba(239, 68, 68, 0.2)',
                                   color: '#f87171',
@@ -733,18 +738,33 @@ const UserListings = ({ show, onClose }) => {
                                   borderRadius: '8px',
                                   padding: '6px 12px',
                                   fontSize: '0.75rem',
-                                  cursor: 'pointer',
+                                  cursor: cancellingItemId === item._id ? 'wait' : 'pointer',
                                   fontWeight: '500',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: '4px'
+                                  gap: '4px',
+                                  opacity: cancellingItemId === item._id ? 0.7 : 1
                                 }}
+                                disabled={cancellingItemId === item._id}
                               >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                                </svg>
-                                Cancel Listing
+                                {cancellingItemId === item._id ? (
+                                  <div 
+                                    style={{
+                                      width: '12px',
+                                      height: '12px',
+                                      borderRadius: '50%',
+                                      border: '2px solid transparent',
+                                      borderTopColor: 'currentColor',
+                                      animation: 'spin 1s linear infinite'
+                                    }}
+                                  />
+                                ) : (
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                  </svg>
+                                )}
+                                {cancellingItemId === item._id ? 'Cancelling...' : 'Cancel Listing'}
                               </motion.button>
                             </div>
                           </>
