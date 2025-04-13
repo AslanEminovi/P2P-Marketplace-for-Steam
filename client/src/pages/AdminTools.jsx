@@ -88,6 +88,19 @@ const AdminTools = () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/admin/users`, { withCredentials: true });
+      console.log('Users data received:', response.data);
+      
+      if (response.data && response.data.length > 0) {
+        console.log('First user data sample:', {
+          id: response.data[0]._id,
+          displayName: response.data[0].displayName,
+          avatar: response.data[0].avatar,
+          avatarMedium: response.data[0].avatarMedium,
+          avatarFull: response.data[0].avatarFull,
+          steamId: response.data[0].steamId
+        });
+      }
+      
       setUsers(response.data);
       setFilteredUsers(response.data);
     } catch (error) {
@@ -336,9 +349,9 @@ const AdminTools = () => {
                     <tr key={user._id}>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          {user.avatarFull ? (
+                          {user.avatarFull || user.avatar ? (
                             <img 
-                              src={user.avatarFull} 
+                              src={user.avatarFull || user.avatarMedium || user.avatar} 
                               alt={user.displayName} 
                               style={{ width: '30px', height: '30px', borderRadius: '50%' }} 
                             />
@@ -425,8 +438,12 @@ const AdminTools = () => {
         {selectedUser && (
           <>
             <div className="admin-modal-header">
-              {selectedUser.avatarFull ? (
-                <img src={selectedUser.avatarFull} alt={selectedUser.displayName} className="admin-user-avatar" />
+              {selectedUser.avatarFull || selectedUser.avatar ? (
+                <img 
+                  src={selectedUser.avatarFull || selectedUser.avatarMedium || selectedUser.avatar} 
+                  alt={selectedUser.displayName} 
+                  className="admin-user-avatar" 
+                />
               ) : (
                 <div style={{ 
                   width: '50px', 

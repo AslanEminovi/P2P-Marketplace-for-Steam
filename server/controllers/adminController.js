@@ -121,7 +121,22 @@ const checkAdminStatus = async (req, res) => {
 // Get all users
 const getUsers = async (req, res) => {
   try {
-    console.log("Fetching users for admin dashboard");
+    console.log("⭐ Admin dashboard: getUsers called");
+
+    // First try a simple query to make sure we can retrieve users
+    const userCount = await User.countDocuments();
+    console.log(`📊 Total user count from simple query: ${userCount}`);
+
+    // Get a sample user to debug field names and specifically check avatar fields
+    const sampleUser = await User.findOne().lean();
+    if (sampleUser) {
+      console.log("Sample user avatar fields:", {
+        avatar: sampleUser.avatar,
+        avatarMedium: sampleUser.avatarMedium,
+        avatarFull: sampleUser.avatarFull,
+      });
+    }
+
     const users = await User.aggregate([
       {
         $lookup: {
@@ -202,6 +217,8 @@ const getUsers = async (req, res) => {
           displayName: 1,
           email: 1,
           steamId: 1,
+          avatar: 1,
+          avatarMedium: 1,
           avatarFull: 1,
           isBanned: 1,
           isAdmin: 1,
@@ -216,11 +233,20 @@ const getUsers = async (req, res) => {
       { $sort: { createdAt: -1 } },
     ]);
 
-    console.log(`Found ${users.length} users`);
+    console.log(`✅ Found ${users.length} users from aggregation`);
+    if (users.length > 0) {
+      console.log("First user avatar fields from aggregation:", {
+        avatar: users[0].avatar,
+        avatarMedium: users[0].avatarMedium,
+        avatarFull: users[0].avatarFull,
+        displayName: users[0].displayName,
+      });
+    }
+
     res.status(200).json(users);
   } catch (error) {
-    console.error("Error fetching users:", error);
-    res.status(500).json({ error: "Server error" });
+    console.error("❌ Error fetching users:", error);
+    res.status(500).json({ error: "Server error: " + error.message });
   }
 };
 
