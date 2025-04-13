@@ -525,8 +525,7 @@ function Marketplace({ user }) {
           padding: '1rem',
           background: 'rgba(31, 41, 61, 0.5)',
           borderRadius: '10px',
-          border: '1px solid rgba(51, 115, 242, 0.1)',
-          position: 'relative'
+          border: '1px solid rgba(51, 115, 242, 0.1)'
         }}>
           <h3 style={{
             margin: '0 0 0.5rem 0',
@@ -539,49 +538,62 @@ function Marketplace({ user }) {
             fontWeight: 'bold',
             color: '#4ade80'
           }}>${calculateTotalMarketValue()}</p>
-          
-          {/* Refresh button */}
-          <button 
-            onClick={handleManualRefresh}
-            style={{
-              position: 'absolute',
-              top: '10px',
-              right: '10px',
-              background: 'rgba(51, 115, 242, 0.2)',
-              border: 'none',
-              borderRadius: '50%',
-              width: '26px',
-              height: '26px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              color: 'rgba(255, 255, 255, 0.7)'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = 'rgba(51, 115, 242, 0.4)';
-              e.currentTarget.style.color = 'rgba(255, 255, 255, 1)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = 'rgba(51, 115, 242, 0.2)';
-              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)';
-            }}
-            onMouseDown={(e) => {
-              e.currentTarget.style.transform = 'scale(0.95)';
-            }}
-            onMouseUp={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-            className={loading ? 'refresh-button-spinning' : ''}
-            title="Refresh marketplace data"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{transition: 'transform 0.5s ease', transform: loading ? 'rotate(360deg)' : 'rotate(0deg)'}}>
+        </div>
+
+        {/* Replace Active Users with Refresh Button */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1rem',
+          background: 'rgba(31, 41, 61, 0.5)',
+          borderRadius: '10px',
+          border: '1px solid rgba(51, 115, 242, 0.1)',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease'
+        }}
+        onClick={handleManualRefresh}
+        onMouseOver={(e) => {
+          e.currentTarget.style.background = 'rgba(51, 115, 242, 0.3)';
+          e.currentTarget.style.transform = 'translateY(-2px)';
+        }}
+        onMouseOut={(e) => {
+          e.currentTarget.style.background = 'rgba(31, 41, 61, 0.5)';
+          e.currentTarget.style.transform = 'translateY(0)';
+        }}
+        >
+          <h3 style={{
+            margin: '0 0 0.5rem 0',
+            fontSize: '0.9rem',
+            color: 'var(--gaming-text-dim)'
+          }}>Refresh Marketplace</h3>
+          <div style={{
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="24" 
+              height="24" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              className={loading ? 'refresh-button-spinning' : ''}
+              style={{
+                color: '#4ade80'
+              }}
+            >
               <path d="M23 4v6h-6"/>
               <path d="M1 20v-6h6"/>
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
             </svg>
-          </button>
+          </div>
         </div>
       </div>
     </div>
@@ -701,63 +713,8 @@ function Marketplace({ user }) {
       {renderHeader()}
       
       <div className="filter-section">
-        {/* Refresh button now takes full width */}
-          <button
-          className="refresh-button"
-          onClick={handleManualRefresh}
-          disabled={loading}
-            style={{
-              padding: '0.75rem 1.5rem',
-            background: 'linear-gradient(to right, #3373F2, #00D2FF)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '12px',
-              cursor: 'pointer',
-            fontSize: '0.95rem',
-              fontWeight: '600',
-              transition: 'all 0.3s ease',
-            boxShadow: '0 0 20px rgba(0, 210, 255, 0.2)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              display: 'flex',
-              alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem',
-            position: 'relative',
-            overflow: 'hidden',
-            width: '100%',
-            marginBottom: '1rem'
-          }}
-        >
-          <span style={{ position: 'relative', zIndex: 2 }}>
-            {loading ? 'Refreshing...' : 'Refresh Marketplace'}
-          </span>
-          <svg
-            style={{ width: '20px', height: '20px', position: 'relative', zIndex: 2 }}
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
-              />
-            </svg>
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'linear-gradient(to right, #3373F2, #00D2FF)',
-              zIndex: 1
-            }}
-          />
-        </button>
-        
-        <div className="sort-container">
+          {/* Remove the long refresh button */}
+          <div className="sort-container">
           <select
             className="sort-select"
             value={sortOption}
