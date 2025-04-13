@@ -14,6 +14,9 @@ router.use(requireAdmin);
 // Apply authentication middleware to all admin routes
 router.use(auth.isAuthenticated);
 
+// Routes without admin check
+router.get("/check", adminController.checkAdmin);
+
 /**
  * @route   GET /admin/status
  * @desc    Get service status
@@ -98,43 +101,33 @@ router.post("/cleanup-user/:userId", async (req, res) => {
  */
 router.get("/users", async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-    const search = req.query.search || "";
+    console.log("Admin users request received");
 
     const User = mongoose.model("User");
 
-    // Build search filter
-    const searchFilter = search
-      ? {
-          $or: [
-            { displayName: { $regex: search, $options: "i" } },
-            { steamId: { $regex: search, $options: "i" } },
-            { email: { $regex: search, $options: "i" } },
-          ],
-        }
-      : {};
-
-    // Get paginated users
-    const users = await User.find(searchFilter)
+    // Get all users without pagination for the admin dashboard
+    const users = await User.find()
       .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .select("steamId displayName avatar createdAt lastLogin isAdmin balance");
+      .limit(100) // Limit to most recent 100 users for performance
+      .select(
+        "steamId displayName avatar avatarMedium avatarFull createdAt lastLogin isAdmin isBanned balance email"
+      ); // Include avatar variants
 
-    // Get total count
-    const total = await User.countDocuments(searchFilter);
+    console.log(`Found ${users.length} users`);
 
-    res.json({
-      users,
-      pagination: {
-        total,
-        page,
-        pages: Math.ceil(total / limit),
-        limit,
-      },
-    });
+    // Log first user for debugging
+    if (users.length > 0) {
+      console.log("First user sample:", {
+        id: users[0]._id,
+        displayName: users[0].displayName,
+        avatarFull: users[0].avatarFull || null,
+        avatarMedium: users[0].avatarMedium || null,
+        avatar: users[0].avatar || null,
+      });
+    }
+
+    // Return users directly, not wrapped in object
+    res.json(users);
   } catch (error) {
     console.error("Error getting users:", error);
     res.status(500).json({ error: "Failed to get users" });
@@ -388,23 +381,7 @@ router.get("/check-api-keys", async (req, res) => {
   }
 });
 
-// Admin status check
-router.get("/check", async (req, res) => {
-  try {
-    const isAdmin = req.user && req.user.isAdmin === true;
-    return res.status(200).json({ isAdmin });
-  } catch (error) {
-    console.error("Error checking admin status:", error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// User management routes
-router.get("/users", auth.isAdmin, adminController.getUsers);
-router.post("/users/:userId/ban", auth.isAdmin, adminController.banUser);
-router.post("/users/:userId/unban", auth.isAdmin, adminController.unbanUser);
-
-// Statistics route
-router.get("/statistics", auth.isAdmin, adminController.getStatistics);
+// Statistics routes
+router.get("/statistics", adminController.getStatistics);
 
 module.exports = router;

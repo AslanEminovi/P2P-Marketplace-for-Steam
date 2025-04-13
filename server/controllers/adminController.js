@@ -320,63 +320,103 @@ const unbanUser = async (req, res) => {
   }
 };
 
-// Get platform statistics
-const getStatistics = async (req, res) => {
+/**
+ * Get basic system statistics
+ * @route GET /admin/statistics
+ * @access Admin
+ */
+exports.getStatistics = async (req, res) => {
   try {
-    console.log("Fetching statistics for admin dashboard");
-
-    // Get total users count
+    // Get counts of users, items, trades
     const usersCount = await User.countDocuments();
-
-    // Get users who logged in within the last 24 hours
-    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const activeUsersCount = await User.countDocuments({
-      lastLoginAt: { $gte: last24Hours },
-    });
-
-    // Get new users in the last 24 hours
-    const newUsers24h = await User.countDocuments({
-      createdAt: { $gte: last24Hours },
-    });
-
-    // Get total items count
-    const itemsCount = await Item.countDocuments();
-
-    // Get new items in the last 24 hours
-    const newItems24h = await Item.countDocuments({
-      createdAt: { $gte: last24Hours },
-    });
-
-    // Get trades count
+    const itemsCount = await Item.countDocuments({ isListed: true });
     const tradesCount = await Trade.countDocuments();
-
-    // Get completed trades count
     const completedTradesCount = await Trade.countDocuments({
       status: "completed",
     });
 
-    // Calculate total value of all completed trades
-    const completedTrades = await Trade.find({ status: "completed" });
-    const totalValue = completedTrades.reduce(
-      (sum, trade) => sum + (trade.price || 0),
-      0
-    );
+    // Get counts of active users (logged in within the last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const activeUsersCount = await User.countDocuments({
+      lastLogin: { $gte: thirtyDaysAgo },
+    });
 
-    console.log("Statistics fetched successfully");
+    // Get counts of new users and items in the last 24 hours
+    const twentyFourHoursAgo = new Date();
+    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
-    res.status(200).json({
+    const newUsers24h = await User.countDocuments({
+      createdAt: { $gte: twentyFourHoursAgo },
+    });
+
+    const newItems24h = await Item.countDocuments({
+      createdAt: { $gte: twentyFourHoursAgo },
+      isListed: true,
+    });
+
+    // Calculate total value of all listed items
+    const totalValuePipeline = await Item.aggregate([
+      { $match: { isListed: true } },
+      { $group: { _id: null, total: { $sum: "$price" } } },
+    ]);
+
+    const totalValue =
+      totalValuePipeline.length > 0 ? totalValuePipeline[0].total : 0;
+
+    return res.json({
       usersCount,
       activeUsersCount,
-      newUsers24h,
       itemsCount,
-      newItems24h,
       tradesCount,
       completedTradesCount,
       totalValue,
+      newUsers24h,
+      newItems24h,
+      timestamp: new Date(),
     });
   } catch (error) {
-    console.error("Error fetching statistics:", error);
-    res.status(500).json({ error: "Server error" });
+    console.error("Error getting admin statistics:", error);
+    return res.status(500).json({ error: "Failed to get statistics" });
+  }
+};
+
+/**
+ * Check if the current user is an admin
+ * @route GET /admin/check
+ * @access Public
+ */
+exports.checkAdmin = async (req, res) => {
+  try {
+    // If no user is logged in
+    if (!req.user) {
+      console.log("No user found in request, not an admin");
+      return res.json({ isAdmin: false });
+    }
+
+    console.log(
+      `Checking admin status for user: ${req.user._id} (${req.user.displayName})`
+    );
+
+    // For security, recheck from the database
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      console.log("User not found in database");
+      return res.json({ isAdmin: false });
+    }
+
+    // If user exists but isAdmin is not explicitly true, return false
+    if (!user.isAdmin) {
+      console.log(`User ${user._id} (${user.displayName}) is not an admin`);
+      return res.json({ isAdmin: false });
+    }
+
+    console.log(`User ${user._id} (${user.displayName}) is confirmed as admin`);
+    return res.json({ isAdmin: true });
+  } catch (error) {
+    console.error("Error checking admin status:", error);
+    return res.status(500).json({ error: "Server error", isAdmin: false });
   }
 };
 
@@ -387,4 +427,5 @@ module.exports = {
   banUser,
   unbanUser,
   getStatistics,
+  checkAdmin,
 };

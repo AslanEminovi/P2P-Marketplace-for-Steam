@@ -637,7 +637,7 @@ const AdminTools = () => {
                 </div>
               </div>
             </>
-          ) : null}
+          )}
         </Modal>
       </div>
     </ErrorBoundary>
