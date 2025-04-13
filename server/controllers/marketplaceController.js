@@ -810,31 +810,36 @@ exports.getMyListings = async (req, res) => {
 
 // PUT /marketplace/cancel/:itemId
 exports.cancelListing = async (req, res) => {
+  // No session at first - we'll start it only when needed
   let session = null;
 
   try {
     const itemId = req.params.itemId;
     const userId = req.user._id;
 
-    console.log(`Attempting to cancel listing ${itemId} for user ${userId}`);
+    console.log(`🔄 Attempting to cancel listing ${itemId} for user ${userId}`);
 
-    // First check if the item exists without using a session
-    const itemCheck = await Item.findById(itemId);
+    // Step 1: First check if the item exists WITHOUT a session to avoid session overhead
+    const itemCheck = await Item.findOne({ _id: itemId });
 
     if (!itemCheck) {
       return res.status(404).json({
+        success: false,
         error: "Item not found",
+        details: "The requested item does not exist in the database",
       });
     }
 
-    // Verify ownership
+    // Step 2: Verify ownership
     if (itemCheck.owner.toString() !== userId.toString()) {
       return res.status(403).json({
-        error: "You don't have permission to cancel this listing",
+        success: false,
+        error: "Permission denied",
+        details: "You don't have permission to cancel this listing",
       });
     }
 
-    // If the item is already unlisted, return success immediately
+    // Step 3: If the item is already unlisted, return success immediately
     if (!itemCheck.isListed) {
       console.log(`Item ${itemId} is already unlisted, returning success`);
       return res.json({
@@ -843,160 +848,161 @@ exports.cancelListing = async (req, res) => {
       });
     }
 
-    // Start a session for transaction only after initial checks succeed
-    session = await mongoose.startSession();
-    session.startTransaction();
+    // FIXED APPROACH: Instead of updating an existing item with potential
+    // duplicate key issues, we update exactly one item by its _id
+    try {
+      console.log(`Updating item ${itemId} to unlisted status`);
 
-    // Check if item is in an active trade
-    const Trade = mongoose.model("Trade");
-    const activeTrade = await Trade.findOne({
-      item: itemId,
-      status: { $nin: ["cancelled", "completed", "failed"] },
-    }).session(session);
-
-    if (activeTrade && !req.query.force) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({
-        error:
-          "This item is involved in an active trade. Please wait for the trade to complete or be cancelled.",
-        tradeId: activeTrade._id,
-      });
-    }
-
-    // If force cancelling with active trade, cancel the trade first
-    if (activeTrade && req.query.force) {
-      activeTrade.status = "cancelled";
-      activeTrade.cancelReason = "Listing cancelled by seller";
-      activeTrade.cancelledAt = new Date();
-      activeTrade.cancelledBy = userId;
-      await activeTrade.save({ session });
-
-      // Notify the buyer
-      const buyerNotification = {
-        type: "trade",
-        title: "Trade Cancelled",
-        message: `The seller has cancelled the listing for ${itemCheck.marketHashName}`,
-        relatedItemId: itemCheck._id,
-        createdAt: new Date(),
-      };
-
-      await User.findByIdAndUpdate(
-        activeTrade.buyer,
-        { $push: { notifications: buyerNotification } },
-        { session }
+      // Use $set to only update specific fields
+      const updateResult = await Item.updateOne(
+        { _id: itemId, isListed: true },
+        {
+          $set: {
+            isListed: false,
+            unlistedAt: new Date(),
+          },
+        }
       );
 
-      // Send WebSocket notification to buyer, but wrap in try/catch to prevent errors
-      try {
-        socketService.sendNotification(
-          activeTrade.buyer.toString(),
-          buyerNotification
+      if (updateResult.modifiedCount === 0) {
+        console.log(
+          `⚠️ No items updated. Item ${itemId} might already be unlisted or was modified`
         );
+
+        // Double-check if it's now unlisted
+        const currentStatus = await Item.findById(itemId);
+        if (currentStatus && !currentStatus.isListed) {
+          console.log(`Verified item ${itemId} is now unlisted`);
+        } else {
+          console.log(`Failed to update item ${itemId}, returning error`);
+          return res.status(500).json({
+            success: false,
+            error: "Failed to cancel listing",
+            details: "Could not update item status",
+          });
+        }
+      } else {
+        console.log(`✅ Successfully unlisted item ${itemId}`);
+      }
+
+      // Remove from user's listed items (this is idempotent)
+      await User.updateOne({ _id: userId }, { $pull: { listedItems: itemId } });
+
+      // Step 4: Check for active trades and cancel them if needed
+      const Trade = mongoose.model("Trade");
+      const activeTrades = await Trade.find({
+        item: itemId,
+        status: { $nin: ["cancelled", "completed", "failed"] },
+      });
+
+      // Cancel any active trades
+      if (activeTrades.length > 0) {
+        console.log(
+          `Cancelling ${activeTrades.length} active trades for item ${itemId}`
+        );
+
+        for (const trade of activeTrades) {
+          trade.status = "cancelled";
+          trade.cancelReason = "Listing cancelled by seller";
+          trade.cancelledAt = new Date();
+          trade.cancelledBy = userId;
+          await trade.save();
+
+          // Notify the buyer
+          try {
+            const buyerNotification = {
+              type: "trade",
+              title: "Trade Cancelled",
+              message: `The seller has cancelled the listing for ${itemCheck.marketHashName}`,
+              relatedItemId: itemCheck._id,
+              createdAt: new Date(),
+            };
+
+            await User.updateOne(
+              { _id: trade.buyer },
+              { $push: { notifications: buyerNotification } }
+            );
+
+            // Try to send WebSocket notification
+            try {
+              socketService.sendNotification(
+                trade.buyer.toString(),
+                buyerNotification
+              );
+            } catch (socketError) {
+              console.error("Error sending buyer notification:", socketError);
+              // Continue regardless of socket errors
+            }
+          } catch (notifyError) {
+            console.error("Error creating buyer notification:", notifyError);
+            // Continue regardless of notification errors
+          }
+        }
+      }
+
+      // Step 5: Add notification for the user
+      try {
+        const notification = {
+          type: "system",
+          title: "Listing Cancelled",
+          message: `Your listing for ${itemCheck.marketHashName} has been cancelled.`,
+          relatedItemId: itemCheck._id,
+          createdAt: new Date(),
+        };
+
+        await User.updateOne(
+          { _id: userId },
+          { $push: { notifications: notification } }
+        );
+
+        // Send WebSocket notification - wrapped in try/catch
+        try {
+          socketService.sendNotification(userId, notification);
+        } catch (notifyError) {
+          console.error(
+            "Error sending cancellation notification:",
+            notifyError
+          );
+          // Continue regardless of notification errors
+        }
       } catch (notificationError) {
-        console.error("Error sending buyer notification:", notificationError);
-        // Continue execution, don't break the flow
+        console.error("Error creating user notification:", notificationError);
+        // Continue regardless of notification errors
       }
-    }
 
-    // Update the item status - use findOneAndUpdate with atomic operation
-    console.log(`Updating item ${itemId} to unlisted status`);
-    const updatedItem = await Item.findOneAndUpdate(
-      {
-        _id: itemId,
-        isListed: true,
-        owner: userId, // Extra safety check for ownership
-      },
-      {
-        $set: {
-          isListed: false,
-          unlistedAt: new Date(),
-        },
-      },
-      {
-        new: true,
-        session,
-        runValidators: false, // Skip validation to avoid potential issues
+      // Step 6: Try to broadcast market updates without breaking the main flow
+      try {
+        socketService.sendMarketUpdate({
+          type: "item_unavailable",
+          itemId: itemCheck._id,
+          marketHashName: itemCheck.marketHashName,
+        });
+
+        socketService.emitMarketActivity({
+          type: "listing_cancelled",
+          itemName: itemCheck.marketHashName,
+          user: req.user.displayName || req.user.steamName || "A user",
+          timestamp: new Date().toISOString(),
+        });
+      } catch (marketUpdateError) {
+        console.error("Error with market updates:", marketUpdateError);
+        // Don't break the main flow for socket errors
       }
-    );
 
-    if (!updatedItem) {
-      console.log(
-        `Item ${itemId} could not be updated, might already be unlisted`
-      );
-      // Don't throw an error, just log and continue
-    } else {
-      console.log(`Successfully unlisted item ${itemId}`);
-    }
-
-    // Remove from user's listed items - use addToSet/pull operations which are idempotent
-    console.log(`Removing item ${itemId} from user's listed items`);
-    await User.findByIdAndUpdate(
-      userId,
-      { $pull: { listedItems: itemId } },
-      { session }
-    );
-
-    // Add notification for the user
-    const notification = {
-      type: "system",
-      title: "Listing Cancelled",
-      message: `Your listing for ${itemCheck.marketHashName} has been cancelled.`,
-      relatedItemId: itemCheck._id,
-      createdAt: new Date(),
-    };
-
-    await User.findByIdAndUpdate(
-      userId,
-      { $push: { notifications: notification } },
-      { session }
-    );
-
-    // Commit the transaction
-    console.log(`Committing transaction for cancellation of item ${itemId}`);
-    await session.commitTransaction();
-    session.endSession();
-    session = null; // Clear the session variable after ending
-
-    // Send WebSocket notifications - wrap in try/catch to avoid breaking on errors
-    try {
-      socketService.sendNotification(userId, notification);
-    } catch (notifyError) {
-      console.error("Error sending notification:", notifyError);
-      // Continue execution
-    }
-
-    // Broadcast to all connected clients that item is unavailable
-    try {
-      socketService.sendMarketUpdate({
-        type: "item_unavailable",
-        itemId: itemCheck._id,
-        marketHashName: itemCheck.marketHashName,
+      return res.json({
+        success: true,
+        message: "Listing cancelled successfully",
       });
-    } catch (marketUpdateError) {
-      console.error("Error sending market update:", marketUpdateError);
-      // Continue execution
-    }
-
-    // Emit market activity
-    try {
-      socketService.emitMarketActivity({
-        type: "listing_cancelled",
-        itemName: itemCheck.marketHashName,
-        user: req.user.username || req.user.steamName || "A user",
-        timestamp: new Date().toISOString(),
+    } catch (updateError) {
+      console.error("Error during update operation:", updateError);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to cancel listing",
+        details: updateError.message || "Error during database update",
       });
-    } catch (activityError) {
-      console.error("Error emitting market activity:", activityError);
-      // Continue execution
     }
-
-    return res.json({
-      success: true,
-      message: "Listing cancelled successfully",
-    });
   } catch (err) {
-    // Clean up session if it exists
+    // Main error handler - clean up session if it exists
     if (session) {
       try {
         await session.abortTransaction();
@@ -1006,18 +1012,21 @@ exports.cancelListing = async (req, res) => {
       }
     }
 
-    console.error("Error cancelling listing:", err);
+    console.error("Error in cancelListing:", err);
 
     // Provide a more user-friendly error message
     let errorMessage = "Failed to cancel listing";
+    let details = err.message || "Unknown error";
+
     if (err.code === 11000) {
-      errorMessage =
-        "This item may already be unlisted or is being processed by another request";
+      errorMessage = "Duplicate item error";
+      details = "This item has already been processed by another request";
     }
 
     return res.status(500).json({
+      success: false,
       error: errorMessage,
-      details: err.message || "Unknown error",
+      details: details,
     });
   }
 };
