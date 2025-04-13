@@ -30,6 +30,9 @@ import ScrollToTop from './components/ScrollToTop';
 // Import constants
 import { API_URL } from './config/constants';
 
+// Import the axiosConfig
+import apiClient, { fetchUserDetails } from './services/axiosConfig';
+
 // Auth-protected route component
 const ProtectedRoute = ({ user, children }) => {
   if (!user) {
@@ -387,7 +390,7 @@ function App() {
       const authCheckTimeout = setTimeout(() => {
         console.log("Auth check timeout - forcing loading to false");
         setLoading(false);
-      }, 5000);
+      }, 10000); // 10 seconds max wait time
 
       // Get the token from localStorage
       const token = localStorage.getItem('auth_token');
@@ -403,21 +406,16 @@ function App() {
       console.log("Found token, fetching user details...");
       
       try {
-        // Use direct axios request with token in both header and params for maximum compatibility
-        const userResponse = await axios.get(`${API_URL}/auth/user`, {
-          withCredentials: true,
-          params: { auth_token: token },
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 8000 // Give it a bit more time
-        });
+        // Use our fetchUserDetails helper with built-in retry
+        const userData = await fetchUserDetails();
+        
+        console.log("User details response:", userData);
 
-        console.log("User details response:", userResponse.data);
-
-        if (userResponse.data && userResponse.data.authenticated && userResponse.data.user) {
-          console.log("User authenticated:", userResponse.data.user);
+        if (userData && userData.authenticated && userData.user) {
+          console.log("User authenticated:", userData.user);
           
           // Set user state
-          setUser(userResponse.data.user);
+          setUser(userData.user);
           
           // Show success notification
           if (window.showNotification) {
@@ -432,7 +430,7 @@ function App() {
           setLoading(false);
           return;
         } else {
-          console.warn("Authentication check failed, response:", userResponse.data);
+          console.warn("Authentication check failed, response:", userData);
           localStorage.removeItem('auth_token');
           setUser(null);
         }
@@ -443,6 +441,16 @@ function App() {
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {
           console.log("Invalid token, removing it");
           localStorage.removeItem('auth_token');
+        } else if (error.code === 'ECONNABORTED') {
+          console.log("Request timed out, server might be overloaded. Will retry on next page load.");
+          // Show a user-friendly notification
+          if (window.showNotification) {
+            window.showNotification(
+              'Connection Timeout',
+              'Server is taking too long to respond. Please try again later.',
+              'WARNING'
+            );
+          }
         } else {
           console.log("Network or server error, preserving token for retry");
         }
