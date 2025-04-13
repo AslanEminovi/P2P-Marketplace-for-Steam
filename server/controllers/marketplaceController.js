@@ -886,10 +886,24 @@ exports.cancelListing = async (req, res) => {
       );
     }
 
-    // Update the item status
-    item.isListed = false;
-    item.unlistedAt = new Date();
-    await item.save({ session });
+    // Use findOneAndUpdate instead of save to avoid duplicate key errors
+    const updatedItem = await Item.findOneAndUpdate(
+      { _id: itemId, isListed: true },
+      {
+        isListed: false,
+        unlistedAt: new Date(),
+      },
+      {
+        new: true,
+        session,
+      }
+    );
+
+    if (!updatedItem) {
+      console.log(`Item ${itemId} might already be unlisted`);
+      // Continue with the process even if the item wasn't updated
+      // This handles cases where the item was already unlisted
+    }
 
     // Remove from user's listed items
     await User.findByIdAndUpdate(
