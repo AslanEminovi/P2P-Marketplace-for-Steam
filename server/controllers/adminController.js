@@ -121,6 +121,7 @@ const checkAdminStatus = async (req, res) => {
 // Get all users
 const getUsers = async (req, res) => {
   try {
+    console.log("Fetching users for admin dashboard");
     const users = await User.aggregate([
       {
         $lookup: {
@@ -198,15 +199,15 @@ const getUsers = async (req, res) => {
       {
         $project: {
           _id: 1,
-          username: 1,
+          displayName: 1,
           email: 1,
-          steamid: 1,
-          avatarUrl: 1,
-          banned: 1,
+          steamId: 1,
+          avatarFull: 1,
+          isBanned: 1,
           isAdmin: 1,
           createdAt: 1,
-          lastLogin: 1,
-          lastActive: 1,
+          lastLoginAt: 1,
+          lastActive: "$lastLoginAt",
           itemCount: 1,
           tradeCount: 1,
           completedTradeCount: 1,
@@ -215,6 +216,7 @@ const getUsers = async (req, res) => {
       { $sort: { createdAt: -1 } },
     ]);
 
+    console.log(`Found ${users.length} users`);
     res.status(200).json(users);
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -241,12 +243,15 @@ const banUser = async (req, res) => {
       return res.status(403).json({ error: "Cannot ban an admin user" });
     }
 
-    user.banned = true;
+    user.isBanned = true;
+    user.banReason = "Admin action"; // Optional reason
     await user.save();
 
     // Log activity
     console.log(
-      `Admin ${req.user.username} (${req.user._id}) banned user ${user.username} (${user._id})`
+      `Admin ${req.user.displayName || req.user._id} banned user ${
+        user.displayName || user._id
+      }`
     );
 
     res.status(200).json({ message: "User banned successfully", userId });
@@ -271,12 +276,15 @@ const unbanUser = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    user.banned = false;
+    user.isBanned = false;
+    user.banReason = "";
     await user.save();
 
     // Log activity
     console.log(
-      `Admin ${req.user.username} (${req.user._id}) unbanned user ${user.username} (${user._id})`
+      `Admin ${req.user.displayName || req.user._id} unbanned user ${
+        user.displayName || user._id
+      }`
     );
 
     res.status(200).json({ message: "User unbanned successfully", userId });
@@ -289,13 +297,15 @@ const unbanUser = async (req, res) => {
 // Get platform statistics
 const getStatistics = async (req, res) => {
   try {
+    console.log("Fetching statistics for admin dashboard");
+
     // Get total users count
     const usersCount = await User.countDocuments();
 
     // Get users who logged in within the last 24 hours
     const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const activeUsersCount = await User.countDocuments({
-      lastActive: { $gte: last24Hours },
+      lastLoginAt: { $gte: last24Hours },
     });
 
     // Get new users in the last 24 hours
@@ -325,6 +335,8 @@ const getStatistics = async (req, res) => {
       (sum, trade) => sum + (trade.price || 0),
       0
     );
+
+    console.log("Statistics fetched successfully");
 
     res.status(200).json({
       usersCount,
