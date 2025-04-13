@@ -814,165 +814,139 @@ exports.cancelListing = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { itemId } = req.params;
+    const itemId = req.params.itemId;
     const userId = req.user._id;
 
-    console.log(`Cancelling listing for item ${itemId} by user ${userId}`);
-    console.log(
-      `User auth info: ${JSON.stringify({
-        id: req.user._id,
-        authenticated: !!req.user,
-        hasId: !!req.user?._id,
-        requestHasToken: !!req.query.auth_token || !!req.headers.authorization,
-      })}`
-    );
+    console.log(`Attempting to cancel listing ${itemId} for user ${userId}`);
 
-    // Find the item
+    // Find the item and ensure it exists
     const item = await Item.findById(itemId).session(session);
 
     if (!item) {
-      console.log("Item not found");
       await session.abortTransaction();
       session.endSession();
-      return res.status(404).json({ error: "Item not found." });
-    }
-
-    console.log(
-      `Found item: ${item._id}, owner: ${item.owner}, is listed: ${item.isListed}`
-    );
-
-    // If the item is already unlisted, just return success
-    if (!item.isListed) {
-      console.log(`Item ${itemId} is already unlisted, returning success`);
-      await session.abortTransaction();
-      session.endSession();
-      return res.json({
-        success: true,
-        message: "Listing is already cancelled.",
+      return res.status(404).json({
+        error: "Item not found",
       });
     }
 
-    // Check if this is a force cancel request (for cleaning up listings)
-    const forceCancel = req.query.force === "true";
-    console.log(`Force cancel: ${forceCancel}`);
+    // Verify ownership
+    if (item.owner.toString() !== userId.toString()) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(403).json({
+        error: "You don't have permission to cancel this listing",
+      });
+    }
 
-    // Check if the item is involved in an active trade
+    // Check if item is in an active trade
     const Trade = mongoose.model("Trade");
     const activeTrade = await Trade.findOne({
       item: itemId,
       status: { $nin: ["cancelled", "completed", "failed"] },
     }).session(session);
 
-    if (activeTrade) {
-      console.log(
-        `Found active trade: ${activeTrade._id}, status: ${activeTrade.status}`
-      );
-
-      if (!forceCancel) {
-        console.log(
-          `Cannot cancel listing for item ${itemId} - active trade ${activeTrade._id} exists`
-        );
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({
-          error:
-            "Cannot cancel this listing as it's currently in an active trade process. Please wait for the trade to complete or be canceled.",
-        });
-      } else {
-        console.log(`Force cancelling despite active trade ${activeTrade._id}`);
-      }
-    }
-
-    // Verify ownership unless this is a force cancel
-    if (!forceCancel && item.owner.toString() !== userId.toString()) {
-      console.log(
-        `Ownership mismatch: item owner ${item.owner} vs user ${userId}`
-      );
-
-      // Check if the item might have been sold or transferred outside the platform
-      // If the original owner is the current user and the item is still listed,
-      // allow them to cancel it as a cleanup operation
-      const originalListedByUser = await User.findOne({
-        _id: userId,
-        listedItems: { $elemMatch: { $eq: item._id } },
-      }).session(session);
-
-      if (!originalListedByUser) {
-        await session.abortTransaction();
-        session.endSession();
-        return res
-          .status(403)
-          .json({ error: "You don't have permission to cancel this listing." });
-      }
-
-      console.log(
-        `Item was listed by user ${userId} but ownership has changed. Cleaning up listing.`
-      );
-    }
-
-    try {
-      // Use findOneAndUpdate instead of save to avoid the duplicate key error
-      // This bypasses the unique index constraint by using a direct update
-      await Item.findByIdAndUpdate(
-        itemId,
-        { $set: { isListed: false } },
-        { session }
-      );
-
-      console.log(`Item ${itemId} successfully unlisted using direct update`);
-
-      // Add notification to the user
-      await User.findByIdAndUpdate(
-        userId,
-        {
-          $push: {
-            notifications: {
-              type: "system",
-              title: "Listing Cancelled",
-              message: `Your listing for ${item.marketHashName} has been cancelled.`,
-              relatedItemId: item._id,
-              createdAt: new Date(),
-            },
-          },
-        },
-        { session }
-      );
-
-      // Send WebSocket notification if available
-      if (socketService?.sendNotification) {
-        socketService.sendNotification(userId, {
-          type: "system",
-          title: "Listing Cancelled",
-          message: `Your listing for ${item.marketHashName} has been cancelled.`,
-          relatedItemId: item._id,
-        });
-      }
-
-      // Broadcast to all connected clients that item is no longer available
-      socketService.sendMarketUpdate({
-        type: "item_unavailable",
-        itemId: item._id,
-      });
-
-      await session.commitTransaction();
-
-      return res.json({
-        success: true,
-        message: "Listing cancelled successfully.",
-      });
-    } catch (updateError) {
-      console.error("Error during item update:", updateError);
+    if (activeTrade && !req.query.force) {
       await session.abortTransaction();
-      throw updateError; // re-throw to be caught by main catch
+      session.endSession();
+      return res.status(400).json({
+        error:
+          "This item is involved in an active trade. Please wait for the trade to complete or be cancelled.",
+        tradeId: activeTrade._id,
+      });
     }
+
+    // If force cancelling with active trade, cancel the trade first
+    if (activeTrade && req.query.force) {
+      activeTrade.status = "cancelled";
+      activeTrade.cancelReason = "Listing cancelled by seller";
+      activeTrade.cancelledAt = new Date();
+      activeTrade.cancelledBy = userId;
+      await activeTrade.save({ session });
+
+      // Notify the buyer
+      const buyerNotification = {
+        type: "trade",
+        title: "Trade Cancelled",
+        message: `The seller has cancelled the listing for ${item.marketHashName}`,
+        relatedItemId: item._id,
+        createdAt: new Date(),
+      };
+
+      await User.findByIdAndUpdate(
+        activeTrade.buyer,
+        { $push: { notifications: buyerNotification } },
+        { session }
+      );
+
+      // Send WebSocket notification to buyer
+      socketService.sendNotification(
+        activeTrade.buyer.toString(),
+        buyerNotification
+      );
+    }
+
+    // Update the item status
+    item.isListed = false;
+    item.unlistedAt = new Date();
+    await item.save({ session });
+
+    // Remove from user's listed items
+    await User.findByIdAndUpdate(
+      userId,
+      { $pull: { listedItems: item._id } },
+      { session }
+    );
+
+    // Add notification for the user
+    const notification = {
+      type: "system",
+      title: "Listing Cancelled",
+      message: `Your listing for ${item.marketHashName} has been cancelled.`,
+      relatedItemId: item._id,
+      createdAt: new Date(),
+    };
+
+    await User.findByIdAndUpdate(
+      userId,
+      { $push: { notifications: notification } },
+      { session }
+    );
+
+    // Commit the transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    // Send WebSocket notifications
+    socketService.sendNotification(userId, notification);
+
+    // Broadcast to all connected clients that item is unavailable
+    socketService.sendMarketUpdate({
+      type: "item_unavailable",
+      itemId: item._id,
+      marketHashName: item.marketHashName,
+    });
+
+    // Emit market activity
+    socketService.emitMarketActivity({
+      type: "listing_cancelled",
+      itemName: item.marketHashName,
+      user: req.user.username || req.user.steamName || "A user",
+      timestamp: new Date().toISOString(),
+    });
+
+    return res.json({
+      success: true,
+      message: "Listing cancelled successfully",
+    });
   } catch (err) {
     await session.abortTransaction();
+    session.endSession();
+
     console.error("Error cancelling listing:", err);
     return res.status(500).json({
       error: "Failed to cancel listing: " + (err.message || "Unknown error"),
     });
-  } finally {
-    session.endSession();
   }
 };
 

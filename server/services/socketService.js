@@ -202,19 +202,79 @@ const broadcastStats = async () => {
  * @param {string} [userId] - Optional user ID to send the update to
  */
 const sendMarketUpdate = (update, userId = null) => {
-  if (!io) return;
+  if (!io) {
+    console.warn("Socket.io not initialized when trying to send market update");
+    return;
+  }
 
   const enrichedUpdate = {
     ...update,
     timestamp: new Date().toISOString(),
   };
 
-  if (userId) {
-    io.to(`user:${userId}`).emit("market_update", enrichedUpdate);
-  } else {
-    io.emit("market_update", enrichedUpdate);
-    emitMarketActivity(enrichedUpdate);
-  }
+  // Add retry logic for important updates
+  const maxRetries = 3;
+  let retryCount = 0;
+
+  const sendUpdate = async (retryDelay = 1000) => {
+    try {
+      if (userId) {
+        // Send to specific user
+        const userSocket = Array.from(io.sockets.sockets.values()).find(
+          (socket) => socket.userId === userId
+        );
+
+        if (userSocket) {
+          userSocket.emit("market_update", enrichedUpdate);
+        } else {
+          throw new Error("User socket not found");
+        }
+      } else {
+        // Broadcast to all clients
+        io.emit("market_update", enrichedUpdate);
+      }
+
+      // Also emit market activity for certain update types
+      if (
+        [
+          "new_listing",
+          "item_unavailable",
+          "item_sold",
+          "listing_cancelled",
+        ].includes(update.type)
+      ) {
+        emitMarketActivity(enrichedUpdate);
+      }
+
+      // Broadcast updated stats after market changes
+      broadcastStats().catch(console.error);
+    } catch (err) {
+      console.error("Error sending market update:", err);
+
+      // Retry logic for important updates
+      if (
+        [
+          "new_listing",
+          "item_unavailable",
+          "item_sold",
+          "listing_cancelled",
+        ].includes(update.type)
+      ) {
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(
+            `Retrying market update (attempt ${retryCount}/${maxRetries})`
+          );
+          setTimeout(() => sendUpdate(retryDelay * 2), retryDelay);
+        } else {
+          console.error("Failed to send market update after max retries");
+        }
+      }
+    }
+  };
+
+  // Start sending the update
+  sendUpdate();
 };
 
 /**
@@ -261,6 +321,66 @@ const getConnectedClientsCount = () => {
   return activeSockets.size + anonymousSockets.size;
 };
 
+/**
+ * Send a notification to a specific user
+ * @param {string} userId - The user ID to send the notification to
+ * @param {Object} notification - The notification object
+ */
+const sendNotification = (userId, notification) => {
+  if (!io) {
+    console.warn("Socket.io not initialized when trying to send notification");
+    return;
+  }
+
+  if (!userId || !notification) {
+    console.warn("Invalid userId or notification");
+    return;
+  }
+
+  const enrichedNotification = {
+    ...notification,
+    timestamp: new Date().toISOString(),
+  };
+
+  // Add retry logic for notifications
+  const maxRetries = 3;
+  let retryCount = 0;
+
+  const sendNotification = async (retryDelay = 1000) => {
+    try {
+      // Find all sockets for this user
+      const userSockets = Array.from(io.sockets.sockets.values()).filter(
+        (socket) => socket.userId === userId
+      );
+
+      if (userSockets.length > 0) {
+        // Send to all user's sockets
+        userSockets.forEach((socket) => {
+          socket.emit("notification", enrichedNotification);
+        });
+      } else {
+        throw new Error("No active sockets found for user");
+      }
+    } catch (err) {
+      console.error("Error sending notification:", err);
+
+      // Retry logic
+      if (retryCount < maxRetries) {
+        retryCount++;
+        console.log(
+          `Retrying notification (attempt ${retryCount}/${maxRetries})`
+        );
+        setTimeout(() => sendNotification(retryDelay * 2), retryDelay);
+      } else {
+        console.error("Failed to send notification after max retries");
+      }
+    }
+  };
+
+  // Start sending the notification
+  sendNotification();
+};
+
 module.exports = {
   init,
   broadcastStats,
@@ -268,4 +388,5 @@ module.exports = {
   getConnectedClientsCount,
   emitMarketActivity,
   emitUserActivity,
+  sendNotification,
 };

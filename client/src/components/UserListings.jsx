@@ -94,68 +94,99 @@ const UserListings = ({ show, onClose }) => {
     try {
       console.log('Cancelling listing:', itemId);
       setCancellingItemId(itemId);
-      const token = localStorage.getItem('auth_token');
-      console.log('Auth token exists:', !!token, 'Length:', token ? token.length : 0);
       
-      // Check if token looks valid
+      // Get fresh token
+      const token = localStorage.getItem('auth_token');
       if (!token || token.length < 10) {
-        console.warn('Auth token seems invalid or missing');
-        // Try to get a new token or re-authenticate
-        if (window.showNotification) {
-          window.showNotification(
-            "Authentication Error",
-            "Your session may have expired. Please refresh the page and try again.",
-            "ERROR"
-          );
-        }
+        console.warn('Auth token invalid or missing');
+        window.showNotification(
+          "Authentication Error",
+          "Please refresh the page and try again.",
+          "ERROR"
+        );
         setCancellingItemId(null);
         return;
       }
-      
-      console.log('Sending cancel request to:', `${API_URL}/marketplace/cancel/${itemId}`);
-      
-      const response = await axios.put(`${API_URL}/marketplace/cancel/${itemId}`, {}, {
-        withCredentials: true,
-        headers: {
-          'Authorization': `Bearer ${token}`
+
+      // Create cancel controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+      try {
+        const response = await axios({
+          method: 'put',
+          url: `${API_URL}/marketplace/cancel/${itemId}`,
+          data: {},
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true,
+          signal: controller.signal,
+          timeout: 15000
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.data.success) {
+          // Update local state immediately
+          setListings(prevListings => prevListings.filter(item => item._id !== itemId));
+          
+          // Show success notification
+          window.showNotification(
+            "Success",
+            "Listing has been successfully cancelled",
+            "SUCCESS"
+          );
+
+          // Refresh listings in background
+          fetchUserListings().catch(console.error);
+        } else {
+          throw new Error(response.data.error || 'Failed to cancel listing');
         }
-      });
-      
-      console.log('Cancel response:', response.data);
-      
-      // Update the listings list
-      fetchUserListings();
-      
-      // Show success notification
-      if (window.showNotification) {
-        window.showNotification(
-          "Success",
-          "Listing has been successfully cancelled",
-          "SUCCESS"
-        );
+      } catch (err) {
+        if (err.name === 'AbortError' || err.code === 'ECONNABORTED') {
+          throw new Error('Request timed out. Please try again.');
+        }
+        throw err;
       }
     } catch (err) {
       console.error('Error cancelling listing:', err);
       
-      // Log more detailed error information
+      // Log detailed error information
       if (err.response) {
-        console.error('Error response status:', err.response.status);
-        console.error('Error response data:', err.response.data);
-      } else if (err.request) {
-        console.error('No response received:', err.request);
+        console.error('Error response:', {
+          status: err.response.status,
+          data: err.response.data,
+          headers: err.response.headers
+        });
       }
+
+      // Handle specific error cases
+      let errorMessage = 'Failed to cancel listing. Please try again.';
       
-      // Get the specific error message from the server or use a default
-      const errorMessage = err.response?.data?.error || 'Failed to cancel listing';
-      setError(errorMessage);
-      
+      if (err.response?.status === 401) {
+        errorMessage = 'Your session has expired. Please refresh the page and try again.';
+      } else if (err.response?.status === 400) {
+        errorMessage = err.response.data.error || 'Invalid request. Please try again.';
+      } else if (err.response?.status === 404) {
+        errorMessage = 'Listing not found. It may have been already cancelled.';
+        // Remove from local state if not found
+        setListings(prevListings => prevListings.filter(item => item._id !== itemId));
+      } else if (err.message.includes('timeout')) {
+        errorMessage = 'Request timed out. Please try again.';
+      }
+
       // Show error notification
-      if (window.showNotification) {
-        window.showNotification(
-          "Error",
-          errorMessage,
-          "ERROR"
-        );
+      window.showNotification(
+        "Error",
+        errorMessage,
+        "ERROR"
+      );
+
+      // If error is recoverable, retry fetching listings
+      if (err.response?.status !== 401) {
+        fetchUserListings().catch(console.error);
       }
     } finally {
       setCancellingItemId(null);
