@@ -1,5 +1,5 @@
 /**
- * Script to make a user an admin by their Steam ID
+ * Script to set a user as admin by their Steam ID
  *
  * Usage:
  * node make_admin.js <steamId>
@@ -10,20 +10,22 @@
 
 require("dotenv").config({ path: "../.env" });
 const mongoose = require("mongoose");
-const User = require("../models/User");
+const User = mongoose.model("User") || require("../models/User");
 
 // Connect to MongoDB
-const connectDB = async () => {
+(async () => {
   try {
-    const uri =
-      process.env.MONGODB_URI || "mongodb://localhost:27017/cs2-marketplace";
-    await mongoose.connect(uri);
+    console.log("Connecting to MongoDB...");
+    await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
     console.log("Connected to MongoDB");
-  } catch (error) {
-    console.error("MongoDB connection error:", error);
+  } catch (err) {
+    console.error("Failed to connect to MongoDB", err);
     process.exit(1);
   }
-};
+})();
 
 // Make a user an admin by Steam ID
 const makeAdmin = async (steamId) => {
@@ -40,17 +42,15 @@ const makeAdmin = async (steamId) => {
       process.exit(1);
     }
 
-    // Check if already admin
-    if (user.isAdmin) {
-      console.log(`User ${user.displayName} (${steamId}) is already an admin`);
-      process.exit(0);
-    }
-
-    // Update user to admin
+    // Make the user an admin
     user.isAdmin = true;
     await user.save();
 
-    console.log(`User ${user.displayName} (${steamId}) is now an admin`);
+    console.log(`User: ${user.displayName}`);
+    console.log(`Steam ID: ${user.steamId}`);
+    console.log(`Admin status: ${user.isAdmin ? "Yes" : "No"}`);
+    console.log(`MongoDB ID: ${user._id}`);
+    console.log("User has been successfully made an admin!");
   } catch (error) {
     console.error("Error making user admin:", error);
     process.exit(1);
@@ -59,9 +59,6 @@ const makeAdmin = async (steamId) => {
   }
 };
 
-// Main function
-(async () => {
-  await connectDB();
-  const steamId = process.argv[2];
-  await makeAdmin(steamId);
-})();
+// Get the Steam ID from command line arguments
+const steamId = process.argv[2];
+makeAdmin(steamId);

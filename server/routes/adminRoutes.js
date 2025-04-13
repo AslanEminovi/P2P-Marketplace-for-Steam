@@ -11,33 +11,79 @@ router.use(requireAuth);
 router.use(requireAdmin);
 
 /**
- * @route   POST /admin/cleanup-listings
- * @desc    Clean up all stuck listings
+ * @route   GET /admin/status
+ * @desc    Get service status
  * @access  Admin
  */
-router.post("/cleanup-listings", async (req, res) => {
+router.get("/status", (req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    adminUser: req.user.displayName,
+  });
+});
+
+/**
+ * @route   POST /admin/cleanup-marketplace
+ * @desc    Clean up all marketplace listings and trades
+ * @access  Admin
+ */
+router.post("/cleanup-marketplace", async (req, res) => {
   try {
-    const results = await cleanupStuckListings();
-    res.json(results);
+    console.log(
+      `Admin ${req.user._id} (${req.user.displayName}) initiated marketplace cleanup`
+    );
+
+    // Run the cleanup function
+    const result = await cleanupStuckListings();
+
+    console.log("Cleanup completed successfully:", result);
+
+    return res.json({
+      success: true,
+      message: "Marketplace cleanup completed successfully",
+      itemsUpdated: result.itemsUpdated,
+      tradesUpdated: result.tradesUpdated,
+    });
   } catch (error) {
-    console.error("Error in cleanup-listings route:", error);
-    res.status(500).json({ error: "Failed to cleanup listings" });
+    console.error("Error during admin cleanup:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to complete marketplace cleanup",
+      error: error.message,
+    });
   }
 });
 
 /**
- * @route   POST /admin/cleanup-listings/:userId
- * @desc    Clean up stuck listings for a specific user
+ * @route   POST /admin/cleanup-user/:userId
+ * @desc    Clean up listings and trades for a specific user
  * @access  Admin
  */
-router.post("/cleanup-listings/:userId", async (req, res) => {
+router.post("/cleanup-user/:userId", async (req, res) => {
   try {
-    const { userId } = req.params;
-    const results = await cleanupStuckListings(userId);
-    res.json(results);
+    const userId = req.params.userId;
+    console.log(`Admin ${req.user._id} initiated cleanup for user ${userId}`);
+
+    // Run the cleanup function for specific user
+    const result = await cleanupStuckListings(userId);
+
+    return res.json({
+      success: true,
+      message: `Cleanup for user ${userId} completed successfully`,
+      itemsUpdated: result.itemsUpdated,
+      tradesUpdated: result.tradesUpdated,
+    });
   } catch (error) {
-    console.error("Error in cleanup-listings/:userId route:", error);
-    res.status(500).json({ error: "Failed to cleanup user listings" });
+    console.error(
+      `Error during admin cleanup for user ${req.params.userId}:`,
+      error
+    );
+    return res.status(500).json({
+      success: false,
+      message: "Failed to complete user cleanup",
+      error: error.message,
+    });
   }
 });
 
