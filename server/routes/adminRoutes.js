@@ -1,15 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const { requireAuth, requireAdmin } = require("../middlewares/authMiddleware");
-const { cleanupStuckListings } = require("../cleanup_listings");
 const mongoose = require("mongoose");
 const axios = require("axios");
+const { cleanupStuckListings } = require("../cleanup_listings");
 const adminController = require("../controllers/adminController");
 const auth = require("../middleware/auth");
-
-// Middleware to ensure the user is authenticated and has admin privileges
-router.use(requireAuth);
-router.use(requireAdmin);
 
 // Apply authentication middleware to all admin routes
 router.use(auth.isAuthenticated);
@@ -96,50 +91,51 @@ router.post("/cleanup-user/:userId", async (req, res) => {
  * @desc    Get all users with pagination and filtering
  * @access  Admin
  */
-router.get("/users", async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-    const search = req.query.search || "";
+// REMOVING THIS DUPLICATE ROUTE - Using the controller version below
+// router.get("/users", async (req, res) => {
+//   try {
+//     const page = parseInt(req.query.page) || 1;
+//     const limit = parseInt(req.query.limit) || 10;
+//     const skip = (page - 1) * limit;
+//     const search = req.query.search || "";
 
-    const User = mongoose.model("User");
+//     const User = mongoose.model("User");
 
-    // Build search filter
-    const searchFilter = search
-      ? {
-          $or: [
-            { displayName: { $regex: search, $options: "i" } },
-            { steamId: { $regex: search, $options: "i" } },
-            { email: { $regex: search, $options: "i" } },
-          ],
-        }
-      : {};
+//     // Build search filter
+//     const searchFilter = search
+//       ? {
+//           $or: [
+//             { displayName: { $regex: search, $options: "i" } },
+//             { steamId: { $regex: search, $options: "i" } },
+//             { email: { $regex: search, $options: "i" } },
+//           ],
+//         }
+//       : {};
 
-    // Get paginated users
-    const users = await User.find(searchFilter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .select("steamId displayName avatar createdAt lastLogin isAdmin balance");
+//     // Get paginated users
+//     const users = await User.find(searchFilter)
+//       .sort({ createdAt: -1 })
+//       .skip(skip)
+//       .limit(limit)
+//       .select("steamId displayName avatar createdAt lastLogin isAdmin balance");
 
-    // Get total count
-    const total = await User.countDocuments(searchFilter);
+//     // Get total count
+//     const total = await User.countDocuments(searchFilter);
 
-    res.json({
-      users,
-      pagination: {
-        total,
-        page,
-        pages: Math.ceil(total / limit),
-        limit,
-      },
-    });
-  } catch (error) {
-    console.error("Error getting users:", error);
-    res.status(500).json({ error: "Failed to get users" });
-  }
-});
+//     res.json({
+//       users,
+//       pagination: {
+//         total,
+//         page,
+//         pages: Math.ceil(total / limit),
+//         limit,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error getting users:", error);
+//     res.status(500).json({ error: "Failed to get users" });
+//   }
+// });
 
 /**
  * @route   GET /admin/users/:userId
@@ -226,61 +222,62 @@ router.put("/users/:userId", async (req, res) => {
  * @desc    Get system statistics
  * @access  Admin
  */
-router.get("/stats", async (req, res) => {
-  try {
-    const User = mongoose.model("User");
-    const Item = mongoose.model("Item");
-    const Trade = mongoose.model("Trade");
+// REMOVING THIS DUPLICATE ROUTE - Using the controller's statistics route below
+// router.get("/stats", async (req, res) => {
+//   try {
+//     const User = mongoose.model("User");
+//     const Item = mongoose.model("Item");
+//     const Trade = mongoose.model("Trade");
 
-    // Get counts
-    const userCount = await User.countDocuments();
-    const itemCount = await Item.countDocuments();
-    const listedItemCount = await Item.countDocuments({ isListed: true });
-    const completedTradeCount = await Trade.countDocuments({
-      status: "completed",
-    });
-    const pendingTradeCount = await Trade.countDocuments({ status: "pending" });
+//     // Get counts
+//     const userCount = await User.countDocuments();
+//     const itemCount = await Item.countDocuments();
+//     const listedItemCount = await Item.countDocuments({ isListed: true });
+//     const completedTradeCount = await Trade.countDocuments({
+//       status: "completed",
+//     });
+//     const pendingTradeCount = await Trade.countDocuments({ status: "pending" });
 
-    // Get recent user registrations (last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+//     // Get recent user registrations (last 7 days)
+//     const sevenDaysAgo = new Date();
+//     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const newUserCount = await User.countDocuments({
-      createdAt: { $gte: sevenDaysAgo },
-    });
+//     const newUserCount = await User.countDocuments({
+//       createdAt: { $gte: sevenDaysAgo },
+//     });
 
-    // Get trade volume (last 7 days)
-    const recentTrades = await Trade.find({
-      createdAt: { $gte: sevenDaysAgo },
-      status: "completed",
-    });
+//     // Get trade volume (last 7 days)
+//     const recentTrades = await Trade.find({
+//       createdAt: { $gte: sevenDaysAgo },
+//       status: "completed",
+//     });
 
-    const tradeVolume = recentTrades.reduce(
-      (sum, trade) => sum + (trade.price || 0),
-      0
-    );
+//     const tradeVolume = recentTrades.reduce(
+//       (sum, trade) => sum + (trade.price || 0),
+//       0
+//     );
 
-    res.json({
-      users: {
-        total: userCount,
-        newLast7Days: newUserCount,
-      },
-      items: {
-        total: itemCount,
-        listed: listedItemCount,
-      },
-      trades: {
-        completed: completedTradeCount,
-        pending: pendingTradeCount,
-        volumeLast7Days: tradeVolume,
-      },
-      timestamp: new Date(),
-    });
-  } catch (error) {
-    console.error("Error getting system stats:", error);
-    res.status(500).json({ error: "Failed to get system statistics" });
-  }
-});
+//     res.json({
+//       users: {
+//         total: userCount,
+//         newLast7Days: newUserCount,
+//       },
+//       items: {
+//         total: itemCount,
+//         listed: listedItemCount,
+//       },
+//       trades: {
+//         completed: completedTradeCount,
+//         pending: pendingTradeCount,
+//         volumeLast7Days: tradeVolume,
+//       },
+//       timestamp: new Date(),
+//     });
+//   } catch (error) {
+//     console.error("Error getting system stats:", error);
+//     res.status(500).json({ error: "Failed to get system statistics" });
+//   }
+// });
 
 /**
  * @route   GET /admin/items
