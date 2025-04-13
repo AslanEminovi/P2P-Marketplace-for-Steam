@@ -362,24 +362,56 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: fadeIn 0.2s ease-in-out;
 }
 
 .modal-content {
   background-color: var(--admin-card-bg);
   border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   padding: 0;
-  width: 500px;
-  max-width: 90vw;
+  width: 90%;
+  max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+  animation: slideIn 0.3s ease-in-out;
+  position: relative;
 }
 
+/* Add animation keyframes */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Add close button for modal */
+.admin-modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--admin-text-light);
+  cursor: pointer;
+  transition: var(--admin-transition);
+}
+
+.admin-modal-close:hover {
+  color: var(--admin-danger);
+}
+
+/* Ensure modal header has proper spacing */
 .admin-modal-header {
   display: flex;
+  align-items: center;
   padding: 1.5rem;
   border-bottom: 1px solid var(--admin-border);
-  align-items: center;
   gap: 1rem;
 }
 
@@ -499,4 +531,35 @@
   .admin-search-input {
     width: 100%;
   }
+}
+
+/* Error Boundary */
+.admin-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background-color: var(--admin-card-bg);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px var(--admin-shadow);
+  padding: 3rem 2rem;
+  margin: 2rem auto;
+  max-width: 500px;
+  min-height: 300px;
+}
+
+.admin-error h3 {
+  font-size: 1.5rem;
+  margin: 1.5rem 0 0.5rem;
+  color: var(--admin-danger);
+}
+
+.admin-error p {
+  color: var(--admin-text-light);
+  margin-bottom: 1.5rem;
+}
+
+.admin-error button {
+  margin-top: 1rem;
 } 
