@@ -678,11 +678,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 👏 Acknowledgements
 
 - The project creator - For the development and maintenance of the CS2 Marketplace
-- Project Link: [CS2 P2P Marketplace GitHub Repository](https://github.com/csp2p/P2P-Marketplace-for-Steam)
+- Project Link: [CS2 P2P Marketplace GitHub Repository](https://github.com/AslanEminovi/P2P-Marketplace-for-Steam)
 
 ## 📞 Contact
 
-Project Link: [CS2 P2P Marketplace GitHub Repository](https://github.com/csp2p/P2P-Marketplace-for-Steam)
+Project Link: [CS2 P2P Marketplace GitHub Repository](https://github.com/AslanEminovi/P2P-Marketplace-for-Steam)
 
 ---
 
