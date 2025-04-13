@@ -689,3 +689,12 @@ Project Link: [CS2 P2P Marketplace GitHub Repository](https://github.com/csp2p/P
 <p align="center">
   Made with ❤️ for the CS2 community
 </p>
+
+## Features
+
+- Steam Authentication
+- Inventory Management
+- Item Listings
+- Trading System
+- Admin Dashboard with user management
+- Responsive Design
