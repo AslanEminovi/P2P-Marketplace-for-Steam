@@ -96,26 +96,68 @@ async function cleanupStuckListings(userId = null) {
       console.log(`Targeting cleanup for user: ${userId}`);
     }
 
-    // Find and update all items that are still marked as listed
-    const updateResult = await Item.updateMany(query, {
-      $set: { isListed: false },
-    });
+    // CHANGED APPROACH: Find all items first, then update them individually
+    // to avoid duplicate key errors
+    const listedItems = await Item.find(query);
+    console.log(`Found ${listedItems.length} listed items to clean up`);
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Process each item individually
+    for (const item of listedItems) {
+      try {
+        // Check if there's already an unlisted version of this item
+        const duplicateCheck = await Item.findOne({
+          owner: item.owner,
+          assetId: item.assetId,
+          isListed: false,
+        });
+
+        if (duplicateCheck) {
+          console.log(
+            `Skipping item ${item._id} (${item.assetId}) - duplicate exists`
+          );
+          // Already have an unlisted version, so we can remove this one
+          await Item.deleteOne({ _id: item._id });
+          console.log(`Deleted duplicate listed item ${item._id}`);
+          successCount++;
+        } else {
+          // No duplicate, safe to update
+          await Item.updateOne(
+            { _id: item._id },
+            { $set: { isListed: false } }
+          );
+          console.log(`Updated item ${item._id} to unlisted`);
+          successCount++;
+        }
+      } catch (itemError) {
+        console.error(`Error processing item ${item._id}:`, itemError);
+        errorCount++;
+      }
+    }
 
     console.log(
-      `Cleanup completed: ${updateResult.modifiedCount} listings updated`
+      `Cleanup completed: ${successCount} listings updated/deleted, ${errorCount} errors`
     );
 
     // Also clean up any trades that are in pending or offer_sent status
-    const tradeUpdateResult = await Trade.updateMany(
-      {
-        status: { $nin: ["completed", "cancelled"] },
-      },
-      { $set: { status: "cancelled" } }
-    );
+    let tradesUpdated = 0;
+    try {
+      const tradeUpdateResult = await Trade.updateMany(
+        {
+          status: { $nin: ["completed", "cancelled"] },
+        },
+        { $set: { status: "cancelled" } }
+      );
 
-    console.log(
-      `Trade cleanup completed: ${tradeUpdateResult.modifiedCount} trades updated to cancelled`
-    );
+      tradesUpdated = tradeUpdateResult.modifiedCount;
+      console.log(
+        `Trade cleanup completed: ${tradesUpdated} trades updated to cancelled`
+      );
+    } catch (tradeError) {
+      console.error("Error updating trades:", tradeError);
+    }
 
     // Close MongoDB connection if the script was run directly
     if (require.main === module) {
@@ -125,8 +167,9 @@ async function cleanupStuckListings(userId = null) {
     }
 
     return {
-      itemsUpdated: updateResult.modifiedCount,
-      tradesUpdated: tradeUpdateResult.modifiedCount,
+      itemsUpdated: successCount,
+      itemErrors: errorCount,
+      tradesUpdated: tradesUpdated,
     };
   } catch (error) {
     console.error("Error during cleanup:", error);
