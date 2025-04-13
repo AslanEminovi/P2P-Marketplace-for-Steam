@@ -284,7 +284,9 @@ Implements the core business logic and application services:
 - **Business Logic Services**:
 
   - Trading system implementation
+
 - Inventory management
+
   - Marketplace operations
   - User management
   - Security enforcement
@@ -673,27 +675,14 @@ We welcome contributions to improve CS2 Marketplace! Please follow these steps:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgements
+## 👏 Acknowledgements
 
-- [Steam Web API](https://developer.valvesoftware.com/wiki/Steam_Web_API) - For inventory access and authentication
-- [Passport-Steam](https://github.com/liamcurry/passport-steam) - Steam authentication strategy
-- [MongoDB](https://www.mongodb.com/) - Database platform
-- [React](https://reactjs.org/) - Frontend framework
-- [Express](https://expressjs.com/) - Backend framework
-- [Socket.IO](https://socket.io/) - Real-time communication
-- [Node.js](https://nodejs.org/) - JavaScript runtime
-- [Mongoose](https://mongoosejs.com/) - MongoDB object modeling
-- [jsonwebtoken](https://github.com/auth0/node-jsonwebtoken) - JWT implementation
-- [Axios](https://axios-http.com/) - HTTP client
-- [Winston](https://github.com/winstonjs/winston) - Logging library
-- [CORS](https://github.com/expressjs/cors) - Cross-Origin Resource Sharing middleware
-- [Helmet](https://helmetjs.github.io/) - Security middleware
+- The project creator - For the development and maintenance of the CS2 Marketplace
+- Project Link: [CS2 P2P Marketplace GitHub Repository](https://github.com/csp2p/P2P-Marketplace-for-Steam)
 
 ## 📞 Contact
 
-Aslan Eminovi - [GitHub](https://github.com/AslanEminovi)
-
-Project Link: [https://github.com/AslanEminovi/P2P-Marketplace-for-Steam](https://github.com/AslanEminovi/P2P-Marketplace-for-Steam)
+Project Link: [CS2 P2P Marketplace GitHub Repository](https://github.com/csp2p/P2P-Marketplace-for-Steam)
 
 ---
 
