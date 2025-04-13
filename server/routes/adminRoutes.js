@@ -7,15 +7,23 @@ const axios = require("axios");
 const adminController = require("../controllers/adminController");
 const auth = require("../middleware/auth");
 
-// Middleware to ensure the user is authenticated and has admin privileges
-router.use(requireAuth);
-router.use(requireAdmin);
+// Route without auth check - must be first before other middleware
+router.get("/check", adminController.checkAdmin);
 
-// Apply authentication middleware to all admin routes
+// Now apply authentication middlewares to all subsequent routes
 router.use(auth.isAuthenticated);
 
-// Routes without admin check
-router.get("/check", adminController.checkAdmin);
+// Only apply the admin check after the /check route
+// as that route is specifically for checking if someone is an admin
+router.use((req, res, next) => {
+  console.log("Checking admin status for protected route");
+  if (!req.user || !req.user.isAdmin) {
+    console.log("Access denied to admin route:", req.path);
+    return res.status(403).json({ error: "Admin access required" });
+  }
+  console.log("Admin access granted for route:", req.path);
+  next();
+});
 
 /**
  * @route   GET /admin/status
@@ -99,40 +107,7 @@ router.post("/cleanup-user/:userId", async (req, res) => {
  * @desc    Get all users with pagination and filtering
  * @access  Admin
  */
-router.get("/users", async (req, res) => {
-  try {
-    console.log("Admin users request received");
-
-    const User = mongoose.model("User");
-
-    // Get all users without pagination for the admin dashboard
-    const users = await User.find()
-      .sort({ createdAt: -1 })
-      .limit(100) // Limit to most recent 100 users for performance
-      .select(
-        "steamId displayName avatar avatarMedium avatarFull createdAt lastLogin isAdmin isBanned balance email"
-      ); // Include avatar variants
-
-    console.log(`Found ${users.length} users`);
-
-    // Log first user for debugging
-    if (users.length > 0) {
-      console.log("First user sample:", {
-        id: users[0]._id,
-        displayName: users[0].displayName,
-        avatarFull: users[0].avatarFull || null,
-        avatarMedium: users[0].avatarMedium || null,
-        avatar: users[0].avatar || null,
-      });
-    }
-
-    // Return users directly, not wrapped in object
-    res.json(users);
-  } catch (error) {
-    console.error("Error getting users:", error);
-    res.status(500).json({ error: "Failed to get users" });
-  }
-});
+router.get("/users", adminController.getUsers);
 
 /**
  * @route   GET /admin/users/:userId
