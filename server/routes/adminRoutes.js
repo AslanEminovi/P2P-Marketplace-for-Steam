@@ -5,10 +5,14 @@ const { cleanupStuckListings } = require("../cleanup_listings");
 const mongoose = require("mongoose");
 const axios = require("axios");
 const adminController = require("../controllers/adminController");
+const auth = require("../middleware/auth");
 
 // Middleware to ensure the user is authenticated and has admin privileges
 router.use(requireAuth);
 router.use(requireAdmin);
+
+// Apply authentication middleware to all admin routes
+router.use(auth.isAuthenticated);
 
 /**
  * @route   GET /admin/status
@@ -383,5 +387,24 @@ router.get("/check-api-keys", async (req, res) => {
     res.status(500).json({ error: "Failed to check API keys" });
   }
 });
+
+// Admin status check
+router.get("/check", async (req, res) => {
+  try {
+    const isAdmin = req.user && req.user.isAdmin === true;
+    return res.status(200).json({ isAdmin });
+  } catch (error) {
+    console.error("Error checking admin status:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// User management routes
+router.get("/users", auth.isAdmin, adminController.getUsers);
+router.post("/users/:userId/ban", auth.isAdmin, adminController.banUser);
+router.post("/users/:userId/unban", auth.isAdmin, adminController.unbanUser);
+
+// Statistics route
+router.get("/statistics", auth.isAdmin, adminController.getStatistics);
 
 module.exports = router;
