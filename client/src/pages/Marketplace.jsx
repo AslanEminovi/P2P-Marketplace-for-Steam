@@ -20,6 +20,18 @@ import LiveActivityFeed from '../components/LiveActivityFeed';
 import SocketConnectionIndicator from '../components/SocketConnectionIndicator';
 import SellModal from '../components/SellModal';
 
+// Add CSS for refresh animation
+const styles = `
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.refresh-button-spinning svg {
+  animation: spin 1s linear infinite;
+}
+`;
+
 function Marketplace({ user }) {
   // State management
   const [items, setItems] = useState([]);
@@ -48,6 +60,19 @@ function Marketplace({ user }) {
   const [showActivityFeed, setShowActivityFeed] = useState(true);
   const itemsPerPage = 12;
   const [showSellModal, setShowSellModal] = useState(false);
+  
+  // Add style tag for animations
+  useEffect(() => {
+    // Insert style tag
+    const styleElement = document.createElement('style');
+    styleElement.innerHTML = styles;
+    document.head.appendChild(styleElement);
+    
+    // Cleanup on unmount
+    return () => {
+      document.head.removeChild(styleElement);
+    };
+  }, []);
   
   // Ref to track connection status
   const connectionStatusRef = useRef({
@@ -500,7 +525,8 @@ function Marketplace({ user }) {
           padding: '1rem',
           background: 'rgba(31, 41, 61, 0.5)',
           borderRadius: '10px',
-          border: '1px solid rgba(51, 115, 242, 0.1)'
+          border: '1px solid rgba(51, 115, 242, 0.1)',
+          position: 'relative'
         }}>
           <h3 style={{
             margin: '0 0 0.5rem 0',
@@ -513,28 +539,49 @@ function Marketplace({ user }) {
             fontWeight: 'bold',
             color: '#4ade80'
           }}>${calculateTotalMarketValue()}</p>
-        </div>
-
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          padding: '1rem',
-          background: 'rgba(31, 41, 61, 0.5)',
-          borderRadius: '10px',
-          border: '1px solid rgba(51, 115, 242, 0.1)'
-        }}>
-          <h3 style={{
-            margin: '0 0 0.5rem 0',
-              fontSize: '0.9rem',
-            color: 'var(--gaming-text-dim)'
-          }}>Active Users</h3>
-          <p style={{
-            margin: 0,
-            fontSize: '1.75rem',
-            fontWeight: 'bold',
-            color: 'var(--gaming-text-bright)'
-          }}>{marketStats.activeUsers || 0}</p>
+          
+          {/* Refresh button */}
+          <button 
+            onClick={handleManualRefresh}
+            style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              background: 'rgba(51, 115, 242, 0.2)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '26px',
+              height: '26px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              color: 'rgba(255, 255, 255, 0.7)'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = 'rgba(51, 115, 242, 0.4)';
+              e.currentTarget.style.color = 'rgba(255, 255, 255, 1)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = 'rgba(51, 115, 242, 0.2)';
+              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)';
+            }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.transform = 'scale(0.95)';
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+            className={loading ? 'refresh-button-spinning' : ''}
+            title="Refresh marketplace data"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{transition: 'transform 0.5s ease', transform: loading ? 'rotate(360deg)' : 'rotate(0deg)'}}>
+              <path d="M23 4v6h-6"/>
+              <path d="M1 20v-6h6"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+          </button>
         </div>
       </div>
     </div>
