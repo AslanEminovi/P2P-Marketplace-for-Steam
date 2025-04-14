@@ -25,7 +25,7 @@ import {
 } from 'react-icons/fa';
 import { API_URL } from '../config/constants';
 import './AdminTools.css';
-import { socketService } from '../services/socketService';
+import socketService from '../services/socketService';
 
 // Add Error Boundary component
 class ErrorBoundary extends Component {

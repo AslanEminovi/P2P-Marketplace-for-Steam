@@ -343,5 +343,5 @@ const socketService = new SocketService();
 // Initialize the service
 socketService.init();
 
-// Export the instance
-export { socketService };
+// Export the instance as default
+export default socketService;
