@@ -126,19 +126,23 @@ const AdminTools = () => {
       const response = await axios.get(`${API_URL}/admin/users`, { withCredentials: true });
       console.log('Users data received:', response.data);
       
-      if (response.data && response.data.length > 0) {
+      if (response.data && response.data.users) {
         console.log('First user data sample:', {
-          id: response.data[0]._id,
-          displayName: response.data[0].displayName,
-          avatar: response.data[0].avatar,
-          avatarMedium: response.data[0].avatarMedium,
-          avatarFull: response.data[0].avatarFull,
-          steamId: response.data[0].steamId
+          id: response.data.users[0]?._id,
+          displayName: response.data.users[0]?.displayName,
+          avatar: response.data.users[0]?.avatar,
+          avatarMedium: response.data.users[0]?.avatarMedium,
+          avatarFull: response.data.users[0]?.avatarFull,
+          steamId: response.data.users[0]?.steamId
         });
+        
+        setUsers(response.data.users);
+        setFilteredUsers(response.data.users);
+      } else {
+        console.log('No users found in response');
+        setUsers([]);
+        setFilteredUsers([]);
       }
-      
-      setUsers(response.data);
-      setFilteredUsers(response.data);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Failed to fetch users');
