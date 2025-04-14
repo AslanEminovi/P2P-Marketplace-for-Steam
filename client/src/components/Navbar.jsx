@@ -3,8 +3,9 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { API_URL } from '../config/constants';
 import axios from 'axios';
 import NotificationCenter from './NotificationCenter';
-import LanguageSwitcher from './LanguageSwitcher';
 import './Navbar.css';
+import { FaSteam, FaChevronDown } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 
 // Remove logo import since it's not needed
 // import csLogo from '../assets/cs-logo.png';
@@ -20,6 +21,7 @@ const Navbar = ({ user, onLogout }) => {
   const [pendingTradesCount, setPendingTradesCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   
   // Refs for click outside detection
   const dropdownRef = useRef(null);
@@ -177,6 +179,8 @@ const Navbar = ({ user, onLogout }) => {
     }
   };
 
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
   return (
     <>
       <nav className={`navbar ${scrolled ? 'scrolled' : ''} ${mobileOpen ? 'mobile-open' : ''} ${hidden ? 'navbar-hidden' : ''}`}>
@@ -237,198 +241,104 @@ const Navbar = ({ user, onLogout }) => {
             </div>
           </div>
           
-          <div className="navbar-right">
+          <div className="hidden md:flex md:items-center md:space-x-6">
+            {/* ... existing code ... */}
+          </div>
+          
+          {/* Right-aligned items */}
+          <div className="ml-auto flex items-center space-x-4">
+            {/* Login/Profile Button */}
             {user ? (
-              <div className="user-section" style={{ display: 'flex', alignItems: 'center' }}>
-                <div className="balance-display">
-                  <div className="balance-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="1" x2="12" y2="23"></line>
-                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                    </svg>
-                  </div>
-                  <span className="balance-amount">{formatBalance(user.balance)} ₾</span>
-                  <Link to="/add-funds" className="balance-add">+</Link>
-                </div>
+              <div className="flex items-center">
+                {/* Notification Center - only show when logged in */}
+                <NotificationCenter user={user} />
                 
-                {/* Position notification center to the far right */}
-                <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto', marginRight: '15px' }}>
-                  {user && <NotificationCenter user={user} />}
-                </div>
-
-                <div className="dropdown-wrapper">
-                  <button 
-                    ref={profileBtnRef}
-                    onClick={toggleDropdown}
-                    className="profile-button"
+                {/* Profile dropdown */}
+                <div className="relative ml-4">
+                  <button
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    className="flex items-center text-gray-300 hover:text-white focus:outline-none"
                   >
-                    <div className="user-avatar-container">
-                      {user && (user.avatar || user.avatarUrl || user.avatarfull) ? (
-                        <>
-                          <img 
-                            src={user.avatar || user.avatarUrl || user.avatarfull} 
-                            alt={user.displayName || 'User'} 
-                            onError={(e) => {
-                              console.log("Avatar image failed to load:", e);
-                              e.target.style.display = 'none';
-                              e.target.parentNode.innerHTML = getUserInitials();
-                            }}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-                          />
-                        </>
-                      ) : (
-                        getUserInitials()
-                      )}
-                    </div>
-                    <span className="desktop-only">{user.displayName}</span>
-                    {/* Add Admin Badge for admins */}
-                    {user.isAdmin && (
-                      <span 
-                        className="admin-badge" 
-                        style={{
-                          backgroundColor: '#f59e0b',
-                          color: '#000',
-                          fontSize: '0.6rem',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          marginLeft: '6px',
-                          fontWeight: 'bold',
-                          letterSpacing: '0.5px',
-                          border: '1px solid rgba(0,0,0,0.1)',
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                          textTransform: 'uppercase'
-                        }}
-                      >
-                        ADMIN
-                      </span>
-                    )}
-                    <div className={`dropdown-arrow ${dropdownOpen ? 'active' : ''}`}>
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        width="18" 
-                        height="18" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        strokeWidth="2" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                      </svg>
-                    </div>
+                    <img
+                      src={user.avatarUrl || '/default-avatar.png'}
+                      alt="Profile"
+                      className="w-8 h-8 rounded-full"
+                    />
+                    <span className="ml-2 hidden md:block">{user.displayName}</span>
+                    <FaChevronDown className="ml-1" size={12} />
                   </button>
-                  
-                  {dropdownOpen && (
-                    <div 
-                      ref={dropdownRef}
-                      className="user-dropdown"
-                    >
-                      <div className="dropdown-header">
-                        <span className="dropdown-username">{user.displayName}</span>
-                        <span className="dropdown-email">{user.email || 'No email provided'}</span>
-                      </div>
-                      
-                      <div className="dropdown-menu-items">
-                        <NavLink to="/profile" className="dropdown-menu-item" onClick={() => setDropdownOpen(false)}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="12" cy="7" r="4"></circle>
-                          </svg>
-                          My Profile
-                        </NavLink>
-                        
-                        <NavLink to="/inventory" className="dropdown-menu-item" onClick={() => setDropdownOpen(false)}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="16" y1="8" x2="8" y2="8"></line>
-                            <line x1="16" y1="12" x2="8" y2="12"></line>
-                            <line x1="16" y1="16" x2="8" y2="16"></line>
-                          </svg>
-                          My Inventory
-                        </NavLink>
-                        
-                        <NavLink to="/trades" className="dropdown-menu-item trades-dropdown-item" onClick={() => setDropdownOpen(false)}>
-                          <div className="trades-dropdown-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="17 1 21 5 17 9"></polyline>
-                              <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                              <polyline points="7 23 3 19 7 15"></polyline>
-                              <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                            </svg>
-                            {pendingTradesCount > 0 && (
-                              <span className="trades-dropdown-badge">{pendingTradesCount}</span>
-                            )}
-                          </div>
-                          <div className="trades-dropdown-content">
-                            <span>My Trades</span>
-                            {pendingTradesCount > 0 && (
-                              <span className="trades-dropdown-status">
-                                {pendingTradesCount} active {pendingTradesCount === 1 ? 'trade' : 'trades'}
-                              </span>
-                            )}
-                          </div>
-                        </NavLink>
-                        
-                        <NavLink to="/settings" className="dropdown-menu-item" onClick={() => setDropdownOpen(false)}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="3"></circle>
-                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                          </svg>
-                          Settings
-                        </NavLink>
-                        
-                        {/* Add Admin Tools link for admins */}
+
+                  {isProfileOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg z-50">
+                      <div className="py-1">
+                        <Link
+                          to="/profile"
+                          className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                          onClick={() => setIsProfileOpen(false)}
+                        >
+                          {t('navbar.profile')}
+                        </Link>
+                        <Link
+                          to="/inventory"
+                          className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                          onClick={() => setIsProfileOpen(false)}
+                        >
+                          {t('navbar.inventory')}
+                        </Link>
+                        <Link
+                          to="/my-listings"
+                          className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                          onClick={() => setIsProfileOpen(false)}
+                        >
+                          {t('navbar.myListings')}
+                        </Link>
+                        <Link
+                          to="/settings"
+                          className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                          onClick={() => setIsProfileOpen(false)}
+                        >
+                          {t('navbar.settings')}
+                        </Link>
                         {user.isAdmin && (
-                          <NavLink to="/admin/tools" className="dropdown-menu-item admin-link" onClick={() => setDropdownOpen(false)}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                            </svg>
-                            Admin Panel
-                          </NavLink>
+                          <Link
+                            to="/admin"
+                            className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                            onClick={() => setIsProfileOpen(false)}
+                          >
+                            {t('navbar.adminPanel')}
+                          </Link>
                         )}
-                      
-                        <div className="dropdown-divider"></div>
-                      
-                      <button
-                              onClick={handleLogout}
-                              className="dropdown-menu-item logout"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                                <polyline points="16 17 21 12 16 7"></polyline>
-                                <line x1="21" y1="12" x2="9" y2="12"></line>
-                              </svg>
-                              Log Out
-                      </button>
+                        <button
+                          onClick={handleLogout}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          {t('navbar.logout')}
+                        </button>
                       </div>
                     </div>
                   )}
                 </div>
               </div>
             ) : (
-                <a href={`${API_URL}/auth/steam`} className="sign-in-button">
-                  <img 
-                    src="Steam-Emblem.png" 
-                    alt="Steam" 
-                    className="steam-icon" 
-                    width="24" 
-                    height="24" 
-                  />
-                  Sign in with Steam
-                </a>
-              )}
-            
-            <button 
-              className="mobile-menu-toggle" 
-              aria-label="Toggle mobile menu"
-              onClick={() => setMobileOpen(!mobileOpen)}
-            >
-              <span className="hamburger-line"></span>
-              <span className="hamburger-line"></span>
-              <span className="hamburger-line"></span>
-            </button>
+              <button
+                onClick={() => setShowSignInPrompt(true)}
+                className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md flex items-center"
+              >
+                <FaSteam className="mr-2" />
+                {t('navbar.loginWithSteam')}
+              </button>
+            )}
           </div>
+          
+          <button 
+            className="mobile-menu-toggle" 
+            aria-label="Toggle mobile menu"
+            onClick={() => setMobileOpen(!mobileOpen)}
+          >
+            <span className="hamburger-line"></span>
+            <span className="hamburger-line"></span>
+            <span className="hamburger-line"></span>
+          </button>
         </div>
         
         {/* Mobile Menu */}
@@ -470,28 +380,28 @@ const Navbar = ({ user, onLogout }) => {
                 My Inventory
               </NavLink>
               
-              <NavLink to="/trades" className={({ isActive }) => 
-                isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
-              }>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="17 1 21 5 17 9"></polyline>
-                  <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                  <polyline points="7 23 3 19 7 15"></polyline>
-                  <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                </svg>
-                My Trades
-              </NavLink>
-              
-              <NavLink to="/profile" className={({ isActive }) => 
-                isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
-              }>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-                My Profile
-              </NavLink>
-            </>
+                <NavLink to="/trades" className={({ isActive }) => 
+                  isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
+                }>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="17 1 21 5 17 9"></polyline>
+                    <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                    <polyline points="7 23 3 19 7 15"></polyline>
+                    <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                  </svg>
+                  My Trades
+                </NavLink>
+                
+                <NavLink to="/profile" className={({ isActive }) => 
+                  isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
+                }>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                  My Profile
+                </NavLink>
+              </>
             )}
           
             <NavLink to="/faq" className={({ isActive }) => 

@@ -5,7 +5,7 @@ import axios from 'axios';
 import { API_URL } from '../config/constants';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
-import { socket } from '../services/socketService';
+import socketService from '../services/socketService';
 
 // Define notification types as constants
 const NOTIFICATION_TYPES = {
@@ -36,9 +36,9 @@ const NotificationCenter = ({ user }) => {
 
   // Set up real-time notifications with socket
   useEffect(() => {
-    if (user?.id && socket) {
+    if (user?.id && socketService) {
       // Listen for new notifications
-      socket.on('new_notification', (notification) => {
+      socketService.on('new_notification', (notification) => {
         setNotifications(prev => [notification, ...prev]);
         setUnreadCount(prev => prev + 1);
         // Show toast for important notifications
@@ -52,7 +52,7 @@ const NotificationCenter = ({ user }) => {
       });
 
       return () => {
-        socket.off('new_notification');
+        socketService.off('new_notification');
       };
     }
   }, [user?.id]);
