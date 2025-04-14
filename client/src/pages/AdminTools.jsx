@@ -96,13 +96,10 @@ const AdminTools = () => {
   const [totalPages, setTotalPages] = useState(1);
   
   // User details state
-  const [userDetailTab, setUserDetailTab] = useState('inventory');
-  const [userInventory, setUserInventory] = useState([]);
-  const [userTrades, setUserTrades] = useState([]);
+  const [userDetailTab, setUserDetailTab] = useState('profile');
+  const [userInventoryValue, setUserInventoryValue] = useState(0);
   const [inventoryLoading, setInventoryLoading] = useState(false);
-  const [tradesLoading, setTradesLoading] = useState(false);
   const [inventoryError, setInventoryError] = useState(null);
-  const [tradesError, setTradesError] = useState(null);
 
   // Check if user is admin
   useEffect(() => {
@@ -227,6 +224,8 @@ const AdminTools = () => {
       avatarFull: user.avatarFull || user.avatar || '',
       createdAt: user.createdAt || new Date(),
       isBanned: user.isBanned || false,
+      isAdmin: user.isAdmin || false,
+      isModerator: user.isModerator || false,
       email: user.email || 'N/A',
       tradeUrl: user.tradeUrl || 'N/A',
       balance: user.balance || 0,
@@ -237,22 +236,19 @@ const AdminTools = () => {
     };
 
     // Reset data from previous user
-    setUserInventory([]);
-    setUserTrades([]);
+    setUserInventoryValue(0);
     setInventoryError(null);
-    setTradesError(null);
-    setUserDetailTab('inventory');
     
     // Set the user details and open modal
     setSelectedUser(simpleUser);
     setIsUserModalOpen(true);
     
-    // Only fetch inventory by default - we'll fetch trades on demand
-    fetchUserInventory(user.steamId);
+    // Fetch inventory value (total value only)
+    fetchUserInventoryValue(user.steamId);
   };
   
-  // Fetch user's Steam inventory
-  const fetchUserInventory = async (steamId) => {
+  // Fetch user's inventory value
+  const fetchUserInventoryValue = async (steamId) => {
     if (!steamId) {
       setInventoryError('No Steam ID available');
       return;
@@ -260,118 +256,32 @@ const AdminTools = () => {
     
     try {
       setInventoryLoading(true);
-      console.log(`Fetching inventory for Steam ID: ${steamId}`);
+      console.log(`Fetching inventory value for Steam ID: ${steamId}`);
       
       // Use a timeout to prevent blocking the UI
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       
-      // Call our server endpoint that will make the Steam API call
-      const response = await axios.get(`${API_URL}/admin/user-inventory/${steamId}`, { 
+      // Call our server endpoint just to get inventory value
+      const response = await axios.get(`${API_URL}/admin/user-inventory-value/${steamId}`, { 
         withCredentials: true,
-        signal: controller.signal,
-        params: {
-          limit: 50 // Limit to 50 items for better performance
-        }
+        signal: controller.signal
       });
       
       clearTimeout(timeoutId);
       
-      console.log(`Received ${response.data.length || 0} inventory items for ${steamId}`);
-      
-      if (Array.isArray(response.data)) {
-        setUserInventory(response.data);
-      } else if (response.data && Array.isArray(response.data.assets)) {
-        setUserInventory(response.data.assets);
+      if (response.data && typeof response.data.totalValue === 'number') {
+        setUserInventoryValue(response.data.totalValue);
       } else {
-        setInventoryError('Invalid inventory data format');
-        setUserInventory([]);
+        setUserInventoryValue(0);
       }
     } catch (error) {
-      console.error('Error fetching user inventory:', error);
-      if (error.name === 'AbortError') {
-        setInventoryError('Request timed out. Please try again.');
-      } else {
-        setInventoryError(error.response?.data?.error || 'Failed to fetch inventory');
-      }
-      setUserInventory([]);
+      console.error('Error fetching inventory value:', error);
+      setInventoryError('Failed to fetch inventory value');
+      setUserInventoryValue(0);
     } finally {
       setInventoryLoading(false);
     }
-  };
-  
-  // Fetch user's trade history on our platform
-  const fetchUserTrades = async (userId) => {
-    if (!userId) {
-      setTradesError('No user ID available');
-      return;
-    }
-    
-    try {
-      setTradesLoading(true);
-      console.log(`Fetching trades for user ID: ${userId}`);
-      
-      // Use a timeout to prevent blocking the UI
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-      
-      const response = await axios.get(`${API_URL}/admin/user-trades/${userId}`, { 
-        withCredentials: true,
-        signal: controller.signal,
-        params: {
-          limit: 20 // Limit to 20 most recent trades for better performance
-        }
-      });
-      
-      clearTimeout(timeoutId);
-      
-      console.log(`Received ${response.data.length || 0} trades for user ${userId}`);
-      
-      if (Array.isArray(response.data)) {
-        setUserTrades(response.data);
-      } else {
-        setTradesError('Invalid trade data format');
-        setUserTrades([]);
-      }
-    } catch (error) {
-      console.error('Error fetching user trades:', error);
-      if (error.name === 'AbortError') {
-        setTradesError('Request timed out. Please try again.');
-      } else {
-        setTradesError(error.response?.data?.error || 'Failed to fetch trades');
-      }
-      setUserTrades([]);
-    } finally {
-      setTradesLoading(false);
-    }
-  };
-  
-  // Convert wear code to full name
-  const translateWear = (shortWear) => {
-    const wearTranslations = {
-      'fn': 'Factory New',
-      'mw': 'Minimal Wear',
-      'ft': 'Field-Tested',
-      'ww': 'Well-Worn',
-      'bs': 'Battle-Scarred'
-    };
-    return wearTranslations[shortWear?.toLowerCase()] || shortWear || 'N/A';
-  };
-  
-  // Get color for rarity display
-  const getRarityColor = (rarity) => {
-    if (!rarity) return '#b0c3d9';
-    
-    const rarityColors = {
-      'Consumer Grade': '#b0c3d9',
-      'Industrial Grade': '#5e98d9',
-      'Mil-Spec Grade': '#4b69ff',
-      'Restricted': '#8847ff',
-      'Classified': '#d32ce6',
-      'Covert': '#eb4b4b',
-      '★': '#e4ae39'
-    };
-    return rarityColors[rarity] || '#b0c3d9';
   };
 
   // Handle user ban/unban
@@ -408,6 +318,57 @@ const AdminTools = () => {
     } catch (error) {
       console.error(`Error ${action}ing user:`, error);
       toast.error(`Failed to ${action} user: ${error.message || 'Server error'}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle user role changes
+  const handleUserRole = async (userId, role, shouldAdd) => {
+    if (!userId) {
+      toast.error('Invalid user ID');
+      return;
+    }
+    
+    try {
+      setActionLoading(true);
+      const action = shouldAdd ? 'add' : 'remove';
+      console.log(`${action}ing ${role} role for user ${userId}...`);
+      
+      await axios.post(`${API_URL}/admin/users/${userId}/role`, {
+        role,
+        action
+      }, { 
+        withCredentials: true,
+        timeout: 5000
+      });
+      
+      // Update local user state
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user._id === userId 
+            ? { 
+                ...user, 
+                isAdmin: role === 'admin' ? shouldAdd : user.isAdmin,
+                isModerator: role === 'moderator' ? shouldAdd : user.isModerator
+              } 
+            : user
+        )
+      );
+      
+      // Update selected user if it's the same one
+      if (selectedUser?._id === userId) {
+        setSelectedUser(prev => ({
+          ...prev,
+          isAdmin: role === 'admin' ? shouldAdd : prev.isAdmin,
+          isModerator: role === 'moderator' ? shouldAdd : prev.isModerator
+        }));
+      }
+      
+      toast.success(`User ${shouldAdd ? 'is now a' : 'is no longer a'} ${role}`);
+    } catch (error) {
+      console.error(`Error changing user role:`, error);
+      toast.error(`Failed to update user role: ${error.message || 'Server error'}`);
     } finally {
       setActionLoading(false);
     }
@@ -451,21 +412,11 @@ const AdminTools = () => {
     }
   };
 
-  // Effect to load trade data on demand
-  useEffect(() => {
-    if (userDetailTab === 'trades' && selectedUser && selectedUser._id && userTrades.length === 0 && !tradesLoading) {
-      // Only fetch trades when the trades tab is clicked and we don't already have data
-      fetchUserTrades(selectedUser._id);
-    }
-  }, [userDetailTab, selectedUser, userTrades.length, tradesLoading]);
-
   // Create a cleanup function 
   const cleanupModal = () => {
     setSelectedUser(null);
-    setUserInventory([]);
-    setUserTrades([]);
+    setUserInventoryValue(0);
     setInventoryError(null);
-    setTradesError(null);
     setActionLoading(false);
   };
 
@@ -821,7 +772,7 @@ const AdminTools = () => {
               bottom: 'auto',
               marginRight: '-50%',
               transform: 'translate(-50%, -50%)',
-              maxWidth: '900px',
+              maxWidth: '600px',
               width: '95%',
               maxHeight: '90vh',
               padding: '20px',
@@ -866,6 +817,10 @@ const AdminTools = () => {
                     <div className="user-info-value">{selectedUser.steamId || 'N/A'}</div>
                   </div>
                   <div className="user-info-row">
+                    <div className="user-info-label">Email:</div>
+                    <div className="user-info-value">{selectedUser.email || 'N/A'}</div>
+                  </div>
+                  <div className="user-info-row">
                     <div className="user-info-label">Status:</div>
                     <div className="user-info-value">
                       <span className={`status-dot ${selectedUser.isOnline ? 'online' : 'offline'}`}></span>
@@ -884,218 +839,100 @@ const AdminTools = () => {
                         <span className="user-banned">BANNED</span> : 
                         <span className="user-active">Active</span>
                       }
+                      {selectedUser.isAdmin && <span className="user-role admin">Admin</span>}
+                      {selectedUser.isModerator && <span className="user-role moderator">Moderator</span>}
                     </div>
                   </div>
                   <div className="user-info-row">
                     <div className="user-info-label">Joined:</div>
                     <div className="user-info-value">{new Date(selectedUser.createdAt).toLocaleDateString()}</div>
                   </div>
-                  <div className="user-actions">
-                    <button
-                      className={`action-button ${selectedUser?.isBanned ? 'unban' : 'ban'}`}
-                      onClick={() => handleUserStatus(selectedUser?._id, selectedUser?.isBanned ? 'unban' : 'ban')}
-                      disabled={actionLoading}
-                    >
-                      {actionLoading ? (
-                        <ClipLoader size={20} color="#fff" />
-                      ) : selectedUser?.isBanned ? (
-                        <>
-                          <FaCheckCircle /> Unban User
-                        </>
+                  <div className="user-info-row">
+                    <div className="user-info-label">Balance:</div>
+                    <div className="user-info-value">${selectedUser.balance.toFixed(2)}</div>
+                  </div>
+                  <div className="user-info-row">
+                    <div className="user-info-label">Trades:</div>
+                    <div className="user-info-value">{selectedUser.tradeCount || 0}</div>
+                  </div>
+                  <div className="user-info-row">
+                    <div className="user-info-label">Inventory Value:</div>
+                    <div className="user-info-value">
+                      {inventoryLoading ? (
+                        <ClipLoader size={16} color="#3a6ff7" />
+                      ) : inventoryError ? (
+                        <span className="error-text">Error loading</span>
                       ) : (
-                        <>
-                          <FaBan /> Ban User
-                        </>
+                        `$${userInventoryValue.toFixed(2)}`
                       )}
-                    </button>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Detail Tabs */}
-              <div className="user-detail-tabs">
-                <button 
-                  className={`detail-tab ${userDetailTab === 'inventory' ? 'active' : ''}`}
-                  onClick={() => setUserDetailTab('inventory')}
-                >
-                  <FaBoxOpen /> Inventory
-                </button>
-                <button 
-                  className={`detail-tab ${userDetailTab === 'trades' ? 'active' : ''}`}
-                  onClick={() => setUserDetailTab('trades')}
-                >
-                  <FaExchangeAlt /> Trade History
-                </button>
+              {/* User Management Actions */}
+              <div className="user-management">
+                <h3>User Management</h3>
+                
+                <div className="action-buttons">
+                  {/* Ban/Unban User */}
+                  <button
+                    className={`action-button ${selectedUser?.isBanned ? 'unban' : 'ban'}`}
+                    onClick={() => handleUserStatus(selectedUser?._id, selectedUser?.isBanned ? 'unban' : 'ban')}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? (
+                      <ClipLoader size={20} color="#fff" />
+                    ) : selectedUser?.isBanned ? (
+                      <>
+                        <FaCheckCircle /> Unban User
+                      </>
+                    ) : (
+                      <>
+                        <FaBan /> Ban User
+                      </>
+                    )}
+                  </button>
+                  
+                  {/* Make Admin */}
+                  <button
+                    className={`action-button ${selectedUser?.isAdmin ? 'remove-admin' : 'make-admin'}`}
+                    onClick={() => handleUserRole(selectedUser?._id, 'admin', !selectedUser?.isAdmin)}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? (
+                      <ClipLoader size={20} color="#fff" />
+                    ) : selectedUser?.isAdmin ? (
+                      <>
+                        <FaUserAltSlash /> Remove Admin
+                      </>
+                    ) : (
+                      <>
+                        <FaUserCheck /> Make Admin
+                      </>
+                    )}
+                  </button>
+                  
+                  {/* Make Moderator */}
+                  <button
+                    className={`action-button ${selectedUser?.isModerator ? 'remove-mod' : 'make-mod'}`}
+                    onClick={() => handleUserRole(selectedUser?._id, 'moderator', !selectedUser?.isModerator)}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? (
+                      <ClipLoader size={20} color="#fff" />
+                    ) : selectedUser?.isModerator ? (
+                      <>
+                        <FaUserAltSlash /> Remove Moderator
+                      </>
+                    ) : (
+                      <>
+                        <FaUserCheck /> Make Moderator
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-
-              {/* Inventory Tab Content */}
-              {userDetailTab === 'inventory' && (
-                <div className="detail-content inventory-content">
-                  {inventoryLoading ? (
-                    <div className="loading-container">
-                      <ClipLoader color="#3a6ff7" size={40} />
-                      <p>Loading inventory...</p>
-                    </div>
-                  ) : inventoryError ? (
-                    <div className="error-message">
-                      <FaExclamationTriangle />
-                      <p>{inventoryError}</p>
-                      <button 
-                        className="retry-button"
-                        onClick={() => fetchUserInventory(selectedUser.steamId)}
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  ) : userInventory.length === 0 ? (
-                    <div className="empty-state">
-                      <FaBoxOpen size={40} />
-                      <p>No items found in inventory.</p>
-                      <p className="empty-subtitle">The user's inventory may be private or empty.</p>
-                    </div>
-                  ) : (
-                    <div className="inventory-grid">
-                      {userInventory.map((item, index) => (
-                        <div className="inventory-item" key={item.assetid || item.id || index}>
-                          <div className="item-image">
-                            <img 
-                              src={item.icon_url || item.imageUrl || 'https://community.akamai.steamstatic.com/economy/image/placeholder/360fx360f'} 
-                              alt={item.name || item.marketname || 'Item'} 
-                            />
-                          </div>
-                          <div className="item-details">
-                            <h4 className="item-name" style={{
-                              color: getRarityColor(item.rarity || item.type || '')
-                            }}>
-                              {item.name || item.marketname || 'Unknown Item'}
-                            </h4>
-                            <div className="item-meta">
-                              <span className="item-wear">{translateWear(item.wear || '')}</span>
-                              {item.price && (
-                                <span className="item-price">${item.price.toFixed(2)}</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Trades Tab Content */}
-              {userDetailTab === 'trades' && (
-                <div className="detail-content trades-content">
-                  {tradesLoading ? (
-                    <div className="loading-container">
-                      <ClipLoader color="#3a6ff7" size={40} />
-                      <p>Loading trade history...</p>
-                    </div>
-                  ) : tradesError ? (
-                    <div className="error-message">
-                      <FaExclamationTriangle />
-                      <p>{tradesError}</p>
-                      <button 
-                        className="retry-button"
-                        onClick={() => fetchUserTrades(selectedUser._id)}
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  ) : userTrades.length === 0 ? (
-                    <div className="empty-state">
-                      <FaExchangeAlt size={40} />
-                      <p>No trades found.</p>
-                      <p className="empty-subtitle">The user hasn't made any trades yet.</p>
-                    </div>
-                  ) : (
-                    <div className="trades-list">
-                      <table className="trades-table">
-                        <thead>
-                          <tr>
-                            <th>Date</th>
-                            <th>Item</th>
-                            <th>Role</th>
-                            <th>Counterparty</th>
-                            <th>Price</th>
-                            <th>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {userTrades.map((trade) => {
-                            // Determine if user is buyer or seller
-                            const isSeller = trade.isUserSeller;
-                            const counterparty = isSeller 
-                              ? (trade.buyer?.displayName || 'Unknown Buyer') 
-                              : (trade.seller?.displayName || 'Unknown Seller');
-                            const counterpartyAvatar = isSeller
-                              ? (trade.buyer?.avatar || null)
-                              : (trade.seller?.avatar || null);
-                              
-                            // Format the trade status for display
-                            const getStatusDisplay = (status) => {
-                              const statusMap = {
-                                'completed': {text: 'Completed', color: '#28a745'},
-                                'cancelled': {text: 'Cancelled', color: '#dc3545'},
-                                'failed': {text: 'Failed', color: '#dc3545'},
-                                'pending': {text: 'Pending', color: '#ffc107'},
-                                'awaiting_seller': {text: 'Awaiting Seller', color: '#17a2b8'},
-                                'awaiting_confirmation': {text: 'Awaiting Confirmation', color: '#17a2b8'},
-                                'offer_sent': {text: 'Offer Sent', color: '#17a2b8'},
-                                'created': {text: 'Created', color: '#6c757d'}
-                              };
-                              return statusMap[status] || {text: status, color: '#6c757d'};
-                            };
-                            
-                            const statusInfo = getStatusDisplay(trade.status);
-                            
-                            return (
-                              <tr key={trade._id} className={`trade-row ${trade.status}`}>
-                                <td>{new Date(trade.createdAt).toLocaleDateString()}</td>
-                                <td>
-                                  <div className="trade-item">
-                                    <img 
-                                      src={trade.itemImage || trade.item?.imageUrl || 'https://community.akamai.steamstatic.com/economy/image/placeholder/360fx360f'} 
-                                      alt={trade.itemName || trade.item?.marketHashName || 'Item'} 
-                                      className="trade-item-img"
-                                    />
-                                    <span>{trade.itemName || trade.item?.marketHashName || 'Unknown Item'}</span>
-                                  </div>
-                                </td>
-                                <td className={isSeller ? 'seller-role' : 'buyer-role'}>
-                                  {isSeller ? 'Seller' : 'Buyer'}
-                                </td>
-                                <td>
-                                  <div className="user-small">
-                                    {counterpartyAvatar ? (
-                                      <img 
-                                        src={counterpartyAvatar} 
-                                        alt={counterparty}
-                                        className="user-avatar-small" 
-                                      />
-                                    ) : (
-                                      <div className="user-avatar-placeholder-small">
-                                        <FaUser size={12} />
-                                      </div>
-                                    )}
-                                    <span>{counterparty}</span>
-                                  </div>
-                                </td>
-                                <td>${(trade.price || 0).toFixed(2)}</td>
-                                <td>
-                                  <span className="status-badge" style={{backgroundColor: statusInfo.color}}>
-                                    {statusInfo.text}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           ) : (
             <div className="error-container">

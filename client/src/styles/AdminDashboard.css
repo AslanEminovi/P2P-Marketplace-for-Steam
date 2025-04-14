@@ -214,4 +214,107 @@
 
 .ReactModal__Content--before-close {
   transform: translate(-50%, -50%) scale(0.9);
+}
+
+/* User management section */
+.user-management {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-management h3 {
+  margin-bottom: 15px;
+  font-size: 18px;
+  color: #e1e1e1;
+}
+
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  min-width: 140px;
+}
+
+.action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.action-button.ban {
+  background-color: #dc3545;
+  color: white;
+}
+
+.action-button.ban:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.action-button.unban {
+  background-color: #28a745;
+  color: white;
+}
+
+.action-button.unban:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.action-button.make-admin,
+.action-button.make-mod {
+  background-color: #007bff;
+  color: white;
+}
+
+.action-button.make-admin:hover:not(:disabled),
+.action-button.make-mod:hover:not(:disabled) {
+  background-color: #0069d9;
+}
+
+.action-button.remove-admin,
+.action-button.remove-mod {
+  background-color: #6c757d;
+  color: white;
+}
+
+.action-button.remove-admin:hover:not(:disabled),
+.action-button.remove-mod:hover:not(:disabled) {
+  background-color: #5a6268;
+}
+
+/* User role badges */
+.user-role {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.user-role.admin {
+  background-color: #007bff;
+  color: white;
+}
+
+.user-role.moderator {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.error-text {
+  color: #dc3545;
 } 

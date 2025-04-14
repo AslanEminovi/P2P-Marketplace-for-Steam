@@ -967,4 +967,137 @@ router.post("/users/:userId/unban", async (req, res) => {
   }
 });
 
+/**
+ * @route   GET /admin/user-inventory-value/:steamId
+ * @desc    Get just the total value of a user's inventory (lightweight)
+ * @access  Admin
+ */
+router.get("/user-inventory-value/:steamId", async (req, res) => {
+  try {
+    const { steamId } = req.params;
+
+    if (!steamId) {
+      return res.status(400).json({ error: "Steam ID is required" });
+    }
+
+    // Find the user by steamId first
+    const User = mongoose.model("User");
+    const user = await User.findOne({ steamId }).lean();
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ error: "User not found with that Steam ID", totalValue: 0 });
+    }
+
+    // Find the user's items in our system
+    const Item = mongoose.model("Item");
+    const userItems = await Item.find({
+      ownerId: user._id,
+      owner: user._id,
+    }).lean();
+
+    // Calculate total value
+    const totalValue = userItems.reduce((sum, item) => {
+      return sum + (parseFloat(item.price) || 0);
+    }, 0);
+
+    console.log(
+      `Total inventory value for user ${steamId}: $${totalValue.toFixed(2)}`
+    );
+
+    res.json({
+      totalValue,
+      itemCount: userItems.length,
+      timestamp: new Date(),
+    });
+  } catch (error) {
+    console.error("Error calculating inventory value:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to calculate inventory value", totalValue: 0 });
+  }
+});
+
+/**
+ * @route   POST /admin/users/:userId/role
+ * @desc    Add or remove user role (admin/moderator)
+ * @access  Admin
+ */
+router.post("/users/:userId/role", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role, action } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    if (!role || !["admin", "moderator"].includes(role)) {
+      return res
+        .status(400)
+        .json({ error: "Valid role (admin/moderator) is required" });
+    }
+
+    if (!action || !["add", "remove"].includes(action)) {
+      return res
+        .status(400)
+        .json({ error: "Valid action (add/remove) is required" });
+    }
+
+    // Validate the userId format
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.error(`Invalid user ID format: ${userId}`);
+      return res.status(400).json({ error: "Invalid user ID format" });
+    }
+
+    // Make sure admin isn't removing their own admin role
+    if (
+      userId === req.user._id.toString() &&
+      role === "admin" &&
+      action === "remove"
+    ) {
+      return res
+        .status(400)
+        .json({ error: "You cannot remove your own admin role" });
+    }
+
+    // Get the User model
+    const User = mongoose.model("User");
+
+    // Update field depends on the role
+    const updateField = role === "admin" ? "isAdmin" : "isModerator";
+    const updateValue = action === "add";
+
+    // Update the user's role
+    const updateData = {};
+    updateData[updateField] = updateValue;
+
+    const user = await User.findByIdAndUpdate(userId, updateData, {
+      new: true,
+    }).select("-refreshToken");
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    console.log(
+      `Admin ${req.user.displayName} (${req.user._id}) ${action}ed ${role} role for user ${user.displayName} (${user._id})`
+    );
+
+    res.json({
+      success: true,
+      user: {
+        _id: user._id,
+        displayName: user.displayName,
+        isAdmin: user.isAdmin,
+        isModerator: user.isModerator,
+      },
+    });
+  } catch (error) {
+    console.error("Error changing user role:", error);
+    res.status(500).json({ error: "Failed to update user role" });
+  }
+});
+
 module.exports = router;
