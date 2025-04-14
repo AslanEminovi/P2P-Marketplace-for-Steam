@@ -25,7 +25,7 @@ import {
 } from 'react-icons/fa';
 import { API_URL } from '../config/constants';
 import './AdminTools.css';
-import { socket } from '../services/socketService';
+import { socketService } from '../services/socketService';
 
 // Add Error Boundary component
 class ErrorBoundary extends Component {
@@ -93,19 +93,34 @@ const AdminTools = () => {
 
   // Check if user is admin
   useEffect(() => {
-    const checkAdmin = async () => {
+    const checkAdminStatus = async () => {
       try {
-        const response = await axios.get(`${API_URL}/admin/check`, { withCredentials: true });
+        const response = await axios.get('/api/admin/check');
         setIsAdmin(response.data.isAdmin);
       } catch (error) {
         console.error('Error checking admin status:', error);
-        setIsAdmin(false);
-      } finally {
-        setLoading(false);
+        toast.error('Failed to verify admin status');
       }
     };
 
-    checkAdmin();
+    checkAdminStatus();
+
+    // Listen for user status updates
+    const handleUserStatusUpdate = (data) => {
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user._id === data.userId 
+            ? { ...user, status: data.status }
+            : user
+        )
+      );
+    };
+
+    socketService.on('userStatusUpdate', handleUserStatusUpdate);
+
+    return () => {
+      socketService.off('userStatusUpdate', handleUserStatusUpdate);
+    };
   }, []);
 
   // Fetch users and statistics when admin is confirmed
@@ -170,25 +185,6 @@ const AdminTools = () => {
       toast.error('Failed to fetch statistics');
     }
   };
-
-  // Add WebSocket listener for user status updates
-  useEffect(() => {
-    const handleUserStatus = (data) => {
-      setUserStatus(prev => ({
-        ...prev,
-        [data.userId]: {
-          isOnline: data.isOnline,
-          lastSeen: data.lastSeen
-        }
-      }));
-    };
-
-    socket.on('userStatusUpdate', handleUserStatus);
-
-    return () => {
-      socket.off('userStatusUpdate', handleUserStatus);
-    };
-  }, []);
 
   // Handle user selection for details
   const handleUserClick = async (user) => {
