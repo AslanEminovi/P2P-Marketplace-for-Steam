@@ -6,7 +6,9 @@
 console.log("Environment: ", process.env.NODE_ENV);
 console.log("API URL from env: ", process.env.REACT_APP_API_URL);
 
-export const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
+// API base URL
+export const API_URL =
+  process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 console.log("Using API_URL: ", API_URL);
 
 // Add production settings
@@ -16,36 +18,85 @@ console.log("Is Production: ", IS_PRODUCTION);
 // Platform fee (as a percentage)
 export const PLATFORM_FEE = 2.5;
 
-// Item rarities with their corresponding colors
+// Application constants
+export const APP_NAME = "CS2 Marketplace";
+export const COMPANY_NAME = "CS2 Marketplace Georgia";
+export const SUPPORT_EMAIL = "support@cs2marketplace.com";
+
+// Item categories
+export const ITEM_CATEGORIES = {
+  WEAPONS: "weapons",
+  KNIVES: "knives",
+  GLOVES: "gloves",
+  AGENTS: "agents",
+  STICKERS: "stickers",
+  CASES: "cases",
+  KEYS: "keys",
+  OTHER: "other",
+};
+
+// Item rarities with colors
 export const ITEM_RARITIES = {
-  "Consumer Grade": {
-    color: "#b0c3d9",
-    gradient: "linear-gradient(to right, #b0c3d9, #8fa0b5)",
-  },
-  "Industrial Grade": {
-    color: "#5e98d9",
-    gradient: "linear-gradient(to right, #5e98d9, #4b7cb1)",
-  },
-  "Mil-Spec Grade": {
-    color: "#4b69ff",
-    gradient: "linear-gradient(to right, #4b69ff, #3b4fd4)",
-  },
-  Restricted: {
-    color: "#8847ff",
-    gradient: "linear-gradient(to right, #8847ff, #6a38c5)",
-  },
-  Classified: {
-    color: "#d32ee6",
-    gradient: "linear-gradient(to right, #d32ee6, #a825b9)",
-  },
-  Covert: {
-    color: "#eb4b4b",
-    gradient: "linear-gradient(to right, #eb4b4b, #c23131)",
-  },
-  Contraband: {
-    color: "#e4ae39",
-    gradient: "linear-gradient(to right, #e4ae39, #b68a2d)",
-  },
+  CONSUMER: { name: "Consumer", color: "#b0c3d9" },
+  INDUSTRIAL: { name: "Industrial", color: "#5e98d9" },
+  MIL_SPEC: { name: "Mil-Spec", color: "#4b69ff" },
+  RESTRICTED: { name: "Restricted", color: "#8847ff" },
+  CLASSIFIED: { name: "Classified", color: "#d32ee6" },
+  COVERT: { name: "Covert", color: "#eb4b4b" },
+  EXTRAORDINARY: { name: "Extraordinary", color: "#ffd700" },
+  CONTRABAND: { name: "Contraband", color: "#e4ae39" },
+};
+
+// Item wear with ranges
+export const ITEM_WEAR = {
+  FACTORY_NEW: { name: "Factory New", range: [0, 0.07] },
+  MINIMAL_WEAR: { name: "Minimal Wear", range: [0.07, 0.15] },
+  FIELD_TESTED: { name: "Field-Tested", range: [0.15, 0.38] },
+  WELL_WORN: { name: "Well-Worn", range: [0.38, 0.45] },
+  BATTLE_SCARRED: { name: "Battle-Scarred", range: [0.45, 1] },
+};
+
+// Pagination defaults
+export const PAGINATION = {
+  DEFAULT_PAGE: 1,
+  DEFAULT_LIMIT: 20,
+  MAX_LIMIT: 100,
+};
+
+// Notification types
+export const NOTIFICATION_TYPES = {
+  INFO: "INFO",
+  SUCCESS: "SUCCESS",
+  WARNING: "WARNING",
+  ERROR: "ERROR",
+};
+
+// Trade statuses
+export const TRADE_STATUS = {
+  PENDING: "pending",
+  ACCEPTED: "accepted",
+  DECLINED: "declined",
+  CANCELLED: "cancelled",
+  COMPLETED: "completed",
+  FAILED: "failed",
+};
+
+// Socket events
+export const SOCKET_EVENTS = {
+  CONNECT: "connect",
+  DISCONNECT: "disconnect",
+  NEW_LISTING: "new_listing",
+  LISTING_SOLD: "listing_sold",
+  TRADE_UPDATED: "trade_updated",
+  NOTIFICATION: "notification",
+  USER_UPDATED: "user_updated",
+};
+
+// Currency formatting
+export const CURRENCY = {
+  SYMBOL: "₾", // Georgian Lari
+  CODE: "GEL",
+  LOCALE: "ka-GE",
 };
 
 // Item wear levels with their corresponding labels and colors

@@ -1,0 +1,7 @@
+.page-wrapper {
+  min-height: calc(100vh - 64px - 200px); /* Adjust for header and footer heights */
+  padding: 1.5rem 1rem;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+} 
