@@ -420,6 +420,49 @@ const NotificationCenter = ({ user }) => {
     };
   }, []);
 
+  // Add this function to fetch all notifications
+  const fetchAllNotifications = async () => {
+    if (allNotificationsLoading) return;
+
+    setAllNotificationsLoading(true);
+    try {
+      const response = await axios.get(`${API_URL}/user/notifications`, {
+        withCredentials: true,
+        params: { limit: 50, offset: 0 } // Get more notifications for the all view
+      });
+
+      setAllNotifications(response.data.notifications || []);
+    } catch (err) {
+      console.error('Error fetching all notifications:', err);
+    } finally {
+      setAllNotificationsLoading(false);
+    }
+  };
+
+  // Handle opening the side panel with all notifications
+  const handleViewAllNotifications = (e) => {
+    e.preventDefault();
+    setShowAllNotifications(true);
+    fetchAllNotifications();
+    setIsOpen(false); // Close the dropdown
+  };
+
+  // Effect to handle clicking outside the side panel
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (sidePanelRef.current && 
+          !sidePanelRef.current.contains(event.target) && 
+          showAllNotifications) {
+        setShowAllNotifications(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showAllNotifications]);
+
   return (
     <>
       {/* Welcome notification - only shown on first visit */}
@@ -759,9 +802,329 @@ const NotificationCenter = ({ user }) => {
                 ))
               )}
             </div>
+
+            {/* Add View All button at the bottom of dropdown */}
+            {notifications.length > 0 && (
+              <div
+                style={{
+                  padding: '12px',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                  textAlign: 'center'
+                }}
+              >
+                <button
+                  onClick={handleViewAllNotifications}
+                  style={{
+                    color: '#cbd5e1',
+                    textDecoration: 'none',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '5px',
+                    padding: '8px',
+                    borderRadius: '8px',
+                    transition: 'all 0.2s ease',
+                    background: 'none',
+                    border: 'none',
+                    width: '100%',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                    e.target.style.color = '#f1f1f1';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
+                    e.target.style.color = '#cbd5e1';
+                  }}
+                >
+                  View All Notifications
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* Add Side Panel for All Notifications */}
+      {showAllNotifications && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            right: 0,
+            width: '400px',
+            height: '100vh',
+            backgroundColor: 'rgba(23, 15, 60, 0.95)',
+            boxShadow: '-5px 0 25px rgba(0, 0, 0, 0.3)',
+            zIndex: 9999,
+            overflowY: 'auto',
+            backdropFilter: 'blur(10px)',
+            transition: 'transform 0.3s ease-in-out',
+            transform: showAllNotifications ? 'translateX(0)' : 'translateX(100%)'
+          }}
+          ref={sidePanelRef}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '20px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+            }}
+          >
+            <h2 style={{ color: '#f1f1f1', margin: 0, fontSize: '1.5rem' }}>
+              All Notifications
+            </h2>
+            <button
+              onClick={() => setShowAllNotifications(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#f1f1f1',
+                cursor: 'pointer',
+                padding: '8px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div style={{ padding: '20px' }}>
+            {unreadCount > 0 && (
+              <button
+                onClick={() => markAsRead()}
+                style={{
+                  backgroundColor: 'rgba(74, 222, 128, 0.2)',
+                  color: '#4ade80',
+                  border: 'none',
+                  padding: '10px 15px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  fontWeight: '500',
+                  marginBottom: '20px',
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6L9 17 4 12"></path>
+                </svg>
+                Mark All as Read
+              </button>
+            )}
+
+            {allNotificationsLoading ? (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '40px 0'
+                }}
+              >
+                <div className="spinner" style={{
+                  display: 'inline-block',
+                  width: '40px',
+                  height: '40px',
+                  border: '3px solid rgba(255, 255, 255, 0.1)',
+                  borderTop: '3px solid #4ade80',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  marginBottom: '15px'
+                }} />
+                <p style={{ color: '#94a3b8' }}>Loading notifications...</p>
+              </div>
+            ) : allNotifications.length === 0 ? (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '60px 0',
+                  color: '#94a3b8'
+                }}
+              >
+                <svg
+                  width="64"
+                  height="64"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ marginBottom: '20px', opacity: 0.7 }}
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  <path d="M3 9l9 6 9-6"></path>
+                </svg>
+                <h3 style={{ margin: '0 0 10px 0' }}>No notifications yet</h3>
+                <p style={{ margin: 0, opacity: 0.7 }}>You'll see your notifications here when you receive them</p>
+              </div>
+            ) : (
+              allNotifications.map((notification) => (
+                <div
+                  key={notification._id}
+                  className="notification-item"
+                  style={{
+                    padding: '15px',
+                    marginBottom: '12px',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                    background: notification.read
+                      ? 'rgba(45, 27, 105, 0.5)'
+                      : 'rgba(76, 44, 166, 0.2)',
+                    backdropFilter: 'blur(8px)',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    position: 'relative',
+                    borderRadius: '12px',
+                    boxShadow: notification.read ? 'none' : '0 4px 12px rgba(0, 0, 0, 0.1)'
+                  }}
+                  onClick={() => {
+                    if (!notification.read) {
+                      markAsRead(notification._id);
+                    }
+                    
+                    if (notification.link) {
+                      window.location.href = notification.link;
+                      setShowAllNotifications(false);
+                    }
+                  }}
+                >
+                  <div style={{ display: 'flex' }}>
+                    <div
+                      style={{
+                        marginRight: '15px',
+                        padding: '10px',
+                        backgroundColor: notification.read
+                          ? 'rgba(255, 255, 255, 0.1)'
+                          : 'rgba(76, 44, 166, 0.8)',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: notification.read
+                          ? 'none'
+                          : '0 0 15px rgba(76, 44, 166, 0.3)',
+                        width: '42px',
+                        height: '42px',
+                        minWidth: '42px',
+                        alignSelf: 'flex-start'
+                      }}
+                    >
+                      {getNotificationIcon(notification.type)}
+                    </div>
+                    
+                    <div style={{ flex: 1 }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        justifyContent: 'space-between',
+                        marginBottom: '6px'
+                      }}>
+                        <h4 style={{
+                          margin: 0,
+                          fontSize: '16px',
+                          fontWeight: '600',
+                          color: '#f1f1f1'
+                        }}>
+                          {notification.title}
+                        </h4>
+                        
+                        <span style={{
+                          color: '#9ca3af',
+                          fontSize: '12px',
+                          marginLeft: '10px',
+                          flexShrink: 0
+                        }}>
+                          {formatDate(notification.createdAt)}
+                        </span>
+                      </div>
+                      
+                      <p style={{
+                        color: notification.read ? '#94a3b8' : '#d1d5db',
+                        margin: '0 0 8px 0',
+                        fontSize: '14px',
+                        lineHeight: '1.5'
+                      }}>
+                        {notification.message}
+                      </p>
+                      
+                      {notification.link && (
+                        <div>
+                          <Link
+                            to={notification.link}
+                            style={{
+                              color: '#4ade80',
+                              fontSize: '14px',
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              marginTop: '6px',
+                              fontWeight: '500'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowAllNotifications(false);
+                              if (!notification.read) {
+                                markAsRead(notification._id);
+                              }
+                            }}
+                          >
+                            View Details
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M5 12h14M12 5l7 7-7 7" />
+                            </svg>
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Unread indicator */}
+                  {!notification.read && (
+                    <div
+                      className="pulse"
+                      style={{
+                        position: 'absolute',
+                        top: '15px',
+                        right: '16px',
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        backgroundColor: '#4ade80',
+                        boxShadow: '0 0 10px rgba(74, 222, 128, 0.5)'
+                      }}
+                    />
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -240,8 +240,10 @@ const Navbar = ({ user, onLogout }) => {
           <div className="navbar-right">
             {user ? (
               <div className="user-section" style={{ display: 'flex', alignItems: 'center' }}>
-                {/* Add NotificationCenter before the balance display to position it on the right */}
-                {user && <NotificationCenter user={user} />}
+                {/* Position notification center on the RIGHT of profile button */}
+                <div style={{ display: 'flex', alignItems: 'center', marginLeft: '15px' }}>
+                  {user && <NotificationCenter user={user} />}
+                </div>
                 
                 <div className="balance-display">
                   <div className="balance-icon">
