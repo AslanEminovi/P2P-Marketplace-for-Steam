@@ -123,59 +123,25 @@ const AdminTools = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      console.log('Fetching users from API:', `${API_URL}/admin/users`);
+      const response = await axios.get(`${API_URL}/admin/users`, { withCredentials: true });
+      console.log('Users data received:', response.data);
       
-      const response = await axios.get(`${API_URL}/admin/users`, { 
-        withCredentials: true,
-        timeout: 15000 // Extend timeout to 15 seconds
-      });
-      
-      console.log('Users API response received:', response.status);
-      console.log('Response data type:', typeof response.data);
-      console.log('Is array?', Array.isArray(response.data));
-      
-      if (response.data) {
-        // Handle both array response and object with users property
-        const userData = Array.isArray(response.data) ? response.data : (response.data.users || []);
-        
-        console.log(`Successfully fetched ${userData.length} users`);
-        
-        if (userData.length > 0) {
-          console.log('First user sample:', {
-            id: userData[0]._id,
-            displayName: userData[0].displayName,
-            avatar: userData[0].avatar ? 'exists' : 'missing',
-            avatarMedium: userData[0].avatarMedium ? 'exists' : 'missing',
-            avatarFull: userData[0].avatarFull ? 'exists' : 'missing',
-            steamId: userData[0].steamId
-          });
-        } else {
-          console.log('No users found in response data');
-        }
-        
-        setUsers(userData);
-        setFilteredUsers(userData);
-      } else {
-        console.warn('API returned empty data');
-        setUsers([]);
-        setFilteredUsers([]);
-        toast.error('No user data received from server');
+      if (response.data && response.data.length > 0) {
+        console.log('First user data sample:', {
+          id: response.data[0]._id,
+          displayName: response.data[0].displayName,
+          avatar: response.data[0].avatar,
+          avatarMedium: response.data[0].avatarMedium,
+          avatarFull: response.data[0].avatarFull,
+          steamId: response.data[0].steamId
+        });
       }
+      
+      setUsers(response.data);
+      setFilteredUsers(response.data);
     } catch (error) {
       console.error('Error fetching users:', error);
-      
-      // Show a more detailed error message
-      let errorMessage = 'Failed to fetch users';
-      if (error.response) {
-        errorMessage += ` (Status: ${error.response.status})`;
-        console.error('Error response:', error.response.data);
-      } else if (error.request) {
-        errorMessage += ' (No response received)';
-      } else {
-        errorMessage += `: ${error.message}`;
-      }
-      
-      toast.error(errorMessage);
+      toast.error('Failed to fetch users');
     } finally {
       setLoading(false);
     }
@@ -678,4 +644,4 @@ const AdminTools = () => {
   );
 };
 
-export default AdminTools; 
+export default AdminTools;
