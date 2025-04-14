@@ -1,0 +1,702 @@
+.settings-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px;
+  color: #f1f1f1;
+}
+
+.settings-header {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.settings-header h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  background: linear-gradient(90deg, #4ade80, #38bdf8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.settings-header p {
+  color: #94a3b8;
+  font-size: 1.1rem;
+}
+
+.settings-layout {
+  display: flex;
+  gap: 30px;
+  min-height: 600px;
+}
+
+.settings-sidebar {
+  width: 300px;
+  background: rgba(31, 41, 55, 0.7);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.settings-user-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 3px solid #4ade80;
+  object-fit: cover;
+}
+
+.settings-user-details h3 {
+  margin: 0 0 5px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.settings-user-details p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #e2e8f0;
+  transition: all 0.2s ease;
+  text-align: left;
+  position: relative;
+}
+
+.settings-nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.settings-nav-item.active {
+  background: rgba(74, 222, 128, 0.15);
+  border-left: 3px solid #4ade80;
+  color: #4ade80;
+}
+
+.settings-nav-icon {
+  font-size: 1.2rem;
+  width: 24px;
+}
+
+.settings-nav-label {
+  flex: 1;
+  font-weight: 500;
+}
+
+.settings-nav-arrow {
+  font-size: 0.8rem;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.settings-nav-item:hover .settings-nav-arrow,
+.settings-nav-item.active .settings-nav-arrow {
+  opacity: 1;
+  transform: translateX(3px);
+}
+
+.settings-content {
+  flex: 1;
+  background: rgba(31, 41, 55, 0.7);
+  border-radius: 12px;
+  padding: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.settings-content-section {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.settings-content-section h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #f1f1f1;
+}
+
+.settings-section-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 30px 0 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-title-icon {
+  color: #4ade80;
+}
+
+.settings-description {
+  color: #94a3b8;
+  margin-bottom: 25px;
+  line-height: 1.6;
+}
+
+.settings-form-group {
+  margin-bottom: 25px;
+}
+
+.settings-form-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-weight: 500;
+  color: #e2e8f0;
+}
+
+.settings-input-icon {
+  color: #4ade80;
+}
+
+.settings-input {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: #111827;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  color: #f1f1f1;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.settings-input:focus {
+  border-color: #4ade80;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.2);
+}
+
+.settings-input::placeholder {
+  color: #6b7280;
+}
+
+.settings-save-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: #4ade80;
+  color: #111827;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.settings-save-button:hover:not(:disabled) {
+  background-color: #22c55e;
+  transform: translateY(-1px);
+}
+
+.settings-save-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.settings-button-icon {
+  font-size: 1.1rem;
+}
+
+.settings-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(17, 24, 39, 0.3);
+  border-radius: 50%;
+  border-top-color: #111827;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.settings-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  gap: 20px;
+}
+
+.settings-loading .settings-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #4ade80;
+}
+
+.settings-error {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-left: 3px solid #ef4444;
+}
+
+/* Toggle switch styling */
+.settings-toggle-group {
+  background-color: rgba(17, 24, 39, 0.5);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 15px;
+  border: 1px solid #374151;
+  transition: all 0.2s ease;
+}
+
+.settings-toggle-group:hover {
+  background-color: rgba(31, 41, 55, 0.7);
+  border-color: #4b5563;
+}
+
+.settings-toggle-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  width: 100%;
+}
+
+.settings-toggle-icon {
+  color: #4ade80;
+  margin-right: 10px;
+}
+
+.settings-toggle-description {
+  display: block;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-top: 5px;
+  margin-left: 28px;
+}
+
+.settings-toggle-switch {
+  position: relative;
+  width: 50px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.settings-toggle-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.settings-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #4b5563;
+  transition: .4s;
+  border-radius: 34px;
+}
+
+.settings-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+.settings-toggle-input:checked + .settings-toggle-slider {
+  background-color: #4ade80;
+}
+
+.settings-toggle-input:checked + .settings-toggle-slider:before {
+  transform: translateX(26px);
+}
+
+/* Wallet section styling */
+.settings-wallet-summary {
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.1), rgba(56, 189, 248, 0.1));
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 30px;
+  border: 1px solid rgba(74, 222, 128, 0.2);
+}
+
+.settings-wallet-balance {
+  display: flex;
+  justify-content: space-around;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.settings-wallet-currency {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px 20px;
+  background: rgba(17, 24, 39, 0.6);
+  border-radius: 10px;
+  min-width: 220px;
+}
+
+.settings-wallet-icon,
+.settings-currency-symbol {
+  font-size: 1.8rem;
+  color: #4ade80;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(74, 222, 128, 0.1);
+  border-radius: 50%;
+}
+
+.settings-currency-symbol {
+  font-size: 1.6rem;
+  font-weight: bold;
+}
+
+.settings-wallet-currency h3 {
+  margin: 0 0 5px 0;
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+.settings-balance-amount {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f1f1f1;
+}
+
+.settings-wallet-wrapper {
+  background: rgba(17, 24, 39, 0.4);
+  border-radius: 10px;
+  padding: 20px;
+  border: 1px solid #374151;
+}
+
+/* Steam trading settings */
+.settings-steam-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(17, 24, 39, 0.4);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 30px;
+  border: 1px solid #374151;
+}
+
+.settings-steam-account {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.settings-steam-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 2px solid #4ade80;
+}
+
+.settings-steam-account h3 {
+  margin: 0 0 5px 0;
+  font-size: 1.1rem;
+}
+
+.settings-steam-account p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+.settings-steam-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(74, 222, 128, 0.1);
+  padding: 8px 15px;
+  border-radius: 20px;
+  color: #4ade80;
+  font-weight: 500;
+}
+
+.settings-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.settings-status-dot.online {
+  background-color: #4ade80;
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+}
+
+.settings-steam-options {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.settings-steam-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(17, 24, 39, 0.6);
+  border-radius: 10px;
+  padding: 20px;
+  transition: all 0.2s ease;
+  border: 1px solid #374151;
+}
+
+.settings-steam-option:hover {
+  background: rgba(31, 41, 55, 0.8);
+  transform: translateY(-2px);
+  border-color: #4b5563;
+}
+
+.settings-steam-option h4 {
+  margin: 0 0 5px 0;
+  font-size: 1.1rem;
+  color: #f1f1f1;
+}
+
+.settings-steam-option p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #94a3b8;
+  max-width: 400px;
+}
+
+.settings-action-button {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  font-size: 0.9rem;
+  display: inline-block;
+}
+
+.settings-action-button:hover:not(:disabled) {
+  background-color: #2563eb;
+  transform: translateY(-1px);
+}
+
+.settings-action-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background-color: #6b7280;
+}
+
+/* Security settings */
+.settings-security-info {
+  background: rgba(17, 24, 39, 0.4);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 30px;
+  border: 1px solid #374151;
+  text-align: center;
+}
+
+.settings-security-info h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.2rem;
+}
+
+.settings-security-level {
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.settings-security-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80, #38bdf8);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.settings-security-info p {
+  margin: 10px 0 0;
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+.settings-security-options {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.settings-security-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(17, 24, 39, 0.6);
+  border-radius: 10px;
+  padding: 20px;
+  transition: all 0.2s ease;
+  border: 1px solid #374151;
+}
+
+.settings-security-option:hover {
+  background: rgba(31, 41, 55, 0.8);
+  transform: translateY(-2px);
+  border-color: #4b5563;
+}
+
+.settings-security-option h4 {
+  margin: 0 0 5px 0;
+  font-size: 1.1rem;
+  color: #f1f1f1;
+}
+
+.settings-security-option p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .settings-layout {
+    flex-direction: column;
+  }
+  
+  .settings-sidebar {
+    width: 100%;
+  }
+  
+  .settings-user-info {
+    justify-content: center;
+  }
+  
+  .settings-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+  }
+  
+  .settings-wallet-balance {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .settings-wallet-currency {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .settings-container {
+    padding: 15px;
+  }
+  
+  .settings-header h1 {
+    font-size: 1.8rem;
+  }
+  
+  .settings-content {
+    padding: 20px;
+  }
+  
+  .settings-steam-status,
+  .settings-steam-option,
+  .settings-security-option {
+    flex-direction: column;
+    text-align: center;
+    gap: 15px;
+  }
+  
+  .settings-steam-account {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .settings-save-button {
+    max-width: 100%;
+  }
+  
+  .settings-toggle-label {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .settings-toggle-description {
+    margin-left: 0;
+  }
+  
+  .settings-toggle-switch {
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-nav {
+    grid-template-columns: 1fr;
+  }
+  
+  .settings-content-section h2 {
+    font-size: 1.3rem;
+  }
+} 

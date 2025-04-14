@@ -16,6 +16,7 @@ import Inventory from './pages/Inventory';
 import Marketplace from './pages/Marketplace';
 import MyListings from './pages/MyListings';
 import Profile from './pages/Profile';
+import Settings from './pages/Settings';
 import TradeDetailPage from './pages/TradeDetailPage';
 import SteamSettingsPage from './pages/SteamSettings';
 import Trades from './pages/Trades';
@@ -905,7 +906,7 @@ function App() {
             <Route path="/settings" element={
               <ProtectedRoute user={user}>
                 <PageWrapper key="settings">
-                  <Profile user={user} onBalanceUpdate={refreshWalletBalance} defaultTab="settings" />
+                  <Settings user={user} onBalanceUpdate={refreshWalletBalance} />
                 </PageWrapper>
               </ProtectedRoute>
             } />
