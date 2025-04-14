@@ -1,5 +1,15 @@
-// This script performs cleanup operations on page load
-console.log("Cleanup script executed");
+// Simple cleanup script
+console.log("Cleanup script running");
+
+// Safe way to test and clear localStorage if needed
+try {
+  // Test localStorage access
+  if (window.localStorage) {
+    console.log("LocalStorage is available");
+  }
+} catch (e) {
+  console.log("LocalStorage access error");
+}
 
 // Check for stuck background colors and reset them
 if (
@@ -15,12 +25,4 @@ if (document.body.classList.contains("modal-open")) {
   console.log("Removing stuck modal-open class");
   document.body.classList.remove("modal-open");
   document.body.style.overflow = "";
-}
-
-// Check for localStorage errors and handle them
-try {
-  // Test if localStorage is accessible
-  localStorage.getItem("test");
-} catch (error) {
-  console.log("localStorage not available, skipping cleanup");
 }
