@@ -6,6 +6,8 @@
   padding: 20px;
   max-height: calc(100vh - 120px);
   overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
   margin-bottom: 20px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -15,7 +17,7 @@
 }
 
 .toc-container::-webkit-scrollbar {
-  width: 5px;
+  display: none; /* Chrome, Safari and Opera */
 }
 
 .toc-container::-webkit-scrollbar-track {
