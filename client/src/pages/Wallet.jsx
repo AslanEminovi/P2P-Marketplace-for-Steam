@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { 
@@ -7,7 +7,8 @@ import {
   FaHistory, 
   FaExchangeAlt,
   FaPlus,
-  FaMinus
+  FaMinus,
+  FaChevronDown
 } from 'react-icons/fa';
 import { API_URL } from '../config/constants';
 import './Wallet.css';
@@ -17,6 +18,8 @@ const Wallet = ({ user, onBalanceUpdate }) => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
+  const [selectedCurrency, setSelectedCurrency] = useState('USD');
   
   // Deposit form state
   const [depositAmount, setDepositAmount] = useState('');
@@ -28,12 +31,29 @@ const Wallet = ({ user, onBalanceUpdate }) => {
   const [withdrawCurrency, setWithdrawCurrency] = useState('USD');
   const [withdrawMethod, setWithdrawMethod] = useState('bankTransfer');
   const [accountDetails, setAccountDetails] = useState('');
+
+  // Ref for currency dropdown
+  const dropdownRef = useRef(null);
   
   useEffect(() => {
     if (activeTab === 'transactions') {
       fetchTransactions();
     }
   }, [activeTab]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowCurrencyDropdown(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   
   const fetchTransactions = async () => {
     setLoading(true);
@@ -144,30 +164,66 @@ const Wallet = ({ user, onBalanceUpdate }) => {
     return `${amount.toFixed(2)} ${currency}`;
   };
 
+  const toggleCurrencyDropdown = () => {
+    setShowCurrencyDropdown(!showCurrencyDropdown);
+  };
+
+  const changeCurrency = (currency) => {
+    setSelectedCurrency(currency);
+    setShowCurrencyDropdown(false);
+  };
+
+  // Display balance based on selected currency
+  const displayBalance = () => {
+    if (selectedCurrency === 'USD') {
+      return `$${user?.walletBalance?.toFixed(2) || '0.00'}`;
+    } else {
+      return `${user?.walletBalanceGEL?.toFixed(2) || '0.00'} ₾`;
+    }
+  };
+
   return (
     <div className="wallet-container">
-      <div className="wallet-header">
-        <h1><FaWallet /> My Wallet</h1>
-        <p>Manage your funds and transaction history</p>
-      </div>
-
-      {/* Wallet Balance Cards */}
-      <div className="wallet-balance-cards">
-        <div className="wallet-balance-card">
-          <div className="wallet-balance-card-header">
-            <h3>USD Balance</h3>
-          </div>
-          <div className="wallet-balance-card-body">
-            <span className="wallet-amount">${user?.walletBalance?.toFixed(2) || '0.00'}</span>
-          </div>
+      <div className="wallet-top-section">
+        <div className="wallet-header">
+          <h1><FaWallet /> My Wallet</h1>
+          <p>Manage your funds and transaction history</p>
         </div>
-        <div className="wallet-balance-card">
-          <div className="wallet-balance-card-header">
-            <h3>GEL Balance</h3>
+
+        <div className="wallet-actions-top">
+          {/* Currency dropdown */}
+          <div className="wallet-currency-dropdown" ref={dropdownRef}>
+            <button className="wallet-balance-display" onClick={toggleCurrencyDropdown}>
+              <span>{displayBalance()}</span>
+              <FaChevronDown className={`dropdown-arrow ${showCurrencyDropdown ? 'open' : ''}`} />
+            </button>
+            {showCurrencyDropdown && (
+              <div className="wallet-currency-options">
+                <div 
+                  className={`wallet-currency-option ${selectedCurrency === 'USD' ? 'active' : ''}`}
+                  onClick={() => changeCurrency('USD')}
+                >
+                  <span className="currency-code">USD</span>
+                  <span className="currency-value">${user?.walletBalance?.toFixed(2) || '0.00'}</span>
+                </div>
+                <div 
+                  className={`wallet-currency-option ${selectedCurrency === 'GEL' ? 'active' : ''}`}
+                  onClick={() => changeCurrency('GEL')}
+                >
+                  <span className="currency-code">GEL</span>
+                  <span className="currency-value">{user?.walletBalanceGEL?.toFixed(2) || '0.00'} ₾</span>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="wallet-balance-card-body">
-            <span className="wallet-amount">{user?.walletBalanceGEL?.toFixed(2) || '0.00'} ₾</span>
-          </div>
+
+          {/* Glowing deposit button */}
+          <button 
+            className="wallet-deposit-button"
+            onClick={() => setActiveTab('deposit')}
+          >
+            <FaPlus /> Deposit
+          </button>
         </div>
       </div>
 

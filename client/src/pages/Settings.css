@@ -398,6 +398,17 @@
   background-color: #6b7280;
 }
 
+.settings-action-button.steam-external {
+  background-color: #171a21;
+  color: #ffffff;
+  border: 1px solid #2a475e;
+  margin-bottom: 10px;
+}
+
+.settings-action-button.steam-external:hover {
+  background-color: #2a475e;
+}
+
 /* Responsive design */
 @media (max-width: 1024px) {
   .settings-layout {

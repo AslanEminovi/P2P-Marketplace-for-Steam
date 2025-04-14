@@ -246,14 +246,15 @@ const Navbar = ({ user, onLogout }) => {
                 </div>
                 
                 <div className="balance-display">
-                  <div className="balance-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="1" x2="12" y2="23"></line>
-                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                    </svg>
-                  </div>
-                  <span className="balance-amount">{formatBalance(user.balance)} ₾</span>
-                  <Link to="/wallet" className="balance-add">+</Link>
+                  <Link to="/wallet" className="balance-display orange-glow">
+                    <div className="balance-icon">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+                        <line x1="2" y1="10" x2="22" y2="10"></line>
+                      </svg>
+                    </div>
+                    <span className="balance-amount">${formatBalance(user.walletBalance || 0)}</span>
+                  </Link>
                 </div>
 
                 <div className="dropdown-wrapper">

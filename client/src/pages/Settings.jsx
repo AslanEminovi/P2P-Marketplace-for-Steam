@@ -271,8 +271,16 @@ const Settings = ({ user, onBalanceUpdate }) => {
         <div className="settings-steam-card">
           <h3>Trade URL</h3>
           <p>Your Steam trade URL is required to receive trade offers from other users</p>
+          <a 
+            href="https://steamcommunity.com/my/tradeoffers/privacy" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="settings-action-button steam-external"
+          >
+            Get Steam Trade URL
+          </a>
           <Link to="/steam-settings" className="settings-action-button">
-            Configure Trade URL
+            Configure Trade Settings
           </Link>
         </div>
       </div>
