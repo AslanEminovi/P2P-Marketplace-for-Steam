@@ -279,7 +279,7 @@ const Settings = ({ user, onBalanceUpdate }) => {
           >
             Get Steam Trade URL
           </a>
-          <Link to="/steam-settings" className="settings-action-button">
+          <Link to="/settings/steam" className="settings-action-button">
             Configure Trade Settings
           </Link>
         </div>

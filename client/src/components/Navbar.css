@@ -1031,6 +1031,7 @@
   background-color: rgba(245, 158, 11, 0.2);
 }
 
+/* Remove the problematic orange-glow styles */
 .balance-display.orange-glow {
   background: linear-gradient(to right, rgba(255, 126, 0, 0.1), rgba(255, 154, 0, 0.15));
   border: 1px solid rgba(255, 126, 0, 0.3);
@@ -1054,4 +1055,43 @@
 .balance-display.orange-glow .balance-amount {
   color: #ff9a00;
   font-weight: 600;
+}
+
+/* Add these new clean wallet nav styles */
+.wallet-nav-link {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(to right, #2a2e35, #323842);
+  border: 1px solid #3b4151;
+  border-radius: 8px;
+  padding: 8px 14px;
+  margin-left: 15px;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  height: 40px;
+}
+
+.wallet-nav-link:hover {
+  background: linear-gradient(to right, #323842, #3b4151);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.wallet-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wallet-icon svg {
+  stroke: #ff9a00;
+}
+
+.wallet-balance {
+  color: #ff9a00;
+  font-weight: 600;
+  font-size: 15px;
 }
