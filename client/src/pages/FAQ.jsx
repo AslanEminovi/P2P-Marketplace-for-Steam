@@ -1,95 +1,138 @@
 import React, { useState } from 'react';
-import { FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import './FAQ.css';
 
+const FAQItem = ({ question, answer }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="faq-item">
+      <div 
+        className={`faq-question ${isOpen ? 'active' : ''}`} 
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <h3>{question}</h3>
+        <div className="faq-icon">
+          {isOpen ? <FiChevronUp /> : <FiChevronDown />}
+        </div>
+      </div>
+      <div className={`faq-answer ${isOpen ? 'open' : ''}`}>
+        <p>{answer}</p>
+      </div>
+    </div>
+  );
+};
+
 const FAQ = () => {
-  // State to track which FAQ items are open
-  const [openItems, setOpenItems] = useState({});
-
-  // Toggle function for FAQ accordion
-  const toggleItem = (index) => {
-    setOpenItems(prev => ({
-      ...prev,
-      [index]: !prev[index]
-    }));
-  };
-
-  // FAQ data structure - each item has a question and answer
-  const faqItems = [
+  const faqData = [
     {
-      question: "What is CS2 Marketplace?",
-      answer: "CS2 Marketplace is the leading platform for buying and selling Counter-Strike 2 items in Georgia. We provide a secure environment for trading CS2 skins, keys, and other items at fair market prices with lower fees than other marketplaces."
+      category: "Account & Authentication",
+      items: [
+        {
+          question: "How do I sign up for CS2 Marketplace?",
+          answer: "Sign up is simple! Click on 'Sign in with Steam' in the top right corner of our website. You'll be directed to the Steam login page where you can authenticate your account. Once you sign in through Steam, your CS2 Marketplace account is automatically created."
+        },
+        {
+          question: "Is my Steam account secure when I log in?",
+          answer: "Yes, your Steam account is completely secure. We use the official Steam OpenID authentication which means we never see your Steam password. This authentication method only shares basic public information that you've allowed to be visible in your Steam profile."
+        },
+        {
+          question: "Why do I need to set up my Steam trade URL?",
+          answer: "Your Steam trade URL is required to facilitate trades on our platform. Without it, other users cannot send you trade offers for items. We only use this URL for legitimate trade purposes and never for unauthorized access to your account."
+        }
+      ]
     },
     {
-      question: "How do I sell my CS2 items?",
-      answer: "To sell your items, first sign in with Steam. Then navigate to your Inventory page, select the items you want to sell, set your price, and list them on the marketplace. Our system will handle the trade offers and transactions securely."
+      category: "Trading & Marketplace",
+      items: [
+        {
+          question: "How do I sell my CS2 items?",
+          answer: "To sell your items, navigate to your Inventory page, select the item you wish to sell, click the 'Sell' button, set your desired price, and confirm the listing. Your item will then appear on the marketplace for buyers to see."
+        },
+        {
+          question: "What fees does CS2 Marketplace charge?",
+          answer: "We charge a competitive 5% fee on successful sales. This fee helps us maintain the platform, ensure security, and continue improving our services. The fee is automatically calculated when you list your item."
+        },
+        {
+          question: "How long does it take to complete a trade?",
+          answer: "Most trades are processed within minutes. However, completion time can vary depending on Steam's API status and both users' availability to confirm the trade. You'll receive notifications throughout the process to keep you updated."
+        },
+        {
+          question: "Can I cancel a listing or trade?",
+          answer: "Yes, you can cancel a listing at any time before it's sold by going to your 'My Listings' page and clicking the 'Cancel' button on the item. For trades in progress, cancellation options depend on the current stage of the trade process."
+        }
+      ]
     },
     {
-      question: "How do I buy items?",
-      answer: "Browse the marketplace, find items you're interested in, add funds to your wallet, and purchase directly. The system will automatically send a trade offer to complete the exchange once payment is confirmed."
+      category: "Items & Inventory",
+      items: [
+        {
+          question: "Why can't I see my inventory items?",
+          answer: "This could be due to several reasons: your Steam inventory might be set to private (needs to be public), Steam servers might be experiencing issues, or your inventory might be taking longer to load. Try refreshing your inventory or checking your Steam privacy settings."
+        },
+        {
+          question: "How often is my inventory updated?",
+          answer: "Your inventory is updated every time you visit your Inventory page. We also automatically refresh it when you complete a trade. If you've made changes on Steam and don't see them reflected, try clicking the refresh button on your Inventory page."
+        },
+        {
+          question: "Are there restrictions on what items I can trade?",
+          answer: "Yes, there are some restrictions. Items must be tradable according to Steam's rules (not market or trade restricted). Additionally, we only support CS2 items currently. Make sure your items don't have any active trade holds from Steam."
+        }
+      ]
     },
     {
-      question: "Is it safe to trade on CS2 Marketplace?",
-      answer: "Yes, we use secure Steam authentication and a trusted trading system. All transactions are monitored, and our escrow system ensures both buyers and sellers are protected. We never ask for your Steam credentials or sensitive information."
-    },
-    {
-      question: "What fees does CS2 Marketplace charge?",
-      answer: "We charge a competitive 5% fee on successful sales. This is lower than many other marketplaces and helps us maintain the platform and provide secure trading services. There are no fees to list items or to make purchases."
-    },
-    {
-      question: "How long does it take to receive my money after a sale?",
-      answer: "Once your item is sold and the trade is completed, the funds (minus our commission) are immediately available in your CS2 Marketplace wallet. You can use these funds for future purchases or request a withdrawal."
-    },
-    {
-      question: "What payment methods are accepted?",
-      answer: "We currently support credit/debit cards, bank transfers, and popular e-wallets for adding funds to your account. For withdrawals, we support bank transfers and e-wallets, with processing times varying by method."
-    },
-    {
-      question: "What happens if a trade fails?",
-      answer: "If a trade fails for technical reasons, the transaction is automatically cancelled and any funds are returned to the buyer. If there are issues with a specific trade, our support team can investigate and help resolve the situation."
-    },
-    {
-      question: "Can I trade with users from other countries?",
-      answer: "Yes, CS2 Marketplace supports international trading. However, please be aware of any region restrictions that Valve may impose on certain items or trades. Our platform will notify you if there are any restrictions on specific trades."
-    },
-    {
-      question: "How do I contact customer support?",
-      answer: "You can reach our customer support team through the Contact Us page on our website. We aim to respond to all inquiries within 24 hours. For faster assistance, please provide detailed information about your issue."
+      category: "Security & Support",
+      items: [
+        {
+          question: "Is it safe to trade on CS2 Marketplace?",
+          answer: "Yes, we've built our platform with security as a top priority. We use secure authentication methods, encrypted connections, and automated trade systems to ensure a safe trading environment. Our team also actively monitors for suspicious activity."
+        },
+        {
+          question: "What should I do if I encounter an issue?",
+          answer: "If you encounter any problems, please contact our support team through the 'Contact Us' page. Provide as much detail as possible about the issue, including screenshots if applicable. Our team aims to respond to all inquiries within 24 hours."
+        },
+        {
+          question: "How do I report suspicious users?",
+          answer: "If you notice suspicious behavior from another user, please report them immediately. You can do this by visiting their profile and clicking the 'Report User' button, or by contacting our support team with details about the incident."
+        },
+        {
+          question: "What measures do you take to prevent scams?",
+          answer: "We have multiple security measures in place, including trade verification processes, user reputation systems, and automated monitoring for suspicious activities. We also regularly update our security protocols to address new potential threats."
+        }
+      ]
     }
   ];
 
   return (
-    <div className="faq-container">
-      <div className="faq-header">
-        <h1>Frequently Asked Questions</h1>
-        <p>Find answers to the most common questions about CS2 Marketplace</p>
-      </div>
+    <div className="faq-page">
+      <div className="faq-container">
+        <div className="faq-header">
+          <h1>Frequently Asked Questions</h1>
+          <p>Find answers to common questions about using CS2 Marketplace</p>
+        </div>
 
-      <div className="faq-content">
-        {faqItems.map((item, index) => (
-          <div 
-            key={index} 
-            className={`faq-item ${openItems[index] ? 'open' : ''}`}
-            onClick={() => toggleItem(index)}
-          >
-            <div className="faq-question">
-              <h3>{item.question}</h3>
-              <div className="faq-icon">
-                {openItems[index] ? <FaChevronUp /> : <FaChevronDown />}
+        <div className="faq-content">
+          {faqData.map((category, index) => (
+            <div key={index} className="faq-category">
+              <h2>{category.category}</h2>
+              <div className="faq-items">
+                {category.items.map((item, itemIndex) => (
+                  <FAQItem 
+                    key={itemIndex} 
+                    question={item.question} 
+                    answer={item.answer} 
+                  />
+                ))}
               </div>
             </div>
-            
-            <div className={`faq-answer ${openItems[index] ? 'show' : ''}`}>
-              <p>{item.answer}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      <div className="faq-footer">
-        <h3>Still have questions?</h3>
-        <p>If you couldn't find the answer to your question, please contact our support team.</p>
-        <a href="/contact" className="faq-contact-button">Contact Support</a>
+        <div className="faq-footer">
+          <h3>Still have questions?</h3>
+          <p>If you couldn't find the answer to your question, feel free to contact our support team.</p>
+          <a href="/contact" className="contact-btn">Contact Us</a>
+        </div>
       </div>
     </div>
   );

@@ -5,11 +5,11 @@ import { API_URL } from "../config/constants";
 axios.defaults.timeout = 20000; // 20 seconds default timeout
 axios.defaults.withCredentials = true; // Always include credentials for cross-domain requests
 
-// Create a custom instance of axios
+// Create an axios instance with custom config
 const apiClient = axios.create({
   baseURL: API_URL,
-  withCredentials: true, // Important for handling cookies/sessions
-  timeout: 10000, // 10 seconds timeout
+  timeout: 20000,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -70,39 +70,16 @@ export const retryRequest = async (fn, maxRetries = 3, delay = 1000) => {
   throw lastError;
 };
 
-// Function to fetch user details
+// Helper function to fetch user details with retry
 export const fetchUserDetails = async () => {
-  try {
-    const token = localStorage.getItem("auth_token");
-
-    if (!token) {
-      console.log("No auth token found");
-      return null;
-    }
-
-    const response = await apiClient.get("/auth/user", {
-      params: { auth_token: token },
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (response.data && response.data.user) {
-      return response.data.user;
-    }
-
-    return null;
-  } catch (error) {
-    console.error("Error fetching user details:", error);
-
-    // Check if the error is due to an unauthorized request
-    if (error.response && error.response.status === 401) {
-      // Clear the invalid token
-      localStorage.removeItem("auth_token");
-    }
-
-    return null;
-  }
+  return retryRequest(
+    async () => {
+      const response = await apiClient.get("/auth/user");
+      return response.data;
+    },
+    2,
+    2000
+  );
 };
 
 export default apiClient;

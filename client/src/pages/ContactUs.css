@@ -1,0 +1,247 @@
+.contact-page {
+  min-height: 100vh;
+  padding: 80px 0;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #fff;
+}
+
+.contact-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px;
+  background-color: rgba(30, 41, 59, 0.8);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.contact-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.contact-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+  background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.contact-header p {
+  font-size: 1.1rem;
+  color: #cbd5e1;
+}
+
+.contact-content {
+  display: flex;
+  gap: 40px;
+}
+
+.contact-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.info-card {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  background-color: rgba(15, 23, 42, 0.6);
+  border-radius: 8px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.info-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+.info-icon {
+  font-size: 1.8rem;
+  padding: 15px;
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  border-radius: 50%;
+  margin-right: 20px;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.info-text h3 {
+  margin: 0 0 5px 0;
+  font-size: 1.2rem;
+  color: #e2e8f0;
+}
+
+.info-text p {
+  margin: 0;
+  color: #94a3b8;
+}
+
+.info-box {
+  margin-top: 20px;
+  padding: 25px;
+  background-color: rgba(15, 23, 42, 0.6);
+  border-radius: 8px;
+  display: flex;
+  gap: 20px;
+}
+
+.info-box-icon {
+  font-size: 2rem;
+  color: #4facfe;
+}
+
+.info-box-content h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.2rem;
+  color: #e2e8f0;
+}
+
+.info-box-content p {
+  margin: 0 0 10px 0;
+  color: #94a3b8;
+}
+
+.contact-form-container {
+  flex: 1.5;
+  background-color: rgba(15, 23, 42, 0.6);
+  padding: 30px;
+  border-radius: 8px;
+}
+
+.contact-form-container h2 {
+  margin: 0 0 25px 0;
+  font-size: 1.5rem;
+  color: #e2e8f0;
+  text-align: center;
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #cbd5e1;
+}
+
+.form-group input,
+.form-group textarea {
+  padding: 12px 15px;
+  border: 1px solid #2d3748;
+  border-radius: 6px;
+  background-color: rgba(15, 23, 42, 0.4);
+  color: #e2e8f0;
+  font-size: 1rem;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #4facfe;
+  box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
+}
+
+.form-group input.error,
+.form-group textarea.error {
+  border-color: #ef4444;
+}
+
+.error-message {
+  color: #ef4444;
+  font-size: 0.85rem;
+  margin-top: 5px;
+}
+
+.submit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 25px;
+  background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
+  color: #0f172a;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.3s, box-shadow 0.3s;
+  margin-top: 10px;
+}
+
+.submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(79, 172, 254, 0.4);
+}
+
+.submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@media (max-width: 992px) {
+  .contact-content {
+    flex-direction: column;
+  }
+  
+  .contact-info {
+    margin-bottom: 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  .contact-header h1 {
+    font-size: 2rem;
+  }
+  
+  .contact-container {
+    padding: 20px;
+  }
+  
+  .submit-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .contact-page {
+    padding: 60px 0;
+  }
+  
+  .contact-header h1 {
+    font-size: 1.8rem;
+  }
+  
+  .info-card {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .info-icon {
+    margin-right: 0;
+    margin-bottom: 15px;
+  }
+  
+  .info-box {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+} 

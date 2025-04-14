@@ -9,21 +9,6 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import SocketConnectionIndicator from './components/SocketConnectionIndicator';
 import LiveActivityFeed from './components/LiveActivityFeed';
-import { lazy } from 'react';
-import { AnimatePresence } from 'framer-motion';
-import { UserContext } from './context/UserContext';
-import { NotificationsContext } from './context/NotificationsContext';
-import { socket, SocketContext } from './context/SocketContext';
-import { useFetch } from './hooks/useFetch';
-import { useNotifications } from './hooks/useNotifications';
-import { InventoryContextProvider } from './context/InventoryContext';
-import { MarketplaceContextProvider } from './context/MarketplaceContext';
-import { NotificationCenterContextProvider } from './context/NotificationCenterContext';
-import API_ENDPOINTS from './config/apiEndpoints';
-import Loading from './components/ui/Loading';
-import PageWrapper from './components/layout/PageWrapper';
-import AdminRoute from './components/auth/AdminRoute';
-import PrivateRoute from './components/auth/PrivateRoute';
 
 // Pages
 import Home from './pages/Home';
@@ -34,15 +19,15 @@ import Profile from './pages/Profile';
 import TradeDetailPage from './pages/TradeDetailPage';
 import SteamSettingsPage from './pages/SteamSettings';
 import Trades from './pages/Trades';
-import FAQ from './pages/FAQ';
 import Contact from './pages/Contact';
-import TermsOfService from './pages/TermsOfService';
+import FAQ from './pages/FAQ';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 
 // Components
 import SteamSettings from './components/SteamSettings';
 import NotificationCenter from './components/NotificationCenter';
 import LanguageSwitcher from './components/LanguageSwitcher';
+import PageWrapper from './components/PageWrapper';
 import ScrollToTop from './components/ScrollToTop';
 
 // Import constants
@@ -56,6 +41,19 @@ const ProtectedRoute = ({ user, children }) => {
   if (!user) {
     return <Navigate to="/" replace />;
   }
+  return children;
+};
+
+// Admin-protected route component
+const AdminRoute = ({ user, children }) => {
+  console.log("AdminRoute check - User:", user);
+  console.log("AdminRoute check - isAdmin:", user?.isAdmin);
+
+  if (!user || !user.isAdmin) {
+    console.log("AdminRoute - Access denied, redirecting to home");
+    return <Navigate to="/" replace />;
+  }
+  console.log("AdminRoute - Access granted");
   return children;
 };
 
@@ -921,30 +919,9 @@ function App() {
               </AdminRoute>
             } />
 
-            {/* New pages */}
-            <Route path="/faq" element={
-              <PageWrapper key="faq">
-                <FAQ />
-              </PageWrapper>
-            } />
-
-            <Route path="/contact" element={
-              <PageWrapper key="contact">
-                <Contact />
-              </PageWrapper>
-            } />
-
-            <Route path="/terms-of-service" element={
-              <PageWrapper key="terms">
-                <TermsOfService />
-              </PageWrapper>
-            } />
-
-            <Route path="/privacy-policy" element={
-              <PageWrapper key="privacy">
-                <PrivacyPolicy />
-              </PageWrapper>
-            } />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
             {/* Catch-all route */}
             <Route path="*" element={<Navigate to="/" replace />} />
