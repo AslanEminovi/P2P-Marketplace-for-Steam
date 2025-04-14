@@ -190,36 +190,67 @@ router.get("/users", async (req, res) => {
 router.get("/users/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
+
+    // Validate the userId format
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.error(`Invalid user ID format: ${userId}`);
+      return res.status(400).json({ error: "Invalid user ID format" });
+    }
+
+    console.log(`Admin is fetching details for user: ${userId}`);
+
+    // Get models directly to avoid any possible circular dependency issues
     const User = mongoose.model("User");
     const Item = mongoose.model("Item");
     const Trade = mongoose.model("Trade");
 
-    // Get user
-    const user = await User.findById(userId).select("-refreshToken");
+    // Get basic user info first - make this query fast
+    const user = await User.findById(userId).select("-refreshToken").lean();
+
     if (!user) {
+      console.error(`User not found with ID: ${userId}`);
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Get user's items
-    const items = await Item.find({ ownerId: userId })
-      .sort({ createdAt: -1 })
-      .limit(10);
+    console.log(`Found user ${user.displayName || "Unknown"}`);
 
-    // Get user's trades
-    const trades = await Trade.find({
-      $or: [{ sellerId: userId }, { buyerId: userId }],
-    })
-      .sort({ createdAt: -1 })
-      .limit(10);
+    // Run these queries in parallel to speed things up
+    const [items, trades] = await Promise.all([
+      // Get user's items (limited to 5 for performance)
+      Item.find({ ownerId: userId, owner: userId })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean(),
 
+      // Get user's trades (limited to 5 for performance)
+      Trade.find({
+        $or: [
+          { sellerId: userId, seller: userId },
+          { buyerId: userId, buyer: userId },
+        ],
+      })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean(),
+    ]);
+
+    console.log(
+      `Found ${items.length} items and ${trades.length} trades for user ${userId}`
+    );
+
+    // Return the data
     res.json({
       user,
       items,
       trades,
+      timestamp: new Date(),
     });
   } catch (error) {
     console.error("Error getting user details:", error);
-    res.status(500).json({ error: "Failed to get user details" });
+    res.status(500).json({
+      error: "Failed to get user details",
+      message: error.message,
+    });
   }
 });
 

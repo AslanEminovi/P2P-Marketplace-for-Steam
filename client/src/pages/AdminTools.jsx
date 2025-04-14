@@ -211,70 +211,84 @@ const AdminTools = () => {
         return;
       }
 
-      setDetailsLoading(true);
+      // Use the user data we already have instead of fetching again
+      const simpleUser = {
+        _id: user._id,
+        displayName: user.displayName || 'Unknown User',
+        steamId: user.steamId || 'N/A',
+        avatar: user.avatar || '',
+        avatarMedium: user.avatarMedium || '',
+        avatarFull: user.avatarFull || user.avatar || '',
+        createdAt: user.createdAt || new Date(),
+        isBanned: user.isBanned || false,
+        email: user.email || 'N/A',
+        tradeUrl: user.tradeUrl || 'N/A',
+        balance: user.balance || 0,
+        isOnline: userStatus[user._id]?.isOnline || false,
+        lastSeen: userStatus[user._id]?.lastSeen || user.lastLoginAt || user.lastLogin || user.createdAt,
+        items: [],
+        trades: []
+      };
+
+      // Set the user details immediately to show basic info
+      setSelectedUser(simpleUser);
+      setUserDetails(simpleUser);
       setIsUserModalOpen(true);
+      setDetailsLoading(true);
       
-      console.log(`Fetching details for user ID: ${user._id}`);
+      console.log('Opening modal with simple user data before API call');
       
-      // Log user data for debugging
-      console.log('User data before fetch:', {
-        id: user._id,
-        displayName: user.displayName,
-        steamId: user.steamId,
-        isBanned: user.isBanned
-      });
-
+      // Then fetch additional details
       try {
-        // Fetch detailed user information with simplified endpoint
-        const response = await axios.get(`${API_URL}/admin/users/${user._id}`, { 
-          withCredentials: true,
-          timeout: 15000 // 15 second timeout
-        });
+        console.log(`Fetching details for user ID: ${user._id}`);
         
-        console.log('User details response received:', response.status);
-        console.log('User details data:', response.data);
-
-        if (response.data && response.data.user) {
-          const userData = response.data.user;
-          const items = response.data.items || [];
-          const trades = response.data.trades || [];
-
-          console.log('Processing user data:', {
-            id: userData._id,
-            displayName: userData.displayName,
-            itemsCount: items.length,
-            tradesCount: trades.length
-          });
-
-          // Create enhanced user object with all necessary data
-          const enhancedUser = {
-            ...userData,
-            items,
-            trades,
-            lastActive: userData.lastLoginAt || userData.lastLogin || userData.createdAt,
-            isOnline: userStatus[user._id]?.isOnline || false,
-            lastSeen: userStatus[user._id]?.lastSeen || userData.lastLoginAt
-          };
-
-          setUserDetails(enhancedUser);
-          setSelectedUser(enhancedUser);
-          console.log('User details successfully processed and modal should be displaying data');
-        } else {
-          console.error('User details not found in response');
-          toast.error('User details not found in server response');
-          // Don't close modal yet - show error in the modal
-        }
+        // Simple timeout to make sure the modal opens first
+        setTimeout(async () => {
+          try {
+            const response = await axios.get(`${API_URL}/admin/users/${user._id}`, { 
+              withCredentials: true,
+              timeout: 8000 // 8 second timeout
+            });
+            
+            console.log('User details response received:', response.status);
+            
+            if (response.data && response.data.user) {
+              const userData = response.data.user;
+              const items = response.data.items || [];
+              const trades = response.data.trades || [];
+              
+              console.log(`Got ${items.length} items and ${trades.length} trades`);
+              
+              // Create enhanced user object with all necessary data
+              const enhancedUser = {
+                ...simpleUser,
+                ...userData,
+                items,
+                trades
+              };
+              
+              setUserDetails(enhancedUser);
+              setSelectedUser(enhancedUser);
+              console.log('User details successfully updated');
+            } else {
+              // Just keep showing the basic user info we already have
+              console.warn('User details API returned no data, using basic info');
+            }
+          } catch (err) {
+            console.error('Error in delayed fetch:', err);
+            // Just keep showing the basic user info
+            toast.error('Could not load additional user details');
+          } finally {
+            setDetailsLoading(false);
+          }
+        }, 100);
       } catch (fetchError) {
-        console.error('Error fetching user details:', fetchError);
-        toast.error('Failed to load user details: ' + (fetchError.message || 'Network error'));
-        // Don't close modal - show error in the modal
+        console.error('Error setting up fetch:', fetchError);
+        setDetailsLoading(false);
       }
     } catch (error) {
       console.error('Error handling user click:', error);
       toast.error('Failed to process user details');
-      setIsUserModalOpen(false);
-    } finally {
-      setDetailsLoading(false);
     }
   };
 
@@ -678,12 +692,37 @@ const AdminTools = () => {
           isOpen={isUserModalOpen}
           onRequestClose={() => {
             setIsUserModalOpen(false);
+            setSelectedUser(null);
             setUserDetails(null);
           }}
           className="user-details-modal"
           overlayClassName="user-details-overlay"
+          shouldCloseOnOverlayClick={true}
+          shouldCloseOnEsc={true}
+          style={{
+            overlay: {
+              backgroundColor: 'rgba(0, 0, 0, 0.75)',
+              zIndex: 1000
+            },
+            content: {
+              top: '50%',
+              left: '50%',
+              right: 'auto',
+              bottom: 'auto',
+              marginRight: '-50%',
+              transform: 'translate(-50%, -50%)',
+              maxWidth: '800px',
+              width: '90%',
+              maxHeight: '90vh',
+              padding: '20px',
+              background: '#1a1a1a',
+              border: 'none',
+              borderRadius: '8px',
+              color: '#fff'
+            }
+          }}
         >
-          {detailsLoading ? (
+          {detailsLoading && !selectedUser ? (
             <div className="loading-container">
               <ClipLoader color="#007bff" size={50} />
               <p>Loading user details...</p>
@@ -695,6 +734,7 @@ const AdminTools = () => {
                   className="back-button"
                   onClick={() => {
                     setIsUserModalOpen(false);
+                    setSelectedUser(null);
                     setUserDetails(null);
                   }}
                 >
@@ -706,7 +746,14 @@ const AdminTools = () => {
               <div className="user-profile">
                 <div className="user-avatar-large">
                   {selectedUser.avatarFull ? (
-                    <img src={selectedUser.avatarFull} alt={selectedUser.displayName} />
+                    <img 
+                      src={selectedUser.avatarFull} 
+                      alt={selectedUser.displayName} 
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/fe/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb.jpg';
+                      }}
+                    />
                   ) : (
                     <FaUserAltSlash size={50} />
                   )}
@@ -764,29 +811,40 @@ const AdminTools = () => {
                 </button>
               </div>
 
-              <div className="user-history">
-                <h3>Recent Activity</h3>
-                <div className="activity-list">
-                  {selectedUser?.trades?.slice(0, 5).map(trade => (
-                    <div key={trade._id} className="activity-item">
-                      <FaHistory />
-                      <span>
-                        {trade.status === 'completed' ? 'Completed' : 'Pending'} trade
-                        {trade.status === 'completed' ? ` for $${trade.price}` : ''}
-                      </span>
-                      <span className="activity-date">
-                        {new Date(trade.createdAt).toLocaleDateString()}
-                      </span>
+              {detailsLoading ? (
+                <div className="user-history loading">
+                  <h3>Loading Details...</h3>
+                  <div className="activity-list">
+                    <div className="loading-small">
+                      <ClipLoader size={30} color="#fff" />
                     </div>
-                  ))}
-                  {(!selectedUser?.trades || selectedUser.trades.length === 0) && (
-                    <div className="no-activity">
-                      <FaInfoCircle />
-                      <span>No recent activity</span>
-                    </div>
-                  )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="user-history">
+                  <h3>Recent Activity</h3>
+                  <div className="activity-list">
+                    {selectedUser?.trades?.slice(0, 5).map(trade => (
+                      <div key={trade._id || Math.random()} className="activity-item">
+                        <FaHistory />
+                        <span>
+                          {trade.status === 'completed' ? 'Completed' : 'Pending'} trade
+                          {trade.status === 'completed' ? ` for $${trade.price}` : ''}
+                        </span>
+                        <span className="activity-date">
+                          {new Date(trade.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                    {(!selectedUser?.trades || selectedUser.trades.length === 0) && (
+                      <div className="no-activity">
+                        <FaInfoCircle />
+                        <span>No recent activity</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="error-container">
