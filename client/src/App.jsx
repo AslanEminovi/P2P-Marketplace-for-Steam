@@ -24,6 +24,7 @@ import Contact from './pages/Contact';
 import FAQ from './pages/FAQ';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
+import Wallet from './pages/Wallet';
 
 // Components
 import SteamSettings from './components/SteamSettings';
@@ -929,6 +930,14 @@ function App() {
             <Route path="/faq" element={<FAQ />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
+
+            <Route path="/wallet" element={
+              <ProtectedRoute user={user}>
+                <PageWrapper key="wallet">
+                  <Wallet user={user} onBalanceUpdate={refreshWalletBalance} />
+                </PageWrapper>
+              </ProtectedRoute>
+            } />
 
             {/* Catch-all route */}
             <Route path="*" element={<Navigate to="/" replace />} />
