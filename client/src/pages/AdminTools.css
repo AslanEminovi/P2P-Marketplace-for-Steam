@@ -562,4 +562,226 @@
 
 .admin-error button {
   margin-top: 1rem;
+}
+
+/* User Details Modal */
+.user-details-modal {
+  position: relative;
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 20px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  color: #fff;
+}
+
+.user-details-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.user-details-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #333;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.back-button:hover {
+  background-color: #333;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.user-avatar-large {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-avatar-large img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-info-main {
+  flex: 1;
+}
+
+.user-info-main h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.5rem;
+}
+
+.steam-id {
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.user-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-online {
+  color: #28a745;
+}
+
+.status-offline {
+  color: #dc3545;
+}
+
+.last-seen {
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.user-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.stat-item {
+  background: #333;
+  padding: 15px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-actions {
+  margin-bottom: 20px;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.action-button.ban {
+  background-color: #dc3545;
+  color: white;
+}
+
+.action-button.unban {
+  background-color: #28a745;
+  color: white;
+}
+
+.action-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.user-history {
+  background: #333;
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.user-history h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: #444;
+  border-radius: 4px;
+}
+
+.activity-date {
+  margin-left: auto;
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.no-activity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+  justify-content: center;
+  color: #888;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 15px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .user-details-modal {
+    width: 95%;
+    padding: 15px;
+  }
+
+  .user-profile {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .user-stats {
+    grid-template-columns: 1fr;
+  }
 } 

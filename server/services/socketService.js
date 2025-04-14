@@ -11,6 +11,9 @@ let activeUsers = new Map(); // Map to track user activity timestamps
 const STATS_UPDATE_INTERVAL = 10000; // 10 seconds
 const USER_ACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
+// Track connected users
+const connectedUsers = new Map();
+
 /**
  * Initialize the socket service with the io instance
  * @param {Object} ioInstance - The Socket.io instance
@@ -48,6 +51,24 @@ const init = (ioInstance) => {
         action: "join",
         user: socket.username || "A user",
       });
+
+      // Update user status
+      connectedUsers.set(userId, {
+        socketId: socket.id,
+        lastSeen: new Date(),
+      });
+
+      // Broadcast user status update
+      io.emit("userStatusUpdate", {
+        userId,
+        isOnline: true,
+        lastSeen: new Date(),
+      });
+
+      // Log connection
+      console.log(
+        `User ${userId} connected. Total connected users: ${connectedUsers.size}`
+      );
     } else {
       // Track anonymous connections with a timestamp
       anonymousSockets.add(socket.id);
@@ -85,6 +106,21 @@ const init = (ioInstance) => {
                 action: "logout",
                 user: socket.username || "A user",
               });
+
+              // Update user status
+              connectedUsers.delete(userId);
+
+              // Broadcast user status update
+              io.emit("userStatusUpdate", {
+                userId,
+                isOnline: false,
+                lastSeen: new Date(),
+              });
+
+              // Log disconnection
+              console.log(
+                `User ${userId} disconnected. Total connected users: ${connectedUsers.size}`
+              );
             }
           }, 5000); // 5 second grace period for reconnection
         }
@@ -381,6 +417,15 @@ const sendNotification = (userId, notification) => {
   sendNotification();
 };
 
+// Get user status
+const getUserStatus = (userId) => {
+  const userData = connectedUsers.get(userId);
+  return {
+    isOnline: !!userData,
+    lastSeen: userData?.lastSeen || null,
+  };
+};
+
 module.exports = {
   init,
   broadcastStats,
@@ -389,4 +434,5 @@ module.exports = {
   emitMarketActivity,
   emitUserActivity,
   sendNotification,
+  getUserStatus,
 };

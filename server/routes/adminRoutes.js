@@ -6,6 +6,8 @@ const mongoose = require("mongoose");
 const axios = require("axios");
 const adminController = require("../controllers/adminController");
 const auth = require("../middleware/auth");
+const User = require("../models/User");
+const { getUserStatus } = require("../services/socketService");
 
 // Define a route handler for admin check
 // This should be before any auth middleware
@@ -140,12 +142,8 @@ router.post("/cleanup-user/:userId", async (req, res) => {
  */
 router.get("/users", async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const { page = 1, limit = 10, search = "" } = req.query;
     const skip = (page - 1) * limit;
-    const search = req.query.search || "";
-
-    const User = mongoose.model("User");
 
     // Build search filter
     const searchFilter = search
@@ -158,28 +156,31 @@ router.get("/users", async (req, res) => {
         }
       : {};
 
+    // Get total count
+    const total = await User.countDocuments(searchFilter);
+
     // Get paginated users
     const users = await User.find(searchFilter)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit)
-      .select("steamId displayName avatar createdAt lastLogin isAdmin balance");
+      .limit(parseInt(limit))
+      .lean();
 
-    // Get total count
-    const total = await User.countDocuments(searchFilter);
+    // Add real-time status to each user
+    const usersWithStatus = users.map((user) => ({
+      ...user,
+      status: getUserStatus(user._id.toString()),
+    }));
 
     res.json({
-      users,
-      pagination: {
-        total,
-        page,
-        pages: Math.ceil(total / limit),
-        limit,
-      },
+      users: usersWithStatus,
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / limit),
     });
   } catch (error) {
-    console.error("Error getting users:", error);
-    res.status(500).json({ error: "Failed to get users" });
+    console.error("Error fetching users:", error);
+    res.status(500).json({ error: "Failed to fetch users" });
   }
 });
 

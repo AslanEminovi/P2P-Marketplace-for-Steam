@@ -16,10 +16,16 @@ import {
   FaTools,
   FaExclamationTriangle,
   FaCalendarCheck,
-  FaArrowLeft
+  FaArrowLeft,
+  FaCircle,
+  FaHistory,
+  FaBan,
+  FaCheckCircle,
+  FaTimesCircle
 } from 'react-icons/fa';
 import { API_URL } from '../config/constants';
 import './AdminTools.css';
+import { socket } from '../services/socketService';
 
 // Add Error Boundary component
 class ErrorBoundary extends Component {
@@ -81,6 +87,9 @@ const AdminTools = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [userStatus, setUserStatus] = useState({}); // Track real-time user status
+  const [userDetails, setUserDetails] = useState(null); // Store detailed user info
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   // Check if user is admin
   useEffect(() => {
@@ -162,40 +171,64 @@ const AdminTools = () => {
     }
   };
 
+  // Add WebSocket listener for user status updates
+  useEffect(() => {
+    const handleUserStatus = (data) => {
+      setUserStatus(prev => ({
+        ...prev,
+        [data.userId]: {
+          isOnline: data.isOnline,
+          lastSeen: data.lastSeen
+        }
+      }));
+    };
+
+    socket.on('userStatusUpdate', handleUserStatus);
+
+    return () => {
+      socket.off('userStatusUpdate', handleUserStatus);
+    };
+  }, []);
+
   // Handle user selection for details
-  const handleUserClick = (user) => {
+  const handleUserClick = async (user) => {
     try {
       console.log('User clicked:', user);
       
-      // Ensure user object exists and has minimum required properties
       if (!user || typeof user !== 'object') {
         toast.error('Invalid user data');
         return;
       }
-      
-      // Create a sanitized copy with fallback values for missing properties
-      const sanitizedUser = {
-        _id: user._id || 'unknown',
-        displayName: user.displayName || 'Anonymous User',
-        avatarFull: user.avatarFull || null,
-        avatarMedium: user.avatarMedium || null,
-        avatar: user.avatar || null,
-        steamId: user.steamId || 'N/A',
-        email: user.email || 'N/A',
-        createdAt: user.createdAt || new Date().toISOString(),
-        lastLoginAt: user.lastLoginAt || null,
-        lastActive: user.lastActive || null,
-        isBanned: !!user.isBanned,
-        itemCount: user.itemCount || 0,
-        tradeCount: user.tradeCount || 0,
-        completedTradeCount: user.completedTradeCount || 0
-      };
-      
-      setSelectedUser(sanitizedUser);
+
+      setDetailsLoading(true);
       setIsUserModalOpen(true);
+
+      // Fetch detailed user information
+      const response = await axios.get(`${API_URL}/admin/users/${user._id}`, { withCredentials: true });
+      console.log('User details received:', response.data);
+
+      const userData = response.data.user;
+      const items = response.data.items || [];
+      const trades = response.data.trades || [];
+
+      // Create enhanced user object with all necessary data
+      const enhancedUser = {
+        ...userData,
+        items,
+        trades,
+        lastActive: userData.lastLoginAt || userData.lastLogin || userData.createdAt,
+        isOnline: userStatus[user._id]?.isOnline || false,
+        lastSeen: userStatus[user._id]?.lastSeen || userData.lastLoginAt
+      };
+
+      setUserDetails(enhancedUser);
+      setSelectedUser(enhancedUser);
     } catch (error) {
       console.error('Error showing user details:', error);
-      toast.error('Failed to show user details');
+      toast.error('Failed to load user details');
+      setIsUserModalOpen(false);
+    } finally {
+      setDetailsLoading(false);
     }
   };
 
@@ -203,34 +236,42 @@ const AdminTools = () => {
   const handleUserStatus = async (userId, action) => {
     try {
       setActionLoading(true);
-      await axios.post(`${API_URL}/admin/users/${userId}/${action}`, {}, { withCredentials: true });
-      toast.success(`User ${action === 'ban' ? 'banned' : 'unbanned'} successfully`);
+      const endpoint = action === 'ban' ? 'ban' : 'unban';
+      await axios.post(`${API_URL}/admin/users/${userId}/${endpoint}`, {}, { withCredentials: true });
       
-      // Update user in local state
-      const updatedUsers = users.map(user => {
-        if (user._id === userId) {
-          return { ...user, isBanned: action === 'ban' };
-        }
-        return user;
-      });
+      // Update local user state
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user._id === userId 
+            ? { ...user, isBanned: action === 'ban' } 
+            : user
+        )
+      );
       
-      setUsers(updatedUsers);
-      setFilteredUsers(updatedUsers.filter(user => 
-        user.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        user.steamId?.includes(searchTerm) ||
-        user.email?.toLowerCase().includes(searchTerm.toLowerCase())
-      ));
-      
-      // Update selected user if modal is open
-      if (selectedUser && selectedUser._id === userId) {
-        setSelectedUser({ ...selectedUser, isBanned: action === 'ban' });
+      if (selectedUser?._id === userId) {
+        setSelectedUser(prev => ({ ...prev, isBanned: action === 'ban' }));
       }
+      
+      toast.success(`User ${action === 'ban' ? 'banned' : 'unbanned'} successfully`);
     } catch (error) {
-      console.error(`Error ${action === 'ban' ? 'banning' : 'unbanning'} user:`, error);
+      console.error(`Error ${action}ing user:`, error);
       toast.error(`Failed to ${action} user`);
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const renderUserStatus = (status) => {
+    if (!status) return null;
+    
+    return (
+      <div className="flex items-center gap-2">
+        <div className={`w-2 h-2 rounded-full ${status.isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
+        <span className="text-sm text-gray-600">
+          {status.isOnline ? 'Online' : `Last seen: ${new Date(status.lastSeen).toLocaleString()}`}
+        </span>
+      </div>
+    );
   };
 
   // Render loading state
@@ -389,89 +430,59 @@ const AdminTools = () => {
 
         {/* Users Tab */}
         {activeTab === 'users' && (
-          <div className="admin-container">
-            <div className="admin-section-header">
-              <h2 className="admin-section-title">User Management</h2>
-              <div>
-                <input 
-                  type="text" 
-                  className="admin-search-input" 
-                  placeholder="Search users..." 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="mb-6">
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
             
-            <div className="admin-table-container">
-              <table className="admin-table">
-                <thead>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
                   <tr>
-                    <th>User</th>
-                    <th>Steam ID</th>
-                    <th>Joined</th>
-                    <th>Status</th>
-                    <th>Items</th>
-                    <th>Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {filteredUsers.length > 0 ? (
-                    filteredUsers.map(user => (
-                      <tr key={user._id}>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            {user.avatarFull || user.avatar ? (
-                              <img 
-                                src={user.avatarFull || user.avatarMedium || user.avatar} 
-                                alt={user.displayName} 
-                                style={{ width: '30px', height: '30px', borderRadius: '50%' }} 
-                              />
-                            ) : (
-                              <div style={{ 
-                                width: '30px', 
-                                height: '30px', 
-                                borderRadius: '50%', 
-                                backgroundColor: '#3a6ff7', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center', 
-                                color: 'white',
-                                fontWeight: 'bold' 
-                              }}>
-                                {user.displayName ? user.displayName[0].toUpperCase() : '?'}
-                              </div>
-                            )}
-                            <span>{user.displayName || 'Anonymous'}</span>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredUsers.map((user) => (
+                    <tr key={user._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <img
+                            src={user.avatar}
+                            alt={user.displayName}
+                            className="h-10 w-10 rounded-full"
+                          />
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">{user.displayName}</div>
+                            <div className="text-sm text-gray-500">{user.steamId}</div>
                           </div>
-                        </td>
-                        <td>{user.steamId || 'N/A'}</td>
-                        <td>{new Date(user.createdAt).toLocaleDateString()}</td>
-                        <td>
-                          {user.isBanned ? (
-                            <span className="admin-badge admin-badge-danger">Banned</span>
-                          ) : (
-                            <span className="admin-badge admin-badge-success">Active</span>
-                          )}
-                        </td>
-                        <td>{user.itemCount || 0}</td>
-                        <td>
-                          <button 
-                            className="admin-btn admin-btn-outline admin-btn-sm"
-                            onClick={() => handleUserClick(user)}
-                          >
-                            <FaInfoCircle /> Details
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>
-                        {searchTerm ? 'No users match your search.' : 'No users found.'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {renderUserStatus(user.status)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${user.balance?.toFixed(2) || '0.00'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => handleUserClick(user)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          View Details
+                        </button>
                       </td>
                     </tr>
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -503,144 +514,118 @@ const AdminTools = () => {
         {/* User Detail Modal */}
         <Modal
           isOpen={isUserModalOpen}
-          onRequestClose={() => setIsUserModalOpen(false)}
-          className="modal-content"
-          overlayClassName="modal-overlay"
-          shouldCloseOnOverlayClick={true}
-          shouldCloseOnEsc={true}
+          onRequestClose={() => {
+            setIsUserModalOpen(false);
+            setUserDetails(null);
+          }}
+          className="user-details-modal"
+          overlayClassName="user-details-overlay"
         >
-          {selectedUser ? (
-            <>
-              <button 
-                className="admin-modal-close" 
-                onClick={() => setIsUserModalOpen(false)} 
-                aria-label="Close"
-              >
-                ×
-              </button>
-              <div className="admin-modal-header">
-                {selectedUser.avatarFull || selectedUser.avatarMedium || selectedUser.avatar ? (
-                  <img 
-                    src={selectedUser.avatarFull || selectedUser.avatarMedium || selectedUser.avatar} 
-                    alt={selectedUser.displayName} 
-                    className="admin-user-avatar" 
-                    onError={(e) => {
-                      console.log('Error loading avatar image');
-                      e.target.onerror = null;
-                      e.target.src = 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/fe/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg';
-                    }}
-                  />
-                ) : (
-                  <div style={{ 
-                    width: '50px', 
-                    height: '50px', 
-                    borderRadius: '50%', 
-                    backgroundColor: '#3a6ff7', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    color: 'white',
-                    fontWeight: 'bold',
-                    fontSize: '1.25rem' 
-                  }}>
-                    {selectedUser.displayName ? selectedUser.displayName[0].toUpperCase() : '?'}
+          {detailsLoading ? (
+            <div className="loading-container">
+              <ClipLoader color="#007bff" size={50} />
+              <p>Loading user details...</p>
+            </div>
+          ) : selectedUser ? (
+            <div className="user-details">
+              <div className="user-details-header">
+                <button 
+                  className="back-button"
+                  onClick={() => {
+                    setIsUserModalOpen(false);
+                    setUserDetails(null);
+                  }}
+                >
+                  <FaArrowLeft /> Back
+                </button>
+                <h2>User Details</h2>
+              </div>
+
+              <div className="user-profile">
+                <div className="user-avatar-large">
+                  {selectedUser.avatarFull ? (
+                    <img src={selectedUser.avatarFull} alt={selectedUser.displayName} />
+                  ) : (
+                    <FaUserAltSlash size={50} />
+                  )}
+                </div>
+                <div className="user-info-main">
+                  <h3>{selectedUser.displayName || 'Anonymous User'}</h3>
+                  <p className="steam-id">Steam ID: {selectedUser.steamId || 'N/A'}</p>
+                  <div className="user-status-indicator">
+                    <FaCircle 
+                      className={selectedUser.isOnline ? 'status-online' : 'status-offline'} 
+                      size={12} 
+                    />
+                    <span>{selectedUser.isOnline ? 'Online' : 'Offline'}</span>
+                    {!selectedUser.isOnline && selectedUser.lastSeen && (
+                      <span className="last-seen">
+                        Last seen: {new Date(selectedUser.lastSeen).toLocaleString()}
+                      </span>
+                    )}
                   </div>
-                )}
-                <div className="admin-user-info">
-                  <h4>{selectedUser.displayName || 'Anonymous User'}</h4>
-                  <p>Member since {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString() : 'Unknown'}</p>
                 </div>
               </div>
-              <div className="admin-modal-body">
-                <div className="admin-user-detail-section">
-                  <h5>User Information</h5>
-                  <div className="admin-stats-grid">
-                    <div>
-                      <p><strong>Steam ID:</strong></p>
-                      <p>{selectedUser.steamId || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p><strong>Email:</strong></p>
-                      <p>{selectedUser.email || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p><strong>Status:</strong></p>
-                      <p>
-                        {selectedUser.isBanned ? (
-                          <span className="admin-badge admin-badge-danger">Banned</span>
-                        ) : (
-                          <span className="admin-badge admin-badge-success">Active</span>
-                        )}
-                      </p>
-                    </div>
-                    <div>
-                      <p><strong>Last Login:</strong></p>
-                      <p>{selectedUser.lastLoginAt ? new Date(selectedUser.lastLoginAt).toLocaleDateString() : 'N/A'}</p>
-                    </div>
-                  </div>
+
+              <div className="user-stats">
+                <div className="stat-item">
+                  <FaBoxOpen />
+                  <span>{selectedUser.items?.length || 0} Items</span>
                 </div>
-                
-                <div className="admin-user-detail-section">
-                  <h5>Activity</h5>
-                  <div className="admin-stats-grid">
-                    <div>
-                      <p><strong>Items:</strong></p>
-                      <p>{selectedUser.itemCount || 0}</p>
-                    </div>
-                    <div>
-                      <p><strong>Trades:</strong></p>
-                      <p>{selectedUser.tradeCount || 0}</p>
-                    </div>
-                    <div>
-                      <p><strong>Completed:</strong></p>
-                      <p>{selectedUser.completedTradeCount || 0}</p>
-                    </div>
-                    <div>
-                      <p><strong>Last Active:</strong></p>
-                      <p>{selectedUser.lastActive ? new Date(selectedUser.lastActive).toLocaleDateString() : 'N/A'}</p>
-                    </div>
-                  </div>
+                <div className="stat-item">
+                  <FaExchangeAlt />
+                  <span>{selectedUser.trades?.length || 0} Trades</span>
                 </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px', padding: '0 1.5rem 1.5rem' }}>
-                  <button
-                    className="admin-btn admin-btn-outline"
-                    onClick={() => setIsUserModalOpen(false)}
-                  >
-                    Close
-                  </button>
-                  {selectedUser.isBanned ? (
-                    <button
-                      className="admin-btn admin-btn-success"
-                      onClick={() => handleUserStatus(selectedUser._id, 'unban')}
-                      disabled={actionLoading}
-                    >
-                      {actionLoading ? (
-                        <ClipLoader size={14} color="#ffffff" />
-                      ) : (
-                        <>
-                          <FaUserCheck /> Unban User
-                        </>
-                      )}
-                    </button>
+                <div className="stat-item">
+                  <FaCalendarCheck />
+                  <span>Joined: {new Date(selectedUser.createdAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+
+              <div className="user-actions">
+                <button
+                  className={`action-button ${selectedUser.isBanned ? 'unban' : 'ban'}`}
+                  onClick={() => handleUserStatus(selectedUser._id, selectedUser.isBanned ? 'unban' : 'ban')}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? (
+                    <ClipLoader size={20} color="#fff" />
+                  ) : selectedUser.isBanned ? (
+                    <>
+                      <FaCheckCircle /> Unban User
+                    </>
                   ) : (
-                    <button
-                      className="admin-btn admin-btn-danger"
-                      onClick={() => handleUserStatus(selectedUser._id, 'ban')}
-                      disabled={actionLoading}
-                    >
-                      {actionLoading ? (
-                        <ClipLoader size={14} color="#ffffff" />
-                      ) : (
-                        <>
-                          <FaUserAltSlash /> Ban User
-                        </>
-                      )}
-                    </button>
+                    <>
+                      <FaBan /> Ban User
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="user-history">
+                <h3>Recent Activity</h3>
+                <div className="activity-list">
+                  {selectedUser.trades?.slice(0, 5).map(trade => (
+                    <div key={trade._id} className="activity-item">
+                      <FaHistory />
+                      <span>
+                        {trade.status === 'completed' ? 'Completed' : 'Pending'} trade
+                        {trade.status === 'completed' ? ` for $${trade.price}` : ''}
+                      </span>
+                      <span className="activity-date">
+                        {new Date(trade.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ))}
+                  {(!selectedUser.trades || selectedUser.trades.length === 0) && (
+                    <div className="no-activity">
+                      <FaInfoCircle />
+                      <span>No recent activity</span>
+                    </div>
                   )}
                 </div>
               </div>
-            </>
+            </div>
           ) : null}
         </Modal>
       </div>
