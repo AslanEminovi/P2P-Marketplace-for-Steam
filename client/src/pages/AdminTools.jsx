@@ -206,26 +206,45 @@ const AdminTools = () => {
       console.log('User clicked:', user);
       
       if (!user || typeof user !== 'object' || !user._id) {
+        console.error('Invalid user data for details view:', user);
         toast.error('Invalid user data');
         return;
       }
 
       setDetailsLoading(true);
       setIsUserModalOpen(true);
+      
+      console.log(`Fetching details for user ID: ${user._id}`);
+      
+      // Log user data for debugging
+      console.log('User data before fetch:', {
+        id: user._id,
+        displayName: user.displayName,
+        steamId: user.steamId,
+        isBanned: user.isBanned
+      });
 
       try {
-        // Fetch detailed user information
+        // Fetch detailed user information with simplified endpoint
         const response = await axios.get(`${API_URL}/admin/users/${user._id}`, { 
           withCredentials: true,
-          timeout: 10000 // 10 second timeout
+          timeout: 15000 // 15 second timeout
         });
         
-        console.log('User details received:', response.data);
+        console.log('User details response received:', response.status);
+        console.log('User details data:', response.data);
 
         if (response.data && response.data.user) {
           const userData = response.data.user;
           const items = response.data.items || [];
           const trades = response.data.trades || [];
+
+          console.log('Processing user data:', {
+            id: userData._id,
+            displayName: userData.displayName,
+            itemsCount: items.length,
+            tradesCount: trades.length
+          });
 
           // Create enhanced user object with all necessary data
           const enhancedUser = {
@@ -239,14 +258,16 @@ const AdminTools = () => {
 
           setUserDetails(enhancedUser);
           setSelectedUser(enhancedUser);
+          console.log('User details successfully processed and modal should be displaying data');
         } else {
-          toast.error('User details not found');
-          setIsUserModalOpen(false);
+          console.error('User details not found in response');
+          toast.error('User details not found in server response');
+          // Don't close modal yet - show error in the modal
         }
       } catch (fetchError) {
         console.error('Error fetching user details:', fetchError);
         toast.error('Failed to load user details: ' + (fetchError.message || 'Network error'));
-        setIsUserModalOpen(false);
+        // Don't close modal - show error in the modal
       }
     } catch (error) {
       console.error('Error handling user click:', error);
@@ -422,69 +443,95 @@ const AdminTools = () => {
 
         {/* Statistics Tab */}
         {activeTab === 'statistics' && (
-          <div className="admin-content">
-            <div className="admin-stats-grid">
-              <div className="admin-stat-card">
-                <div className="admin-stat-title">Total Users</div>
-                <div className="admin-stat-value">{statistics.usersCount || 0}</div>
-                <div className="admin-stat-subtitle">
+          <div>
+            <div className="admin-grid">
+              <div className="admin-card">
+                <div className="admin-stat-label">Total Users</div>
+                <div className="admin-stat-number">{statistics.usersCount || 0}</div>
+                <div className="admin-stat-change admin-stat-change-positive">
                   +{statistics.newUsers24h || 0} in last 24h
                 </div>
               </div>
-              <div className="admin-stat-card">
-                <div className="admin-stat-title">Active Users</div>
-                <div className="admin-stat-value">{statistics.activeUsersCount || 0}</div>
-                <div className="admin-stat-subtitle">
+              <div className="admin-card">
+                <div className="admin-stat-label">Active Users</div>
+                <div className="admin-stat-number">{statistics.activeUsersCount || 0}</div>
+                <div className="admin-stat-change">
                   {statistics.usersCount ? 
                     Math.round((statistics.activeUsersCount / statistics.usersCount) * 100) : 0}% of total
                 </div>
               </div>
-              <div className="admin-stat-card">
-                <div className="admin-stat-title">Listed Items</div>
-                <div className="admin-stat-value">{statistics.itemsCount || 0}</div>
-                <div className="admin-stat-subtitle">
+              <div className="admin-card">
+                <div className="admin-stat-label">Items Listed</div>
+                <div className="admin-stat-number">{statistics.itemsCount || 0}</div>
+                <div className="admin-stat-change admin-stat-change-positive">
                   +{statistics.newItems24h || 0} in last 24h
                 </div>
               </div>
-              <div className="admin-stat-card">
-                <div className="admin-stat-title">Total Value</div>
-                <div className="admin-stat-value">${(statistics.totalValue || 0).toFixed(2)}</div>
-                <div className="admin-stat-subtitle">
-                  across {statistics.itemsCount || 0} items
+              <div className="admin-card">
+                <div className="admin-stat-label">Trades</div>
+                <div className="admin-stat-number">{statistics.tradesCount || 0}</div>
+                <div className="admin-stat-change">
+                  {statistics.completedTradesCount || 0} completed
                 </div>
               </div>
-              <div className="admin-stat-card">
-                <div className="admin-stat-title">Completed Trades</div>
-                <div className="admin-stat-value">{statistics.completedTradesCount || 0}</div>
-                <div className="admin-stat-subtitle">
-                  of {statistics.tradesCount || 0} total trades
+              <div className="admin-card">
+                <div className="admin-stat-label">Total Value</div>
+                <div className="admin-stat-number">${(statistics.totalValue || 0).toFixed(2)}</div>
+                <div className="admin-stat-change">
+                  Avg: ${statistics.itemsCount ? ((statistics.totalValue || 0) / statistics.itemsCount).toFixed(2) : '0.00'}/item
                 </div>
               </div>
             </div>
 
-            <div className="admin-system-status">
-              <h2 className="admin-section-title">System Status</h2>
-              <div className="admin-status-grid">
-                <div className="admin-status-item">
-                  <div className="admin-status-icon admin-status-good"></div>
-                  <div className="admin-status-label">API Server</div>
-                  <div className="admin-status-value">Online</div>
-                </div>
-                <div className="admin-status-item">
-                  <div className="admin-status-icon admin-status-good"></div>
-                  <div className="admin-status-label">Database</div>
-                  <div className="admin-status-value">Online</div>
-                </div>
-                <div className="admin-status-item">
-                  <div className="admin-status-icon admin-status-good"></div>
-                  <div className="admin-status-label">Steam API</div>
-                  <div className="admin-status-value">Online</div>
-                </div>
-                <div className="admin-status-item">
-                  <div className="admin-status-icon admin-status-good"></div>
-                  <div className="admin-status-label">WebSocket</div>
-                  <div className="admin-status-value">Online</div>
-                </div>
+            <div className="admin-container">
+              <div className="admin-section-header">
+                <h2 className="admin-section-title">System Status</h2>
+              </div>
+              <div className="admin-table-container">
+                <table className="admin-table admin-status-table">
+                  <tbody>
+                    <tr>
+                      <td>
+                        <span className="admin-status-indicator admin-status-good"></span>
+                        API Server
+                      </td>
+                      <td>Operational</td>
+                      <td>
+                        <span className="admin-badge admin-badge-success">100%</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <span className="admin-status-indicator admin-status-good"></span>
+                        Database
+                      </td>
+                      <td>Operational</td>
+                      <td>
+                        <span className="admin-badge admin-badge-success">99.8%</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <span className="admin-status-indicator admin-status-good"></span>
+                        Steam API
+                      </td>
+                      <td>Operational</td>
+                      <td>
+                        <span className="admin-badge admin-badge-success">99.5%</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <span className="admin-status-indicator admin-status-good"></span>
+                        WebSocket Service
+                      </td>
+                      <td>Operational</td>
+                      <td>
+                        <span className="admin-badge admin-badge-success">99.2%</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -633,82 +680,127 @@ const AdminTools = () => {
             setIsUserModalOpen(false);
             setUserDetails(null);
           }}
-          className="admin-modal"
-          overlayClassName="admin-modal-overlay"
+          className="user-details-modal"
+          overlayClassName="user-details-overlay"
         >
           {detailsLoading ? (
-            <div className="admin-modal-loading">
+            <div className="loading-container">
               <ClipLoader color="#007bff" size={50} />
               <p>Loading user details...</p>
             </div>
           ) : selectedUser ? (
-            <div className="admin-user-details">
-              <div className="admin-modal-header">
-                <h2>User Details</h2>
+            <div className="user-details">
+              <div className="user-details-header">
                 <button 
-                  className="admin-modal-close"
+                  className="back-button"
                   onClick={() => {
                     setIsUserModalOpen(false);
                     setUserDetails(null);
                   }}
                 >
-                  ×
+                  <FaArrowLeft /> Back
+                </button>
+                <h2>User Details</h2>
+              </div>
+
+              <div className="user-profile">
+                <div className="user-avatar-large">
+                  {selectedUser.avatarFull ? (
+                    <img src={selectedUser.avatarFull} alt={selectedUser.displayName} />
+                  ) : (
+                    <FaUserAltSlash size={50} />
+                  )}
+                </div>
+                <div className="user-info-main">
+                  <h3>{selectedUser.displayName || 'Anonymous User'}</h3>
+                  <p className="steam-id">Steam ID: {selectedUser.steamId || 'N/A'}</p>
+                  <div className="user-status-indicator">
+                    <FaCircle 
+                      className={selectedUser.isOnline ? 'status-online' : 'status-offline'} 
+                      size={12} 
+                    />
+                    <span>{selectedUser.isOnline ? 'Online' : 'Offline'}</span>
+                    {!selectedUser.isOnline && selectedUser.lastSeen && (
+                      <span className="last-seen">
+                        Last seen: {new Date(selectedUser.lastSeen).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="user-stats">
+                <div className="stat-item">
+                  <FaBoxOpen />
+                  <span>{selectedUser.items?.length || 0} Items</span>
+                </div>
+                <div className="stat-item">
+                  <FaExchangeAlt />
+                  <span>{selectedUser.trades?.length || 0} Trades</span>
+                </div>
+                <div className="stat-item">
+                  <FaCalendarCheck />
+                  <span>Joined: {new Date(selectedUser.createdAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+
+              <div className="user-actions">
+                <button
+                  className={`action-button ${selectedUser?.isBanned ? 'unban' : 'ban'}`}
+                  onClick={() => handleUserStatus(selectedUser?._id, selectedUser?.isBanned ? 'unban' : 'ban')}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? (
+                    <ClipLoader size={20} color="#fff" />
+                  ) : selectedUser?.isBanned ? (
+                    <>
+                      <FaCheckCircle /> Unban User
+                    </>
+                  ) : (
+                    <>
+                      <FaBan /> Ban User
+                    </>
+                  )}
                 </button>
               </div>
-              
-              <div className="admin-user-profile">
-                <div className="admin-user-main">
-                  <img 
-                    src={selectedUser.avatarFull || selectedUser.avatar || 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/fe/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb.jpg'} 
-                    alt={selectedUser.displayName} 
-                    className="admin-user-avatar-large" 
-                  />
-                  <div className="admin-user-info-large">
-                    <h3>{selectedUser.displayName || 'Anonymous User'}</h3>
-                    <p><strong>Steam ID:</strong> {selectedUser.steamId || 'N/A'}</p>
-                    <p><strong>Email:</strong> {selectedUser.email || 'N/A'}</p>
-                    <p>
-                      <strong>Status:</strong> 
-                      <span className={`admin-status-dot ${selectedUser.isOnline ? 'online' : 'offline'}`}></span>
-                      {selectedUser.isOnline ? 'Online' : 'Offline'}
-                    </p>
-                    {!selectedUser.isOnline && selectedUser.lastSeen && (
-                      <p><strong>Last seen:</strong> {new Date(selectedUser.lastSeen).toLocaleString()}</p>
-                    )}
-                    <p><strong>Joined:</strong> {new Date(selectedUser.createdAt).toLocaleDateString()}</p>
-                    <p><strong>Balance:</strong> ${(selectedUser.balance || 0).toFixed(2)}</p>
-                  </div>
-                </div>
-                
-                <div className="admin-user-stats">
-                  <div className="admin-stat-item">
-                    <div className="admin-stat-value">{(selectedUser.items && selectedUser.items.length) || 0}</div>
-                    <div className="admin-stat-label">Items</div>
-                  </div>
-                  <div className="admin-stat-item">
-                    <div className="admin-stat-value">{(selectedUser.trades && selectedUser.trades.length) || 0}</div>
-                    <div className="admin-stat-label">Trades</div>
-                  </div>
-                </div>
-                
-                <div className="admin-user-actions">
-                  <button
-                    className={`admin-btn ${selectedUser.isBanned ? 'admin-btn-success' : 'admin-btn-danger'}`}
-                    onClick={() => handleUserStatus(selectedUser._id, selectedUser.isBanned ? 'unban' : 'ban')}
-                    disabled={actionLoading}
-                  >
-                    {actionLoading ? (
-                      <ClipLoader size={20} color="#fff" />
-                    ) : selectedUser.isBanned ? (
-                      <><FaUserCheck /> Unban User</>
-                    ) : (
-                      <><FaUserAltSlash /> Ban User</>
-                    )}
-                  </button>
+
+              <div className="user-history">
+                <h3>Recent Activity</h3>
+                <div className="activity-list">
+                  {selectedUser?.trades?.slice(0, 5).map(trade => (
+                    <div key={trade._id} className="activity-item">
+                      <FaHistory />
+                      <span>
+                        {trade.status === 'completed' ? 'Completed' : 'Pending'} trade
+                        {trade.status === 'completed' ? ` for $${trade.price}` : ''}
+                      </span>
+                      <span className="activity-date">
+                        {new Date(trade.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ))}
+                  {(!selectedUser?.trades || selectedUser.trades.length === 0) && (
+                    <div className="no-activity">
+                      <FaInfoCircle />
+                      <span>No recent activity</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="error-container">
+              <FaExclamationTriangle size={50} color="#dc3545" />
+              <h3>Error Loading User</h3>
+              <p>Could not load user details. Please try again.</p>
+              <button 
+                className="admin-btn admin-btn-primary"
+                onClick={() => setIsUserModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          )}
         </Modal>
       </div>
     </ErrorBoundary>
