@@ -337,11 +337,8 @@ class SocketService {
   }
 }
 
-// Create a single instance of the SocketService
+// Create a singleton instance
 const socketService = new SocketService();
 
-// Initialize the service
-socketService.init();
-
-// Export the instance as default
+// Export the singleton
 export default socketService;

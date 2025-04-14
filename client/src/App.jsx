@@ -9,7 +9,6 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import SocketConnectionIndicator from './components/SocketConnectionIndicator';
 import LiveActivityFeed from './components/LiveActivityFeed';
-import { Analytics } from '@vercel/analytics/react';
 
 // Pages
 import Home from './pages/Home';
@@ -554,8 +553,13 @@ function App() {
   };
 
   return (
-    <div className="App">
-      <NotificationCenter />
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--gaming-bg-dark)',
+      position: 'relative',
+      overflow: 'hidden',
+      transition: 'background 0.5s ease-out'
+    }}>
       <Navbar user={user} onLogout={handleLogout} />
 
       {/* Toast notifications */}
@@ -920,7 +924,6 @@ function App() {
 
       <LiveActivityFeed />
       <Footer />
-      <Analytics />
     </div>
   );
 }

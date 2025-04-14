@@ -127,65 +127,123 @@ const getUsers = async (req, res) => {
     const userCount = await User.countDocuments();
     console.log(`📊 Total user count from simple query: ${userCount}`);
 
-    // Get all users with a simpler query first
-    const users = await User.find()
-      .sort({ createdAt: -1 })
-      .limit(100)
-      .select(
-        "steamId displayName avatar avatarMedium avatarFull createdAt lastLogin lastLoginAt isAdmin isBanned balance email tradeUrl"
-      );
-
-    console.log(`✅ Found ${users.length} users with direct query`);
-
-    if (users.length > 0) {
-      console.log("First user from direct query:", {
-        id: users[0]._id,
-        displayName: users[0].displayName,
-        steamId: users[0].steamId,
-        avatar: users[0].avatar ? "exists" : "missing",
-        avatarMedium: users[0].avatarMedium ? "exists" : "missing",
-        avatarFull: users[0].avatarFull ? "exists" : "missing",
+    // Get a sample user to debug field names and specifically check avatar fields
+    const sampleUser = await User.findOne().lean();
+    if (sampleUser) {
+      console.log("Sample user avatar fields:", {
+        avatar: sampleUser.avatar,
+        avatarMedium: sampleUser.avatarMedium,
+        avatarFull: sampleUser.avatarFull,
       });
-    } else {
-      console.log("❌ No users found with direct query");
     }
 
-    // Add additional data for each user
-    const enhancedUsers = await Promise.all(
-      users.map(async (user) => {
-        // Convert Mongoose document to plain object
-        const userObj = user.toObject();
+    const users = await User.aggregate([
+      {
+        $lookup: {
+          from: "items",
+          let: { userId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ["$owner", "$$userId"] },
+              },
+            },
+            { $count: "count" },
+          ],
+          as: "itemsCount",
+        },
+      },
+      {
+        $lookup: {
+          from: "trades",
+          let: { userId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $eq: ["$buyer", "$$userId"] },
+                    { $eq: ["$seller", "$$userId"] },
+                  ],
+                },
+              },
+            },
+            { $count: "count" },
+          ],
+          as: "tradesCount",
+        },
+      },
+      {
+        $lookup: {
+          from: "trades",
+          let: { userId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    {
+                      $or: [
+                        { $eq: ["$buyer", "$$userId"] },
+                        { $eq: ["$seller", "$$userId"] },
+                      ],
+                    },
+                    { $eq: ["$status", "completed"] },
+                  ],
+                },
+              },
+            },
+            { $count: "count" },
+          ],
+          as: "completedTradesCount",
+        },
+      },
+      {
+        $addFields: {
+          itemCount: {
+            $ifNull: [{ $arrayElemAt: ["$itemsCount.count", 0] }, 0],
+          },
+          tradeCount: {
+            $ifNull: [{ $arrayElemAt: ["$tradesCount.count", 0] }, 0],
+          },
+          completedTradeCount: {
+            $ifNull: [{ $arrayElemAt: ["$completedTradesCount.count", 0] }, 0],
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          displayName: 1,
+          email: 1,
+          steamId: 1,
+          avatar: 1,
+          avatarMedium: 1,
+          avatarFull: 1,
+          isBanned: 1,
+          isAdmin: 1,
+          createdAt: 1,
+          lastLoginAt: 1,
+          lastActive: "$lastLoginAt",
+          itemCount: 1,
+          tradeCount: 1,
+          completedTradeCount: 1,
+        },
+      },
+      { $sort: { createdAt: -1 } },
+    ]);
 
-        // Get item count for this user
-        const itemCount = await Item.countDocuments({ owner: user._id });
+    console.log(`✅ Found ${users.length} users from aggregation`);
+    if (users.length > 0) {
+      console.log("First user avatar fields from aggregation:", {
+        avatar: users[0].avatar,
+        avatarMedium: users[0].avatarMedium,
+        avatarFull: users[0].avatarFull,
+        displayName: users[0].displayName,
+      });
+    }
 
-        // Get trade counts
-        const tradeCount = await Trade.countDocuments({
-          $or: [{ buyer: user._id }, { seller: user._id }],
-        });
-
-        const completedTradeCount = await Trade.countDocuments({
-          $or: [{ buyer: user._id }, { seller: user._id }],
-          status: "completed",
-        });
-
-        // Make sure lastActive is set to something
-        const lastActive = user.lastLoginAt || user.lastLogin || user.createdAt;
-
-        // Return enhanced user object
-        return {
-          ...userObj,
-          itemCount,
-          tradeCount,
-          completedTradeCount,
-          lastActive,
-        };
-      })
-    );
-
-    console.log(`✅ Enhanced ${enhancedUsers.length} users with counts`);
-
-    res.status(200).json(enhancedUsers);
+    res.status(200).json(users);
   } catch (error) {
     console.error("❌ Error fetching users:", error);
     res.status(500).json({ error: "Server error: " + error.message });
@@ -325,8 +383,8 @@ const getStatistics = async (req, res) => {
 module.exports = {
   isAdmin,
   checkAdminStatus,
+  getUsers,
   banUser,
   unbanUser,
   getStatistics,
-  // getUsers is exported directly via exports.getUsers
 };

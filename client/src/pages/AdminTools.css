@@ -590,33 +590,6 @@
   z-index: 1000;
 }
 
-/* Fix modal scrolling issues */
-.ReactModal__Overlay {
-  opacity: 0;
-  transition: opacity 200ms ease-in-out;
-}
-
-.ReactModal__Overlay--after-open {
-  opacity: 1;
-}
-
-.ReactModal__Overlay--before-close {
-  opacity: 0;
-}
-
-.ReactModal__Content {
-  transform: scale(0.9);
-  transition: transform 200ms ease-in-out;
-}
-
-.ReactModal__Content--after-open {
-  transform: scale(1);
-}
-
-.ReactModal__Content--before-close {
-  transform: scale(0.9);
-}
-
 .user-details-header {
   display: flex;
   align-items: center;
@@ -697,7 +670,6 @@
 .last-seen {
   color: #888;
   font-size: 0.9rem;
-  margin-left: 5px;
 }
 
 .user-stats {
@@ -758,18 +730,6 @@
   margin-bottom: 15px;
 }
 
-.user-history.loading {
-  display: flex;
-  flex-direction: column;
-  min-height: 150px;
-}
-
-.loading-small {
-  display: flex;
-  justify-content: center;
-  padding: 20px;
-}
-
 .activity-list {
   display: flex;
   flex-direction: column;
@@ -807,26 +767,6 @@
   justify-content: center;
   padding: 40px;
   gap: 15px;
-  min-height: 200px;
-}
-
-.error-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  gap: 15px;
-  text-align: center;
-}
-
-.error-container h3 {
-  color: #dc3545;
-  margin: 10px 0;
-}
-
-.error-container p {
-  margin-bottom: 20px;
 }
 
 /* Responsive adjustments */
