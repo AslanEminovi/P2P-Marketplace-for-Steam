@@ -152,4 +152,66 @@
 .loading-container p {
   margin-top: 16px;
   color: #e1e1e1;
+}
+
+/* User modal styling */
+.user-details-modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  margin-right: -50%;
+  transform: translate(-50%, -50%);
+  max-width: 900px;
+  width: 95% !important;
+  max-height: 90vh;
+  padding: 20px;
+  background: #1a1a1a !important;
+  border: none !important;
+  border-radius: 8px !important;
+  color: #fff;
+  z-index: 10000;
+  overflow: auto;
+}
+
+.user-details-overlay {
+  position: fixed;
+  inset: 0px; /* shorthand for top, right, bottom, left */
+  background-color: rgba(0, 0, 0, 0.75);
+  z-index: 9999;
+}
+
+/* Additional fixes to ensure UI elements don't get blocked */
+.admin-wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+/* Make sure content stacks properly */
+.ReactModal__Overlay {
+  opacity: 0;
+  transition: opacity 300ms ease-in-out;
+}
+
+.ReactModal__Overlay--after-open {
+  opacity: 1;
+}
+
+.ReactModal__Overlay--before-close {
+  opacity: 0;
+}
+
+/* Modal transition animations */
+.ReactModal__Content {
+  transform: translate(-50%, -50%) scale(0.9);
+  transition: transform 300ms ease-in-out;
+}
+
+.ReactModal__Content--after-open {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.ReactModal__Content--before-close {
+  transform: translate(-50%, -50%) scale(0.9);
 } 

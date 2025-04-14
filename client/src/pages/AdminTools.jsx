@@ -247,9 +247,8 @@ const AdminTools = () => {
     setSelectedUser(simpleUser);
     setIsUserModalOpen(true);
     
-    // Fetch inventory and trades in the background
+    // Only fetch inventory by default - we'll fetch trades on demand
     fetchUserInventory(user.steamId);
-    fetchUserTrades(user._id);
   };
   
   // Fetch user's Steam inventory
@@ -263,11 +262,20 @@ const AdminTools = () => {
       setInventoryLoading(true);
       console.log(`Fetching inventory for Steam ID: ${steamId}`);
       
+      // Use a timeout to prevent blocking the UI
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      
       // Call our server endpoint that will make the Steam API call
       const response = await axios.get(`${API_URL}/admin/user-inventory/${steamId}`, { 
         withCredentials: true,
-        timeout: 15000 // 15 second timeout
+        signal: controller.signal,
+        params: {
+          limit: 50 // Limit to 50 items for better performance
+        }
       });
+      
+      clearTimeout(timeoutId);
       
       console.log(`Received ${response.data.length || 0} inventory items for ${steamId}`);
       
@@ -281,7 +289,11 @@ const AdminTools = () => {
       }
     } catch (error) {
       console.error('Error fetching user inventory:', error);
-      setInventoryError(error.response?.data?.error || 'Failed to fetch inventory');
+      if (error.name === 'AbortError') {
+        setInventoryError('Request timed out. Please try again.');
+      } else {
+        setInventoryError(error.response?.data?.error || 'Failed to fetch inventory');
+      }
       setUserInventory([]);
     } finally {
       setInventoryLoading(false);
@@ -299,10 +311,19 @@ const AdminTools = () => {
       setTradesLoading(true);
       console.log(`Fetching trades for user ID: ${userId}`);
       
+      // Use a timeout to prevent blocking the UI
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      
       const response = await axios.get(`${API_URL}/admin/user-trades/${userId}`, { 
         withCredentials: true,
-        timeout: 10000
+        signal: controller.signal,
+        params: {
+          limit: 20 // Limit to 20 most recent trades for better performance
+        }
       });
+      
+      clearTimeout(timeoutId);
       
       console.log(`Received ${response.data.length || 0} trades for user ${userId}`);
       
@@ -314,7 +335,11 @@ const AdminTools = () => {
       }
     } catch (error) {
       console.error('Error fetching user trades:', error);
-      setTradesError(error.response?.data?.error || 'Failed to fetch trades');
+      if (error.name === 'AbortError') {
+        setTradesError('Request timed out. Please try again.');
+      } else {
+        setTradesError(error.response?.data?.error || 'Failed to fetch trades');
+      }
       setUserTrades([]);
     } finally {
       setTradesLoading(false);
@@ -424,6 +449,31 @@ const AdminTools = () => {
     if (page < totalPages) {
       setPage(page + 1);
     }
+  };
+
+  // Effect to load trade data on demand
+  useEffect(() => {
+    if (userDetailTab === 'trades' && selectedUser && selectedUser._id && userTrades.length === 0 && !tradesLoading) {
+      // Only fetch trades when the trades tab is clicked and we don't already have data
+      fetchUserTrades(selectedUser._id);
+    }
+  }, [userDetailTab, selectedUser, userTrades.length, tradesLoading]);
+
+  // Create a cleanup function 
+  const cleanupModal = () => {
+    setSelectedUser(null);
+    setUserInventory([]);
+    setUserTrades([]);
+    setInventoryError(null);
+    setTradesError(null);
+    setActionLoading(false);
+  };
+
+  // Handle modal close
+  const handleModalClose = () => {
+    setIsUserModalOpen(false);
+    // Delayed cleanup to prevent lag during close animation
+    setTimeout(cleanupModal, 300);
   };
 
   // Render loading state
@@ -747,18 +797,22 @@ const AdminTools = () => {
         {/* User Detail Modal */}
         <Modal
           isOpen={isUserModalOpen}
-          onRequestClose={() => {
-            setIsUserModalOpen(false);
-            setSelectedUser(null);
-          }}
+          onRequestClose={handleModalClose}
           className="user-details-modal"
           overlayClassName="user-details-overlay"
           shouldCloseOnOverlayClick={true}
           shouldCloseOnEsc={true}
+          ariaHideApp={false} 
+          closeTimeoutMS={300}
           style={{
             overlay: {
               backgroundColor: 'rgba(0, 0, 0, 0.75)',
-              zIndex: 1000
+              zIndex: 9999,
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0
             },
             content: {
               top: '50%',
@@ -774,7 +828,8 @@ const AdminTools = () => {
               background: '#1a1a1a',
               border: 'none',
               borderRadius: '8px',
-              color: '#fff'
+              color: '#fff',
+              zIndex: 10000
             }
           }}
         >
@@ -783,10 +838,7 @@ const AdminTools = () => {
               <div className="user-details-header">
                 <button 
                   className="back-button"
-                  onClick={() => {
-                    setIsUserModalOpen(false);
-                    setSelectedUser(null);
-                  }}
+                  onClick={handleModalClose}
                 >
                   <FaArrowLeft /> Back
                 </button>
@@ -1052,7 +1104,7 @@ const AdminTools = () => {
               <p>Could not load user details. Please try again.</p>
               <button 
                 className="admin-btn admin-btn-primary"
-                onClick={() => setIsUserModalOpen(false)}
+                onClick={handleModalClose}
               >
                 Close
               </button>
