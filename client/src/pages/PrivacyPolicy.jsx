@@ -1,18 +1,57 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaShieldAlt, FaLock, FaCookieBite, FaUserShield, FaGlobe } from 'react-icons/fa';
+import { Helmet } from 'react-helmet';
 import './PrivacyPolicy.css';
 
 const PrivacyPolicy = () => {
+  const [activeSection, setActiveSection] = useState('information-collection');
+
   // Function to scroll to a specific section
   const scrollToSection = (id) => {
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
+      setActiveSection(id);
     }
   };
 
+  // Track scroll position to update active section
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = document.querySelectorAll('.privacy-section');
+      const scrollPosition = window.scrollY + 100;
+      
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop;
+        const sectionHeight = section.offsetHeight;
+        const sectionId = section.getAttribute('id');
+        
+        if (
+          scrollPosition >= sectionTop &&
+          scrollPosition < sectionTop + sectionHeight
+        ) {
+          setActiveSection(sectionId);
+        }
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    
+    // Call once to set initial active section
+    handleScroll();
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
   return (
     <div className="privacy-page">
+      <Helmet>
+        <title>Privacy Policy | CS2 Marketplace</title>
+        <meta name="description" content="Privacy Policy for CS2 Marketplace - Learn how we collect, use, and protect your personal information." />
+      </Helmet>
+      
       <div className="privacy-container">
         <header className="privacy-header">
           <h1>Privacy Policy</h1>
@@ -23,14 +62,54 @@ const PrivacyPolicy = () => {
           <aside className="privacy-toc">
             <h2>Table of Contents</h2>
             <ul>
-              <li onClick={() => scrollToSection('information-collection')}><FaUserShield /> Information We Collect</li>
-              <li onClick={() => scrollToSection('information-use')}><FaShieldAlt /> How We Use Your Information</li>
-              <li onClick={() => scrollToSection('information-sharing')}><FaGlobe /> Information Sharing</li>
-              <li onClick={() => scrollToSection('data-security')}><FaLock /> Data Security</li>
-              <li onClick={() => scrollToSection('cookies')}><FaCookieBite /> Cookies and Tracking</li>
-              <li onClick={() => scrollToSection('rights')}><FaUserShield /> Your Rights</li>
-              <li onClick={() => scrollToSection('changes')}><FaShieldAlt /> Changes to This Policy</li>
-              <li onClick={() => scrollToSection('contact')}><FaGlobe /> Contact Us</li>
+              <li 
+                onClick={() => scrollToSection('information-collection')} 
+                className={activeSection === 'information-collection' ? 'active' : ''}
+              >
+                <FaUserShield /> Information We Collect
+              </li>
+              <li 
+                onClick={() => scrollToSection('information-use')}
+                className={activeSection === 'information-use' ? 'active' : ''}
+              >
+                <FaShieldAlt /> How We Use Your Information
+              </li>
+              <li 
+                onClick={() => scrollToSection('information-sharing')}
+                className={activeSection === 'information-sharing' ? 'active' : ''}
+              >
+                <FaGlobe /> Information Sharing
+              </li>
+              <li 
+                onClick={() => scrollToSection('data-security')}
+                className={activeSection === 'data-security' ? 'active' : ''}
+              >
+                <FaLock /> Data Security
+              </li>
+              <li 
+                onClick={() => scrollToSection('cookies')}
+                className={activeSection === 'cookies' ? 'active' : ''}
+              >
+                <FaCookieBite /> Cookies and Tracking
+              </li>
+              <li 
+                onClick={() => scrollToSection('rights')}
+                className={activeSection === 'rights' ? 'active' : ''}
+              >
+                <FaUserShield /> Your Rights
+              </li>
+              <li 
+                onClick={() => scrollToSection('changes')}
+                className={activeSection === 'changes' ? 'active' : ''}
+              >
+                <FaShieldAlt /> Changes to This Policy
+              </li>
+              <li 
+                onClick={() => scrollToSection('contact')}
+                className={activeSection === 'contact' ? 'active' : ''}
+              >
+                <FaGlobe /> Contact Us
+              </li>
             </ul>
           </aside>
 

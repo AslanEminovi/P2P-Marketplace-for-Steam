@@ -1,21 +1,17 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import { BrowserRouter } from "react-router-dom";
 import "./index.css";
 // Import Bootstrap CSS
 import "bootstrap/dist/css/bootstrap.min.css";
-import reportWebVitals from "./reportWebVitals";
-
-// Import axios config to ensure it's loaded at startup
+import "bootstrap/dist/js/bootstrap.bundle.min";
 import "./services/axiosConfig";
+import reportWebVitals from "./reportWebVitals";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <App />
   </React.StrictMode>
 );
 
