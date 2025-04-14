@@ -1,7 +1,6 @@
-import React from 'react';
-import { FaShieldAlt, FaLock, FaCookieBite, FaUserShield, FaGlobe, FaServer, FaGlobeAmericas } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { FaShieldAlt, FaLock, FaCookieBite, FaUserShield, FaGlobe, FaExclamationTriangle, FaChild, FaServer, FaGlobeAmericas } from 'react-icons/fa';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
 import TableOfContents from '../components/TableOfContents';
 import './PrivacyPolicy.css';
 
@@ -14,6 +13,8 @@ const PrivacyPolicy = () => {
     { id: 'cookies', title: 'Cookies and Tracking', icon: <FaCookieBite /> },
     { id: 'third-party', title: 'Third-Party Services', icon: <FaServer /> },
     { id: 'international', title: 'International Data Transfers', icon: <FaGlobeAmericas /> },
+    { id: 'children', title: 'Children\'s Privacy', icon: <FaChild /> },
+    { id: 'risks', title: 'Privacy Risks', icon: <FaExclamationTriangle /> },
     { id: 'rights', title: 'Your Rights', icon: <FaUserShield /> },
     { id: 'changes', title: 'Changes to This Policy', icon: <FaShieldAlt /> },
     { id: 'contact', title: 'Contact Us', icon: <FaGlobe /> }
@@ -187,6 +188,29 @@ const PrivacyPolicy = () => {
               </div>
             </section>
             
+            <section id="children" className="privacy-section">
+              <h2><FaChild /> Children's Privacy</h2>
+              <div className="section-content">
+                <p>Our platform is not intended for individuals under the age of 18. We do not knowingly collect or solicit personal information from anyone under the age of 18. If we learn that we have collected personal information from a child under 18, we will promptly delete that information. If you believe we might have any information from or about a child under 18, please contact us immediately.</p>
+              </div>
+            </section>
+            
+            <section id="risks" className="privacy-section">
+              <h2><FaExclamationTriangle /> Privacy Risks</h2>
+              <div className="section-content">
+                <p>While we take significant measures to protect your information, using our platform and engaging in online trading activities involves inherent privacy risks, including:</p>
+                
+                <ul>
+                  <li><strong>Security Breaches:</strong> Despite our security measures, unauthorized access to our systems could potentially expose user information.</li>
+                  <li><strong>Phishing Attempts:</strong> Bad actors may attempt to impersonate our platform to steal your information. Always verify the authenticity of communications claiming to be from CS2 Marketplace.</li>
+                  <li><strong>User-to-User Interactions:</strong> When trading with other users, certain information is shared between parties. Be cautious about sharing additional personal information with other users outside our platform.</li>
+                  <li><strong>Public Information:</strong> Certain profile information and trading history is publicly viewable. Consider this when setting up your profile and conducting activities on our platform.</li>
+                </ul>
+                
+                <p>We recommend taking additional steps to protect your privacy, such as using strong, unique passwords, enabling two-factor authentication on your accounts where available, and being cautious about the information you share in communications with other users.</p>
+              </div>
+            </section>
+
             <section id="rights" className="privacy-section">
               <h2><FaUserShield /> Your Rights</h2>
               <div className="section-content">
@@ -221,10 +245,14 @@ const PrivacyPolicy = () => {
             <section id="contact" className="privacy-section">
               <h2><FaGlobe /> Contact Us</h2>
               <div className="section-content">
-                <p>If you have any questions, concerns, or requests regarding this Privacy Policy or our privacy practices, please contact us:</p>
-                <div className="contact-button-container">
-                  <Link to="/contact" className="contact-button">Contact Us</Link>
-                </div>
+                <p>If you have any questions, concerns, or requests regarding this Privacy Policy or our privacy practices, please contact us at:</p>
+                <p className="contact-info">
+                  <strong>Email:</strong> spectervale1@gmail.com<br />
+                  <strong>Steam:</strong> <a href="https://steamcommunity.com/profiles/76561199831663438" target="_blank" rel="noopener noreferrer">AlexanderTheGreat</a><br />
+                  <strong>Facebook:</strong> <a href="https://www.facebook.com/profile.php?id=61575170342758" target="_blank" rel="noopener noreferrer">CS2 Marketplace</a><br />
+                  <strong>Discord:</strong> <a href="https://discord.com/channels/1361407438670139442/1361407439575974100" target="_blank" rel="noopener noreferrer">Join our Discord</a>
+                </p>
+                <p>We will respond to your inquiry as soon as possible and within the timeframe required by applicable law.</p>
               </div>
             </section>
           </main>

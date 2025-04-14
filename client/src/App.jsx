@@ -30,6 +30,7 @@ import NotificationCenter from './components/NotificationCenter';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import PageWrapper from './components/PageWrapper';
 import ScrollToTop from './components/ScrollToTop';
+import ContactUs from './pages/ContactUs';
 
 // Import constants
 import { API_URL } from './config/constants';
@@ -923,11 +924,7 @@ function App() {
               </AdminRoute>
             } />
 
-            <Route path="/contact" element={
-              <PageWrapper key="contact">
-                <Contact />
-              </PageWrapper>
-            } />
+            <Route path="/contact" element={<ContactUs />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />

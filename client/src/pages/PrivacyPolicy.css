@@ -78,11 +78,6 @@
 
 .privacy-sidebar {
   flex: 0 0 280px;
-  position: sticky;
-  top: 20px;
-  height: fit-content;
-  align-self: flex-start;
-  z-index: 10;
 }
 
 .privacy-main {
@@ -214,39 +209,6 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.contact-button-container {
-  margin: 20px 0;
-  display: flex;
-  justify-content: center;
-}
-
-.contact-button {
-  display: inline-block;
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  color: #fff;
-  text-decoration: none;
-  padding: 12px 30px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 1.1rem;
-  text-align: center;
-  transition: all 0.3s ease;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
-}
-
-.contact-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(79, 172, 254, 0.5);
-  background: linear-gradient(135deg, #38BDF8 0%, #00f2fe 100%);
-}
-
-.contact-button:active {
-  transform: translateY(1px);
-  box-shadow: 0 2px 10px rgba(79, 172, 254, 0.2);
-}
-
 @media (max-width: 992px) {
   .privacy-content {
     flex-direction: column;
@@ -254,9 +216,6 @@
   
   .privacy-sidebar {
     width: 100%;
-    position: relative;
-    top: 0;
-    margin-bottom: 30px;
   }
 }
 

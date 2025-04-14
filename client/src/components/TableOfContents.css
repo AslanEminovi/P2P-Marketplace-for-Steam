@@ -1,24 +1,21 @@
 .toc-container {
   position: sticky;
   top: 20px;
-  height: calc(100vh - 120px);
   background-color: rgba(15, 23, 42, 0.6);
   border-radius: 8px;
   padding: 20px;
+  max-height: calc(100vh - 120px);
   overflow-y: auto;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
   margin-bottom: 20px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   transition: all 0.3s ease;
-  z-index: 10;
 }
 
 .toc-container::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
+  width: 5px;
 }
 
 .toc-container::-webkit-scrollbar-track {
@@ -117,8 +114,7 @@
   .toc-container {
     position: relative;
     top: 0;
-    height: auto;
-    max-height: 300px;
+    max-height: none;
   }
   
   .toc-list {

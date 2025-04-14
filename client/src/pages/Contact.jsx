@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { toast } from 'react-toastify';
 import './Contact.css';
-import { FaEnvelope, FaDiscord } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaEnvelope, FaSteam, FaFacebookF, FaDiscord, FaPhone, FaClock, FaHeadset } from 'react-icons/fa';
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -108,7 +108,54 @@ const Contact = () => {
         </header>
         
         <div className="contact-content">
+          <div className="contact-info">
+            <div className="contact-card">
+              <div className="contact-icon">
+                <FaMapMarkerAlt />
+              </div>
+              <h3>Our Location</h3>
+              <p>Tbilisi, Georgia</p>
+            </div>
+            
+            <div className="contact-card">
+              <div className="contact-icon">
+                <FaEnvelope />
+              </div>
+              <h3>Email Us</h3>
+              <p>spectervale1@gmail.com</p>
+            </div>
+            
+            <div className="contact-card">
+              <div className="contact-icon">
+                <FaPhone />
+              </div>
+              <h3>Call Us</h3>
+              <p>+995 555 123 456</p>
+            </div>
+            
+            <div className="contact-card">
+              <div className="contact-icon">
+                <FaClock />
+              </div>
+              <h3>Support Hours</h3>
+              <p>Monday - Friday: 9am - 6pm</p>
+              <p>Saturday: 10am - 4pm</p>
+            </div>
+            
+            <div className="contact-support">
+              <FaHeadset className="support-icon" />
+              <div className="support-text">
+                <h3>Need immediate help?</h3>
+                <p>Join our Discord community for real-time support.</p>
+                <a href="https://discord.com/channels/1361407438670139442/1361407439575974100" target="_blank" rel="noopener noreferrer" className="discord-button">
+                  Join Discord
+                </a>
+              </div>
+            </div>
+          </div>
+          
           <div className="contact-form-container">
+            <h2>Send Us a Message</h2>
             <form onSubmit={handleSubmit} className="contact-form">
               <div className="form-group">
                 <label htmlFor="name">Your Name</label>
@@ -119,7 +166,6 @@ const Contact = () => {
                   value={formData.name}
                   onChange={handleChange}
                   className={errors.name ? 'error' : ''}
-                  placeholder="Enter your name"
                 />
                 {errors.name && <span className="error-message">{errors.name}</span>}
               </div>
@@ -133,7 +179,6 @@ const Contact = () => {
                   value={formData.email}
                   onChange={handleChange}
                   className={errors.email ? 'error' : ''}
-                  placeholder="Enter your email"
                 />
                 {errors.email && <span className="error-message">{errors.email}</span>}
               </div>
@@ -147,7 +192,6 @@ const Contact = () => {
                   value={formData.subject}
                   onChange={handleChange}
                   className={errors.subject ? 'error' : ''}
-                  placeholder="Enter message subject"
                 />
                 {errors.subject && <span className="error-message">{errors.subject}</span>}
               </div>
@@ -161,7 +205,6 @@ const Contact = () => {
                   value={formData.message}
                   onChange={handleChange}
                   className={errors.message ? 'error' : ''}
-                  placeholder="Type your message here..."
                 ></textarea>
                 {errors.message && <span className="error-message">{errors.message}</span>}
               </div>
@@ -170,26 +213,6 @@ const Contact = () => {
                 {isSubmitting ? 'Sending...' : 'Send Message'}
               </button>
             </form>
-          </div>
-          
-          <div className="contact-quick-links">
-            <div className="quick-link">
-              <FaEnvelope className="quick-link-icon" />
-              <div>
-                <h3>Email Us</h3>
-                <p>spectervale1@gmail.com</p>
-              </div>
-            </div>
-            
-            <div className="quick-link discord">
-              <FaDiscord className="quick-link-icon" />
-              <div>
-                <h3>Join Our Discord</h3>
-                <a href="https://discord.com/channels/1361407438670139442/1361407439575974100" target="_blank" rel="noopener noreferrer" className="discord-button">
-                  Get Support
-                </a>
-              </div>
-            </div>
           </div>
         </div>
       </div>
