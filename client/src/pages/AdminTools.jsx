@@ -1,28 +1,16 @@
 import React, { useState, useEffect, Component } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import Modal from 'react-modal';
 import { ClipLoader } from 'react-spinners';
 import { 
-  FaUsers, 
   FaChartLine, 
+  FaUsers, 
   FaBoxOpen, 
   FaExchangeAlt, 
-  FaCog, 
+  FaExclamationTriangle, 
   FaSearch, 
-  FaUserAltSlash, 
-  FaUserCheck, 
   FaInfoCircle, 
-  FaTools,
-  FaExclamationTriangle,
-  FaCalendarCheck,
-  FaArrowLeft,
-  FaCircle,
-  FaHistory,
-  FaBan,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaUser
+  FaArrowLeft
 } from 'react-icons/fa';
 import { API_URL } from '../config/constants';
 import './AdminTools.css';
@@ -64,9 +52,6 @@ class ErrorBoundary extends Component {
   }
 }
 
-// Initialize Modal
-Modal.setAppElement('#root');
-
 const AdminTools = () => {
   // State variables
   const [activeTab, setActiveTab] = useState('statistics');
@@ -86,21 +71,11 @@ const AdminTools = () => {
     newUsers24h: 0,
     newItems24h: 0
   });
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [userStatus, setUserStatus] = useState({}); // Track real-time user status
-  const [userDetails, setUserDetails] = useState(null); // Store detailed user info
-  const [detailsLoading, setDetailsLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   
-  // User details state
-  const [userDetailTab, setUserDetailTab] = useState('profile');
-  const [userInventoryValue, setUserInventoryValue] = useState(0);
-  const [inventoryLoading, setInventoryLoading] = useState(false);
-  const [inventoryError, setInventoryError] = useState(null);
-
   // Check if user is admin
   useEffect(() => {
     const checkAdminStatus = async () => {
@@ -207,83 +182,6 @@ const AdminTools = () => {
     }
   };
 
-  // Handle user selection for details
-  const handleUserClick = (user) => {
-    if (!user || typeof user !== 'object' || !user._id) {
-      toast.error('Invalid user data');
-      return;
-    }
-
-    // Just use the data we already have - don't make any API calls for basic info
-    const simpleUser = {
-      _id: user._id,
-      displayName: user.displayName || 'Unknown User',
-      steamId: user.steamId || 'N/A',
-      avatar: user.avatar || '',
-      avatarMedium: user.avatarMedium || '',
-      avatarFull: user.avatarFull || user.avatar || '',
-      createdAt: user.createdAt || new Date(),
-      isBanned: user.isBanned || false,
-      isAdmin: user.isAdmin || false,
-      isModerator: user.isModerator || false,
-      email: user.email || 'N/A',
-      tradeUrl: user.tradeUrl || 'N/A',
-      balance: user.balance || 0,
-      isOnline: user.status?.isOnline || false,
-      lastSeen: user.status?.lastSeen || user.lastLoginAt || user.lastLogin || user.createdAt,
-      itemCount: user.itemCount || 0,
-      tradeCount: user.tradeCount || 0
-    };
-
-    // Reset data from previous user
-    setUserInventoryValue(0);
-    setInventoryError(null);
-    
-    // Set the user details and open modal
-    setSelectedUser(simpleUser);
-    setIsUserModalOpen(true);
-    
-    // Fetch inventory value (total value only)
-    fetchUserInventoryValue(user.steamId);
-  };
-  
-  // Fetch user's inventory value
-  const fetchUserInventoryValue = async (steamId) => {
-    if (!steamId) {
-      setInventoryError('No Steam ID available');
-      return;
-    }
-    
-    try {
-      setInventoryLoading(true);
-      console.log(`Fetching inventory value for Steam ID: ${steamId}`);
-      
-      // Use a timeout to prevent blocking the UI
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
-      // Call our server endpoint just to get inventory value
-      const response = await axios.get(`${API_URL}/admin/user-inventory-value/${steamId}`, { 
-        withCredentials: true,
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (response.data && typeof response.data.totalValue === 'number') {
-        setUserInventoryValue(response.data.totalValue);
-      } else {
-        setUserInventoryValue(0);
-      }
-    } catch (error) {
-      console.error('Error fetching inventory value:', error);
-      setInventoryError('Failed to fetch inventory value');
-      setUserInventoryValue(0);
-    } finally {
-      setInventoryLoading(false);
-    }
-  };
-
   // Handle user ban/unban
   const handleUserStatus = async (userId, action) => {
     if (!userId) {
@@ -309,10 +207,6 @@ const AdminTools = () => {
             : user
         )
       );
-      
-      if (selectedUser?._id === userId) {
-        setSelectedUser(prev => ({ ...prev, isBanned: action === 'ban' }));
-      }
       
       toast.success(`User ${action === 'ban' ? 'banned' : 'unbanned'} successfully`);
     } catch (error) {
@@ -355,15 +249,6 @@ const AdminTools = () => {
             : user
         )
       );
-      
-      // Update selected user if it's the same one
-      if (selectedUser?._id === userId) {
-        setSelectedUser(prev => ({
-          ...prev,
-          isAdmin: role === 'admin' ? shouldAdd : prev.isAdmin,
-          isModerator: role === 'moderator' ? shouldAdd : prev.isModerator
-        }));
-      }
       
       toast.success(`User ${shouldAdd ? 'is now a' : 'is no longer a'} ${role}`);
     } catch (error) {
@@ -410,21 +295,6 @@ const AdminTools = () => {
     if (page < totalPages) {
       setPage(page + 1);
     }
-  };
-
-  // Create a cleanup function 
-  const cleanupModal = () => {
-    setSelectedUser(null);
-    setUserInventoryValue(0);
-    setInventoryError(null);
-    setActionLoading(false);
-  };
-
-  // Handle modal close
-  const handleModalClose = () => {
-    setIsUserModalOpen(false);
-    // Delayed cleanup to prevent lag during close animation
-    setTimeout(cleanupModal, 300);
   };
 
   // Render loading state
@@ -675,16 +545,18 @@ const AdminTools = () => {
                         <td>
                           <div className="admin-actions-inline">
                             <button 
-                              className="admin-btn admin-btn-small admin-btn-primary"
-                              onClick={() => handleUserClick(user)}
-                            >
-                              View Details
-                            </button>
-                            <button 
                               className={`admin-btn admin-btn-small ${user.isBanned ? 'admin-btn-success' : 'admin-btn-danger'}`}
                               onClick={() => handleUserStatus(user._id, user.isBanned ? 'unban' : 'ban')}
+                              disabled={actionLoading}
                             >
                               {user.isBanned ? 'Unban' : 'Ban'}
+                            </button>
+                            <button 
+                              className={`admin-btn admin-btn-small ${user.isAdmin ? 'admin-btn-grey' : 'admin-btn-primary'}`}
+                              onClick={() => handleUserRole(user._id, 'admin', !user.isAdmin)}
+                              disabled={actionLoading}
+                            >
+                              {user.isAdmin ? 'Remove Admin' : 'Make Admin'}
                             </button>
                           </div>
                         </td>
@@ -744,210 +616,6 @@ const AdminTools = () => {
             <p>This feature is coming soon!</p>
           </div>
         )}
-
-        {/* User Detail Modal */}
-        <Modal
-          isOpen={isUserModalOpen}
-          onRequestClose={handleModalClose}
-          className="user-details-modal"
-          overlayClassName="user-details-overlay"
-          shouldCloseOnOverlayClick={true}
-          shouldCloseOnEsc={true}
-          ariaHideApp={false} 
-          closeTimeoutMS={300}
-          style={{
-            overlay: {
-              backgroundColor: 'rgba(0, 0, 0, 0.75)',
-              zIndex: 9999,
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0
-            },
-            content: {
-              top: '50%',
-              left: '50%',
-              right: 'auto',
-              bottom: 'auto',
-              marginRight: '-50%',
-              transform: 'translate(-50%, -50%)',
-              maxWidth: '600px',
-              width: '95%',
-              maxHeight: '90vh',
-              padding: '20px',
-              background: '#1a1a1a',
-              border: 'none',
-              borderRadius: '8px',
-              color: '#fff',
-              zIndex: 10000
-            }
-          }}
-        >
-          {selectedUser ? (
-            <div className="user-details">
-              <div className="user-details-header">
-                <button 
-                  className="back-button"
-                  onClick={handleModalClose}
-                >
-                  <FaArrowLeft /> Back
-                </button>
-                <h2>User Details: {selectedUser.displayName}</h2>
-              </div>
-
-              <div className="user-profile">
-                <div className="user-avatar-large">
-                  {selectedUser.avatarFull ? (
-                    <img 
-                      src={selectedUser.avatarFull} 
-                      alt={selectedUser.displayName} 
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/fe/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb.jpg';
-                      }}
-                    />
-                  ) : (
-                    <FaUserAltSlash size={50} />
-                  )}
-                </div>
-                <div className="user-info-main">
-                  <div className="user-info-row">
-                    <div className="user-info-label">Steam ID:</div>
-                    <div className="user-info-value">{selectedUser.steamId || 'N/A'}</div>
-                  </div>
-                  <div className="user-info-row">
-                    <div className="user-info-label">Email:</div>
-                    <div className="user-info-value">{selectedUser.email || 'N/A'}</div>
-                  </div>
-                  <div className="user-info-row">
-                    <div className="user-info-label">Status:</div>
-                    <div className="user-info-value">
-                      <span className={`status-dot ${selectedUser.isOnline ? 'online' : 'offline'}`}></span>
-                      {selectedUser.isOnline ? 'Online' : 'Offline'}
-                      {!selectedUser.isOnline && selectedUser.lastSeen && (
-                        <span className="last-seen">
-                          (Last seen: {new Date(selectedUser.lastSeen).toLocaleString()})
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="user-info-row">
-                    <div className="user-info-label">Account:</div>
-                    <div className="user-info-value">
-                      {selectedUser.isBanned ? 
-                        <span className="user-banned">BANNED</span> : 
-                        <span className="user-active">Active</span>
-                      }
-                      {selectedUser.isAdmin && <span className="user-role admin">Admin</span>}
-                      {selectedUser.isModerator && <span className="user-role moderator">Moderator</span>}
-                    </div>
-                  </div>
-                  <div className="user-info-row">
-                    <div className="user-info-label">Joined:</div>
-                    <div className="user-info-value">{new Date(selectedUser.createdAt).toLocaleDateString()}</div>
-                  </div>
-                  <div className="user-info-row">
-                    <div className="user-info-label">Balance:</div>
-                    <div className="user-info-value">${selectedUser.balance.toFixed(2)}</div>
-                  </div>
-                  <div className="user-info-row">
-                    <div className="user-info-label">Trades:</div>
-                    <div className="user-info-value">{selectedUser.tradeCount || 0}</div>
-                  </div>
-                  <div className="user-info-row">
-                    <div className="user-info-label">Inventory Value:</div>
-                    <div className="user-info-value">
-                      {inventoryLoading ? (
-                        <ClipLoader size={16} color="#3a6ff7" />
-                      ) : inventoryError ? (
-                        <span className="error-text">Error loading</span>
-                      ) : (
-                        `$${userInventoryValue.toFixed(2)}`
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* User Management Actions */}
-              <div className="user-management">
-                <h3>User Management</h3>
-                
-                <div className="action-buttons">
-                  {/* Ban/Unban User */}
-                  <button
-                    className={`action-button ${selectedUser?.isBanned ? 'unban' : 'ban'}`}
-                    onClick={() => handleUserStatus(selectedUser?._id, selectedUser?.isBanned ? 'unban' : 'ban')}
-                    disabled={actionLoading}
-                  >
-                    {actionLoading ? (
-                      <ClipLoader size={20} color="#fff" />
-                    ) : selectedUser?.isBanned ? (
-                      <>
-                        <FaCheckCircle /> Unban User
-                      </>
-                    ) : (
-                      <>
-                        <FaBan /> Ban User
-                      </>
-                    )}
-                  </button>
-                  
-                  {/* Make Admin */}
-                  <button
-                    className={`action-button ${selectedUser?.isAdmin ? 'remove-admin' : 'make-admin'}`}
-                    onClick={() => handleUserRole(selectedUser?._id, 'admin', !selectedUser?.isAdmin)}
-                    disabled={actionLoading}
-                  >
-                    {actionLoading ? (
-                      <ClipLoader size={20} color="#fff" />
-                    ) : selectedUser?.isAdmin ? (
-                      <>
-                        <FaUserAltSlash /> Remove Admin
-                      </>
-                    ) : (
-                      <>
-                        <FaUserCheck /> Make Admin
-                      </>
-                    )}
-                  </button>
-                  
-                  {/* Make Moderator */}
-                  <button
-                    className={`action-button ${selectedUser?.isModerator ? 'remove-mod' : 'make-mod'}`}
-                    onClick={() => handleUserRole(selectedUser?._id, 'moderator', !selectedUser?.isModerator)}
-                    disabled={actionLoading}
-                  >
-                    {actionLoading ? (
-                      <ClipLoader size={20} color="#fff" />
-                    ) : selectedUser?.isModerator ? (
-                      <>
-                        <FaUserAltSlash /> Remove Moderator
-                      </>
-                    ) : (
-                      <>
-                        <FaUserCheck /> Make Moderator
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="error-container">
-              <FaExclamationTriangle size={50} color="#dc3545" />
-              <h3>Error Loading User</h3>
-              <p>Could not load user details. Please try again.</p>
-              <button 
-                className="admin-btn admin-btn-primary"
-                onClick={handleModalClose}
-              >
-                Close
-              </button>
-            </div>
-          )}
-        </Modal>
       </div>
     </ErrorBoundary>
   );
