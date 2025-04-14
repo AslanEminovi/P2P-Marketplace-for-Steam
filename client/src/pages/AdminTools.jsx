@@ -71,6 +71,7 @@ const AdminTools = () => {
   const [activeTab, setActiveTab] = useState('statistics');
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -94,12 +95,19 @@ const AdminTools = () => {
   // Check if user is admin
   useEffect(() => {
     const checkAdminStatus = async () => {
+      console.log('Checking admin status...');
       try {
-        const response = await axios.get('/api/admin/check');
+        setLoading(true);
+        setError(null);
+        const response = await axios.get(`${API_URL}/admin/check`, { withCredentials: true });
+        console.log('Admin check response:', response.data);
         setIsAdmin(response.data.isAdmin);
       } catch (error) {
         console.error('Error checking admin status:', error);
-        toast.error('Failed to verify admin status');
+        setError('Failed to verify admin status. Please try refreshing the page.');
+        setIsAdmin(false);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -273,9 +281,30 @@ const AdminTools = () => {
   // Render loading state
   if (loading) {
     return (
-      <div className="admin-loading">
-        <ClipLoader size={50} color="#3a6ff7" />
-        <p>Loading admin tools...</p>
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-center">
+          <ClipLoader size={50} color="#3a6ff7" />
+          <p className="mt-4 text-gray-600">Loading admin tools...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Render error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-center">
+          <FaExclamationTriangle size={50} className="mx-auto text-red-500 mb-4" />
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">Error</h3>
+          <p className="text-gray-600">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          >
+            Refresh Page
+          </button>
+        </div>
       </div>
     );
   }
@@ -283,10 +312,12 @@ const AdminTools = () => {
   // Render unauthorized state
   if (!isAdmin) {
     return (
-      <div className="admin-unauthorized">
-        <FaExclamationTriangle size={50} color="#dc3545" />
-        <h3>Unauthorized Access</h3>
-        <p>You do not have permission to access the admin dashboard.</p>
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-center">
+          <FaExclamationTriangle size={50} className="mx-auto text-red-500 mb-4" />
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">Unauthorized Access</h3>
+          <p className="text-gray-600">You do not have permission to access the admin dashboard.</p>
+        </div>
       </div>
     );
   }
@@ -580,13 +611,13 @@ const AdminTools = () => {
 
               <div className="user-actions">
                 <button
-                  className={`action-button ${selectedUser.isBanned ? 'unban' : 'ban'}`}
-                  onClick={() => handleUserStatus(selectedUser._id, selectedUser.isBanned ? 'unban' : 'ban')}
+                  className={`action-button ${selectedUser?.isBanned ? 'unban' : 'ban'}`}
+                  onClick={() => handleUserStatus(selectedUser?._id, selectedUser?.isBanned ? 'unban' : 'ban')}
                   disabled={actionLoading}
                 >
                   {actionLoading ? (
                     <ClipLoader size={20} color="#fff" />
-                  ) : selectedUser.isBanned ? (
+                  ) : selectedUser?.isBanned ? (
                     <>
                       <FaCheckCircle /> Unban User
                     </>
@@ -601,7 +632,7 @@ const AdminTools = () => {
               <div className="user-history">
                 <h3>Recent Activity</h3>
                 <div className="activity-list">
-                  {selectedUser.trades?.slice(0, 5).map(trade => (
+                  {selectedUser?.trades?.slice(0, 5).map(trade => (
                     <div key={trade._id} className="activity-item">
                       <FaHistory />
                       <span>
@@ -613,7 +644,7 @@ const AdminTools = () => {
                       </span>
                     </div>
                   ))}
-                  {(!selectedUser.trades || selectedUser.trades.length === 0) && (
+                  {(!selectedUser?.trades || selectedUser.trades.length === 0) && (
                     <div className="no-activity">
                       <FaInfoCircle />
                       <span>No recent activity</span>
@@ -622,7 +653,7 @@ const AdminTools = () => {
                 </div>
               </div>
             </div>
-          ) : null}
+          )}
         </Modal>
       </div>
     </ErrorBoundary>

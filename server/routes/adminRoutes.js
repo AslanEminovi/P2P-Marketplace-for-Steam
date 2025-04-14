@@ -10,19 +10,17 @@ const User = require("../models/User");
 const { getUserStatus } = require("../services/socketService");
 
 // Define a route handler for admin check
-// This should be before any auth middleware
-router.get("/check", async (req, res) => {
+router.get("/check", auth.isAuthenticated, async (req, res) => {
   try {
+    console.log(`Checking admin status for user: ${req.user?._id}`);
+
     // If no user is logged in
     if (!req.user) {
       console.log("No user found in request, not an admin");
       return res.json({ isAdmin: false });
     }
 
-    console.log(`Checking admin status for user: ${req.user._id}`);
-
     // For security, recheck from the database
-    const User = mongoose.model("User");
     const user = await User.findById(req.user._id);
 
     if (!user) {
