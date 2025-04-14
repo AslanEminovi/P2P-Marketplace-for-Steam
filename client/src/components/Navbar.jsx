@@ -239,7 +239,7 @@ const Navbar = ({ user, onLogout }) => {
           
           <div className="navbar-right">
             {user ? (
-              <div className="user-section">
+              <div className="user-section" style={{ display: 'flex', alignItems: 'center' }}>
                 <div className="balance-display">
                   <div className="balance-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -251,8 +251,10 @@ const Navbar = ({ user, onLogout }) => {
                   <Link to="/add-funds" className="balance-add">+</Link>
                 </div>
                 
-                {/* Add NotificationCenter component next to profile section */}
-                {user && <NotificationCenter user={user} />}
+                {/* Position notification center to the far right */}
+                <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto', marginRight: '15px' }}>
+                  {user && <NotificationCenter user={user} />}
+                </div>
 
                 <div className="dropdown-wrapper">
                   <button 
