@@ -82,6 +82,7 @@
   top: 20px;
   height: fit-content;
   align-self: flex-start;
+  z-index: 10;
 }
 
 .privacy-main {
@@ -253,6 +254,9 @@
   
   .privacy-sidebar {
     width: 100%;
+    position: relative;
+    top: 0;
+    margin-bottom: 30px;
   }
 }
 
