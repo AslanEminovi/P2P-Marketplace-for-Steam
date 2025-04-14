@@ -86,11 +86,11 @@ const AdminTools = () => {
         const response = await axios.get(`${API_URL}/admin/check`, { withCredentials: true });
         console.log('Admin check response:', response.data);
         setIsAdmin(response.data.isAdmin);
-      } catch (error) {
+    } catch (error) {
         console.error('Error checking admin status:', error);
         setError('Failed to verify admin status. Please try refreshing the page.');
         setIsAdmin(false);
-      } finally {
+    } finally {
         setLoading(false);
       }
     };
@@ -188,7 +188,7 @@ const AdminTools = () => {
       toast.error('Invalid user ID');
       return;
     }
-    
+
     try {
       setActionLoading(true);
       console.log(`${action}ing user ${userId}...`);
@@ -223,7 +223,7 @@ const AdminTools = () => {
       toast.error('Invalid user ID');
       return;
     }
-    
+
     try {
       setActionLoading(true);
       const action = shouldAdd ? 'add' : 'remove';
@@ -299,11 +299,11 @@ const AdminTools = () => {
 
   // Render loading state
   if (loading && !users.length) {
-    return (
+  return (
       <div className="admin-loading">
         <ClipLoader size={50} color="#3a6ff7" />
         <p>Loading admin dashboard...</p>
-      </div>
+            </div>
     );
   }
 
@@ -320,7 +320,7 @@ const AdminTools = () => {
         >
           Refresh Page
         </button>
-      </div>
+              </div>
     );
   }
 
@@ -337,11 +337,11 @@ const AdminTools = () => {
         >
           Back to Home
         </button>
-      </div>
+                      </div>
     );
   }
 
-  return (
+    return (
     <ErrorBoundary>
       <div className="admin-wrapper">
         <div className="admin-header">
@@ -354,8 +354,8 @@ const AdminTools = () => {
               <FaArrowLeft /> Back to App
             </button>
           </div>
-        </div>
-
+      </div>
+      
         <div className="admin-tabs">
           <button 
             className={`admin-tab ${activeTab === 'statistics' ? 'admin-tab-active' : ''}`}
@@ -385,45 +385,45 @@ const AdminTools = () => {
 
         {/* Statistics Tab */}
         {activeTab === 'statistics' && (
-          <div>
+                    <div>
             <div className="admin-grid">
               <div className="admin-card">
                 <div className="admin-stat-label">Total Users</div>
                 <div className="admin-stat-number">{statistics.usersCount || 0}</div>
                 <div className="admin-stat-change admin-stat-change-positive">
                   +{statistics.newUsers24h || 0} in last 24h
-                </div>
-              </div>
+                    </div>
+                    </div>
               <div className="admin-card">
                 <div className="admin-stat-label">Active Users</div>
                 <div className="admin-stat-number">{statistics.activeUsersCount || 0}</div>
                 <div className="admin-stat-change">
                   {statistics.usersCount ? 
                     Math.round((statistics.activeUsersCount / statistics.usersCount) * 100) : 0}% of total
-                </div>
-              </div>
+                  </div>
+                    </div>
               <div className="admin-card">
                 <div className="admin-stat-label">Items Listed</div>
                 <div className="admin-stat-number">{statistics.itemsCount || 0}</div>
                 <div className="admin-stat-change admin-stat-change-positive">
                   +{statistics.newItems24h || 0} in last 24h
-                </div>
-              </div>
+                    </div>
+                  </div>
               <div className="admin-card">
                 <div className="admin-stat-label">Trades</div>
                 <div className="admin-stat-number">{statistics.tradesCount || 0}</div>
                 <div className="admin-stat-change">
                   {statistics.completedTradesCount || 0} completed
-                </div>
-              </div>
+                    </div>
+                    </div>
               <div className="admin-card">
                 <div className="admin-stat-label">Total Value</div>
                 <div className="admin-stat-number">${(statistics.totalValue || 0).toFixed(2)}</div>
                 <div className="admin-stat-change">
                   Avg: ${statistics.itemsCount ? ((statistics.totalValue || 0) / statistics.itemsCount).toFixed(2) : '0.00'}/item
-                </div>
-              </div>
-            </div>
+                  </div>
+                    </div>
+                    </div>
 
             <div className="admin-container">
               <div className="admin-section-header">
@@ -441,43 +441,43 @@ const AdminTools = () => {
                       <td>
                         <span className="admin-badge admin-badge-success">100%</span>
                       </td>
-                    </tr>
+                        </tr>
                     <tr>
                       <td>
                         <span className="admin-status-indicator admin-status-good"></span>
                         Database
-                      </td>
+                            </td>
                       <td>Operational</td>
                       <td>
                         <span className="admin-badge admin-badge-success">99.8%</span>
                       </td>
-                    </tr>
+                          </tr>
                     <tr>
                       <td>
                         <span className="admin-status-indicator admin-status-good"></span>
                         Steam API
-                      </td>
+                  </td>
                       <td>Operational</td>
                       <td>
                         <span className="admin-badge admin-badge-success">99.5%</span>
-                      </td>
+                  </td>
                     </tr>
                     <tr>
                       <td>
                         <span className="admin-status-indicator admin-status-good"></span>
                         WebSocket Service
-                      </td>
+                    </td>
                       <td>Operational</td>
                       <td>
                         <span className="admin-badge admin-badge-success">99.2%</span>
-                      </td>
-                    </tr>
-                  </tbody>
+                  </td>
+                </tr>
+            </tbody>
                 </table>
-              </div>
-            </div>
           </div>
-        )}
+          </div>
+        </div>
+      )}
 
         {/* Users Tab */}
         {activeTab === 'users' && (
@@ -503,20 +503,20 @@ const AdminTools = () => {
               <div className="admin-loading-overlay">
                 <ClipLoader size={30} color="#3a6ff7" />
                 <p>Refreshing data...</p>
-              </div>
+        </div>
             ) : null}
 
             <div className="admin-table-wrapper">
               <table className="admin-table">
-                <thead>
+            <thead>
                   <tr>
                     <th>User</th>
                     <th>Status</th>
                     <th>Joined</th>
                     <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+              </tr>
+            </thead>
+            <tbody>
                   {filteredUsers.length > 0 ? (
                     filteredUsers.map((user) => (
                       <tr key={user._id} className={user.isBanned ? 'admin-row-banned' : ''}>
@@ -531,18 +531,18 @@ const AdminTools = () => {
                               <div className="admin-user-name">
                                 {user.displayName || 'Anonymous User'}
                                 {user.isBanned && <span className="admin-banned-badge">Banned</span>}
-                              </div>
+                        </div>
                               <div className="admin-user-id">{user.steamId || 'No Steam ID'}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
+                        </div>
+                    </div>
+                  </td>
+                    <td>
                           {renderUserStatus(user)}
-                        </td>
+                    </td>
                         <td>
                           {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
-                        </td>
-                        <td>
+                    </td>
+                  <td>
                           <div className="admin-actions-inline">
                             <button 
                               className={`admin-btn admin-btn-small ${user.isBanned ? 'admin-btn-success' : 'admin-btn-danger'}`}
@@ -567,13 +567,13 @@ const AdminTools = () => {
                       <td colSpan="4" className="admin-no-data">
                         <FaInfoCircle size={24} />
                         <p>No users found</p>
-                      </td>
-                    </tr>
+                    </td>
+                </tr>
                   )}
-                </tbody>
+            </tbody>
               </table>
-            </div>
-
+          </div>
+          
             {/* Pagination */}
             {users.length > 0 && (
               <div className="admin-pagination">
@@ -594,10 +594,10 @@ const AdminTools = () => {
                 >
                   Next
                 </button>
-              </div>
-            )}
           </div>
-        )}
+            )}
+        </div>
+      )}
 
         {/* Items Tab (Placeholder) */}
         {activeTab === 'items' && (
@@ -621,4 +621,4 @@ const AdminTools = () => {
   );
 };
 
-export default AdminTools;
+export default AdminTools; 

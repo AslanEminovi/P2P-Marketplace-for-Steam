@@ -1,64 +1,97 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { FaBell } from 'react-icons/fa';
-import { FaExclamationCircle, FaInfoCircle, FaCheckCircle, FaTimesCircle, FaExclamationTriangle } from 'react-icons/fa';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { useTranslation } from '../utils/languageUtils';
+import OfferActionMenu from './OfferActionMenu';
 import { API_URL } from '../config/constants';
-import { toast } from 'react-toastify';
-import { useTranslation } from 'react-i18next';
 import socketService from '../services/socketService';
 
-// Define notification types as constants
+// Define notification types and their associated colors/icons
 const NOTIFICATION_TYPES = {
-  INFO: 'info',
-  SUCCESS: 'success',
-  WARNING: 'warning',
-  ERROR: 'error',
-  ALERT: 'alert'
+  SUCCESS: {
+    bgColor: 'rgba(74, 222, 128, 0.15)',
+    borderColor: '#4ade80',
+    iconColor: '#4ade80',
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+    )
+  },
+  ERROR: {
+    bgColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: '#ef4444',
+    iconColor: '#ef4444',
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="15" y1="9" x2="9" y2="15"></line>
+        <line x1="9" y1="9" x2="15" y2="15"></line>
+      </svg>
+    )
+  },
+  INFO: {
+    bgColor: 'rgba(56, 189, 248, 0.15)',
+    borderColor: '#38bdf8',
+    iconColor: '#38bdf8',
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>
+    )
+  },
+  WARNING: {
+    bgColor: 'rgba(245, 158, 11, 0.15)',
+    borderColor: '#f59e0b',
+    iconColor: '#f59e0b',
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      </svg>
+    )
+  },
+  TRADE: {
+    bgColor: 'rgba(139, 92, 246, 0.15)',
+    borderColor: '#8b5cf6',
+    iconColor: '#8b5cf6',
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 3H5L5.4 5M7 13H17L21 5H5.4M7 13L5.4 5M7 13L4.70711 15.2929C4.07714 15.9229 4.52331 17 5.41421 17H17M17 17C15.8954 17 15 17.8954 15 19C15 20.1046 15.8954 21 17 21C18.1046 21 19 20.1046 19 19C19 17.8954 18.1046 17 17 17ZM9 19C9 20.1046 8.10457 21 7 21C5.89543 21 5 20.1046 5 19C5 17.8954 5.89543 17 7 17C8.10457 17 9 17.8954 9 19Z" />
+      </svg>
+    )
+  }
 };
 
 const NotificationCenter = ({ user }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [activeOfferMenu, setActiveOfferMenu] = useState(null);
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
+  const [allNotifications, setAllNotifications] = useState([]);
+  const [allNotificationsLoading, setAllNotificationsLoading] = useState(false);
+  const [welcomeShown, setWelcomeShown] = useState(false);
   const dropdownRef = useRef(null);
+  const sidePanelRef = useRef(null);
   const { t } = useTranslation();
-  const [hasWelcomeNotification, setHasWelcomeNotification] = useState(false);
 
-  // Fetch notifications on component mount
+  // Audio will be implemented later
+  const [notificationSounds] = useState({
+    success: null,
+    error: null,
+    info: null,
+    trade: null,
+  });
+
   useEffect(() => {
-    if (user?.id) {
-      fetchNotifications();
-      
-      // Check if first-time user
-      checkFirstTimeUser();
-    }
-  }, [user?.id]);
-
-  // Set up real-time notifications with socket
-  useEffect(() => {
-    if (user?.id && socketService) {
-      // Listen for new notifications
-      socketService.on('new_notification', (notification) => {
-        setNotifications(prev => [notification, ...prev]);
-        setUnreadCount(prev => prev + 1);
-        // Show toast for important notifications
-        if (notification.type === NOTIFICATION_TYPES.ALERT || 
-            notification.type === NOTIFICATION_TYPES.ERROR) {
-          toast[notification.type === NOTIFICATION_TYPES.ALERT ? 'warning' : 'error'](
-            notification.message,
-            { autoClose: 5000 }
-          );
-        }
-      });
-
-      return () => {
-        socketService.off('new_notification');
-      };
-    }
-  }, [user?.id]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
+    // Close dropdown when clicking outside
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsOpen(false);
@@ -71,234 +104,665 @@ const NotificationCenter = ({ user }) => {
     };
   }, []);
 
+  // Check if user is a first-time visitor
+  useEffect(() => {
+    const hasVisitedBefore = localStorage.getItem('hasVisitedBefore');
+    
+    if (!hasVisitedBefore && user) {
+      // Show welcome notification only for first-time visitors
+      // This notification will not be added to the notifications panel
+      setTimeout(() => {
+        showWelcomeNotification();
+        localStorage.setItem('hasVisitedBefore', 'true');
+      }, 1500);
+    }
+  }, [user]);
+
+  // Set up socket listener for real-time notifications
+  useEffect(() => {
+    if (user) {
+      // Initial fetch of notifications
+      fetchNotifications();
+
+      // Listen for new trade offers - only real ones from server
+      const handleNewTradeOffer = (data) => {
+        console.log('New trade offer received:', data);
+        
+        if (data.sellerId === user._id || data.buyerId === user._id) {
+          const newNotification = {
+            _id: Date.now().toString(),
+            title: data.sellerId === user._id ? 
+              `New Offer on Your Item` : 
+              'Your Offer Was Sent',
+            message: data.sellerId === user._id ? 
+              `${data.buyerName} wants to buy your ${data.itemName}` : 
+              `You made an offer on ${data.sellerName}'s ${data.itemName}`,
+            type: 'trade',
+            link: '/trades',
+            read: false,
+            createdAt: new Date().toISOString(),
+            relatedItemId: data.itemId,
+            offerId: data.offerId
+          };
+          
+          addNotification(
+            newNotification.title,
+            newNotification.message,
+            newNotification.type,
+            newNotification.link
+          );
+        }
+      };
+
+      // Listen for trade status updates
+      const handleTradeStatusUpdate = (data) => {
+        console.log('Trade status update received:', data);
+        
+        if (data.sellerId === user._id || data.buyerId === user._id) {
+          let title, message;
+          
+          if (data.status === 'completed') {
+            title = data.sellerId === user._id ? 
+              'Item Sold Successfully' : 
+              'Purchase Completed';
+            message = data.sellerId === user._id ? 
+              `Your ${data.itemName} was purchased by ${data.buyerName}` : 
+              `You successfully purchased ${data.itemName} from ${data.sellerName}`;
+          } else if (data.status === 'cancelled') {
+            title = 'Trade Cancelled';
+            message = `The trade for ${data.itemName} was cancelled`;
+          }
+          
+          if (title && message) {
+            addNotification(
+              title,
+              message,
+              'trade',
+              '/trades'
+            );
+          }
+        }
+      };
+
+      // Register socket listeners
+      socketService.on('newTradeOffer', handleNewTradeOffer);
+      socketService.on('tradeStatusUpdate', handleTradeStatusUpdate);
+
+      // Refresh notifications every minute when dropdown is open
+      const interval = setInterval(() => {
+        if (isOpen) {
+          fetchNotifications();
+        }
+      }, 60000);
+
+      return () => {
+        // Clean up socket listeners and interval
+        socketService.off('newTradeOffer', handleNewTradeOffer);
+        socketService.off('tradeStatusUpdate', handleTradeStatusUpdate);
+        clearInterval(interval);
+      };
+    }
+  }, [user, isOpen]);
+
   const fetchNotifications = async () => {
+    if (loading) return; // Prevent multiple concurrent requests
+
+    setLoading(true);
+    setError(null);
     try {
-      const response = await axios.get(`${API_URL}/notifications`, { 
-        withCredentials: true 
+      const response = await axios.get(`${API_URL}/user/notifications`, {
+        withCredentials: true,
+        params: { limit: 10, offset: 0 }
       });
-      
-      if (response.data && Array.isArray(response.data)) {
-        setNotifications(response.data);
-        const unread = response.data.filter(n => !n.read).length;
-        setUnreadCount(unread);
-      }
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
+
+      setNotifications(response.data.notifications || []);
+      setUnreadCount(response.data.unreadCount || 0);
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+      setError(err.response?.data?.error || 'Failed to load notifications');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const checkFirstTimeUser = async () => {
-    try {
-      // Get user metadata or preferences that would indicate if they've seen the welcome message
-      const response = await axios.get(`${API_URL}/users/preferences`, {
-        withCredentials: true
-      });
-      
-      const isFirstTime = !response.data?.hasSeenWelcome;
-      
-      if (isFirstTime && !hasWelcomeNotification) {
-        // Add welcome notification if it's first time
-        const welcomeNotification = {
-          id: 'welcome',
-          type: NOTIFICATION_TYPES.INFO,
-          title: t('notifications.welcomeTitle'),
-          message: t('notifications.welcomeMessage'),
-          createdAt: new Date().toISOString(),
-          read: false
-        };
-        
-        setNotifications(prev => [welcomeNotification, ...prev]);
-        setUnreadCount(prev => prev + 1);
-        setHasWelcomeNotification(true);
-        
-        // Mark user as having seen welcome message
-        await axios.patch(`${API_URL}/users/preferences`, {
-          hasSeenWelcome: true
-        }, { withCredentials: true });
-      }
-    } catch (error) {
-      console.error('Error checking first-time user status:', error);
-    }
+  // Welcome notification - only for first visit, not added to panel
+  const showWelcomeNotification = () => {
+    setWelcomeShown(true);
+    setTimeout(() => setWelcomeShown(false), 5000);
   };
+
+  // Function to add a new notification
+  const addNotification = useCallback((title, message, type = 'INFO', link = null) => {
+    const id = Date.now();
+    const newNotification = {
+      _id: id,
+      title,
+      message,
+      type: type.toLowerCase(),
+      link,
+      read: false,
+      createdAt: new Date().toISOString()
+    };
+
+    setNotifications(prev => [newNotification, ...prev]);
+    setUnreadCount(prev => prev + 1);
+
+    return id;
+  }, [notificationSounds]);
 
   const markAsRead = async (notificationId) => {
     try {
-      // For welcome notification we don't need to call API
-      if (notificationId === 'welcome') {
-        setNotifications(prev => 
-          prev.map(n => n.id === 'welcome' ? { ...n, read: true } : n)
-        );
-        setUnreadCount(prev => Math.max(0, prev - 1));
-        return;
+      // For API integration
+      if (notificationId && typeof notificationId === 'string') {
+        await axios.put(`${API_URL}/user/notifications/read`, {
+          notificationIds: [notificationId],
+          markAll: false
+        }, {
+          withCredentials: true
+        });
+      } else if (!notificationId) {
+        await axios.put(`${API_URL}/user/notifications/read`, {
+          notificationIds: null,
+          markAll: true
+        }, {
+          withCredentials: true
+        });
       }
-      
-      await axios.patch(`${API_URL}/notifications/${notificationId}/read`, {}, {
-        withCredentials: true
-      });
-      
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
+
+      // Update local state
+      if (notificationId) {
+        setNotifications(prev => 
+          prev.map(n => 
+            n._id === notificationId ? { ...n, read: true } : n
+          )
+        );
+        
+        setAllNotifications(prev => 
+          prev.map(n => 
+            n._id === notificationId ? { ...n, read: true } : n
+          )
+        );
+        
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      } else {
+        // Mark all as read
+        setNotifications(prev => 
+          prev.map(n => ({ ...n, read: true }))
+        );
+        
+        setAllNotifications(prev => 
+          prev.map(n => ({ ...n, read: true }))
+        );
+        
+        setUnreadCount(0);
+      }
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
     }
   };
 
-  const markAllAsRead = async () => {
-    try {
-      await axios.patch(`${API_URL}/notifications/mark-all-read`, {}, {
-        withCredentials: true
-      });
-      
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      setUnreadCount(0);
-    } catch (error) {
-      console.error('Error marking all notifications as read:', error);
-    }
-  };
-
-  const handleNotificationClick = (notification) => {
-    if (!notification.read) {
-      markAsRead(notification.id);
-    }
-    
-    // Handle different notification types/actions
-    switch (notification.action) {
-      case 'view_trade':
-        window.location.href = `/trades/${notification.actionId}`;
-        break;
-      case 'view_item':
-        window.location.href = `/item/${notification.actionId}`;
-        break;
-      default:
-        // Just close the dropdown for notifications without specific actions
-        setIsOpen(false);
-        break;
+  const toggleDropdown = () => {
+    setIsOpen(prev => !prev);
+    if (!isOpen) {
+      fetchNotifications();
     }
   };
 
   const getNotificationIcon = (type) => {
-    switch (type) {
-      case NOTIFICATION_TYPES.SUCCESS:
-        return <FaCheckCircle className="text-green-500" />;
-      case NOTIFICATION_TYPES.WARNING:
-        return <FaExclamationTriangle className="text-yellow-500" />;
-      case NOTIFICATION_TYPES.ERROR:
-        return <FaTimesCircle className="text-red-500" />;
-      case NOTIFICATION_TYPES.ALERT:
-        return <FaExclamationCircle className="text-orange-500" />;
-      case NOTIFICATION_TYPES.INFO:
-      default:
-        return <FaInfoCircle className="text-blue-500" />;
-    }
+    // Map API notification types to our defined types
+    const typeMap = {
+      'success': 'SUCCESS',
+      'error': 'ERROR',
+      'info': 'INFO',
+      'warning': 'WARNING',
+      'trade': 'TRADE',
+      'offer': 'TRADE',
+      'transaction': 'SUCCESS',
+      'system': 'INFO'
+    };
+
+    const mappedType = typeMap[type] || 'INFO';
+    const notificationType = NOTIFICATION_TYPES[mappedType];
+
+    return (
+      <span style={{ color: notificationType?.iconColor || '#f1f1f1' }}>
+        {notificationType?.icon || NOTIFICATION_TYPES.INFO.icon}
+      </span>
+    );
   };
 
-  const formatTime = (timestamp) => {
-    const date = new Date(timestamp);
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
     const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
+    const diff = now - date;
 
-    if (diffMins < 1) return t('notifications.justNow');
-    if (diffMins < 60) return t('notifications.minutesAgo', { count: diffMins });
-    if (diffHours < 24) return t('notifications.hoursAgo', { count: diffHours });
-    if (diffDays < 7) return t('notifications.daysAgo', { count: diffDays });
-    
+    // Less than a day
+    if (diff < 24 * 60 * 60 * 1000) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Less than a week
+    if (diff < 7 * 24 * 60 * 60 * 1000) {
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      return days[date.getDay()];
+    }
+
+    // Otherwise show the date
     return date.toLocaleDateString();
   };
 
+  // Make this function available globally
+  useEffect(() => {
+    window.showNotification = addNotification;
+    return () => {
+      window.showNotification = undefined;
+    };
+  }, [addNotification]);
+
+  // Add CSS for animations
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      
+      @keyframes slideIn {
+        from { transform: translateX(100%); }
+        to { transform: translateX(0); }
+      }
+      
+      @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      .notification-dropdown {
+        animation: fadeIn 0.2s ease-out;
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        z-index: 1000;
+      }
+      
+      .notification-side-panel {
+        animation: slideIn 0.3s ease-out;
+        position: fixed;
+        top: 0;
+        right: 0;
+        height: 100vh;
+        z-index: 1100;
+      }
+      
+      .pulse {
+        animation: pulse 2s infinite;
+      }
+      
+      .welcome-notification {
+        animation: fadeIn 0.5s ease-out;
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        z-index: 1200;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   return (
-    <div className="relative z-30" ref={dropdownRef}>
-      <button
-        className="relative p-2 text-gray-300 hover:text-white focus:outline-none"
-        onClick={() => setIsOpen(!isOpen)}
-        aria-label="Notifications"
-      >
-        <FaBell className="text-xl" />
-        {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
-      </button>
-
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 max-h-[70vh] overflow-y-auto bg-gray-800 rounded-md shadow-lg py-1 z-50">
-          <div className="flex justify-between items-center px-4 py-2 border-b border-gray-700">
-            <h3 className="text-lg font-medium text-white">{t('notifications.title')}</h3>
-            {unreadCount > 0 && (
-              <button
-                onClick={markAllAsRead}
-                className="text-xs text-blue-400 hover:text-blue-300"
-              >
-                {t('notifications.markAllRead')}
-              </button>
-            )}
+    <>
+      {/* Welcome notification - only shown on first visit */}
+      {welcomeShown && (
+        <div 
+          className="welcome-notification"
+          style={{
+            backgroundColor: 'rgba(31, 41, 55, 0.85)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '8px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)',
+            padding: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            maxWidth: '320px',
+            zIndex: 1200
+          }}
+        >
+          <div
+            style={{
+              marginRight: '12px',
+              padding: '8px',
+              backgroundColor: 'rgba(56, 189, 248, 0.2)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 15px rgba(56, 189, 248, 0.3)',
+              width: '36px',
+              height: '36px'
+            }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
           </div>
-
-          {notifications.length === 0 ? (
-            <div className="px-4 py-6 text-center text-gray-400">
-              <FaBell className="mx-auto text-3xl mb-2 opacity-30" />
-              <p>{t('notifications.empty')}</p>
-            </div>
-          ) : (
-            <div>
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`px-4 py-3 border-b border-gray-700 hover:bg-gray-700 cursor-pointer ${
-                    !notification.read ? 'bg-gray-750' : ''
-                  }`}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0 mr-3 mt-1">
-                      {getNotificationIcon(notification.type)}
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-medium text-white">
-                        {notification.title}
-                      </h4>
-                      <p className="text-sm text-gray-300 mt-1">
-                        {notification.message}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {formatTime(notification.createdAt)}
-                      </p>
-                    </div>
-                    {!notification.read && (
-                      <div className="ml-2 mt-1 h-2 w-2 rounded-full bg-blue-500"></div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          
+          <div>
+            <h4 style={{ margin: '0 0 4px 0', color: '#f1f1f1', fontSize: '16px' }}>
+              Welcome to CS2 Marketplace
+            </h4>
+            <p style={{ margin: 0, color: '#d1d5db', fontSize: '14px' }}>
+              Thanks for joining! Buy and sell CS2 items safely.
+            </p>
+          </div>
         </div>
       )}
 
-      <style jsx>{`
-        .notification-panel {
-          max-height: 70vh;
-          overflow-y: auto;
-          scrollbar-width: thin;
-          scrollbar-color: #4b5563 #1f2937;
-        }
-        .notification-panel::-webkit-scrollbar {
-          width: 6px;
-        }
-        .notification-panel::-webkit-scrollbar-track {
-          background: #1f2937;
-        }
-        .notification-panel::-webkit-scrollbar-thumb {
-          background-color: #4b5563;
-          border-radius: 3px;
-        }
-      `}</style>
-    </div>
+      <div style={{ position: 'relative' }}>
+        <button
+          onClick={toggleDropdown}
+          style={{
+            backgroundColor: unreadCount > 0 ? 'rgba(76, 44, 166, 0.2)' : 'transparent',
+            border: 'none',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            position: 'relative',
+            transition: 'all 0.2s ease',
+            marginLeft: '10px'
+          }}
+          aria-label="Notifications"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="22" 
+            height="22" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+            style={{ 
+              color: unreadCount > 0 ? '#a78bfa' : '#94a3b8'
+            }}
+          >
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+          
+          {unreadCount > 0 && (
+            <span
+              style={{
+                position: 'absolute',
+                top: '0',
+                right: '0',
+                backgroundColor: '#f43f5e',
+                color: 'white',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                width: '16px',
+                height: '16px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 0 0 2px #151C2B'
+              }}
+            >
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </button>
+        
+        {isOpen && (
+          <div 
+            className="notification-dropdown"
+            ref={dropdownRef}
+            style={{
+              backgroundColor: '#1f2937',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '8px',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)',
+              width: '320px',
+              maxHeight: '550px',
+              overflowY: 'auto',
+              zIndex: 1000
+            }}
+          >
+            <div style={{
+              padding: '14px 16px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h3 style={{ 
+                margin: 0, 
+                color: '#f1f1f1', 
+                fontSize: '16px',
+                fontWeight: '600'
+              }}>
+                {t('notifications.title')}
+                {unreadCount > 0 && (
+                  <span style={{ 
+                    marginLeft: '8px',
+                    backgroundColor: 'rgba(76, 44, 166, 0.2)',
+                    color: '#a78bfa',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    padding: '2px 6px',
+                    borderRadius: '10px'
+                  }}>
+                    {unreadCount}
+                  </span>
+                )}
+              </h3>
+              
+              {unreadCount > 0 && (
+                <button
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    color: '#94a3b8',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => markAsRead()}
+                >
+                  {t('notifications.markAllRead')}
+                </button>
+              )}
+            </div>
+            
+            <div style={{
+              maxHeight: '400px',
+              overflowY: 'auto',
+              padding: '10px',
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
+            }}>
+              {loading && notifications.length === 0 ? (
+                <div
+                  style={{
+                    padding: '20px',
+                    textAlign: 'center',
+                    color: '#94a3b8'
+                  }}
+                >
+                  <div className="spinner" style={{
+                    display: 'inline-block',
+                    width: '30px',
+                    height: '30px',
+                    border: '3px solid rgba(255, 255, 255, 0.1)',
+                    borderTop: '3px solid #4ade80',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                    marginBottom: '10px'
+                  }} />
+                  <p>{t('notifications.loading')}</p>
+                </div>
+              ) : notifications.length === 0 ? (
+                <div
+                  style={{
+                    padding: '30px 20px',
+                    textAlign: 'center',
+                    color: '#94a3b8',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '200px'
+                  }}
+                >
+                  <svg
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ marginBottom: '16px', opacity: 0.7 }}
+                  >
+                    <path d="M21 15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    <path d="M3 9l9 6 9-6"></path>
+                  </svg>
+                  <p style={{ margin: '0 0 8px 0', fontWeight: '500' }}>{t('notifications.empty')}</p>
+                  <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.7 }}>New notifications will appear here</p>
+                </div>
+              ) : (
+                notifications.map(notification => (
+                  <div
+                    key={notification._id}
+                    style={{
+                      position: 'relative',
+                      padding: '12px',
+                      marginBottom: '8px',
+                      backgroundColor: notification.read ? 'transparent' : 'rgba(76, 44, 166, 0.1)',
+                      borderRadius: '8px',
+                      border: `1px solid ${notification.read ? 'rgba(255, 255, 255, 0.05)' : 'rgba(76, 44, 166, 0.2)'}`,
+                      boxShadow: notification.read ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onClick={() => {
+                      if (!notification.read) {
+                        markAsRead(notification._id);
+                      }
+                      
+                      if (notification.link) {
+                        window.location.href = notification.link;
+                      }
+                      
+                      setIsOpen(false);
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex'
+                    }}>
+                      <div
+                        style={{
+                          marginRight: '12px',
+                          padding: '8px',
+                          backgroundColor: notification.read
+                            ? 'rgba(255, 255, 255, 0.1)'
+                            : 'rgba(76, 44, 166, 0.8)',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: notification.read
+                            ? 'none'
+                            : '0 0 15px rgba(76, 44, 166, 0.3)',
+                          width: '36px',
+                          height: '36px',
+                          minWidth: '36px',
+                          alignSelf: 'flex-start'
+                        }}
+                      >
+                        {getNotificationIcon(notification.type)}
+                      </div>
+                      
+                      <div>
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          marginBottom: '4px'
+                        }}>
+                          <h4 style={{
+                            margin: 0,
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            color: notification.read ? '#e5e7eb' : '#f1f1f1'
+                          }}>
+                            {notification.title}
+                          </h4>
+                          <span style={{
+                            fontSize: '11px',
+                            color: '#9ca3af',
+                            marginLeft: '8px'
+                          }}>
+                            {formatDate(notification.createdAt)}
+                          </span>
+                        </div>
+                        
+                        <p style={{
+                          margin: 0,
+                          fontSize: '12px',
+                          color: notification.read ? '#94a3b8' : '#d1d5db',
+                          lineHeight: '1.5'
+                        }}>
+                          {notification.message}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {!notification.read && (
+                      <div
+                        className="pulse"
+                        style={{
+                          position: 'absolute',
+                          top: '15px',
+                          right: '16px',
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: '#4ade80',
+                          boxShadow: '0 0 10px rgba(74, 222, 128, 0.5)'
+                        }}
+                      />
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 

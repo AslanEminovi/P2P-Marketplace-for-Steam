@@ -240,6 +240,9 @@ const Navbar = ({ user, onLogout }) => {
           <div className="navbar-right">
             {user ? (
               <div className="user-section" style={{ display: 'flex', alignItems: 'center' }}>
+                {/* Add NotificationCenter before the balance display to position it on the right */}
+                {user && <NotificationCenter user={user} />}
+                
                 <div className="balance-display">
                   <div className="balance-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -249,11 +252,6 @@ const Navbar = ({ user, onLogout }) => {
                   </div>
                   <span className="balance-amount">{formatBalance(user.balance)} ₾</span>
                   <Link to="/add-funds" className="balance-add">+</Link>
-                </div>
-                
-                {/* Position notification center to the far right */}
-                <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto', marginRight: '15px' }}>
-                  {user && <NotificationCenter user={user} />}
                 </div>
 
                 <div className="dropdown-wrapper">
@@ -281,7 +279,8 @@ const Navbar = ({ user, onLogout }) => {
                       )}
                     </div>
                     <span className="desktop-only">{user.displayName}</span>
-                    {/* Add Admin Badge for admins */}
+                    
+                    {/* Admin Badge for admins */}
                     {user.isAdmin && (
                       <span 
                         className="admin-badge" 
