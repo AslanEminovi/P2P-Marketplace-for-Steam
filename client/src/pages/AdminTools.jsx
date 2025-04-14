@@ -201,95 +201,34 @@ const AdminTools = () => {
   };
 
   // Handle user selection for details
-  const handleUserClick = async (user) => {
-    try {
-      console.log('User clicked:', user);
-      
-      if (!user || typeof user !== 'object' || !user._id) {
-        console.error('Invalid user data for details view:', user);
-        toast.error('Invalid user data');
-        return;
-      }
-
-      // Use the user data we already have instead of fetching again
-      const simpleUser = {
-        _id: user._id,
-        displayName: user.displayName || 'Unknown User',
-        steamId: user.steamId || 'N/A',
-        avatar: user.avatar || '',
-        avatarMedium: user.avatarMedium || '',
-        avatarFull: user.avatarFull || user.avatar || '',
-        createdAt: user.createdAt || new Date(),
-        isBanned: user.isBanned || false,
-        email: user.email || 'N/A',
-        tradeUrl: user.tradeUrl || 'N/A',
-        balance: user.balance || 0,
-        isOnline: userStatus[user._id]?.isOnline || false,
-        lastSeen: userStatus[user._id]?.lastSeen || user.lastLoginAt || user.lastLogin || user.createdAt,
-        items: [],
-        trades: []
-      };
-
-      // Set the user details immediately to show basic info
-      setSelectedUser(simpleUser);
-      setUserDetails(simpleUser);
-      setIsUserModalOpen(true);
-      setDetailsLoading(true);
-      
-      console.log('Opening modal with simple user data before API call');
-      
-      // Then fetch additional details
-      try {
-        console.log(`Fetching details for user ID: ${user._id}`);
-        
-        // Simple timeout to make sure the modal opens first
-        setTimeout(async () => {
-          try {
-            const response = await axios.get(`${API_URL}/admin/users/${user._id}`, { 
-              withCredentials: true,
-              timeout: 8000 // 8 second timeout
-            });
-            
-            console.log('User details response received:', response.status);
-            
-            if (response.data && response.data.user) {
-              const userData = response.data.user;
-              const items = response.data.items || [];
-              const trades = response.data.trades || [];
-              
-              console.log(`Got ${items.length} items and ${trades.length} trades`);
-              
-              // Create enhanced user object with all necessary data
-              const enhancedUser = {
-                ...simpleUser,
-                ...userData,
-                items,
-                trades
-              };
-              
-              setUserDetails(enhancedUser);
-              setSelectedUser(enhancedUser);
-              console.log('User details successfully updated');
-            } else {
-              // Just keep showing the basic user info we already have
-              console.warn('User details API returned no data, using basic info');
-            }
-          } catch (err) {
-            console.error('Error in delayed fetch:', err);
-            // Just keep showing the basic user info
-            toast.error('Could not load additional user details');
-          } finally {
-            setDetailsLoading(false);
-          }
-        }, 100);
-      } catch (fetchError) {
-        console.error('Error setting up fetch:', fetchError);
-        setDetailsLoading(false);
-      }
-    } catch (error) {
-      console.error('Error handling user click:', error);
-      toast.error('Failed to process user details');
+  const handleUserClick = (user) => {
+    if (!user || typeof user !== 'object' || !user._id) {
+      toast.error('Invalid user data');
+      return;
     }
+
+    // Just use the data we already have - don't make any API calls
+    const simpleUser = {
+      _id: user._id,
+      displayName: user.displayName || 'Unknown User',
+      steamId: user.steamId || 'N/A',
+      avatar: user.avatar || '',
+      avatarMedium: user.avatarMedium || '',
+      avatarFull: user.avatarFull || user.avatar || '',
+      createdAt: user.createdAt || new Date(),
+      isBanned: user.isBanned || false,
+      email: user.email || 'N/A',
+      tradeUrl: user.tradeUrl || 'N/A',
+      balance: user.balance || 0,
+      isOnline: user.status?.isOnline || false,
+      lastSeen: user.status?.lastSeen || user.lastLoginAt || user.lastLogin || user.createdAt,
+      itemCount: user.itemCount || 0,
+      tradeCount: user.tradeCount || 0
+    };
+
+    // Set the user details and open modal
+    setSelectedUser(simpleUser);
+    setIsUserModalOpen(true);
   };
 
   // Handle user ban/unban
@@ -693,7 +632,6 @@ const AdminTools = () => {
           onRequestClose={() => {
             setIsUserModalOpen(false);
             setSelectedUser(null);
-            setUserDetails(null);
           }}
           className="user-details-modal"
           overlayClassName="user-details-overlay"
@@ -711,7 +649,7 @@ const AdminTools = () => {
               bottom: 'auto',
               marginRight: '-50%',
               transform: 'translate(-50%, -50%)',
-              maxWidth: '800px',
+              maxWidth: '600px',
               width: '90%',
               maxHeight: '90vh',
               padding: '20px',
@@ -722,12 +660,7 @@ const AdminTools = () => {
             }
           }}
         >
-          {detailsLoading && !selectedUser ? (
-            <div className="loading-container">
-              <ClipLoader color="#007bff" size={50} />
-              <p>Loading user details...</p>
-            </div>
-          ) : selectedUser ? (
+          {selectedUser ? (
             <div className="user-details">
               <div className="user-details-header">
                 <button 
@@ -735,7 +668,6 @@ const AdminTools = () => {
                   onClick={() => {
                     setIsUserModalOpen(false);
                     setSelectedUser(null);
-                    setUserDetails(null);
                   }}
                 >
                   <FaArrowLeft /> Back
@@ -779,11 +711,11 @@ const AdminTools = () => {
               <div className="user-stats">
                 <div className="stat-item">
                   <FaBoxOpen />
-                  <span>{selectedUser.items?.length || 0} Items</span>
+                  <span>{selectedUser.itemCount || 0} Items</span>
                 </div>
                 <div className="stat-item">
                   <FaExchangeAlt />
-                  <span>{selectedUser.trades?.length || 0} Trades</span>
+                  <span>{selectedUser.tradeCount || 0} Trades</span>
                 </div>
                 <div className="stat-item">
                   <FaCalendarCheck />
@@ -810,41 +742,6 @@ const AdminTools = () => {
                   )}
                 </button>
               </div>
-
-              {detailsLoading ? (
-                <div className="user-history loading">
-                  <h3>Loading Details...</h3>
-                  <div className="activity-list">
-                    <div className="loading-small">
-                      <ClipLoader size={30} color="#fff" />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="user-history">
-                  <h3>Recent Activity</h3>
-                  <div className="activity-list">
-                    {selectedUser?.trades?.slice(0, 5).map(trade => (
-                      <div key={trade._id || Math.random()} className="activity-item">
-                        <FaHistory />
-                        <span>
-                          {trade.status === 'completed' ? 'Completed' : 'Pending'} trade
-                          {trade.status === 'completed' ? ` for $${trade.price}` : ''}
-                        </span>
-                        <span className="activity-date">
-                          {new Date(trade.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                    ))}
-                    {(!selectedUser?.trades || selectedUser.trades.length === 0) && (
-                      <div className="no-activity">
-                        <FaInfoCircle />
-                        <span>No recent activity</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           ) : (
             <div className="error-container">
