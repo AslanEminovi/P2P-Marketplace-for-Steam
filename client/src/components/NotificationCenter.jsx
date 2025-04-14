@@ -107,7 +107,7 @@ const NotificationCenter = ({ user }) => {
   // Check if user is a first-time visitor
   useEffect(() => {
     const hasVisitedBefore = localStorage.getItem('hasVisitedBefore');
-    
+
     if (!hasVisitedBefore && user) {
       // Show welcome notification only for first-time visitors
       // This notification will not be added to the notifications panel
@@ -127,15 +127,15 @@ const NotificationCenter = ({ user }) => {
       // Listen for new trade offers - only real ones from server
       const handleNewTradeOffer = (data) => {
         console.log('New trade offer received:', data);
-        
+
         if (data.sellerId === user._id || data.buyerId === user._id) {
           const newNotification = {
             _id: Date.now().toString(),
-            title: data.sellerId === user._id ? 
-              `New Offer on Your Item` : 
+            title: data.sellerId === user._id ?
+              `New Offer on Your Item` :
               'Your Offer Was Sent',
-            message: data.sellerId === user._id ? 
-              `${data.buyerName} wants to buy your ${data.itemName}` : 
+            message: data.sellerId === user._id ?
+              `${data.buyerName} wants to buy your ${data.itemName}` :
               `You made an offer on ${data.sellerName}'s ${data.itemName}`,
             type: 'trade',
             link: '/trades',
@@ -144,7 +144,7 @@ const NotificationCenter = ({ user }) => {
             relatedItemId: data.itemId,
             offerId: data.offerId
           };
-          
+
           addNotification(
             newNotification.title,
             newNotification.message,
@@ -157,22 +157,22 @@ const NotificationCenter = ({ user }) => {
       // Listen for trade status updates
       const handleTradeStatusUpdate = (data) => {
         console.log('Trade status update received:', data);
-        
+
         if (data.sellerId === user._id || data.buyerId === user._id) {
           let title, message;
-          
+
           if (data.status === 'completed') {
-            title = data.sellerId === user._id ? 
-              'Item Sold Successfully' : 
+            title = data.sellerId === user._id ?
+              'Item Sold Successfully' :
               'Purchase Completed';
-            message = data.sellerId === user._id ? 
-              `Your ${data.itemName} was purchased by ${data.buyerName}` : 
+            message = data.sellerId === user._id ?
+              `Your ${data.itemName} was purchased by ${data.buyerName}` :
               `You successfully purchased ${data.itemName} from ${data.sellerName}`;
           } else if (data.status === 'cancelled') {
             title = 'Trade Cancelled';
             message = `The trade for ${data.itemName} was cancelled`;
           }
-          
+
           if (title && message) {
             addNotification(
               title,
@@ -271,29 +271,29 @@ const NotificationCenter = ({ user }) => {
 
       // Update local state
       if (notificationId) {
-        setNotifications(prev => 
-          prev.map(n => 
+        setNotifications(prev =>
+          prev.map(n =>
             n._id === notificationId ? { ...n, read: true } : n
           )
         );
-        
-        setAllNotifications(prev => 
-          prev.map(n => 
+
+        setAllNotifications(prev =>
+          prev.map(n =>
             n._id === notificationId ? { ...n, read: true } : n
           )
         );
-        
+
         setUnreadCount(prev => Math.max(0, prev - 1));
       } else {
         // Mark all as read
-        setNotifications(prev => 
+        setNotifications(prev =>
           prev.map(n => ({ ...n, read: true }))
         );
-        
-        setAllNotifications(prev => 
+
+        setAllNotifications(prev =>
           prev.map(n => ({ ...n, read: true }))
         );
-        
+
         setUnreadCount(0);
       }
     } catch (err) {
@@ -414,7 +414,7 @@ const NotificationCenter = ({ user }) => {
       }
     `;
     document.head.appendChild(style);
-    
+
     return () => {
       document.head.removeChild(style);
     };
@@ -450,9 +450,9 @@ const NotificationCenter = ({ user }) => {
   // Effect to handle clicking outside the side panel
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (sidePanelRef.current && 
-          !sidePanelRef.current.contains(event.target) && 
-          showAllNotifications) {
+      if (sidePanelRef.current &&
+        !sidePanelRef.current.contains(event.target) &&
+        showAllNotifications) {
         setShowAllNotifications(false);
       }
     };
@@ -467,7 +467,7 @@ const NotificationCenter = ({ user }) => {
     <>
       {/* Welcome notification - only shown on first visit */}
       {welcomeShown && (
-        <div 
+        <div
           className="welcome-notification"
           style={{
             backgroundColor: 'rgba(31, 41, 55, 0.85)',
@@ -501,7 +501,7 @@ const NotificationCenter = ({ user }) => {
               <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
           </div>
-          
+
           <div>
             <h4 style={{ margin: '0 0 4px 0', color: '#f1f1f1', fontSize: '16px' }}>
               Welcome to CS2 Marketplace
@@ -532,24 +532,24 @@ const NotificationCenter = ({ user }) => {
           }}
           aria-label="Notifications"
         >
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            width="22" 
-            height="22" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
             strokeLinejoin="round"
-            style={{ 
+            style={{
               color: unreadCount > 0 ? '#a78bfa' : '#94a3b8'
             }}
           >
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
           </svg>
-          
+
           {unreadCount > 0 && (
             <span
               style={{
@@ -573,9 +573,9 @@ const NotificationCenter = ({ user }) => {
             </span>
           )}
         </button>
-        
+
         {isOpen && (
-          <div 
+          <div
             className="notification-dropdown"
             ref={dropdownRef}
             style={{
@@ -597,15 +597,15 @@ const NotificationCenter = ({ user }) => {
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <h3 style={{ 
-                margin: 0, 
-                color: '#f1f1f1', 
+              <h3 style={{
+                margin: 0,
+                color: '#f1f1f1',
                 fontSize: '16px',
                 fontWeight: '600'
               }}>
                 {t('notifications.title')}
                 {unreadCount > 0 && (
-                  <span style={{ 
+                  <span style={{
                     marginLeft: '8px',
                     backgroundColor: 'rgba(76, 44, 166, 0.2)',
                     color: '#a78bfa',
@@ -618,7 +618,7 @@ const NotificationCenter = ({ user }) => {
                   </span>
                 )}
               </h3>
-              
+
               {unreadCount > 0 && (
                 <button
                   style={{
@@ -638,7 +638,7 @@ const NotificationCenter = ({ user }) => {
                 </button>
               )}
             </div>
-            
+
             <div style={{
               maxHeight: '400px',
               overflowY: 'auto',
@@ -715,11 +715,11 @@ const NotificationCenter = ({ user }) => {
                       if (!notification.read) {
                         markAsRead(notification._id);
                       }
-                      
+
                       if (notification.link) {
                         window.location.href = notification.link;
                       }
-                      
+
                       setIsOpen(false);
                     }}
                   >
@@ -748,7 +748,7 @@ const NotificationCenter = ({ user }) => {
                       >
                         {getNotificationIcon(notification.type)}
                       </div>
-                      
+
                       <div>
                         <div style={{
                           display: 'flex',
@@ -771,7 +771,7 @@ const NotificationCenter = ({ user }) => {
                             {formatDate(notification.createdAt)}
                           </span>
                         </div>
-                        
+
                         <p style={{
                           margin: 0,
                           fontSize: '12px',
@@ -782,7 +782,7 @@ const NotificationCenter = ({ user }) => {
                         </p>
                       </div>
                     </div>
-                    
+
                     {!notification.read && (
                       <div
                         className="pulse"
@@ -1005,7 +1005,7 @@ const NotificationCenter = ({ user }) => {
                     if (!notification.read) {
                       markAsRead(notification._id);
                     }
-                    
+
                     if (notification.link) {
                       window.location.href = notification.link;
                       setShowAllNotifications(false);
@@ -1035,7 +1035,7 @@ const NotificationCenter = ({ user }) => {
                     >
                       {getNotificationIcon(notification.type)}
                     </div>
-                    
+
                     <div style={{ flex: 1 }}>
                       <div style={{
                         display: 'flex',
@@ -1051,7 +1051,7 @@ const NotificationCenter = ({ user }) => {
                         }}>
                           {notification.title}
                         </h4>
-                        
+
                         <span style={{
                           color: '#9ca3af',
                           fontSize: '12px',
@@ -1061,7 +1061,7 @@ const NotificationCenter = ({ user }) => {
                           {formatDate(notification.createdAt)}
                         </span>
                       </div>
-                      
+
                       <p style={{
                         color: notification.read ? '#94a3b8' : '#d1d5db',
                         margin: '0 0 8px 0',
@@ -1070,7 +1070,7 @@ const NotificationCenter = ({ user }) => {
                       }}>
                         {notification.message}
                       </p>
-                      
+
                       {notification.link && (
                         <div>
                           <Link
