@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useTranslation } from '../utils/languageUtils';
 import OfferActionMenu from './OfferActionMenu';
 import { API_URL } from '../config/constants';
+import socketService from '../services/socketService';
 
 // Define notification types and their associated colors/icons
 const NOTIFICATION_TYPES = {
@@ -98,19 +99,89 @@ const NotificationCenter = ({ user }) => {
     };
   }, []);
 
+  // Set up socket listener for real-time notifications
   useEffect(() => {
     if (user) {
+      // Initial fetch of notifications
       fetchNotifications();
 
-      // Refresh notifications every minute, but only if the dropdown is open
-      // to conserve resources
+      // Listen for new trade offers
+      const handleNewTradeOffer = (data) => {
+        console.log('New trade offer received:', data);
+        
+        if (data.sellerId === user._id || data.buyerId === user._id) {
+          const newNotification = {
+            _id: Date.now().toString(),
+            title: data.sellerId === user._id ? 
+              `New Offer on Your Item` : 
+              'Your Offer Was Sent',
+            message: data.sellerId === user._id ? 
+              `${data.buyerName} wants to buy your ${data.itemName}` : 
+              `You made an offer on ${data.sellerName}'s ${data.itemName}`,
+            type: 'trade',
+            link: '/trades',
+            read: false,
+            createdAt: new Date().toISOString(),
+            relatedItemId: data.itemId,
+            offerId: data.offerId
+          };
+          
+          addNotification(
+            newNotification.title,
+            newNotification.message,
+            newNotification.type,
+            newNotification.link
+          );
+        }
+      };
+
+      // Listen for trade status updates
+      const handleTradeStatusUpdate = (data) => {
+        console.log('Trade status update received:', data);
+        
+        if (data.sellerId === user._id || data.buyerId === user._id) {
+          let title, message;
+          
+          if (data.status === 'completed') {
+            title = data.sellerId === user._id ? 
+              'Item Sold Successfully' : 
+              'Purchase Completed';
+            message = data.sellerId === user._id ? 
+              `Your ${data.itemName} was purchased by ${data.buyerName}` : 
+              `You successfully purchased ${data.itemName} from ${data.sellerName}`;
+          } else if (data.status === 'cancelled') {
+            title = 'Trade Cancelled';
+            message = `The trade for ${data.itemName} was cancelled`;
+          }
+          
+          if (title && message) {
+            addNotification(
+              title,
+              message,
+              'trade',
+              '/trades'
+            );
+          }
+        }
+      };
+
+      // Register socket listeners
+      socketService.on('newTradeOffer', handleNewTradeOffer);
+      socketService.on('tradeStatusUpdate', handleTradeStatusUpdate);
+
+      // Refresh notifications every minute when dropdown is open
       const interval = setInterval(() => {
         if (isOpen) {
           fetchNotifications();
         }
-      }, 60000); // Change from 30s to 60s to reduce load
+      }, 60000);
 
-      return () => clearInterval(interval);
+      return () => {
+        // Clean up socket listeners and interval
+        socketService.off('newTradeOffer', handleNewTradeOffer);
+        socketService.off('tradeStatusUpdate', handleTradeStatusUpdate);
+        clearInterval(interval);
+      };
     }
   }, [user, isOpen]);
 
@@ -212,7 +283,7 @@ const NotificationCenter = ({ user }) => {
           'New Trade Offer',
           'You received a new trade offer for your AWP | Asiimov',
           'TRADE',
-          '/marketplace?tab=offers'
+          '/trades'
         );
       }, 3000);
     }
@@ -315,7 +386,7 @@ const NotificationCenter = ({ user }) => {
   }, []);
 
   return (
-    <div ref={dropdownRef} style={{ position: 'relative' }}>
+    <div ref={dropdownRef} style={{ position: 'relative', marginRight: '10px' }}>
       {/* Notification Bell Button without Animation */}
       <button
         onClick={toggleDropdown}
@@ -370,13 +441,13 @@ const NotificationCenter = ({ user }) => {
         )}
       </button>
 
-      {/* Dropdown Panel without Animation */}
+      {/* Dropdown Panel without Animation - Fixed positioning issue */}
       {isOpen && (
         <div
           style={{
             position: 'absolute',
             top: '100%',
-            right: '0',
+            right: '0',  // Aligned to the right of the notification button
             width: '350px',
             backgroundColor: 'rgba(45, 27, 105, 0.9)',
             borderRadius: '16px',
@@ -693,7 +764,7 @@ const NotificationCenter = ({ user }) => {
             )}
           </div>
 
-          {/* Footer */}
+          {/* Footer - Fixed "notifications.viewAll" text to "All notifications" */}
           {notifications.length > 0 && (
             <div
               style={{
@@ -726,7 +797,7 @@ const NotificationCenter = ({ user }) => {
                   e.target.style.color = '#cbd5e1';
                 }}
               >
-                {t('notifications.viewAll')}
+                All notifications
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>

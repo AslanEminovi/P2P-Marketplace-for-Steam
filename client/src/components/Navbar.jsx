@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { API_URL } from '../config/constants';
 import axios from 'axios';
+import NotificationCenter from './NotificationCenter';
+import LanguageSwitcher from './LanguageSwitcher';
 import './Navbar.css';
 
 // Remove logo import since it's not needed
@@ -248,6 +250,9 @@ const Navbar = ({ user, onLogout }) => {
                   <span className="balance-amount">{formatBalance(user.balance)} ₾</span>
                   <Link to="/add-funds" className="balance-add">+</Link>
                 </div>
+                
+                {/* Add NotificationCenter component next to profile section */}
+                {user && <NotificationCenter user={user} />}
 
                 <div className="dropdown-wrapper">
                   <button 
