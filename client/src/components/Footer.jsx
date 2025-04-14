@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FaHome, FaStore, FaBoxOpen, FaExchangeAlt, FaQuestionCircle, FaShieldAlt, FaEnvelope, FaDiscord, FaSteam, FaTwitter, FaInstagram } from 'react-icons/fa';
+import { FaHome, FaStore, FaBoxOpen, FaExchangeAlt, FaQuestionCircle, FaShieldAlt, FaEnvelope, FaDiscord, FaSteam, FaFacebookF, FaFileContract } from 'react-icons/fa';
 import './Footer.css';
 
 const Footer = () => {
@@ -21,17 +21,14 @@ const Footer = () => {
             <p className="footer-tagline">The premier CS2 trading platform in Georgia</p>
           </div>
           <div className="footer-social">
-            <a href="https://discord.gg" target="_blank" rel="noopener noreferrer" aria-label="Discord">
+            <a href="https://discord.com/channels/1361407438670139442/1361407439575974100" target="_blank" rel="noopener noreferrer" aria-label="Discord">
               <FaDiscord />
             </a>
-            <a href="https://steamcommunity.com" target="_blank" rel="noopener noreferrer" aria-label="Steam">
+            <a href="https://steamcommunity.com/profiles/76561199831663438" target="_blank" rel="noopener noreferrer" aria-label="Steam">
               <FaSteam />
             </a>
-            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter">
-              <FaTwitter />
-            </a>
-            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
-              <FaInstagram />
+            <a href="https://www.facebook.com/profile.php?id=61575170342758" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+              <FaFacebookF />
             </a>
           </div>
         </div>
@@ -43,7 +40,7 @@ const Footer = () => {
               CS2 Marketplace is the leading platform for buying and selling Counter-Strike 2 items in Georgia with secure transactions and fair prices.
             </p>
             <div className="footer-contact-info">
-              <p><FaEnvelope /> contact@cs2marketplace.com</p>
+              <p><FaEnvelope /> spectervale1@gmail.com</p>
             </div>
           </div>
           
@@ -63,16 +60,8 @@ const Footer = () => {
               <li><Link to="/contact"><FaEnvelope /> Contact Us</Link></li>
               <li><Link to="/faq"><FaQuestionCircle /> FAQ</Link></li>
               <li><Link to="/privacy-policy"><FaShieldAlt /> Privacy Policy</Link></li>
+              <li><Link to="/terms"><FaFileContract /> Terms of Service</Link></li>
             </ul>
-          </div>
-        </div>
-
-        <div className="footer-newsletter">
-          <h3>Stay Updated</h3>
-          <p>Subscribe to our newsletter for updates on new features and promotions</p>
-          <div className="newsletter-form">
-            <input type="email" placeholder="Enter your email" />
-            <button type="button">Subscribe</button>
           </div>
         </div>
         

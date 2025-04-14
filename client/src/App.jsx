@@ -22,6 +22,7 @@ import Trades from './pages/Trades';
 import Contact from './pages/Contact';
 import FAQ from './pages/FAQ';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 
 // Components
 import SteamSettings from './components/SteamSettings';
@@ -29,6 +30,7 @@ import NotificationCenter from './components/NotificationCenter';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import PageWrapper from './components/PageWrapper';
 import ScrollToTop from './components/ScrollToTop';
+import ContactUs from './pages/ContactUs';
 
 // Import constants
 import { API_URL } from './config/constants';
@@ -922,9 +924,10 @@ function App() {
               </AdminRoute>
             } />
 
-            <Route path="/contact" element={<Contact />} />
+            <Route path="/contact" element={<ContactUs />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
 
             {/* Catch-all route */}
             <Route path="*" element={<Navigate to="/" replace />} />
