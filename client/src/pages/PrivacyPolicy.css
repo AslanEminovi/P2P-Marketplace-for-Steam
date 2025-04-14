@@ -78,6 +78,10 @@
 
 .privacy-sidebar {
   flex: 0 0 280px;
+  position: sticky;
+  top: 20px;
+  height: fit-content;
+  align-self: flex-start;
 }
 
 .privacy-main {
