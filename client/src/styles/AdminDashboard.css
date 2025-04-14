@@ -1,0 +1,155 @@
+/* Styles for the admin dashboard */
+
+/* User details trades styling */
+.trades-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.trades-table th,
+.trades-table td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.trades-table th {
+  font-weight: 600;
+  color: #e1e1e1;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.trade-row {
+  transition: background-color 0.2s;
+}
+
+.trade-row:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.trade-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trade-item-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+}
+
+.user-small {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-avatar-small {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-avatar-placeholder-small {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #3a3a3a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #bbbbbb;
+}
+
+.seller-role {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.buyer-role {
+  color: #2196f3;
+  font-weight: 500;
+}
+
+/* Empty state styling */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #aaaaaa;
+  text-align: center;
+}
+
+.empty-state svg {
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.empty-state p {
+  margin: 5px 0;
+}
+
+.empty-subtitle {
+  font-size: 0.9em;
+  opacity: 0.7;
+}
+
+/* Error message styling */
+.error-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 20px;
+  color: #ff6b6b;
+  text-align: center;
+}
+
+.error-message svg {
+  margin-bottom: 16px;
+  font-size: 32px;
+}
+
+.retry-button {
+  margin-top: 16px;
+  padding: 6px 16px;
+  background-color: #3a6ff7;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.retry-button:hover {
+  background-color: #2a5cd7;
+}
+
+/* Loading container */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.loading-container p {
+  margin-top: 16px;
+  color: #e1e1e1;
+} 

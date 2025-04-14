@@ -599,4 +599,372 @@ router.get("/users", async (req, res) => {
   }
 });
 
+/**
+ * @route   GET /admin/user-inventory/:steamId
+ * @desc    Get Steam inventory for a user by Steam ID with improved error handling
+ * @access  Admin
+ */
+router.get("/user-inventory/:steamId", async (req, res) => {
+  try {
+    const { steamId } = req.params;
+
+    if (!steamId) {
+      return res.status(400).json({ error: "Steam ID is required" });
+    }
+
+    // Get Steam API key from environment variables
+    const steamApiKey = process.env.STEAM_API_KEY;
+
+    if (!steamApiKey) {
+      return res.status(500).json({ error: "Steam API key not configured" });
+    }
+
+    console.log(`Fetching Steam inventory for SteamID: ${steamId}`);
+
+    // Try to check if we have a cached version first
+    const User = mongoose.model("User");
+    const user = await User.findOne({ steamId }).lean();
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ error: "User not found with that Steam ID" });
+    }
+
+    // First, check if the user has any items in our system
+    const Item = mongoose.model("Item");
+    const userItems = await Item.find({
+      ownerId: user._id,
+      owner: user._id,
+    }).lean();
+
+    // Call the Steam API to get the user's inventory
+    // The URL format follows Steam Web API specifications
+    const steamInventoryUrl = `https://api.steampowered.com/IEconService/GetInventoryItemsWithDescriptions/v1/?key=${steamApiKey}&steamid=${steamId}&appid=730&contextid=2&get_descriptions=true`;
+
+    const response = await axios.get(steamInventoryUrl, {
+      timeout: 10000, // 10 second timeout
+    });
+
+    if (
+      !response.data ||
+      !response.data.result ||
+      !response.data.result.items
+    ) {
+      // If Steam API fails but we have local items, return those instead
+      if (userItems && userItems.length > 0) {
+        console.log(
+          `Steam API returned no data, but found ${userItems.length} items in our system for user ${steamId}`
+        );
+        return res.json(
+          userItems.map((item) => ({
+            assetid: item.assetId,
+            name: item.marketHashName,
+            marketname: item.marketHashName,
+            icon_url: item.imageUrl,
+            wear: item.wear,
+            rarity: item.rarity,
+            tradable: true,
+            price: item.price,
+          }))
+        );
+      }
+      return res.status(404).json({
+        error: "No inventory data found or private inventory",
+        message:
+          "The user's Steam inventory is private or they don't have any CS2 items.",
+      });
+    }
+
+    // Process the inventory items to make them easier to work with
+    const items = response.data.result.items;
+    const descriptions = response.data.result.descriptions;
+
+    // Map the descriptions to the items
+    const processedItems = items.map((item) => {
+      const description = descriptions.find(
+        (desc) =>
+          desc.classid === item.classid && desc.instanceid === item.instanceid
+      );
+
+      if (!description) {
+        return {
+          ...item,
+          name: "Unknown Item",
+          icon_url: "",
+        };
+      }
+
+      // Extract wear value from market_hash_name if it exists
+      let wear = "";
+      const wearMatch =
+        description.market_hash_name &&
+        description.market_hash_name.match(
+          /(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)$/
+        );
+      if (wearMatch) {
+        wear = wearMatch[1];
+      }
+
+      // Extract rarity from tags
+      let rarity = "";
+      if (description.tags) {
+        const rarityTag = description.tags.find(
+          (tag) => tag.category === "Rarity"
+        );
+        if (rarityTag) {
+          rarity = rarityTag.name;
+        }
+      }
+
+      // Try to match with our database items to get prices
+      const matchingItem = userItems.find(
+        (dbItem) =>
+          dbItem.marketHashName === description.market_hash_name ||
+          dbItem.assetId === item.assetid
+      );
+
+      return {
+        ...item,
+        assetid: item.assetid || item.id,
+        name: description.name || description.market_hash_name,
+        marketname: description.market_hash_name,
+        icon_url: description.icon_url
+          ? `https://steamcommunity-a.akamaihd.net/economy/image/${description.icon_url}`
+          : "",
+        wear,
+        rarity,
+        tradable: description.tradable === 1,
+        price: matchingItem?.price || null,
+      };
+    });
+
+    console.log(
+      `Found ${processedItems.length} inventory items for SteamID: ${steamId}`
+    );
+
+    res.json(processedItems);
+  } catch (error) {
+    console.error("Error fetching user inventory:", error);
+
+    // Provide more specific error messages based on the error
+    if (error.response) {
+      if (error.response.status === 403) {
+        return res
+          .status(403)
+          .json({ error: "Inventory is private or inaccessible" });
+      }
+      return res.status(error.response.status).json({
+        error: `Steam API error: ${
+          error.response.data?.error || error.message
+        }`,
+      });
+    }
+
+    if (error.code === "ECONNABORTED") {
+      return res.status(504).json({ error: "Steam API request timed out" });
+    }
+
+    res.status(500).json({ error: "Failed to fetch inventory data" });
+  }
+});
+
+/**
+ * @route   GET /admin/user-trades/:userId
+ * @desc    Get detailed trade history for a specific user with populated user and item data
+ * @access  Admin
+ */
+router.get("/user-trades/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    // Get models directly to avoid any possible circular dependency issues
+    const Trade = mongoose.model("Trade");
+    const User = mongoose.model("User");
+    const Item = mongoose.model("Item");
+
+    // Query the database for trades involving this user
+    // The user could be either a buyer or a seller
+    const trades = await Trade.find({
+      $or: [{ buyer: userId }, { seller: userId }],
+    })
+      .sort({ createdAt: -1 }) // Sort by most recent first
+      .populate("item", "marketHashName imageUrl price wear")
+      .populate("buyer", "displayName avatar steamId")
+      .populate("seller", "displayName avatar steamId")
+      .limit(100) // Limit to 100 most recent trades
+      .lean();
+
+    console.log(`Found ${trades.length} trades for user ${userId}`);
+
+    // Process the trades to make them easier to work with in the frontend
+    const processedTrades = trades.map((trade) => {
+      // Add flags to indicate if the user is the buyer or seller
+      const isUserBuyer = trade.buyer?._id.toString() === userId.toString();
+      const isUserSeller = trade.seller?._id.toString() === userId.toString();
+
+      // Handle missing item case
+      if (!trade.item || Object.keys(trade.item).length === 0) {
+        trade.item = {
+          marketHashName: trade.itemName || "Unknown Item",
+          imageUrl:
+            trade.itemImage ||
+            "https://community.cloudflare.steamstatic.com/economy/image/placeholder/360fx360f",
+          wear: trade.itemWear || "Unknown",
+          price: trade.price || 0,
+        };
+      }
+
+      return {
+        ...trade,
+        isUserBuyer,
+        isUserSeller,
+        itemName: trade.item?.marketHashName || trade.itemName,
+        itemImage: trade.item?.imageUrl || trade.itemImage,
+        // Convert prices to numbers if they are strings
+        price:
+          typeof trade.price === "string"
+            ? parseFloat(trade.price)
+            : trade.price,
+      };
+    });
+
+    res.json(processedTrades);
+  } catch (error) {
+    console.error("Error fetching user trades:", error);
+    res.status(500).json({ error: "Failed to fetch trade history" });
+  }
+});
+
+/**
+ * @route   POST /admin/users/:userId/ban
+ * @desc    Ban a user
+ * @access  Admin
+ */
+router.post("/users/:userId/ban", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { reason } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    // Validate the userId format
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.error(`Invalid user ID format: ${userId}`);
+      return res.status(400).json({ error: "Invalid user ID format" });
+    }
+
+    // Make sure admin isn't trying to ban themselves
+    if (userId === req.user._id.toString()) {
+      return res.status(400).json({ error: "You cannot ban yourself" });
+    }
+
+    // Get the User model
+    const User = mongoose.model("User");
+
+    // Update the user's ban status
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        isBanned: true,
+        banReason: reason || "Banned by administrator",
+        bannedAt: new Date(),
+        bannedBy: req.user._id,
+      },
+      { new: true }
+    ).select("-refreshToken");
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    console.log(
+      `Admin ${req.user.displayName} (${req.user._id}) banned user ${user.displayName} (${user._id})`
+    );
+
+    // Also invalidate their sessions for security
+    await User.findByIdAndUpdate(userId, {
+      refreshToken: null,
+      sessionVersion: { $add: [{ $ifNull: ["$sessionVersion", 0] }, 1] },
+    });
+
+    res.json({
+      success: true,
+      user: {
+        _id: user._id,
+        displayName: user.displayName,
+        isBanned: user.isBanned,
+        banReason: user.banReason,
+        bannedAt: user.bannedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Error banning user:", error);
+    res.status(500).json({ error: "Failed to ban user" });
+  }
+});
+
+/**
+ * @route   POST /admin/users/:userId/unban
+ * @desc    Unban a user
+ * @access  Admin
+ */
+router.post("/users/:userId/unban", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    // Validate the userId format
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.error(`Invalid user ID format: ${userId}`);
+      return res.status(400).json({ error: "Invalid user ID format" });
+    }
+
+    // Get the User model
+    const User = mongoose.model("User");
+
+    // Update the user's ban status
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        $unset: { banReason: "", bannedAt: "", bannedBy: "" },
+        isBanned: false,
+        unbannedAt: new Date(),
+        unbannedBy: req.user._id,
+      },
+      { new: true }
+    ).select("-refreshToken");
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    console.log(
+      `Admin ${req.user.displayName} (${req.user._id}) unbanned user ${user.displayName} (${user._id})`
+    );
+
+    res.json({
+      success: true,
+      user: {
+        _id: user._id,
+        displayName: user.displayName,
+        isBanned: user.isBanned,
+        unbannedAt: user.unbannedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Error unbanning user:", error);
+    res.status(500).json({ error: "Failed to unban user" });
+  }
+});
+
 module.exports = router;
