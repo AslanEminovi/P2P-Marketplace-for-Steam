@@ -7,14 +7,45 @@ const axios = require("axios");
 const adminController = require("../controllers/adminController");
 const auth = require("../middleware/auth");
 
-// Route without auth check - must be first before other middleware
-router.get("/check", adminController.checkAdmin);
+// Define a route handler for admin check
+// This should be before any auth middleware
+router.get("/check", async (req, res) => {
+  try {
+    // If no user is logged in
+    if (!req.user) {
+      console.log("No user found in request, not an admin");
+      return res.json({ isAdmin: false });
+    }
+
+    console.log(`Checking admin status for user: ${req.user._id}`);
+
+    // For security, recheck from the database
+    const User = mongoose.model("User");
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      console.log("User not found in database");
+      return res.json({ isAdmin: false });
+    }
+
+    // If user exists but isAdmin is not explicitly true, return false
+    if (!user.isAdmin) {
+      console.log(`User ${user._id} is not an admin`);
+      return res.json({ isAdmin: false });
+    }
+
+    console.log(`User ${user._id} is confirmed as admin`);
+    return res.json({ isAdmin: true });
+  } catch (error) {
+    console.error("Error checking admin status:", error);
+    return res.status(500).json({ error: "Server error", isAdmin: false });
+  }
+});
 
 // Now apply authentication middlewares to all subsequent routes
 router.use(auth.isAuthenticated);
 
 // Only apply the admin check after the /check route
-// as that route is specifically for checking if someone is an admin
 router.use((req, res, next) => {
   console.log("Checking admin status for protected route");
   if (!req.user || !req.user.isAdmin) {
@@ -107,7 +138,50 @@ router.post("/cleanup-user/:userId", async (req, res) => {
  * @desc    Get all users with pagination and filtering
  * @access  Admin
  */
-router.get("/users", adminController.getUsers);
+router.get("/users", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const search = req.query.search || "";
+
+    const User = mongoose.model("User");
+
+    // Build search filter
+    const searchFilter = search
+      ? {
+          $or: [
+            { displayName: { $regex: search, $options: "i" } },
+            { steamId: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+          ],
+        }
+      : {};
+
+    // Get paginated users
+    const users = await User.find(searchFilter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select("steamId displayName avatar createdAt lastLogin isAdmin balance");
+
+    // Get total count
+    const total = await User.countDocuments(searchFilter);
+
+    res.json({
+      users,
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+        limit,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting users:", error);
+    res.status(500).json({ error: "Failed to get users" });
+  }
+});
 
 /**
  * @route   GET /admin/users/:userId
@@ -356,7 +430,143 @@ router.get("/check-api-keys", async (req, res) => {
   }
 });
 
-// Statistics routes
-router.get("/statistics", adminController.getStatistics);
+// Statistics route
+router.get("/statistics", async (req, res) => {
+  try {
+    // Get counts of users, items, trades
+    const User = mongoose.model("User");
+    const Item = mongoose.model("Item");
+    const Trade = mongoose.model("Trade");
+
+    const usersCount = await User.countDocuments();
+    const itemsCount = await Item.countDocuments({ isListed: true });
+    const tradesCount = await Trade.countDocuments();
+    const completedTradesCount = await Trade.countDocuments({
+      status: "completed",
+    });
+
+    // Get counts of active users (logged in within the last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const activeUsersCount = await User.countDocuments({
+      lastLogin: { $gte: thirtyDaysAgo },
+    });
+
+    // Get counts of new users and items in the last 24 hours
+    const twentyFourHoursAgo = new Date();
+    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+
+    const newUsers24h = await User.countDocuments({
+      createdAt: { $gte: twentyFourHoursAgo },
+    });
+
+    const newItems24h = await Item.countDocuments({
+      createdAt: { $gte: twentyFourHoursAgo },
+      isListed: true,
+    });
+
+    // Calculate total value of all listed items
+    const totalValuePipeline = await Item.aggregate([
+      { $match: { isListed: true } },
+      { $group: { _id: null, total: { $sum: "$price" } } },
+    ]);
+
+    const totalValue =
+      totalValuePipeline.length > 0 ? totalValuePipeline[0].total : 0;
+
+    return res.json({
+      usersCount,
+      activeUsersCount,
+      itemsCount,
+      tradesCount,
+      completedTradesCount,
+      totalValue,
+      newUsers24h,
+      newItems24h,
+      timestamp: new Date(),
+    });
+  } catch (error) {
+    console.error("Error getting admin statistics:", error);
+    return res.status(500).json({ error: "Failed to get statistics" });
+  }
+});
+
+// Users route
+router.get("/users", async (req, res) => {
+  try {
+    console.log("⭐ Admin dashboard: getUsers called");
+
+    const User = mongoose.model("User");
+    const Item = mongoose.model("Item");
+    const Trade = mongoose.model("Trade");
+
+    // First try a simple query to make sure we can retrieve users
+    const userCount = await User.countDocuments();
+    console.log(`📊 Total user count from simple query: ${userCount}`);
+
+    // Get all users with a simpler query first
+    const users = await User.find()
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .select(
+        "steamId displayName avatar avatarMedium avatarFull createdAt lastLogin lastLoginAt isAdmin isBanned balance email tradeUrl"
+      );
+
+    console.log(`✅ Found ${users.length} users with direct query`);
+
+    if (users.length > 0) {
+      console.log("First user from direct query:", {
+        id: users[0]._id,
+        displayName: users[0].displayName,
+        steamId: users[0].steamId,
+        avatar: users[0].avatar ? "exists" : "missing",
+        avatarMedium: users[0].avatarMedium ? "exists" : "missing",
+        avatarFull: users[0].avatarFull ? "exists" : "missing",
+      });
+    } else {
+      console.log("❌ No users found with direct query");
+    }
+
+    // Add additional data for each user
+    const enhancedUsers = await Promise.all(
+      users.map(async (user) => {
+        // Convert Mongoose document to plain object
+        const userObj = user.toObject();
+
+        // Get item count for this user
+        const itemCount = await Item.countDocuments({ owner: user._id });
+
+        // Get trade counts
+        const tradeCount = await Trade.countDocuments({
+          $or: [{ buyer: user._id }, { seller: user._id }],
+        });
+
+        const completedTradeCount = await Trade.countDocuments({
+          $or: [{ buyer: user._id }, { seller: user._id }],
+          status: "completed",
+        });
+
+        // Make sure lastActive is set to something
+        const lastActive = user.lastLoginAt || user.lastLogin || user.createdAt;
+
+        // Return enhanced user object
+        return {
+          ...userObj,
+          itemCount,
+          tradeCount,
+          completedTradeCount,
+          lastActive,
+        };
+      })
+    );
+
+    console.log(`✅ Enhanced ${enhancedUsers.length} users with counts`);
+
+    res.status(200).json(enhancedUsers);
+  } catch (error) {
+    console.error("❌ Error fetching users:", error);
+    res.status(500).json({ error: "Server error: " + error.message });
+  }
+});
 
 module.exports = router;
