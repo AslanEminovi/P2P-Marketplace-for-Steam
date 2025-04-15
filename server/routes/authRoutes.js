@@ -134,6 +134,11 @@ router.post("/verify-token", async (req, res) => {
         roles: user.roles || [],
         tradeUrl: user.tradeUrl || "",
         balance: user.balance || 0,
+        settings: user.settings || {
+          currency: "USD",
+          theme: "dark",
+          notifications: {},
+        },
         // Add other necessary user fields
       },
     });
@@ -195,6 +200,11 @@ router.get("/user", async (req, res) => {
           balance: req.user.balance || 0,
           walletBalance: req.user.balance || 0,
           isAdmin: req.user.isAdmin || false,
+          settings: req.user.settings || {
+            currency: "USD",
+            theme: "dark",
+            notifications: {},
+          },
           // Add other necessary user fields
         },
       });
@@ -265,7 +275,14 @@ router.get("/user", async (req, res) => {
           tradeUrl: user.tradeUrl || "",
           balance: user.balance || 0,
           walletBalance: user.balance || 0,
+          walletBalanceGEL: user.walletBalanceGEL || 0,
+          lastProfileUpdate: user.lastProfileUpdate,
           isAdmin: user.isAdmin || false,
+          settings: user.settings || {
+            currency: "USD",
+            theme: "dark",
+            notifications: {},
+          },
           // Add other necessary user fields
         },
       });
@@ -348,6 +365,11 @@ router.get("/me", (req, res) => {
           walletBalanceGEL: req.user.walletBalanceGEL,
           lastProfileUpdate: req.user.lastProfileUpdate,
           isAdmin: req.user.isAdmin || false,
+          settings: req.user.settings || {
+            currency: "USD",
+            theme: "dark",
+            notifications: {},
+          },
         },
       });
     } catch (error) {

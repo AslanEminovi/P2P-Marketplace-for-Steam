@@ -248,7 +248,7 @@
   .footer-content {
     grid-template-columns: 1fr 1fr;
   }
-  
+
   .about-section {
     grid-column: span 2;
   }
@@ -260,16 +260,16 @@
     align-items: flex-start;
     gap: 15px;
   }
-  
+
   .footer-social {
     width: 100%;
     justify-content: center;
   }
-  
+
   .newsletter-form {
     flex-direction: column;
   }
-  
+
   .newsletter-form button {
     width: 100%;
   }
@@ -279,12 +279,12 @@
   .footer-content {
     grid-template-columns: 1fr;
   }
-  
+
   .about-section {
     grid-column: span 1;
   }
-  
+
   .site-footer {
     padding-top: 50px;
   }
-} 
+}

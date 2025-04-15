@@ -79,6 +79,17 @@ const Settings = ({ user, onBalanceUpdate }) => {
     setLoading(true);
     
     try {
+      // Log the data being sent for debugging
+      console.log('Saving settings with data:', {
+        displayName: formData.displayName,
+        email: formData.email,
+        phone: formData.phone,
+        settings: {
+          currency: formData.currency
+        }
+      });
+
+      // Update to match the backend User model structure with nested settings
       const response = await axios.put(
         `${API_URL}/user/settings`,
         {
@@ -89,15 +100,24 @@ const Settings = ({ user, onBalanceUpdate }) => {
             currency: formData.currency
           }
         },
-        { withCredentials: true }
+        { 
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
       );
       
       if (response.data.success) {
         toast.success('Settings saved successfully');
         fetchUserProfile(); // Refresh user data
+      } else {
+        console.error('Save response not successful:', response.data);
+        toast.error(response.data?.message || 'Failed to save settings');
       }
     } catch (err) {
       console.error('Error saving settings:', err);
+      console.error('Error details:', err.response?.data);
       setError(err.response?.data?.error || 'Failed to save settings');
       toast.error(err.response?.data?.error || 'Failed to save settings');
     } finally {
@@ -138,13 +158,6 @@ const Settings = ({ user, onBalanceUpdate }) => {
               <FaChevronRight className="settings-nav-arrow" />
             </button>
           ))}
-          
-          {/* Wallet link */}
-          <Link to="/wallet" className="settings-nav-item">
-            <span className="settings-nav-icon"><FaWallet /></span>
-            <span className="settings-nav-label">Wallet</span>
-            <FaChevronRight className="settings-nav-arrow" />
-          </Link>
         </nav>
       </div>
     );

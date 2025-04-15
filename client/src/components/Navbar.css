@@ -1095,3 +1095,109 @@
   font-weight: 600;
   font-size: 15px;
 }
+
+/* Updated wallet styling */
+.wallet-dropdown-container {
+  position: relative;
+  margin-right: 15px;
+}
+
+.wallet-nav-link {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 0.9rem;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.wallet-nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.wallet-nav-link .balance-display {
+  margin: 0 8px;
+}
+
+.wallet-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 180px;
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+  padding: 8px;
+  margin-top: 5px;
+}
+
+.wallet-dropdown-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 10px;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 0.9rem;
+  text-align: left;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.wallet-dropdown-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.wallet-dropdown-item svg {
+  margin-right: 8px;
+}
+
+.wallet-dropdown-divider {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 8px 0;
+}
+
+.wallet-dropdown-currency {
+  padding: 8px 10px;
+}
+
+.wallet-dropdown-currency > span {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  color: #aaa;
+}
+
+.currency-options {
+  display: flex;
+  gap: 8px;
+}
+
+.currency-option {
+  flex: 1;
+  padding: 6px 10px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: white;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.currency-option:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.currency-option.active {
+  background-color: rgba(79, 70, 229, 0.2);
+  border-color: #4f46e5;
+}

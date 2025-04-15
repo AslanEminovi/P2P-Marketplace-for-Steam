@@ -5,12 +5,17 @@ import axios from 'axios';
 import NotificationCenter from './NotificationCenter';
 import LanguageSwitcher from './LanguageSwitcher';
 import './Navbar.css';
+import { toast } from 'react-hot-toast';
+import { FaWallet, FaCaretDown, FaPlus, FaSearch, FaUser, FaBars, FaTimes, FaMoneyBillWave, FaDollarSign, FaLiraSign } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo.png';
 
 // Remove logo import since it's not needed
 // import csLogo from '../assets/cs-logo.png';
 
 // Navbar now receives user and onLogout as props
 const Navbar = ({ user, onLogout }) => {
+  const { isAuthenticated, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -18,12 +23,15 @@ const Navbar = ({ user, onLogout }) => {
   const [hidden, setHidden] = useState(false);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [pendingTradesCount, setPendingTradesCount] = useState(0);
+  const [showWalletDropdown, setShowWalletDropdown] = useState(false);
+  const [selectedCurrency, setSelectedCurrency] = useState(user?.settings?.currency || 'USD');
   const location = useLocation();
   const navigate = useNavigate();
   
   // Refs for click outside detection
   const dropdownRef = useRef(null);
   const profileBtnRef = useRef(null);
+  const walletDropdownRef = useRef(null);
   
   // Debug: Log user data for inspection
   useEffect(() => {
@@ -156,7 +164,12 @@ const Navbar = ({ user, onLogout }) => {
   const formatBalance = (balance) => {
     if (!balance) return '0.00';
     
-    return (balance / 100).toFixed(2);
+    const amount = parseFloat(balance);
+    if (selectedCurrency === 'GEL') {
+      // Assuming 1 USD = 2.7 GEL (this should ideally come from an API or config)
+      return (amount * 2.7).toFixed(2);
+    }
+    return amount.toFixed(2);
   };
   
   // Use the logout handler from props
@@ -177,6 +190,40 @@ const Navbar = ({ user, onLogout }) => {
     }
   };
 
+  // Toggle wallet dropdown
+  const toggleWalletDropdown = () => {
+    setShowWalletDropdown(prev => !prev);
+  };
+
+  // Handle currency selection
+  const handleCurrencyChange = (currency) => {
+    setSelectedCurrency(currency);
+    localStorage.setItem('preferredCurrency', currency);
+    toast.success(`Currency changed to ${currency}`);
+    setShowWalletDropdown(false);
+  };
+
+  // Handle deposit click
+  const handleDepositClick = () => {
+    navigate('/wallet/deposit');
+    setShowWalletDropdown(false);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const dropdownElement = document.querySelector('.wallet-dropdown-container');
+      if (dropdownElement && !dropdownElement.contains(event.target)) {
+        setShowWalletDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
     <>
       <nav className={`navbar ${scrolled ? 'scrolled' : ''} ${mobileOpen ? 'mobile-open' : ''} ${hidden ? 'navbar-hidden' : ''}`}>
@@ -185,8 +232,8 @@ const Navbar = ({ user, onLogout }) => {
             <Link to="/" className="navbar-logo">
               {/* Display logo text, Georgian text, and social links next to each other */}
               <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span className="logo-text">CS2 Market</span>
-                <span className="georgian-text">საქართველო</span>
+                <img src={logo} alt="CS2 Marketplace" style={{ width: '24px', height: '24px', marginRight: '8px' }} />
+                <span className="logo-text">CS2 Marketplace</span>
               </div>
             </Link>
             
@@ -245,14 +292,45 @@ const Navbar = ({ user, onLogout }) => {
                   {user && <NotificationCenter user={user} />}
                 </div>
                 
-                <div className="wallet-nav-link">
-                  <div className="wallet-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
-                      <line x1="2" y1="10" x2="22" y2="10"></line>
-                    </svg>
-                  </div>
-                  <span className="wallet-balance">${formatBalance(user.walletBalance || 0)}</span>
+                <div className="wallet-dropdown-container" ref={walletDropdownRef}>
+                  <button className="wallet-nav-link" onClick={toggleWalletDropdown}>
+                    <FaWallet />
+                    <span className="balance-display">
+                      {selectedCurrency === 'USD' 
+                        ? `$${formatBalance(user.walletBalance)}`
+                        : `${formatBalance(user.walletBalance)} ₾`}
+                    </span>
+                    <FaCaretDown />
+                  </button>
+                  
+                  {showWalletDropdown && (
+                    <div className="wallet-dropdown">
+                      <button className="wallet-dropdown-item" onClick={handleDepositClick}>
+                        <FaMoneyBillWave />
+                        Deposit
+                      </button>
+                      
+                      <div className="wallet-dropdown-divider"></div>
+                      
+                      <div className="wallet-dropdown-currency">
+                        <span>Currency</span>
+                        <div className="currency-options">
+                          <button 
+                            className={`currency-option ${selectedCurrency === 'USD' ? 'active' : ''}`}
+                            onClick={() => handleCurrencyChange('USD')}
+                          >
+                            USD
+                          </button>
+                          <button 
+                            className={`currency-option ${selectedCurrency === 'GEL' ? 'active' : ''}`}
+                            onClick={() => handleCurrencyChange('GEL')}
+                          >
+                            GEL
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="dropdown-wrapper">
@@ -640,3 +718,4 @@ const Navbar = ({ user, onLogout }) => {
 };
 
 export default Navbar; 
+
