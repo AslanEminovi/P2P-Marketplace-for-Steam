@@ -8,7 +8,7 @@ import './Navbar.css';
 import { toast } from 'react-hot-toast';
 import { FaWallet, FaCaretDown, FaPlus, FaSearch, FaUser, FaBars, FaTimes, FaMoneyBillWave, FaDollarSign, FaLiraSign } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
-import logo from '../assets/logo.png';
+import logo from '../assets/cs-logo.png';
 
 // Remove logo import since it's not needed
 // import csLogo from '../assets/cs-logo.png';
