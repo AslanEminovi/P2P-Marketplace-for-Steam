@@ -287,11 +287,6 @@ const Navbar = ({ user, onLogout }) => {
           <div className="navbar-right">
             {user ? (
               <div className="user-section" style={{ display: 'flex', alignItems: 'center' }}>
-                {/* Position notification center on the RIGHT of profile button */}
-                <div style={{ display: 'flex', alignItems: 'center', marginLeft: '15px' }}>
-                  {user && <NotificationCenter user={user} />}
-                </div>
-                
                 <div className="wallet-dropdown-container" ref={walletDropdownRef}>
                   <button className="wallet-nav-link" onClick={toggleWalletDropdown}>
                     <FaWallet className="wallet-icon" />
@@ -396,6 +391,11 @@ const Navbar = ({ user, onLogout }) => {
                       </svg>
                     </div>
                   </button>
+                  
+                  {/* Add notification center to the right of profile button */}
+                  <div style={{ display: 'inline-block', marginLeft: '10px' }}>
+                    {user && <NotificationCenter user={user} />}
+                  </div>
                   
                   {dropdownOpen && (
                     <div 
