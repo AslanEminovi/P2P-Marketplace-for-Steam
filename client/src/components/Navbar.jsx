@@ -205,7 +205,7 @@ const Navbar = ({ user, onLogout }) => {
 
   // Handle deposit click
   const handleDepositClick = () => {
-    navigate('/wallet/deposit');
+    navigate('/wallet');
     setShowWalletDropdown(false);
   };
 
@@ -306,14 +306,14 @@ const Navbar = ({ user, onLogout }) => {
                   {showWalletDropdown && (
                     <div className="wallet-dropdown">
                       <button className="wallet-dropdown-item" onClick={handleDepositClick}>
-                        <FaMoneyBillWave />
-                        Deposit
+                        <FaMoneyBillWave className="deposit-icon" />
+                        <span>Deposit</span>
                       </button>
                       
                       <div className="wallet-dropdown-divider"></div>
                       
                       <div className="wallet-dropdown-currency">
-                        <span>Currency</span>
+                        <span className="currency-label">Currency</span>
                         <div className="currency-options">
                           <button 
                             className={`currency-option ${selectedCurrency === 'USD' ? 'active' : ''}`}

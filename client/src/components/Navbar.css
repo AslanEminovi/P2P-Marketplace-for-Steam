@@ -1056,12 +1056,19 @@
   font-weight: 600;
 }
 
-/* Add these new clean wallet nav styles */
+/* Wallet dropdown container */
+.wallet-dropdown-container {
+  position: relative;
+  margin-right: 15px;
+  z-index: 1000;
+}
+
+/* Wallet button styling */
 .wallet-nav-link {
   display: flex;
   align-items: center;
-  background: linear-gradient(to right, rgba(31, 43, 69, 0.5), rgba(41, 53, 79, 0.5));
-  border: 1px solid var(--gaming-border-light);
+  background: rgba(31, 43, 69, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 8px 12px;
   gap: 8px;
@@ -1072,14 +1079,15 @@
 }
 
 .wallet-nav-link:hover {
-  background: linear-gradient(to right, rgba(41, 53, 79, 0.6), rgba(51, 63, 89, 0.6));
+  background: rgba(41, 53, 79, 0.4);
   border-color: var(--gaming-accent-cyan);
   box-shadow: var(--gaming-shadow-cyan);
   transform: translateY(-2px);
 }
 
+/* Make only the wallet icon orange */
 .wallet-icon {
-  color: var(--gaming-accent-cyan);
+  color: #ff9a00;
   font-size: 16px;
 }
 
@@ -1101,17 +1109,94 @@
   margin-left: 4px;
 }
 
+/* Dropdown menu styling */
+.wallet-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 180px;
+  background: rgba(17, 24, 39, 0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  z-index: 1001;
+  padding: 10px;
+  overflow: hidden;
+}
+
+/* Add triangle indicator for dropdown */
+.wallet-dropdown::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  right: 25px;
+  width: 10px;
+  height: 10px;
+  background: rgba(17, 24, 39, 0.85);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  transform: rotate(45deg);
+}
+
+.wallet-dropdown-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 10px;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 0.9rem;
+  text-align: left;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  gap: 10px;
+}
+
+.wallet-dropdown-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.deposit-icon {
+  color: #ff9a00;
+}
+
+.wallet-dropdown-divider {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 8px 0;
+}
+
+.wallet-dropdown-currency {
+  padding: 8px 10px;
+}
+
+.currency-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  color: #aaa;
+}
+
+.currency-options {
+  display: flex;
+  gap: 8px;
+}
+
 /* Style currency options */
 .currency-option {
   flex: 1;
   padding: 6px 10px;
   background-color: rgba(31, 43, 69, 0.5);
-  border: 1px solid var(--gaming-border-light);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   color: white;
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s;
+  text-align: center;
 }
 
 .currency-option:hover {
