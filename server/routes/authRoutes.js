@@ -417,4 +417,96 @@ router.get("/logout", (req, res) => {
   }
 });
 
+// @route POST /auth/refresh-token
+// @desc Refresh authentication token
+// @access Public
+router.post("/refresh-token", async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "No token provided",
+      });
+    }
+
+    // Verify the existing token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+      if (error.name === "TokenExpiredError") {
+        return res.status(401).json({
+          success: false,
+          message: "Token has expired",
+        });
+      }
+
+      return res.status(401).json({
+        success: false,
+        message: "Invalid token",
+      });
+    }
+
+    // Find the user
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check if user is banned
+    if (user.isBanned) {
+      return res.status(403).json({
+        success: false,
+        message: "Account has been banned",
+        reason: user.banReason,
+      });
+    }
+
+    // Generate a new token
+    const newToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d", // Token valid for 7 days
+    });
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Set token in cookie
+    res.cookie("auth_token", newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    // Return the new token and basic user info
+    return res.json({
+      success: true,
+      token: newToken,
+      user: {
+        id: user._id,
+        steamId: user.steamId,
+        displayName: user.displayName,
+        avatar: user.avatar,
+        isAdmin: user.isAdmin || false,
+        settings: user.settings || {
+          currency: "USD",
+          theme: "dark",
+          notifications: {},
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Token refresh error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error during token refresh",
+    });
+  }
+});
+
 module.exports = router;
