@@ -230,10 +230,10 @@ const Navbar = ({ user, onLogout }) => {
         <div className="navbar-container">
           <div className="navbar-left">
             <Link to="/" className="navbar-logo">
-              {/* Display logo text, Georgian text, and social links next to each other */}
+              {/* Display logo text and Georgian text next to each other */}
               <div style={{ display: 'flex', alignItems: 'center' }}>
-                <img src={logo} alt="CS2 Marketplace" style={{ width: '24px', height: '24px', marginRight: '8px' }} />
                 <span className="logo-text">CS2 Marketplace</span>
+                <span className="georgian-text">საქართველო</span>
               </div>
             </Link>
             
@@ -294,13 +294,13 @@ const Navbar = ({ user, onLogout }) => {
                 
                 <div className="wallet-dropdown-container" ref={walletDropdownRef}>
                   <button className="wallet-nav-link" onClick={toggleWalletDropdown}>
-                    <FaWallet />
-                    <span className="balance-display">
+                    <FaWallet className="wallet-icon" />
+                    <span className="wallet-amount">
                       {selectedCurrency === 'USD' 
-                        ? `$${formatBalance(user.walletBalance)}`
-                        : `${formatBalance(user.walletBalance)} ₾`}
+                        ? <span className="amount-with-symbol">$<span>{formatBalance(user.walletBalance)}</span></span>
+                        : <span className="amount-with-symbol"><span>{formatBalance(user.walletBalance)}</span>₾</span>}
                     </span>
-                    <FaCaretDown />
+                    <FaCaretDown className="dropdown-caret" />
                   </button>
                   
                   {showWalletDropdown && (

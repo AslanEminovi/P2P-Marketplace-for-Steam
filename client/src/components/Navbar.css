@@ -79,31 +79,30 @@
 
 /* Georgian Text Styling */
 .georgian-text {
-  display: block;
-  font-size: 0.7em;
-  animation: geoGlow 3s infinite alternate;
-  background: linear-gradient(135deg, #2ecc71, #1abc9c, #3498db);
+  font-size: 1rem;
+  margin-left: 10px;
+  background: var(--gaming-gradient-blue);
   -webkit-background-clip: text;
   background-clip: text;
-  color: transparent;
+  -webkit-text-fill-color: transparent;
+  position: relative;
   font-weight: 600;
-  letter-spacing: .5px;
-  margin-top: -2px;
-  text-shadow: 0 0 10px rgba(46, 204, 113, 0.8), 0 0 20px rgba(52, 152, 219, 0.6);
+  animation: geoGlow 3s ease-in-out infinite alternate;
+  letter-spacing: 0.5px;
 }
 
 @keyframes geoGlow {
   0% {
-    opacity: 0.8;
-    text-shadow: 0 0 5px rgba(46, 204, 113, 0.7), 0 0 10px rgba(52, 152, 219, 0.5);
+    text-shadow: 0 0 5px rgba(79, 70, 229, 0.1);
+    opacity: 0.9;
   }
   50% {
+    text-shadow: 0 0 10px rgba(79, 70, 229, 0.3);
     opacity: 1;
-    text-shadow: 0 0 15px rgba(46, 204, 113, 0.8), 0 0 30px rgba(52, 152, 219, 0.7), 0 0 45px rgba(26, 188, 156, 0.3);
   }
   100% {
+    text-shadow: 0 0 5px rgba(79, 70, 229, 0.1);
     opacity: 0.9;
-    text-shadow: 0 0 10px rgba(46, 204, 113, 0.9), 0 0 20px rgba(52, 152, 219, 0.6);
   }
 }
 
@@ -1061,131 +1060,53 @@
 .wallet-nav-link {
   display: flex;
   align-items: center;
-  background: linear-gradient(to right, #2a2e35, #323842);
-  border: 1px solid #3b4151;
+  background: linear-gradient(to right, rgba(31, 43, 69, 0.5), rgba(41, 53, 79, 0.5));
+  border: 1px solid var(--gaming-border-light);
   border-radius: 8px;
-  padding: 8px 14px;
-  margin-left: 15px;
+  padding: 8px 12px;
   gap: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
-  text-decoration: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   height: 40px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .wallet-nav-link:hover {
-  background: linear-gradient(to right, #323842, #3b4151);
+  background: linear-gradient(to right, rgba(41, 53, 79, 0.6), rgba(51, 63, 89, 0.6));
+  border-color: var(--gaming-accent-cyan);
+  box-shadow: var(--gaming-shadow-cyan);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .wallet-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: var(--gaming-accent-cyan);
+  font-size: 16px;
 }
 
-.wallet-icon svg {
-  stroke: #ff9a00;
-}
-
-.wallet-balance {
-  color: #ff9a00;
+.wallet-amount {
+  color: var(--gaming-text-bright);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
 }
 
-/* Updated wallet styling */
-.wallet-dropdown-container {
-  position: relative;
-  margin-right: 15px;
-}
-
-.wallet-nav-link {
+.amount-with-symbol {
   display: flex;
   align-items: center;
-  background: none;
-  border: none;
-  color: white;
-  font-size: 0.9rem;
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background-color 0.2s;
+  white-space: nowrap;
 }
 
-.wallet-nav-link:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+.dropdown-caret {
+  color: var(--gaming-text-medium);
+  font-size: 14px;
+  margin-left: 4px;
 }
 
-.wallet-nav-link .balance-display {
-  margin: 0 8px;
-}
-
-.wallet-dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  width: 180px;
-  background-color: #1a1a1a;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  z-index: 100;
-  padding: 8px;
-  margin-top: 5px;
-}
-
-.wallet-dropdown-item {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  padding: 10px;
-  background: none;
-  border: none;
-  color: white;
-  font-size: 0.9rem;
-  text-align: left;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.wallet-dropdown-item:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.wallet-dropdown-item svg {
-  margin-right: 8px;
-}
-
-.wallet-dropdown-divider {
-  height: 1px;
-  background-color: rgba(255, 255, 255, 0.1);
-  margin: 8px 0;
-}
-
-.wallet-dropdown-currency {
-  padding: 8px 10px;
-}
-
-.wallet-dropdown-currency > span {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 0.85rem;
-  color: #aaa;
-}
-
-.currency-options {
-  display: flex;
-  gap: 8px;
-}
-
+/* Style currency options */
 .currency-option {
   flex: 1;
   padding: 6px 10px;
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(31, 43, 69, 0.5);
+  border: 1px solid var(--gaming-border-light);
   border-radius: 4px;
   color: white;
   font-size: 0.85rem;
@@ -1194,10 +1115,12 @@
 }
 
 .currency-option:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(41, 53, 79, 0.7);
+  border-color: var(--gaming-accent-cyan);
 }
 
 .currency-option.active {
-  background-color: rgba(79, 70, 229, 0.2);
-  border-color: #4f46e5;
+  background-color: rgba(56, 189, 248, 0.2);
+  border-color: var(--gaming-accent-cyan);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
 }
