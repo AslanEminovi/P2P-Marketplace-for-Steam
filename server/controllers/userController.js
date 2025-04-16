@@ -54,17 +54,24 @@ exports.updateUserSettings = async (req, res) => {
       settings,
     } = req.body;
 
-    console.log(`Updating settings for user ${userId}:`, {
-      displayName,
-      email,
-      phone,
-      firstName,
-      lastName,
-      country,
-      city,
-      tradeUrl,
-      settings,
-    });
+    console.log(
+      `Updating settings for user ${userId}:`,
+      JSON.stringify(
+        {
+          displayName,
+          email,
+          phone,
+          firstName,
+          lastName,
+          country,
+          city,
+          tradeUrl,
+          settings,
+        },
+        null,
+        2
+      )
+    );
 
     // Find user
     const user = await User.findById(userId);
@@ -73,16 +80,41 @@ exports.updateUserSettings = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
+    // Keep track of which fields were updated
+    const updatedFields = [];
+
     // Update fields if provided
-    if (displayName !== undefined) user.displayName = displayName;
-    if (email !== undefined) user.email = email;
-    if (phone !== undefined) user.phone = phone;
-    if (firstName !== undefined) user.firstName = firstName;
-    if (lastName !== undefined) user.lastName = lastName;
-    if (country !== undefined) user.country = country;
-    if (city !== undefined) user.city = city;
+    if (displayName !== undefined) {
+      user.displayName = displayName;
+      updatedFields.push("displayName");
+    }
+    if (email !== undefined) {
+      user.email = email;
+      updatedFields.push("email");
+    }
+    if (phone !== undefined) {
+      user.phone = phone;
+      updatedFields.push("phone");
+    }
+    if (firstName !== undefined) {
+      user.firstName = firstName;
+      updatedFields.push("firstName");
+    }
+    if (lastName !== undefined) {
+      user.lastName = lastName;
+      updatedFields.push("lastName");
+    }
+    if (country !== undefined) {
+      user.country = country;
+      updatedFields.push("country");
+    }
+    if (city !== undefined) {
+      user.city = city;
+      updatedFields.push("city");
+    }
     if (tradeUrl !== undefined) {
       user.tradeUrl = tradeUrl;
+      updatedFields.push("tradeUrl");
       // Set trade URL expiry to 30 days from now
       user.tradeUrlExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     }
@@ -90,6 +122,7 @@ exports.updateUserSettings = async (req, res) => {
     // Mark profile as complete if basic information is provided
     if ((firstName || lastName) && email) {
       user.profileComplete = true;
+      updatedFields.push("profileComplete");
     }
 
     // Update settings if provided
@@ -103,6 +136,7 @@ exports.updateUserSettings = async (req, res) => {
           return res.status(400).json({ error: "Invalid currency setting" });
         }
         user.settings.currency = settings.currency;
+        updatedFields.push("settings.currency");
       }
 
       // Update theme preference
@@ -111,6 +145,7 @@ exports.updateUserSettings = async (req, res) => {
           return res.status(400).json({ error: "Invalid theme setting" });
         }
         user.settings.theme = settings.theme;
+        updatedFields.push("settings.theme");
       }
 
       // Update privacy settings
@@ -121,11 +156,13 @@ exports.updateUserSettings = async (req, res) => {
         if (settings.privacy.showOnlineStatus !== undefined) {
           user.settings.privacy.showOnlineStatus =
             !!settings.privacy.showOnlineStatus;
+          updatedFields.push("settings.privacy.showOnlineStatus");
         }
 
         if (settings.privacy.showInventoryValue !== undefined) {
           user.settings.privacy.showInventoryValue =
             !!settings.privacy.showInventoryValue;
+          updatedFields.push("settings.privacy.showInventoryValue");
         }
       }
 
@@ -136,27 +173,33 @@ exports.updateUserSettings = async (req, res) => {
 
         if (settings.notifications.email !== undefined) {
           user.settings.notifications.email = !!settings.notifications.email;
+          updatedFields.push("settings.notifications.email");
         }
 
         if (settings.notifications.push !== undefined) {
           user.settings.notifications.push = !!settings.notifications.push;
+          updatedFields.push("settings.notifications.push");
         }
 
         if (settings.notifications.offers !== undefined) {
           user.settings.notifications.offers = !!settings.notifications.offers;
+          updatedFields.push("settings.notifications.offers");
         }
 
         if (settings.notifications.trades !== undefined) {
           user.settings.notifications.trades = !!settings.notifications.trades;
+          updatedFields.push("settings.notifications.trades");
         }
 
         if (settings.notifications.market !== undefined) {
           user.settings.notifications.market = !!settings.notifications.market;
+          updatedFields.push("settings.notifications.market");
         }
 
         if (settings.notifications.pricing !== undefined) {
           user.settings.notifications.pricing =
             !!settings.notifications.pricing;
+          updatedFields.push("settings.notifications.pricing");
         }
       }
 
@@ -168,18 +211,24 @@ exports.updateUserSettings = async (req, res) => {
         if (settings.security.twoFactorAuth !== undefined) {
           user.settings.security.twoFactorAuth =
             !!settings.security.twoFactorAuth;
+          updatedFields.push("settings.security.twoFactorAuth");
         }
 
         if (settings.security.loginNotifications !== undefined) {
           user.settings.security.loginNotifications =
             !!settings.security.loginNotifications;
+          updatedFields.push("settings.security.loginNotifications");
         }
       }
     }
 
     // Save the updated user
     const savedUser = await user.save();
-    console.log(`User ${userId} settings updated successfully`);
+    console.log(
+      `User ${userId} settings updated successfully. Updated fields: ${updatedFields.join(
+        ", "
+      )}`
+    );
 
     // Return complete updated user data
     return res.json({
@@ -206,10 +255,13 @@ exports.updateUserSettings = async (req, res) => {
         walletBalanceGEL: savedUser.walletBalanceGEL,
         settings: savedUser.settings,
       },
+      updatedFields,
     });
   } catch (err) {
     console.error("Update user settings error:", err);
-    return res.status(500).json({ error: "Failed to update user settings" });
+    return res
+      .status(500)
+      .json({ error: "Failed to update user settings", details: err.message });
   }
 };
 

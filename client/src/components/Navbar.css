@@ -454,54 +454,64 @@
 /* Improved User Dropdown Styles */
 .dropdown-header {
   display: flex;
-  padding: 15px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: linear-gradient(to bottom, var(--gaming-bg-dark), rgba(22, 25, 37, 0.9));
-  border-radius: 8px 8px 0 0;
-  gap: 12px;
+  flex-direction: column;
+  padding: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 24, 40, 0) 100%);
+}
+
+.dropdown-avatar-container {
+  display: flex;
   align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
 .dropdown-avatar {
-  width: 50px;
-  height: 50px;
+  width: 45px;
+  height: 45px;
   border-radius: 50%;
-  overflow: hidden;
-  flex-shrink: 0;
-  border: 2px solid var(--gaming-accent-blue);
-  box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);
+  background-color: #1F2B45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  margin-right: 5px;
+  border: 2px solid rgba(51, 115, 242, 0.3);
+  padding: 2px;
 }
 
 .dropdown-avatar-img {
   width: 100%;
   height: 100%;
+  border-radius: 50%;
   object-fit: cover;
 }
 
 .dropdown-avatar-placeholder {
   width: 100%;
   height: 100%;
+  border-radius: 50%;
+  background-color: #3373F2;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--gaming-accent-blue);
-  color: white;
-  font-weight: bold;
-  font-size: 18px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
 }
 
 .dropdown-user-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
 .dropdown-username {
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--gaming-text-bright);
-  margin-bottom: 4px;
-  padding: 0 6px;
 }
 
 .dropdown-email-container {

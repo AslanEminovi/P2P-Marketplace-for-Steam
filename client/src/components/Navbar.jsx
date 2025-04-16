@@ -401,21 +401,23 @@ const Navbar = ({ user, onLogout }) => {
                         className="user-dropdown"
                       >
                         <div className="dropdown-header">
-                          <div className="dropdown-avatar">
-                            {user && (user.avatar || user.avatarUrl || user.avatarfull) ? (
-                              <img 
-                                src={user.avatar || user.avatarUrl || user.avatarfull} 
-                                alt={user.displayName || 'User'} 
-                                className="dropdown-avatar-img"
-                              />
-                            ) : (
-                              <div className="dropdown-avatar-placeholder">
-                                {getUserInitials()}
-                              </div>
-                            )}
+                          <div className="dropdown-avatar-container">
+                            <div className="dropdown-avatar">
+                              {user && (user.avatar || user.avatarUrl || user.avatarfull) ? (
+                                <img 
+                                  src={user.avatar || user.avatarUrl || user.avatarfull} 
+                                  alt={user.displayName || 'User'} 
+                                  className="dropdown-avatar-img"
+                                />
+                              ) : (
+                                <div className="dropdown-avatar-placeholder">
+                                  {getUserInitials()}
+                                </div>
+                              )}
+                            </div>
+                            <span className="dropdown-username">{user.displayName}</span>
                           </div>
                           <div className="dropdown-user-info">
-                            <span className="dropdown-username">{user.displayName}</span>
                             <div className="dropdown-email-container">
                               <span className="dropdown-email">{user.email || 'No email provided'}</span>
                             </div>

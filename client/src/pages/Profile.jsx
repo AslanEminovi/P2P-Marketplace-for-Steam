@@ -40,6 +40,32 @@ const Profile = ({ user, onBalanceUpdate }) => {
   
   useEffect(() => {
     if (user) {
+      // If parent component provides updated user data, use it to initialize the form
+      setProfile(user);
+      
+      setFormData({
+        displayName: user.displayName || '',
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        country: user.country || '',
+        city: user.city || '',
+        preferredCurrency: user.settings?.currency || 'USD',
+        theme: user.settings?.theme || 'dark',
+        privacySettings: {
+          showOnlineStatus: user.settings?.privacy?.showOnlineStatus ?? true,
+          showInventoryValue: user.settings?.privacy?.showInventoryValue ?? false
+        },
+        notificationSettings: {
+          email: user.settings?.notifications?.email ?? true,
+          push: user.settings?.notifications?.push ?? true,
+          offers: user.settings?.notifications?.offers ?? true,
+          trades: user.settings?.notifications?.trades ?? true
+        }
+      });
+      
+      // Also fetch from the server to ensure we have the latest data
       fetchUserProfile();
     }
   }, [user]);
@@ -148,20 +174,34 @@ const Profile = ({ user, onBalanceUpdate }) => {
       const response = await axios.put(
         `${API_URL}/user/settings`,
         payload,
-        { withCredentials: true }
+        { 
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
       );
       
       console.log('Server response:', response.data);
       
       if (response.data.success) {
         toast.success('Profile saved successfully');
-        fetchUserProfile();
+        
+        // Explicitly update the user in parent component if callback is provided
+        if (typeof window.updateGlobalUser === 'function') {
+          window.updateGlobalUser(response.data.user);
+        }
+        
+        await fetchUserProfile();
         setIsEditing(false);
+      } else {
+        toast.error(response.data.message || 'Failed to save profile');
       }
     } catch (err) {
       console.error('Error saving profile:', err);
+      console.error('Error response:', err.response?.data);
       setError(err.response?.data?.error || 'Failed to save profile');
-      toast.error('Failed to save profile');
+      toast.error('Failed to save profile: ' + (err.response?.data?.error || err.message));
     } finally {
       setSaving(false);
     }

@@ -101,6 +101,8 @@ function AppContent() {
   const [showConnectionIndicator, setShowConnectionIndicator] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const navigate = useNavigate();
+  const [userState, setUserState] = useState(null);
+  const [loadingState, setLoadingState] = useState(true);
 
   // Function to show a notification
   window.showNotification = (title, message, type = 'INFO', timeout = 5000) => {
@@ -302,6 +304,21 @@ function AppContent() {
     updateUser(updatedUser);
     setShowRegistrationModal(false);
   };
+
+  // Make updateUser available globally for components to use
+  useEffect(() => {
+    window.updateGlobalUser = (updatedUser) => {
+      console.log('Updating global user state:', updatedUser);
+      setUserState(prevUser => ({
+        ...prevUser,
+        ...updatedUser
+      }));
+    };
+    
+    return () => {
+      delete window.updateGlobalUser;
+    };
+  }, []);
 
   return (
     <PageWrapper>
