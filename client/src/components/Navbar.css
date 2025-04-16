@@ -366,20 +366,20 @@
 .profile-button {
   display: flex;
   align-items: center;
-  padding: 1px 4px 1px 1px;
-  background-color: rgba(10, 14, 23, 0.95);
+  padding: 4px 10px 4px 4px;
+  background-color: #0A0E17;
   border: 1px solid rgba(0, 210, 255, 0.3);
   border-radius: 50px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
-  height: 32px;
+  height: 36px;
   box-shadow: 0 0 8px rgba(0, 210, 255, 0.15);
-  max-width: 110px;
+  max-width: 120px;
 }
 
 .profile-button:hover {
-  background-color: rgba(10, 14, 23, 1);
+  background-color: #0F1623;
   border-color: rgba(0, 210, 255, 0.6);
   box-shadow: 0 0 12px rgba(0, 210, 255, 0.3);
 }
@@ -397,40 +397,52 @@
   height: 16px;
 }
 
+.dropdown-arrow.active svg {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Wrapper */
+.dropdown-wrapper {
+  position: relative;
+  overflow: visible;
+}
+
 /* User Avatar */
 .user-avatar-container {
   width: 28px;
   height: 28px;
   border-radius: 50%;
   overflow: hidden;
-  background-color: var(--gaming-bg-dark);
+  background-color: #0A0E17;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  color: var(--gaming-text);
+  color: #fff;
   margin-right: 6px;
   position: relative;
   flex-shrink: 0;
+  border: 1px solid rgba(0, 210, 255, 0.4);
 }
 
 .user-display-name {
-  font-size: 12px;
+  font-size: 13px;
   margin-left: 2px;
-  color: var(--gaming-text-bright);
+  color: white;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 70px;
+  max-width: 60px;
+  font-weight: 500;
 }
 
 /* Dropdown Menu */
 .user-dropdown {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 10px);
   right: 0;
   width: 250px;
-  background-color: var(--gaming-bg-dark);
+  background-color: #0A0E17;
   border: 1px solid rgba(0, 210, 255, 0.4);
   border-radius: 12px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(0, 210, 255, 0.3);
@@ -444,26 +456,33 @@
     opacity: 0;
     transform: translateY(-8px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-/* Remove the avatar from dropdown and align text center */
+/* Dropdown Header - clean up conflicting rules */
+.dropdown-header {
+  display: flex;
+  flex-direction: column;
+  padding: 15px;
+  border-bottom: 1px solid rgba(0, 210, 255, 0.15);
+  background: linear-gradient(180deg, rgba(0, 210, 255, 0.05) 0%, rgba(16, 24, 40, 0) 100%);
+}
+
 .dropdown-avatar-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin-bottom: 10px;
   width: 100%;
-  padding: 12px 0;
+  padding: 5px 0 15px 0;
 }
 
+/* Hide avatar in dropdown */
 .dropdown-avatar {
-  display: none; /* Hide the avatar completely */
+  display: none;
 }
 
 .dropdown-user-info {
@@ -477,7 +496,7 @@
 .dropdown-username {
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--gaming-text-bright);
+  color: white;
   text-align: center;
   margin-bottom: 6px;
 }
@@ -485,17 +504,16 @@
 .dropdown-email-container {
   background-color: rgba(0, 210, 255, 0.1);
   border-radius: 4px;
-  padding: 4px 8px;
-  margin-top: 2px;
+  padding: 6px 12px;
+  margin-top: 4px;
   text-align: center;
   max-width: 90%;
 }
 
 .dropdown-email {
-  font-size: 0.8rem;
-  color: var(--gaming-text-medium);
+  font-size: 0.85rem;
+  color: #BBC7DB;
   display: block;
-  opacity: 0.9;
 }
 
 /* Improved User Dropdown Styles */

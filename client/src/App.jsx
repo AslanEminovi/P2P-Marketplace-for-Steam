@@ -305,54 +305,45 @@ function AppContent() {
     setShowRegistrationModal(false);
   };
 
-  // Make updateUser available globally for components to use
+  // Set up global function to update user state from anywhere in the app
   useEffect(() => {
-    window.updateGlobalUser = (updatedUser) => {
-      console.log('App: Updating global user state:', updatedUser);
+    // Create a function to update user state globally
+    window.updateGlobalUser = (updatedUserData) => {
+      console.log("Global user update called with:", updatedUserData);
       
-      // Create a deep merged object to ensure all fields are preserved
-      const mergedUser = prevUser => {
-        if (!prevUser) return updatedUser;
-        
-        return {
-          ...prevUser,
-          ...updatedUser,
-          // Deep merge settings if they exist
-          settings: prevUser.settings || updatedUser.settings ? {
-            ...(prevUser.settings || {}),
-            ...(updatedUser.settings || {}),
-            // Deep merge privacy settings
-            privacy: {
-              ...((prevUser.settings && prevUser.settings.privacy) || {}),
-              ...((updatedUser.settings && updatedUser.settings.privacy) || {})
-            },
-            // Deep merge notification settings
-            notifications: {
-              ...((prevUser.settings && prevUser.settings.notifications) || {}),
-              ...((updatedUser.settings && updatedUser.settings.notifications) || {})
-            }
-          } : undefined
-        };
+      // Create a complete merged user object that preserves all fields
+      const completeUser = {
+        ...(user || {}),
+        ...updatedUserData,
+        // Explicitly handle email updates as these are most likely to be problematic
+        email: updatedUserData.email || user?.email
       };
       
-      // Update the local state with deep merging
-      setUserState(mergedUser);
+      console.log("Setting user state to:", completeUser);
       
-      // Also update AuthContext user state with proper merging
+      // Update local state
+      setUserState(completeUser);
+      
+      // Update context if available
       if (updateUser) {
-        updateUser(updatedUser);
+        updateUser(completeUser);
       }
       
-      // Force a refresh of user data from server after a delay
-      setTimeout(() => {
-        fetchUserProfile();
-      }, 2000);
+      // Store in localStorage for persistence
+      try {
+        localStorage.setItem('user_data_backup', JSON.stringify(completeUser));
+      } catch (err) {
+        console.error("Failed to store user data in localStorage:", err);
+      }
+      
+      return completeUser; // Return the updated user object
     };
     
+    // Component cleanup
     return () => {
       delete window.updateGlobalUser;
     };
-  }, [updateUser]);
+  }, [user, updateUser]);
   
   // Function to fetch user profile data directly
   const fetchUserProfile = async () => {

@@ -198,6 +198,19 @@ const Profile = ({ user, onBalanceUpdate }) => {
           notifications: formData.notificationSettings
         }
       };
+
+      // Always directly inject the new email into localStorage for maximum compatibility
+      try {
+        const currentUserData = localStorage.getItem('user_data_backup');
+        if (currentUserData) {
+          const userData = JSON.parse(currentUserData);
+          userData.email = formData.email;
+          localStorage.setItem('user_data_backup', JSON.stringify(userData));
+          console.log("Pre-emptively updated email in localStorage backup");
+        }
+      } catch (err) {
+        console.error("Failed to update localStorage email:", err);
+      }
       
       // Create a Promise wrapper around XMLHttpRequest for easier handling
       const saveData = () => {
@@ -239,35 +252,56 @@ const Profile = ({ user, onBalanceUpdate }) => {
       console.log("Save response:", response);
       
       if (response.success) {
-        toast.success("Profile saved successfully - reloading with fresh data");
+        toast.success("Profile saved successfully");
+        
+        // CRITICAL FIX: Explicitly create a complete user object
+        // This fixes the email update issue by ensuring it's properly populated
+        const completeUpdatedUser = {
+          ...(response.user || {}),
+          email: formData.email, // Force the email to be the one from the form
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          // Preserve other fields from existing profile
+          displayName: profile?.displayName,
+          avatar: profile?.avatar,
+          avatarUrl: profile?.avatarUrl,
+          steamId: profile?.steamId,
+          walletBalance: profile?.walletBalance,
+          isAdmin: profile?.isAdmin,
+          // Settings might be nested differently in response
+          settings: {
+            ...(profile?.settings || {}),
+            ...(response.user?.settings || {}),
+            currency: formData.preferredCurrency,
+            theme: formData.theme,
+            privacy: formData.privacySettings,
+            notifications: formData.notificationSettings
+          }
+        };
+        
+        console.log("Complete updated user with email:", completeUpdatedUser);
         
         // Set editing to false
         setIsEditing(false);
         
-        // Immediately reload user data from server
-        await loadUserData(setLoading, setProfile, setError, setFormData, false, initializeFormData);
-        
-        // Update auth context with the new data - ensure email address is updated
-        if (authUpdateUser && response.user) {
-          // Make sure we have the email in the response
-          const updatedUser = {
-            ...response.user,
-            email: formData.email // Use the email from form data to ensure it's updated
-          };
-          authUpdateUser(updatedUser);
-          
-          // Also update global user state
-          if (typeof window.updateGlobalUser === 'function') {
-            console.log("Updating global user with new email:", formData.email);
-            window.updateGlobalUser(updatedUser);
-          }
+        // Update both context and profile data
+        if (authUpdateUser) {
+          authUpdateUser(completeUpdatedUser);
         }
         
-        // Force an absolute hard refresh after a delay to ensure all components get the update
+        // Update global window variable for cross-component access
+        window.currentUserData = completeUpdatedUser;
+        
+        // Update global user function if it exists
+        if (typeof window.updateGlobalUser === 'function') {
+          window.updateGlobalUser(completeUpdatedUser);
+        }
+        
+        // Force reload to ensure all components get the update
+        toast.success("Profile updated - refreshing page to apply changes");
         setTimeout(() => {
-          // Force reload to clear any cached state in components
-          window.location.href = window.location.href.split('?')[0] + '?forceRefresh=' + Date.now();
-        }, 1000);
+          window.location.reload(true); // Force reload from server, not cache
+        }, 800);
       } else {
         toast.error(response.message || "Failed to save profile");
       }
