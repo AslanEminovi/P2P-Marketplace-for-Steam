@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useTranslation } from '../utils/languageUtils';
+import { useTranslation } from '../i18n/languageUtils';
 import SellerStatus from './SellerStatus';
 
 // Define rarity colors mapping
@@ -448,7 +448,7 @@ const ItemCard3D = ({
                   textOverflow: 'ellipsis'
                 }}
               >
-                {item.owner.displayName || (t && t('common.unknownSeller')) || 'Unknown Seller'}
+                {item.owner.displayName || t('common.unknownSeller')}
               </span>
               {item.owner._id && (
                 <SellerStatus 

@@ -16,7 +16,8 @@
     "viewAll": "View All",
     "search": "Search",
     "notifications": "Notifications",
-    "noItems": "No items available"
+    "noItems": "No items available",
+    "unknownSeller": "Unknown Seller"
   },
   "app": {
     "connected": "Connected",
