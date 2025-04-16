@@ -413,11 +413,11 @@ const Navbar = ({ user, onLogout }) => {
                                 </div>
                               )}
                             </div>
-                            <span className="dropdown-username">{user.displayName}</span>
-                          </div>
-                          <div className="dropdown-user-info">
-                            <div className="dropdown-email-container">
-                              <span className="dropdown-email">{user.email || 'No email provided'}</span>
+                            <div className="dropdown-user-info">
+                              <span className="dropdown-username">{user.displayName}</span>
+                              <div className="dropdown-email-container">
+                                <span className="dropdown-email">{user.email || 'No email provided'}</span>
+                              </div>
                             </div>
                           </div>
                         </div>

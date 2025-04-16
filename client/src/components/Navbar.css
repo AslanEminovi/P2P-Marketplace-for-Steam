@@ -366,18 +366,18 @@
 .profile-button {
   display: flex;
   align-items: center;
-  padding: 3px 10px 3px 3px;
-  background-color: rgba(31, 43, 69, 0.4);
+  padding: 2px 8px 2px 2px;
+  background-color: rgba(31, 43, 69, 0.75);
   border: 1px solid rgba(51, 115, 242, 0.2);
   border-radius: 50px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
-  height: 38px;
+  height: 34px;
 }
 
 .profile-button:hover {
-  background-color: rgba(51, 115, 242, 0.2);
+  background-color: rgba(51, 115, 242, 0.4);
   border-color: rgba(51, 115, 242, 0.4);
 }
 
@@ -466,21 +466,19 @@
   padding: 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   background: linear-gradient(180deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 24, 40, 0) 100%);
-  align-items: center;
-  text-align: center;
 }
 
 .dropdown-avatar-container {
   display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: center;
   margin-bottom: 10px;
   width: 100%;
 }
 
 .dropdown-avatar {
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background-color: #1F2B45;
   display: flex;
@@ -488,8 +486,8 @@
   justify-content: center;
   color: #fff;
   font-weight: 600;
-  font-size: 20px;
-  margin: 0 auto 10px;
+  font-size: 18px;
+  margin-right: 12px;
   border: 2px solid rgba(51, 115, 242, 0.3);
   padding: 2px;
 }
@@ -523,6 +521,7 @@
   font-size: 1rem;
   font-weight: 600;
   color: var(--gaming-text-bright);
+  text-align: left;
 }
 
 .dropdown-email-container {

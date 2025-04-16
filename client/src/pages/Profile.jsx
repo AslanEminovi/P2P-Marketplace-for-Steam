@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config/constants';
 import { Link } from 'react-router-dom';
@@ -40,6 +40,33 @@ const Profile = ({ user, onBalanceUpdate }) => {
     }
   });
   
+  // Initialize form data with user profile
+  const initializeFormData = useCallback((userData) => {
+    if (!userData) return;
+    
+    setFormData({
+      displayName: userData.displayName || '',
+      firstName: userData.firstName || '',
+      lastName: userData.lastName || '',
+      email: userData.email || '',
+      phone: userData.phone || '',
+      country: userData.country || '',
+      city: userData.city || '',
+      preferredCurrency: userData.settings?.currency || 'USD',
+      theme: userData.settings?.theme || 'dark',
+      privacySettings: {
+        showOnlineStatus: userData.settings?.privacy?.showOnlineStatus ?? true,
+        showInventoryValue: userData.settings?.privacy?.showInventoryValue ?? false
+      },
+      notificationSettings: {
+        email: userData.settings?.notifications?.email ?? true,
+        push: userData.settings?.notifications?.push ?? true,
+        offers: userData.settings?.notifications?.offers ?? true,
+        trades: userData.settings?.notifications?.trades ?? true
+      }
+    });
+  }, []);
+  
   // Use authUser as the most up-to-date source of user data
   useEffect(() => {
     const currentUser = authUser || user;
@@ -47,32 +74,14 @@ const Profile = ({ user, onBalanceUpdate }) => {
       console.log("Setting profile with user data:", currentUser);
       setProfile(currentUser);
       
-      setFormData({
-        displayName: currentUser.displayName || '',
-        firstName: currentUser.firstName || '',
-        lastName: currentUser.lastName || '',
-        email: currentUser.email || '',
-        phone: currentUser.phone || '',
-        country: currentUser.country || '',
-        city: currentUser.city || '',
-        preferredCurrency: currentUser.settings?.currency || 'USD',
-        theme: currentUser.settings?.theme || 'dark',
-        privacySettings: {
-          showOnlineStatus: currentUser.settings?.privacy?.showOnlineStatus ?? true,
-          showInventoryValue: currentUser.settings?.privacy?.showInventoryValue ?? false
-        },
-        notificationSettings: {
-          email: currentUser.settings?.notifications?.email ?? true,
-          push: currentUser.settings?.notifications?.push ?? true,
-          offers: currentUser.settings?.notifications?.offers ?? true,
-          trades: currentUser.settings?.notifications?.trades ?? true
-        }
-      });
+      // Only initialize form data if we're not already editing
+      if (!isEditing) {
+        initializeFormData(currentUser);
+      }
       
-      // Also fetch fresh data
-      fetchUserProfile();
+      setLoading(false);
     }
-  }, [authUser, user]);
+  }, [authUser, user, initializeFormData, isEditing]);
   
   const fetchUserProfile = async () => {
     setLoading(true);
@@ -96,29 +105,9 @@ const Profile = ({ user, onBalanceUpdate }) => {
           window.updateGlobalUser(userData);
         }
         
-        // Initialize form with user data
-        if (userData) {
-          setFormData({
-            displayName: userData.displayName || '',
-            firstName: userData.firstName || '',
-            lastName: userData.lastName || '',
-            email: userData.email || '',
-            phone: userData.phone || '',
-            country: userData.country || '',
-            city: userData.city || '',
-            preferredCurrency: userData.settings?.currency || 'USD',
-            theme: userData.settings?.theme || 'dark',
-            privacySettings: {
-              showOnlineStatus: userData.settings?.privacy?.showOnlineStatus ?? true,
-              showInventoryValue: userData.settings?.privacy?.showInventoryValue ?? false
-            },
-            notificationSettings: {
-              email: userData.settings?.notifications?.email ?? true,
-              push: userData.settings?.notifications?.push ?? true,
-              offers: userData.settings?.notifications?.offers ?? true,
-              trades: userData.settings?.notifications?.trades ?? true
-            }
-          });
+        // Initialize form with user data only if we're not editing
+        if (!isEditing) {
+          initializeFormData(userData);
         }
       }
     } catch (err) {
@@ -130,7 +119,20 @@ const Profile = ({ user, onBalanceUpdate }) => {
     }
   };
   
+  // Fetch initial profile data
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+  
   const refreshProfile = async () => {
+    if (isEditing) {
+      // Ask for confirmation before refreshing while editing
+      if (!window.confirm('Refreshing will discard your unsaved changes. Continue?')) {
+        return;
+      }
+      setIsEditing(false);
+    }
+    
     setLoading(true);
     setError(null);
     try {
@@ -150,19 +152,31 @@ const Profile = ({ user, onBalanceUpdate }) => {
     
     if (name.includes('.')) {
       const [section, field] = name.split('.');
-      setFormData({
-        ...formData,
+      setFormData(prevData => ({
+        ...prevData,
         [section]: {
-          ...formData[section],
+          ...prevData[section],
           [field]: type === 'checkbox' ? checked : value
         }
-      });
+      }));
     } else {
-      setFormData({
-        ...formData,
+      setFormData(prevData => ({
+        ...prevData,
         [name]: type === 'checkbox' ? checked : value
-      });
+      }));
     }
+  };
+  
+  const startEditing = () => {
+    // Make sure form data is initialized with current profile data before editing
+    initializeFormData(profile);
+    setIsEditing(true);
+  };
+  
+  const cancelEditing = () => {
+    // Reset form data to current profile values
+    initializeFormData(profile);
+    setIsEditing(false);
   };
   
   const handleSaveProfile = async (e) => {
@@ -206,8 +220,18 @@ const Profile = ({ user, onBalanceUpdate }) => {
       if (response.data.success) {
         toast.success('Profile saved successfully');
         
-        // Explicitly fetch fresh data from server to ensure consistency
-        await fetchUserProfile();
+        // Update profile with response data but keep form data unchanged
+        const updatedUser = response.data.user;
+        setProfile(updatedUser);
+        
+        // Update auth context and global user
+        if (authUpdateUser) {
+          authUpdateUser(updatedUser);
+        }
+        
+        if (typeof window.updateGlobalUser === 'function') {
+          window.updateGlobalUser(updatedUser);
+        }
         
         setIsEditing(false);
       } else {
@@ -228,6 +252,18 @@ const Profile = ({ user, onBalanceUpdate }) => {
       <div className="profile-loading">
         <div className="profile-spinner"></div>
         <p>Loading profile...</p>
+      </div>
+    );
+  }
+  
+  // Ensure profile exists before rendering the main UI
+  if (!profile) {
+    return (
+      <div className="profile-error">
+        <p>Could not load profile information. Please try refreshing the page.</p>
+        <button onClick={refreshProfile} className="profile-refresh-btn">
+          <FiRefreshCw /> Try Again
+        </button>
       </div>
     );
   }
@@ -301,7 +337,7 @@ const Profile = ({ user, onBalanceUpdate }) => {
                 {!isEditing && (
                   <button 
                     className="profile-edit-btn" 
-                    onClick={() => setIsEditing(true)}
+                    onClick={startEditing}
                   >
                     <FiEdit /> Edit
                   </button>
@@ -432,7 +468,7 @@ const Profile = ({ user, onBalanceUpdate }) => {
                     <button 
                       type="button" 
                       className="profile-cancel-btn"
-                      onClick={() => setIsEditing(false)}
+                      onClick={cancelEditing}
                       disabled={saving}
                     >
                       Cancel
