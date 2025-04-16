@@ -247,13 +247,25 @@ const Profile = ({ user, onBalanceUpdate }) => {
         // Immediately reload user data from server
         await loadUserData(setLoading, setProfile, setError, setFormData, false, initializeFormData);
         
-        // Update auth context with the new data
+        // Update auth context with the new data - ensure email address is updated
         if (authUpdateUser && response.user) {
-          authUpdateUser(response.user);
+          // Make sure we have the email in the response
+          const updatedUser = {
+            ...response.user,
+            email: formData.email // Use the email from form data to ensure it's updated
+          };
+          authUpdateUser(updatedUser);
+          
+          // Also update global user state
+          if (typeof window.updateGlobalUser === 'function') {
+            console.log("Updating global user with new email:", formData.email);
+            window.updateGlobalUser(updatedUser);
+          }
         }
         
-        // Force an absolute hard refresh after a delay
+        // Force an absolute hard refresh after a delay to ensure all components get the update
         setTimeout(() => {
+          // Force reload to clear any cached state in components
           window.location.href = window.location.href.split('?')[0] + '?forceRefresh=' + Date.now();
         }, 1000);
       } else {

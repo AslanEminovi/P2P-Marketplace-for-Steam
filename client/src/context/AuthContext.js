@@ -268,45 +268,37 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Update user data
+  // Update user info
   const updateUser = (userData) => {
-    console.log("AuthContext: Updating user data:", userData);
+    console.log("AuthContext - updating user with:", userData);
 
+    // Ensure we always preserve existing user data that might not be in the update
     setUser((prevUser) => {
-      // Create a complete user object that preserves existing fields
-      // and merges in the new data properly, including nested objects
-      const updatedUser = {
+      if (!prevUser) return userData;
+
+      // Create a proper merged user object that preserves all existing fields
+      const mergedUser = {
         ...prevUser,
         ...userData,
-        // Ensure settings object is properly merged
+        // Make sure email is explicitly updated
+        email: userData.email || prevUser.email,
+        // Ensure settings objects get merged rather than replaced
         settings: {
-          ...(prevUser?.settings || {}),
-          ...(userData?.settings || {}),
-          // Ensure nested settings objects are properly merged
-          privacy: {
-            ...(prevUser?.settings?.privacy || {}),
-            ...(userData?.settings?.privacy || {}),
-          },
-          notifications: {
-            ...(prevUser?.settings?.notifications || {}),
-            ...(userData?.settings?.notifications || {}),
-          },
+          ...(prevUser.settings || {}),
+          ...(userData.settings || {}),
         },
       };
 
-      console.log("User data updated in AuthContext:", updatedUser);
+      console.log("AuthContext - merged user data:", mergedUser);
 
-      // Also update localStorage backup if available
+      // Update localStorage backup
       try {
-        const authToken = localStorage.getItem("auth_token");
-        if (authToken) {
-          localStorage.setItem("user_data", JSON.stringify(updatedUser));
-        }
-      } catch (e) {
-        console.error("Error updating local storage:", e);
+        localStorage.setItem("user_data_backup", JSON.stringify(mergedUser));
+      } catch (err) {
+        console.error("Failed to backup user data to localStorage:", err);
       }
 
-      return updatedUser;
+      return mergedUser;
     });
   };
 
