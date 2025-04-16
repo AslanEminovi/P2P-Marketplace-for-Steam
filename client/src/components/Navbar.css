@@ -364,66 +364,69 @@
 
 /* Profile Button and Dropdown */
 .profile-button {
-  display: flex;
-  align-items: center;
-  padding: 4px 10px 4px 4px;
-  background: #0A0E17;
-  border: 1px solid rgba(0, 210, 255, 0.3);
-  border-radius: 50px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  height: 36px;
-  box-shadow: 0 0 8px rgba(0, 210, 255, 0.15);
-  max-width: 130px;
-  margin-right: 8px; /* Add margin to prevent overlap with notification button */
+  display: flex !important;
+  align-items: center !important;
+  padding: 4px 10px 4px 4px !important;
+  background: #0A0E17 !important;
+  border: 1px solid rgba(0, 210, 255, 0.3) !important;
+  border-radius: 50px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  position: relative !important;
+  height: 36px !important;
+  box-shadow: 0 0 8px rgba(0, 210, 255, 0.15) !important;
+  margin-right: 15px !important;
+  min-width: 140px !important;
+  max-width: none !important;
+  width: auto !important;
 }
 
 .profile-button:hover {
-  background: #0F1623;
-  border-color: rgba(0, 210, 255, 0.6);
-  box-shadow: 0 0 12px rgba(0, 210, 255, 0.3);
+  background: #0F1623 !important;
+  border-color: rgba(0, 210, 255, 0.6) !important;
+  box-shadow: 0 0 12px rgba(0, 210, 255, 0.3) !important;
 }
 
 .dropdown-arrow {
-  display: flex;
-  align-items: center;
-  transition: transform 0.3s ease;
-  pointer-events: none;
-  margin-left: 4px;
+  display: flex !important;
+  align-items: center !important;
+  transition: transform 0.3s ease !important;
+  pointer-events: none !important;
+  margin-left: 4px !important;
 }
 
 .dropdown-arrow svg {
-  width: 16px;
-  height: 16px;
+  width: 16px !important;
+  height: 16px !important;
 }
 
 .dropdown-arrow.active svg {
-  transform: rotate(180deg);
+  transform: rotate(180deg) !important;
 }
 
 /* Dropdown Wrapper */
 .dropdown-wrapper {
-  position: relative;
-  overflow: visible;
+  position: relative !important;
+  overflow: visible !important;
+  margin-right: 15px !important;
 }
 
 /* User Avatar */
 .user-avatar-container {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  overflow: hidden;
-  background-color: #0A0E17;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  color: #fff;
-  margin-right: 6px;
-  position: relative;
-  flex-shrink: 0;
-  border: 1px solid rgba(0, 210, 255, 0.4);
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  background-color: #0A0E17 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: bold !important;
+  color: #fff !important;
+  margin-right: 6px !important;
+  position: relative !important;
+  flex-shrink: 0 !important;
+  border: 1px solid rgba(0, 210, 255, 0.4) !important;
 }
 
 .user-display-name {

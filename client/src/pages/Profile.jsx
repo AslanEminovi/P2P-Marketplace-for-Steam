@@ -341,10 +341,19 @@ const Profile = ({ user, onBalanceUpdate }) => {
       setIsEditing(false);
     }
     
-    toast.info("Refreshing profile data...");
-    // Force reload user data
-    await loadUserData(setLoading, setProfile, setError, setFormData, false, initializeFormData);
-    toast.success("Profile data refreshed");
+    try {
+      // Don't use toast.info since it might be causing the error
+      console.log("Refreshing profile data...");
+      
+      // Force reload user data
+      await loadUserData(setLoading, setProfile, setError, setFormData, false, initializeFormData);
+      
+      // Use toast.success which should work
+      toast.success("Profile data refreshed");
+    } catch (err) {
+      console.error("Error refreshing profile:", err);
+      toast.error("Failed to refresh profile data");
+    }
   };
   
   // Loading state

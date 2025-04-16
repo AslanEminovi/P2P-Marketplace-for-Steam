@@ -366,13 +366,14 @@ const Navbar = ({ user, onLogout }) => {
                   )}
                 </div>
 
-                {/* Wrap both profile button and notification in a flex container */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div className="dropdown-wrapper">
+                {/* Profile and notification container with fixes for layout */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div className="dropdown-wrapper" style={{ marginRight: '8px' }}>
                     <button 
                       ref={profileBtnRef}
                       onClick={toggleDropdown}
                       className="profile-button"
+                      style={{ width: 'auto', minWidth: '140px', maxWidth: '170px' }}
                     >
                       <div className="user-avatar-container">
                         {user && (user.avatar || user.avatarUrl || user.avatarfull) ? (
@@ -394,7 +395,7 @@ const Navbar = ({ user, onLogout }) => {
                           </div>
                         )}
                       </div>
-                      <span className="desktop-only">{user.displayName}</span>
+                      <span className="desktop-only" style={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.displayName}</span>
                       
                       {/* Admin Badge for admins */}
                       {user.isAdmin && (
