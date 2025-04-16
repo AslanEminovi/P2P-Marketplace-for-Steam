@@ -405,7 +405,7 @@ const Navbar = ({ user, onLogout }) => {
                                   src={user.avatar || user.avatarUrl || user.avatarfull} 
                                   alt={user.displayName || 'User'} 
                                   className="dropdown-avatar-img"
-                                  style={{ padding: "2px", border: "1px solid var(--gaming-highlight)" }}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
                                 />
                               ) : (
                                 <div className="dropdown-avatar-placeholder">
