@@ -434,61 +434,25 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Redis diagnostic - Add this near the beginning of the file, after initializing Redis
-// ======================================
-console.log("Redis Configuration:");
-console.log(
-  "- REDIS_URL:",
-  process.env.REDIS_URL
-    ? process.env.REDIS_URL.replace(/\/\/(.+?)@/, "//****@")
-    : "Not set"
-);
-console.log("- USE_REDIS:", process.env.USE_REDIS);
-console.log("- REDIS_PREFIX:", process.env.REDIS_PREFIX);
-console.log("- SERVER_ID:", process.env.SERVER_ID);
+// Start the server
+server.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`WebSocket server initialized`);
+  console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
 
-// Test Redis connection on startup
-async function testRedisConnection() {
-  if (process.env.USE_REDIS === "true") {
-    try {
-      console.log("Initializing Redis connection test...");
-      const { pubClient } = redisConfig;
+  // Debug info for troubleshooting cross-domain authentication
+  console.log(`CLIENT_URL: ${config.CLIENT_URL}`);
+  console.log(`CORS origin: ${config.CLIENT_URL}`);
+  console.log(`Cookie secure: ${process.env.NODE_ENV === "production"}`);
+  console.log(
+    `Cookie sameSite: ${process.env.NODE_ENV === "production" ? "none" : "lax"}`
+  );
 
-      if (!pubClient) {
-        console.error("Redis client not initialized!");
-        return;
-      }
-
-      console.log("Redis client status:", pubClient.status);
-
-      // Test setting a value
-      const testKey = `redis-test:${Date.now()}`;
-      await redisConfig.setCache(
-        testKey,
-        { timestamp: new Date().toISOString() },
-        60
-      );
-      console.log("Successfully set test value in Redis");
-
-      // Get the value back
-      const value = await redisConfig.getCache(testKey);
-      console.log("Successfully retrieved test value from Redis:", value);
-
-      // Clean up
-      await redisConfig.deleteCache(testKey);
-      console.log("Redis connection test successful!");
-    } catch (error) {
-      console.error("Redis connection test failed:", error);
-    }
-  } else {
-    console.log("Redis is disabled. Skipping connection test.");
+  if (isProduction) {
+    console.log(
+      `Serving static files from: ${path.join(__dirname, "../client/build")}`
+    );
   }
-}
-
-// Run the test after server starts
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  testRedisConnection();
 });
 
 // Handle server error events (e.g., port in use)

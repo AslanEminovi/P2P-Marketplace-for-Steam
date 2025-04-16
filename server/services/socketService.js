@@ -823,27 +823,13 @@ const sendNotification = (userId, notification) => {
 
 // Get user status - now with Redis
 const getUserStatus = async (userId) => {
-  if (!userId) {
-    console.log(
-      `[socketService] getUserStatus called with invalid userId: ${userId}`
-    );
-    return { isOnline: false, lastSeen: null };
-  }
+  if (!userId) return { isOnline: false, lastSeen: null };
 
-  console.log(`[socketService] Getting status for user ${userId}`);
   // If Redis is enabled, check there first
   if (isRedisEnabled && pubClient) {
     try {
-      console.log(
-        `[socketService] Redis enabled, checking for user status in Redis`
-      );
-      const redisKey = `user:${userId}:status`;
-      console.log(`[socketService] Checking Redis key: ${redisKey}`);
-
-      const userStatus = await redisConfig.getHashCache(redisKey);
-      console.log(
-        `[socketService] Redis status for user ${userId}:`,
-        userStatus
+      const userStatus = await redisConfig.getHashCache(
+        `user:${userId}:status`
       );
 
       if (userStatus) {
@@ -855,25 +841,17 @@ const getUserStatus = async (userId) => {
         const now = new Date();
         const isRecentlyActive = lastSeenDate && now - lastSeenDate < 300000;
 
-        // Convert string "true"/"false" to boolean if needed
-        let isOnlineValue = userStatus.isOnline;
-        if (typeof isOnlineValue === "string") {
-          isOnlineValue = isOnlineValue.toLowerCase() === "true";
-        }
-
         console.log(`[socketService] User ${userId} status from Redis:`, {
-          storedStatus: isOnlineValue,
+          storedStatus: userStatus.isOnline,
           lastSeen: lastSeenDate,
           isRecentlyActive,
           timeSinceLastSeen: lastSeenDate ? now - lastSeenDate : "N/A",
         });
 
         return {
-          isOnline: isOnlineValue === true || isRecentlyActive,
+          isOnline: userStatus.isOnline === true || isRecentlyActive,
           lastSeen: lastSeenDate,
         };
-      } else {
-        console.log(`[socketService] No Redis data found for user ${userId}`);
       }
     } catch (error) {
       console.error(
@@ -882,12 +860,6 @@ const getUserStatus = async (userId) => {
       );
       // Fall back to local memory
     }
-  } else {
-    console.log(
-      `[socketService] Redis not enabled or client not available. USE_REDIS=${
-        process.env.USE_REDIS
-      }, pubClient=${!!pubClient}`
-    );
   }
 
   // Fall back to local memory
@@ -899,8 +871,6 @@ const getUserStatus = async (userId) => {
     isOnline,
     lastSeen,
     activeSocketCount: activeSockets.has(userId) ? 1 : 0,
-    connectedUsersSize: connectedUsers.size,
-    activeSocketsSize: activeSockets.size,
   });
 
   return {
