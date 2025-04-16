@@ -13,9 +13,9 @@ const requireAuth = async (req, res, next) => {
     }
 
     // If not authenticated via session, check for token authentication
+    let token = null;
 
     // Look for token in the authorization header
-    let token = null;
     if (
       req.headers.authorization &&
       req.headers.authorization.startsWith("Bearer ")
@@ -28,14 +28,30 @@ const requireAuth = async (req, res, next) => {
       token = req.cookies.auth_token;
     }
 
+    // If no token, check query parameters (often used by the front-end)
+    if (!token && req.query && req.query.auth_token) {
+      token = req.query.auth_token;
+    }
+
     // If no token found, check body (for API requests)
     if (!token && req.body && req.body.token) {
       token = req.body.token;
     }
 
-    // If still no token, return error
+    // If still no token, return error with detailed message
     if (!token) {
-      return res.status(401).json({ error: "Authentication required" });
+      console.warn("Authentication required - no token found in request", {
+        url: req.originalUrl,
+        method: req.method,
+        hasAuthHeader: !!req.headers.authorization,
+        hasCookies: !!req.cookies,
+        hasQueryParams: !!req.query,
+        ip: req.ip,
+      });
+      return res.status(401).json({
+        error: "Authentication required",
+        message: "No authentication token found in request",
+      });
     }
 
     // Verify token
@@ -45,6 +61,7 @@ const requireAuth = async (req, res, next) => {
       // Find the user
       const user = await User.findById(decoded.id);
       if (!user) {
+        console.warn(`User not found for token (ID: ${decoded.id})`);
         return res.status(401).json({ error: "User not found" });
       }
 
@@ -53,7 +70,10 @@ const requireAuth = async (req, res, next) => {
       return next();
     } catch (error) {
       console.error("Token verification error:", error);
-      return res.status(401).json({ error: "Invalid or expired token" });
+      return res.status(401).json({
+        error: "Invalid or expired token",
+        message: error.message,
+      });
     }
   } catch (error) {
     console.error("Auth middleware error:", error);

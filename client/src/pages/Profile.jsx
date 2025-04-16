@@ -7,6 +7,7 @@ import { FiUser, FiMail, FiPhone, FiMapPin, FiGlobe, FiEdit, FiSave, FiShield, F
 import { FaSteam, FaCircle } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import './Profile.css';
+import apiClient from '../services/axiosConfig';
 
 const Profile = ({ user, onBalanceUpdate }) => {
   const { user: authUser, updateUser: authUpdateUser } = useAuth();
@@ -87,17 +88,10 @@ const Profile = ({ user, onBalanceUpdate }) => {
     setLoading(true);
     try {
       console.log("Fetching user profile data...");
-      const response = await axios.get(`${API_URL}/auth/user`, { 
-        withCredentials: true,
-        headers: {
-          'Cache-Control': 'no-cache, no-store',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        },
-        params: {
-          _t: new Date().getTime() // Add timestamp to bust cache
-        }
-      });
+      
+      // Use the configured API client which already has auth tokens and cache busting
+      const response = await apiClient.get('/auth/user');
+      
       console.log("Received user data:", response.data);
       
       if (response.data.authenticated) {
@@ -121,15 +115,42 @@ const Profile = ({ user, onBalanceUpdate }) => {
         if (!isEditing) {
           initializeFormData(userData);
         }
+        
+        // Clear any previous errors
+        setError(null);
       } else {
         // If not authenticated, show error
         setError('Authentication error. Please log in again.');
         toast.error('Authentication error. Please log in again.');
+        
+        // Potentially redirect to login page
+        setTimeout(() => {
+          window.location.href = `${API_URL}/auth/steam`;
+        }, 1500);
       }
     } catch (err) {
       console.error('Error fetching profile:', err);
-      setError('Failed to load profile information');
-      toast.error('Failed to load profile information');
+      
+      let errorMessage = 'Failed to load profile information';
+      
+      // Provide more specific error messages based on the error type
+      if (err.message === 'Network Error') {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (err.response) {
+        if (err.response.status === 401 || err.response.status === 403) {
+          errorMessage = 'Authentication error. Please log in again.';
+          
+          // Redirect to login if authentication error
+          setTimeout(() => {
+            window.location.href = `${API_URL}/auth/steam`;
+          }, 1500);
+        } else if (err.response.status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
+        }
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -220,28 +241,8 @@ const Profile = ({ user, onBalanceUpdate }) => {
       
       console.log('Sending payload to server:', payload);
       
-      // Get the current auth token to ensure proper authentication
-      const authToken = localStorage.getItem('auth_token');
-      
-      // Simplified API call with better error handling and explicit configuration
-      const response = await axios({
-        method: 'PUT',
-        url: `${API_URL}/user/settings`,
-        data: payload,
-        withCredentials: true,
-        timeout: 10000, // 10 second timeout
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-          // Include auth token in header if available
-          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
-        },
-        // Add auth token as query param as well (belt and suspenders approach)
-        params: {
-          ...(authToken ? { auth_token: authToken } : {}),
-          _t: Date.now() // Add timestamp to prevent caching
-        }
-      });
+      // Use apiClient instead of direct axios call
+      const response = await apiClient.put('/user/settings', payload);
       
       console.log('Server response:', response.data);
       
@@ -288,6 +289,7 @@ const Profile = ({ user, onBalanceUpdate }) => {
         
         // Also update local storage if it's being used (optional backup)
         try {
+          const authToken = localStorage.getItem('auth_token');
           if (authToken) {
             localStorage.setItem('user_data', JSON.stringify(completeUpdatedUser));
           }
@@ -303,19 +305,7 @@ const Profile = ({ user, onBalanceUpdate }) => {
     } catch (err) {
       console.error('Error saving profile:', err);
       
-      // More detailed error logging
-      const errorMessage = err.response ? 
-        `Failed to save profile: ${err.response.status} - ${err.response.statusText}` :
-        `Failed to save profile: ${err.message || 'Network error'}`;
-        
-      console.error(errorMessage);
-      console.error('Error details:', err);
-      
-      if (err.response) {
-        console.error('Response data:', err.response.data);
-      }
-      
-      // Show a more specific error message to the user
+      // Show a more user-friendly error message
       let userErrorMessage = 'Failed to save profile';
       
       if (err.message === 'Network Error') {
@@ -334,16 +324,6 @@ const Profile = ({ user, onBalanceUpdate }) => {
       
       setError(userErrorMessage);
       toast.error(userErrorMessage);
-      
-      // If authentication error, refresh the token
-      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
-        // Refresh token or redirect to login
-        if (typeof window.location !== 'undefined') {
-          setTimeout(() => {
-            window.location.href = `${API_URL}/auth/steam`;
-          }, 1500);
-        }
-      }
     } finally {
       setSaving(false);
     }

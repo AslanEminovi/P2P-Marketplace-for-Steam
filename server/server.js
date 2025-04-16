@@ -89,7 +89,16 @@ const corsOptions = {
       "https://localhost:3000",
     ];
 
-    if (allowedOrigins.indexOf(origin) !== -1 || !isProduction) {
+    // In development mode, accept all origins
+    if (!isProduction) {
+      console.log(
+        `CORS: Allowing request from origin: ${origin} (development mode)`
+      );
+      return callback(null, true);
+    }
+
+    // In production, check against whitelist
+    if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       console.warn(`CORS blocked request from origin: ${origin}`);
@@ -97,16 +106,19 @@ const corsOptions = {
     }
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: [
     "Content-Type",
     "Authorization",
     "X-Requested-With",
     "Accept",
     "Origin",
+    "Cache-Control",
+    "Pragma",
   ],
   exposedHeaders: ["set-cookie"],
   maxAge: 86400, // 24 hours in seconds
+  optionsSuccessStatus: 204,
 };
 
 app.use(cors(corsOptions));
