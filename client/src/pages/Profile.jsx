@@ -220,9 +220,8 @@ const Profile = ({ user, onBalanceUpdate }) => {
     e.preventDefault();
     setSaving(true);
     
-    console.log('Saving profile with form data:', formData);
-    
     try {
+      // Simple payload with the data we need to update
       const payload = {
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -238,127 +237,68 @@ const Profile = ({ user, onBalanceUpdate }) => {
         }
       };
       
-      console.log('Sending payload to server:', payload);
+      // Get token for auth
+      const token = localStorage.getItem('auth_token');
       
-      // Get the auth token
-      const authToken = localStorage.getItem('auth_token');
-      if (!authToken) {
-        toast.error('Not logged in! Please log in again.');
-        window.location.href = `${API_URL}/auth/steam`;
-        return;
-      }
+      // Super simple approach - use XMLHttpRequest which has fewer restrictions
+      const xhr = new XMLHttpRequest();
+      const url = `${API_URL}/user/settings?auth_token=${token}&t=${Date.now()}`;
       
-      // Using native browser fetch API as a fallback
-      const url = new URL(`${API_URL}/user/settings`);
-      url.searchParams.append('auth_token', authToken);
-      url.searchParams.append('_t', Date.now().toString());
-      
-      // Log all request details for debugging
-      console.log('Making request to:', url.toString());
-      console.log('With payload:', JSON.stringify(payload));
-      
-      const fetchResponse = await fetch(url.toString(), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        },
-        credentials: 'include',
-        body: JSON.stringify(payload)
-      });
-      
-      if (!fetchResponse.ok) {
-        // Log detailed error info
-        console.error('Fetch error status:', fetchResponse.status);
-        console.error('Fetch error statusText:', fetchResponse.statusText);
-        
-        const errorText = await fetchResponse.text();
-        console.error('Error response text:', errorText);
-        
-        let errorJson;
-        try {
-          errorJson = JSON.parse(errorText);
-          console.error('Error response JSON:', errorJson);
-        } catch (e) {
-          console.error('Could not parse error response as JSON');
-        }
-        
-        throw new Error(`Server returned ${fetchResponse.status}: ${fetchResponse.statusText}`);
-      }
-      
-      const responseText = await fetchResponse.text();
-      console.log('Raw response text:', responseText);
-      
-      let response;
-      try {
-        response = { data: JSON.parse(responseText) };
-        console.log('Parsed response data:', response.data);
-      } catch (e) {
-        console.error('Could not parse response as JSON:', e);
-        throw new Error('Invalid response from server');
-      }
-      
-      if (response.data.success) {
-        toast.success('Profile saved successfully');
-        
-        // Update profile with response data
-        const updatedUser = response.data.user;
-        
-        // Make a copy of the updated user
-        const completeUpdatedUser = {
-          ...profile,
-          ...updatedUser,
-          settings: {
-            ...(profile?.settings || {}),
-            ...(updatedUser.settings || {}),
-            privacy: {
-              ...(profile?.settings?.privacy || {}),
-              ...(updatedUser.settings?.privacy || {})
-            },
-            notifications: {
-              ...(profile?.settings?.notifications || {}),
-              ...(updatedUser.settings?.notifications || {})
+      // Set up completion handler
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          setSaving(false);
+          
+          if (xhr.status >= 200 && xhr.status < 300) {
+            // Success!
+            try {
+              const response = JSON.parse(xhr.responseText);
+              console.log('Profile saved successfully:', response);
+              
+              if (response.success) {
+                toast.success('Profile saved successfully');
+                
+                // Update the profile state and auth context with the new data
+                if (response.user) {
+                  setProfile(response.user);
+                  
+                  if (authUpdateUser) {
+                    authUpdateUser(response.user);
+                  }
+                }
+                
+                setIsEditing(false);
+                
+                // Force reload after a short delay
+                setTimeout(() => {
+                  window.location.reload();
+                }, 500);
+              } else {
+                toast.error(response.message || 'Failed to save profile');
+              }
+            } catch (parseError) {
+              console.error('Error parsing response:', parseError);
+              toast.error('Failed to save profile: unexpected response format');
             }
+          } else {
+            // Error
+            console.error('XHR failed with status:', xhr.status);
+            console.error('Response text:', xhr.responseText);
+            toast.error('Failed to save profile. Please try again.');
           }
-        };
-        
-        console.log('Updated user object:', completeUpdatedUser);
-        
-        // Set the complete user object in state
-        setProfile(completeUpdatedUser);
-        
-        // Update auth context
-        if (authUpdateUser) {
-          authUpdateUser(completeUpdatedUser);
         }
-        
-        // Update global user state
-        if (typeof window.updateGlobalUser === 'function') {
-          window.updateGlobalUser(completeUpdatedUser);
-        }
-        
-        // Store in localStorage for redundancy
-        localStorage.setItem('user_data', JSON.stringify(completeUpdatedUser));
-        
-        setIsEditing(false);
-        
-        // Force refresh page after 1 second to ensure we have latest data
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      } else {
-        console.error('Server returned error:', response.data);
-        toast.error(response.data.message || 'Failed to save profile');
-      }
-    } catch (err) {
-      console.error('Profile save error:', err);
-      console.error('Error stack:', err.stack);
+      };
       
-      toast.error('Failed to update profile. Please try again or refresh the page.');
-    } finally {
+      // Set up and send request
+      xhr.open('PUT', url, true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.withCredentials = true;
+      xhr.send(JSON.stringify(payload));
+      
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      toast.error('Failed to save profile');
       setSaving(false);
     }
   };
