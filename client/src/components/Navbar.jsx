@@ -399,20 +399,6 @@ const Navbar = ({ user, onLogout }) => {
                       >
                         <div className="dropdown-header">
                           <div className="dropdown-avatar-container">
-                            <div className="dropdown-avatar">
-                              {user && (user.avatar || user.avatarUrl || user.avatarfull) ? (
-                                <img 
-                                  src={user.avatar || user.avatarUrl || user.avatarfull} 
-                                  alt={user.displayName || 'User'} 
-                                  className="dropdown-avatar-img"
-                                  style={{ padding: "2px", border: "1px solid var(--gaming-highlight)" }}
-                                />
-                              ) : (
-                                <div className="dropdown-avatar-placeholder">
-                                  {getUserInitials()}
-                                </div>
-                              )}
-                            </div>
                             <div className="dropdown-user-info">
                               <span className="dropdown-username">{user.displayName}</span>
                               <div className="dropdown-email-container">
