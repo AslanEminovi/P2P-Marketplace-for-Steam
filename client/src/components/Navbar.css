@@ -366,23 +366,19 @@
 .profile-button {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 16px;
-  border-radius: 36px;
+  padding: 2px 8px 2px 2px;
+  background-color: rgba(31, 43, 69, 0.75);
+  border: 1px solid rgba(51, 115, 242, 0.2);
+  border-radius: 50px;
   cursor: pointer;
-  font-weight: 600;
-  color: var(--text-color);
-  background: rgba(15, 21, 32, 0.95);
-  border: 1px solid rgba(55, 65, 81, 0.6);
   transition: all 0.2s ease;
   position: relative;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  height: 34px;
 }
 
 .profile-button:hover {
-  background: rgba(20, 26, 38, 1);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-  border-color: var(--gaming-highlight);
+  background-color: rgba(51, 115, 242, 0.4);
+  border-color: rgba(51, 115, 242, 0.4);
 }
 
 .dropdown-arrow {
@@ -390,40 +386,156 @@
   align-items: center;
   transition: transform 0.3s ease;
   pointer-events: none;
+  margin-left: 6px;
+}
+
+.dropdown-arrow svg {
+  width: 18px;
+  height: 18px;
+}
+
+.dropdown-arrow.active svg {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Wrapper */
+.dropdown-wrapper {
+  position: relative;
+  overflow: visible;
+}
+
+/* User Avatar */
+.user-avatar-container {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: var(--gaming-bg-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: var(--gaming-text);
+  margin-right: 8px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.user-display-name {
+  font-size: 14px;
   margin-left: 8px;
-  color: rgba(0, 210, 255, 0.7);
+  color: var(--gaming-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* Dropdown Menu */
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  background-color: #151C2B;
+  border: 1px solid #3373F2;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(51, 115, 242, 0.2);
+  z-index: 1500;
+  /* Higher than any other element */
+  overflow: hidden;
+  animation: dropdownFadeIn 0.25s ease;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Improved User Dropdown Styles */
 .dropdown-header {
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 24, 40, 0) 100%);
 }
 
 .dropdown-avatar-container {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+.dropdown-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #1F2B45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 18px;
+  margin-right: 12px;
+  border: 2px solid rgba(51, 115, 242, 0.3);
+  padding: 2px;
+}
+
+.dropdown-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.dropdown-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: #3373F2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.dropdown-user-info {
+  display: flex;
+  flex-direction: column;
 }
 
 .dropdown-username {
-  font-size: 18px;
+  font-size: 1rem;
   font-weight: 600;
-  margin-bottom: 4px;
-  color: #FFFFFF;
+  color: var(--gaming-text-bright);
+  text-align: left;
 }
 
 .dropdown-email-container {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  background-color: rgba(51, 115, 242, 0.1);
+  border-radius: 4px;
+  padding: 3px 6px;
+  margin-top: 4px;
 }
 
 .dropdown-email {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
-  word-break: break-all;
+  font-size: 0.8rem;
+  color: var(--gaming-text-dim);
+  display: block;
+  opacity: 0.85;
 }
 
 .dropdown-full-name {
@@ -1338,24 +1450,4 @@
 .notifications-dropdown .mark-read-btn:disabled {
   color: #585d6a;
   cursor: default;
-}
-
-/* User Avatar */
-.user-avatar-container {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background-color: #3373F2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  color: #0a0e17;
-  overflow: hidden;
-}
-
-.user-avatar-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }

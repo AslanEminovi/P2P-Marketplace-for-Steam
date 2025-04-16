@@ -87,12 +87,30 @@ const Profile = ({ user, onBalanceUpdate }) => {
     setLoading(true);
     try {
       console.log("Fetching user profile data...");
-      const response = await axios.get(`${API_URL}/auth/user`, { withCredentials: true });
+      const response = await axios.get(`${API_URL}/auth/user`, { 
+        withCredentials: true,
+        headers: {
+          'Cache-Control': 'no-cache, no-store',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        params: {
+          _t: new Date().getTime() // Add timestamp to bust cache
+        }
+      });
       console.log("Received user data:", response.data);
       
       if (response.data.authenticated) {
         const userData = response.data.user;
         console.log("Setting profile with fresh user data:", userData);
+        
+        // Force a full server refetch after a successful update
+        if (!userData.firstName && profile?.firstName) {
+          console.warn("Server returned incomplete user data, using cached data");
+          // The server returned incomplete data, preserve our local data
+          return;
+        }
+        
         setProfile(userData);
         
         // Update auth context with fresh data
@@ -136,34 +154,8 @@ const Profile = ({ user, onBalanceUpdate }) => {
     setLoading(true);
     setError(null);
     try {
-      // Direct API call to ensure we get fresh data
-      const response = await axios.get(`${API_URL}/auth/user`, { 
-        withCredentials: true 
-      });
-      
-      if (response.data.authenticated) {
-        // Get user data
-        const userData = response.data.user;
-        
-        // Update all states with the freshly received data
-        setProfile(userData);
-        initializeFormData(userData);
-        
-        // Update auth context with fresh data
-        if (authUpdateUser) {
-          authUpdateUser(userData);
-        }
-        
-        // Update window global user
-        if (typeof window.updateGlobalUser === 'function') {
-          window.updateGlobalUser(userData);
-        }
-        
-        console.log("Profile refreshed with data:", userData);
-        toast.success('Profile refreshed successfully');
-      } else {
-        throw new Error('Authentication failed');
-      }
+      await fetchUserProfile();
+      toast.success('Profile refreshed successfully');
     } catch (err) {
       console.error('Error refreshing profile:', err);
       setError(err.response?.data?.error || 'Failed to refresh profile');
@@ -246,28 +238,17 @@ const Profile = ({ user, onBalanceUpdate }) => {
       if (response.data.success) {
         toast.success('Profile saved successfully');
         
-        // Get fresh profile data after saving
-        const updateResponse = await axios.get(`${API_URL}/auth/user`, { 
-          withCredentials: true 
-        });
+        // Update profile with response data but keep form data unchanged
+        const updatedUser = response.data.user;
+        setProfile(updatedUser);
         
-        if (updateResponse.data.authenticated) {
-          // Get the freshest user data directly from server
-          const freshUserData = updateResponse.data.user;
-          console.log("Retrieved fresh user data after save:", freshUserData);
-          
-          // Update all relevant state directly with server data
-          setProfile(freshUserData);
-          
-          // Update auth context
-          if (authUpdateUser) {
-            authUpdateUser(freshUserData);
-          }
-          
-          // Update global user state
-          if (typeof window.updateGlobalUser === 'function') {
-            window.updateGlobalUser(freshUserData);
-          }
+        // Update auth context and global user
+        if (authUpdateUser) {
+          authUpdateUser(updatedUser);
+        }
+        
+        if (typeof window.updateGlobalUser === 'function') {
+          window.updateGlobalUser(updatedUser);
         }
         
         setIsEditing(false);

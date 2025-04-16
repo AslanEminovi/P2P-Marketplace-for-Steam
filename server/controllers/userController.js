@@ -41,227 +41,121 @@ exports.getUserProfile = async (req, res) => {
 // PUT /user/settings
 exports.updateUserSettings = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.id;
+    console.log("Updating settings for user:", userId);
+
+    // Get user data from request
     const {
-      displayName,
-      email,
-      phone,
       firstName,
       lastName,
+      email,
+      phone,
       country,
       city,
-      tradeUrl,
+      avatarUrl,
       settings,
     } = req.body;
 
-    console.log(
-      `Updating settings for user ${userId}:`,
-      JSON.stringify(
-        {
-          displayName,
-          email,
-          phone,
-          firstName,
-          lastName,
-          country,
-          city,
-          tradeUrl,
-          settings,
-        },
-        null,
-        2
-      )
-    );
+    console.log("Received user data:", req.body);
 
-    // Find user
+    // Find the user
     const user = await User.findById(userId);
 
     if (!user) {
+      console.error("User not found:", userId);
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Keep track of which fields were updated
-    const updatedFields = [];
-
-    // Update fields if provided
-    if (displayName !== undefined) {
-      user.displayName = displayName;
-      updatedFields.push("displayName");
-    }
-    if (email !== undefined) {
-      user.email = email;
-      updatedFields.push("email");
-    }
-    if (phone !== undefined) {
-      user.phone = phone;
-      updatedFields.push("phone");
-    }
-    if (firstName !== undefined) {
-      user.firstName = firstName;
-      updatedFields.push("firstName");
-    }
-    if (lastName !== undefined) {
-      user.lastName = lastName;
-      updatedFields.push("lastName");
-    }
-    if (country !== undefined) {
-      user.country = country;
-      updatedFields.push("country");
-    }
-    if (city !== undefined) {
-      user.city = city;
-      updatedFields.push("city");
-    }
-    if (tradeUrl !== undefined) {
-      user.tradeUrl = tradeUrl;
-      updatedFields.push("tradeUrl");
-      // Set trade URL expiry to 30 days from now
-      user.tradeUrlExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    }
-
-    // Mark profile as complete if basic information is provided
-    if ((firstName || lastName) && email) {
-      user.profileComplete = true;
-      updatedFields.push("profileComplete");
-    }
+    // Update user fields that were provided
+    if (firstName !== undefined) user.firstName = firstName;
+    if (lastName !== undefined) user.lastName = lastName;
+    if (email !== undefined) user.email = email;
+    if (phone !== undefined) user.phone = phone;
+    if (country !== undefined) user.country = country;
+    if (city !== undefined) user.city = city;
+    if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
 
     // Update settings if provided
     if (settings) {
-      // Create settings object if it doesn't exist
-      if (!user.settings) user.settings = {};
+      // Initialize settings object if it doesn't exist
+      if (!user.settings) {
+        user.settings = {};
+      }
 
       // Update currency preference
       if (settings.currency) {
-        if (!["USD", "GEL"].includes(settings.currency)) {
-          return res.status(400).json({ error: "Invalid currency setting" });
-        }
         user.settings.currency = settings.currency;
-        updatedFields.push("settings.currency");
       }
 
       // Update theme preference
       if (settings.theme) {
-        if (!["light", "dark"].includes(settings.theme)) {
-          return res.status(400).json({ error: "Invalid theme setting" });
-        }
         user.settings.theme = settings.theme;
-        updatedFields.push("settings.theme");
       }
 
       // Update privacy settings
       if (settings.privacy) {
-        // Create privacy object if it doesn't exist
-        if (!user.settings.privacy) user.settings.privacy = {};
+        if (!user.settings.privacy) {
+          user.settings.privacy = {};
+        }
 
+        // Only update fields that were provided
         if (settings.privacy.showOnlineStatus !== undefined) {
           user.settings.privacy.showOnlineStatus =
-            !!settings.privacy.showOnlineStatus;
-          updatedFields.push("settings.privacy.showOnlineStatus");
+            settings.privacy.showOnlineStatus;
         }
 
         if (settings.privacy.showInventoryValue !== undefined) {
           user.settings.privacy.showInventoryValue =
-            !!settings.privacy.showInventoryValue;
-          updatedFields.push("settings.privacy.showInventoryValue");
+            settings.privacy.showInventoryValue;
         }
       }
 
       // Update notification settings
       if (settings.notifications) {
-        // Create notifications object if it doesn't exist
-        if (!user.settings.notifications) user.settings.notifications = {};
+        if (!user.settings.notifications) {
+          user.settings.notifications = {};
+        }
 
+        // Only update fields that were provided
         if (settings.notifications.email !== undefined) {
-          user.settings.notifications.email = !!settings.notifications.email;
-          updatedFields.push("settings.notifications.email");
+          user.settings.notifications.email = settings.notifications.email;
         }
 
         if (settings.notifications.push !== undefined) {
-          user.settings.notifications.push = !!settings.notifications.push;
-          updatedFields.push("settings.notifications.push");
+          user.settings.notifications.push = settings.notifications.push;
         }
 
         if (settings.notifications.offers !== undefined) {
-          user.settings.notifications.offers = !!settings.notifications.offers;
-          updatedFields.push("settings.notifications.offers");
+          user.settings.notifications.offers = settings.notifications.offers;
         }
 
         if (settings.notifications.trades !== undefined) {
-          user.settings.notifications.trades = !!settings.notifications.trades;
-          updatedFields.push("settings.notifications.trades");
-        }
-
-        if (settings.notifications.market !== undefined) {
-          user.settings.notifications.market = !!settings.notifications.market;
-          updatedFields.push("settings.notifications.market");
-        }
-
-        if (settings.notifications.pricing !== undefined) {
-          user.settings.notifications.pricing =
-            !!settings.notifications.pricing;
-          updatedFields.push("settings.notifications.pricing");
-        }
-      }
-
-      // Update security settings
-      if (settings.security) {
-        // Create security object if it doesn't exist
-        if (!user.settings.security) user.settings.security = {};
-
-        if (settings.security.twoFactorAuth !== undefined) {
-          user.settings.security.twoFactorAuth =
-            !!settings.security.twoFactorAuth;
-          updatedFields.push("settings.security.twoFactorAuth");
-        }
-
-        if (settings.security.loginNotifications !== undefined) {
-          user.settings.security.loginNotifications =
-            !!settings.security.loginNotifications;
-          updatedFields.push("settings.security.loginNotifications");
+          user.settings.notifications.trades = settings.notifications.trades;
         }
       }
     }
 
-    // Save the updated user
-    const savedUser = await user.save();
-    console.log(
-      `User ${userId} settings updated successfully. Updated fields: ${updatedFields.join(
-        ", "
-      )}`
+    // Save updated user
+    await user.save();
+    console.log("User settings updated successfully");
+
+    // Get fresh user data to ensure we return all fields
+    const updatedUser = await User.findById(userId).select(
+      "-passwordHash -refreshToken"
     );
 
-    // Return complete updated user data
-    return res.json({
+    // Return success response with updated user
+    return res.status(200).json({
       success: true,
-      message: "User settings updated successfully",
-      user: {
-        id: savedUser._id,
-        steamId: savedUser.steamId,
-        displayName: savedUser.displayName,
-        firstName: savedUser.firstName,
-        lastName: savedUser.lastName,
-        email: savedUser.email,
-        phone: savedUser.phone,
-        country: savedUser.country,
-        city: savedUser.city,
-        tradeUrl: savedUser.tradeUrl,
-        tradeUrlExpiry: savedUser.tradeUrlExpiry,
-        profileComplete: savedUser.profileComplete,
-        verificationLevel: savedUser.verificationLevel,
-        avatar: savedUser.avatar,
-        avatarMedium: savedUser.avatarMedium,
-        avatarFull: savedUser.avatarFull,
-        walletBalance: savedUser.walletBalance,
-        walletBalanceGEL: savedUser.walletBalanceGEL,
-        settings: savedUser.settings,
-      },
-      updatedFields,
+      message: "Settings updated successfully",
+      user: updatedUser,
     });
-  } catch (err) {
-    console.error("Update user settings error:", err);
-    return res
-      .status(500)
-      .json({ error: "Failed to update user settings", details: err.message });
+  } catch (error) {
+    console.error("Error updating user settings:", error);
+    return res.status(500).json({
+      error: "Failed to update settings",
+      details: error.message,
+    });
   }
 };
 
