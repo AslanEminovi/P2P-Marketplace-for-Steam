@@ -248,71 +248,77 @@ class SocketService {
       return;
     }
 
-    // If we already have a connected socket, don't reconnect
-    if (this.socket && this.socket.connected) {
-      console.log(
-        "[SocketService] Socket already connected, skipping reconnect"
-      );
-      this.connected = true;
-      return;
+    // Always disconnect existing socket first to ensure a clean reconnection
+    if (this.socket) {
+      try {
+        console.log(
+          "[SocketService] Cleaning up existing socket connection before reconnect"
+        );
+        this.socket.disconnect();
+        this.socket = null;
+      } catch (error) {
+        console.error(
+          "[SocketService] Error during disconnect before reconnect:",
+          error
+        );
+      }
     }
 
-    this.reconnectAttempts = 0;
+    // Reset connection state
+    this.connected = false;
 
+    // Clear any existing reconnect timer
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
 
-    // Get the latest token in case it was updated
-    const token = localStorage.getItem("auth_token");
-    this.connect(token);
+    // Reset reconnection parameters
+    this.reconnectAttempts = 0;
+    this.lastConnectionAttempt = now;
+
+    // Attempt to connect with current auth token
+    console.log(
+      "[SocketService] Attempting reconnection with fresh connection"
+    );
+    this.connect();
+
+    // Start heartbeat to maintain connection
+    this.startHeartbeat();
   }
 
   scheduleReconnect() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error("[SocketService] Max reconnect attempts reached");
-      // Even at max attempts, we should try one more time after a longer delay
-      const finalAttemptDelay = 10000; // 10 seconds
-      console.log(
-        `[SocketService] Scheduling final reconnect attempt in ${finalAttemptDelay}ms`
-      );
-
-      if (this.reconnectTimer) {
-        clearTimeout(this.reconnectTimer);
-      }
-
-      this.reconnectTimer = setTimeout(() => {
-        this.reconnectAttempts = 0; // Reset counter for the final attempt
-        this.reconnect();
-      }, finalAttemptDelay);
-
+    // Don't schedule another reconnect if one is already pending
+    if (this.reconnectTimer) {
+      console.log("[SocketService] Reconnect already scheduled, skipping");
       return;
     }
 
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-    }
+    // Calculate delay with exponential backoff up to 30 seconds
+    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+    this.reconnectAttempts++;
 
-    // Progressive backoff for reconnection
-    const delay = this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts);
     console.log(
-      `[SocketService] Scheduling reconnect in ${delay}ms (attempt ${
-        this.reconnectAttempts + 1
-      }/${this.maxReconnectAttempts})`
+      `[SocketService] Scheduling reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`
     );
 
     this.reconnectTimer = setTimeout(() => {
-      this.reconnectAttempts++;
-      this.reconnect();
+      console.log("[SocketService] Executing scheduled reconnect");
+      this.reconnectTimer = null;
+      this.connect();
     }, delay);
   }
 
   handleConnectionFailure() {
+    console.log("[SocketService] Handling connection failure");
     this.connected = false;
 
-    if (this.disconnectedCallback) {
-      this.disconnectedCallback();
+    // If we've exceeded max attempts, notify the user
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error(
+        "[SocketService] Max reconnection attempts reached, giving up"
+      );
+      return;
     }
 
     this.scheduleReconnect();

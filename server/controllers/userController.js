@@ -4,14 +4,14 @@ const User = require("../models/User");
 exports.getUserProfile = async (req, res) => {
   try {
     const userId = req.user._id;
-    
+
     // Get user with full profile data
-    const user = await User.findById(userId).select('-steamLoginSecure');
-    
+    const user = await User.findById(userId).select("-steamLoginSecure");
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     // Return sanitized user data
     return res.json({
       id: user._id,
@@ -30,7 +30,7 @@ exports.getUserProfile = async (req, res) => {
       verificationLevel: user.verificationLevel,
       settings: user.settings,
       createdAt: user.createdAt,
-      lastLoginAt: user.lastLoginAt
+      lastLoginAt: user.lastLoginAt,
     });
   } catch (err) {
     console.error("Get user profile error:", err);
@@ -43,68 +43,68 @@ exports.updateUserSettings = async (req, res) => {
   try {
     const userId = req.user._id;
     const { displayName, email, phone, settings } = req.body;
-    
+
     // Find user
     const user = await User.findById(userId);
-    
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     // Update fields if provided
     if (displayName !== undefined) user.displayName = displayName;
     if (email !== undefined) user.email = email;
     if (phone !== undefined) user.phone = phone;
-    
+
     // Update settings if provided
     if (settings) {
       // Create settings object if it doesn't exist
       if (!user.settings) user.settings = {};
-      
+
       // Update currency preference
       if (settings.currency) {
-        if (!['USD', 'GEL'].includes(settings.currency)) {
+        if (!["USD", "GEL"].includes(settings.currency)) {
           return res.status(400).json({ error: "Invalid currency setting" });
         }
         user.settings.currency = settings.currency;
       }
-      
+
       // Update theme preference
       if (settings.theme) {
-        if (!['light', 'dark'].includes(settings.theme)) {
+        if (!["light", "dark"].includes(settings.theme)) {
           return res.status(400).json({ error: "Invalid theme setting" });
         }
         user.settings.theme = settings.theme;
       }
-      
+
       // Update notification settings
       if (settings.notifications) {
         // Create notifications object if it doesn't exist
         if (!user.settings.notifications) user.settings.notifications = {};
-        
+
         if (settings.notifications.email !== undefined) {
           user.settings.notifications.email = !!settings.notifications.email;
         }
-        
+
         if (settings.notifications.push !== undefined) {
           user.settings.notifications.push = !!settings.notifications.push;
         }
-        
+
         if (settings.notifications.offers !== undefined) {
           user.settings.notifications.offers = !!settings.notifications.offers;
         }
-        
+
         if (settings.notifications.trades !== undefined) {
           user.settings.notifications.trades = !!settings.notifications.trades;
         }
       }
     }
-    
+
     await user.save();
-    
+
     return res.json({
       success: true,
-      message: "User settings updated successfully"
+      message: "User settings updated successfully",
     });
   } catch (err) {
     console.error("Update user settings error:", err);
@@ -117,49 +117,53 @@ exports.updateNotificationSettings = async (req, res) => {
   try {
     const userId = req.user._id;
     const { settings } = req.body;
-    
+
     if (!settings) {
-      return res.status(400).json({ error: "Notification settings are required" });
+      return res
+        .status(400)
+        .json({ error: "Notification settings are required" });
     }
-    
+
     // Find user
     const user = await User.findById(userId);
-    
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     // Create settings.notifications object if it doesn't exist
     if (!user.settings) user.settings = {};
     if (!user.settings.notifications) user.settings.notifications = {};
-    
+
     // Update notification settings
     if (settings.email !== undefined) {
       user.settings.notifications.email = !!settings.email;
     }
-    
+
     if (settings.push !== undefined) {
       user.settings.notifications.push = !!settings.push;
     }
-    
+
     if (settings.offers !== undefined) {
       user.settings.notifications.offers = !!settings.offers;
     }
-    
+
     if (settings.trades !== undefined) {
       user.settings.notifications.trades = !!settings.trades;
     }
-    
+
     await user.save();
-    
+
     return res.json({
       success: true,
       message: "Notification settings updated successfully",
-      settings: user.settings.notifications
+      settings: user.settings.notifications,
     });
   } catch (err) {
     console.error("Update notification settings error:", err);
-    return res.status(500).json({ error: "Failed to update notification settings" });
+    return res
+      .status(500)
+      .json({ error: "Failed to update notification settings" });
   }
 };
 
@@ -168,14 +172,14 @@ exports.markNotificationsRead = async (req, res) => {
   try {
     const userId = req.user._id;
     const { notificationIds, markAll } = req.body;
-    
+
     // Find user
     const user = await User.findById(userId);
-    
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     // Mark specific notifications as read
     if (notificationIds && Array.isArray(notificationIds)) {
       for (const notifId of notificationIds) {
@@ -185,23 +189,25 @@ exports.markNotificationsRead = async (req, res) => {
         }
       }
     }
-    
+
     // Mark all notifications as read
     if (markAll) {
-      user.notifications.forEach(notification => {
+      user.notifications.forEach((notification) => {
         notification.read = true;
       });
     }
-    
+
     await user.save();
-    
+
     return res.json({
       success: true,
-      message: "Notifications marked as read"
+      message: "Notifications marked as read",
     });
   } catch (err) {
     console.error("Mark notifications read error:", err);
-    return res.status(500).json({ error: "Failed to mark notifications as read" });
+    return res
+      .status(500)
+      .json({ error: "Failed to mark notifications as read" });
   }
 };
 
@@ -210,40 +216,40 @@ exports.getUserNotifications = async (req, res) => {
   try {
     const userId = req.user._id;
     const { unreadOnly = false, limit = 20, offset = 0 } = req.query;
-    
+
     // Find user
     const user = await User.findById(userId);
-    
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     // Filter notifications
     let notifications = [...user.notifications];
-    
+
     // Filter by read status if requested
-    if (unreadOnly === 'true') {
-      notifications = notifications.filter(n => !n.read);
+    if (unreadOnly === "true") {
+      notifications = notifications.filter((n) => !n.read);
     }
-    
+
     // Sort by date (newest first)
     notifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    
+
     // Count unread notifications
-    const unreadCount = user.notifications.filter(n => !n.read).length;
-    
+    const unreadCount = user.notifications.filter((n) => !n.read).length;
+
     // Apply pagination
     const paginatedNotifications = notifications.slice(
-      parseInt(offset), 
+      parseInt(offset),
       parseInt(offset) + parseInt(limit)
     );
-    
+
     return res.json({
       notifications: paginatedNotifications,
       total: notifications.length,
       unreadCount,
       limit: parseInt(limit),
-      offset: parseInt(offset)
+      offset: parseInt(offset),
     });
   } catch (err) {
     console.error("Get user notifications error:", err);

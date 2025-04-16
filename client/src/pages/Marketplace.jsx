@@ -284,7 +284,7 @@ function Marketplace({ user }) {
             
             // Show a toast notification for the cancelled item
             if (update.marketHashName) {
-              toast.info(`Listing cancelled: ${update.marketHashName}`, {
+              toast(`Listing cancelled: ${update.marketHashName}`, {
                 duration: 3000
               });
             }

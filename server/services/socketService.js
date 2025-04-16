@@ -394,19 +394,42 @@ const handleTradeUpdateMessage = (data) => {
  */
 const getLatestStats = async () => {
   try {
+    console.log("[socketService] Fetching latest stats");
+
     // Try to get cached stats from Redis
     if (isRedisEnabled && pubClient) {
-      const cachedStats = await redisConfig.getCache("site:stats");
+      try {
+        console.log("[socketService] Attempting to get stats from Redis cache");
+        const cachedStats = await redisConfig.getCache("site:stats");
 
-      // If stats are recent (< 60 seconds old), use them
-      if (
-        cachedStats &&
-        cachedStats.timestamp &&
-        Date.now() - new Date(cachedStats.timestamp).getTime() < 60000
-      ) {
-        console.log("Using cached stats from Redis:", cachedStats);
-        return cachedStats;
+        // If stats are recent (< 60 seconds old), use them
+        if (
+          cachedStats &&
+          cachedStats.timestamp &&
+          Date.now() - new Date(cachedStats.timestamp).getTime() < 60000
+        ) {
+          console.log("[socketService] Using cached stats from Redis:", {
+            activeListings: cachedStats.activeListings,
+            activeUsers: cachedStats.activeUsers,
+            timestamp: cachedStats.timestamp,
+          });
+          return cachedStats;
+        } else {
+          console.log(
+            "[socketService] Redis cache expired or not found, fetching fresh stats"
+          );
+        }
+      } catch (redisError) {
+        console.error(
+          "[socketService] Error retrieving stats from Redis:",
+          redisError.message
+        );
+        // Continue to fetch stats from database
       }
+    } else {
+      console.log(
+        "[socketService] Redis not enabled or client not available, fetching from database"
+      );
     }
 
     // Fetch fresh stats from database
@@ -414,6 +437,7 @@ const getLatestStats = async () => {
     const User = require("../models/User");
     const Trade = require("../models/Trade");
 
+    console.log("[socketService] Running database queries for stats");
     const [activeListings, registeredUsers, completedTrades] =
       await Promise.all([
         Item.countDocuments({ isListed: true }),
@@ -422,6 +446,11 @@ const getLatestStats = async () => {
         }),
         Trade.countDocuments({ status: "completed" }),
       ]);
+    console.log("[socketService] Database query results:", {
+      activeListings,
+      registeredUsers,
+      completedTrades,
+    });
 
     // Get connected users from Redis if enabled
     let totalActiveUsers = 0;
@@ -430,35 +459,64 @@ const getLatestStats = async () => {
 
     if (isRedisEnabled && pubClient) {
       try {
+        console.log("[socketService] Getting online users from Redis");
         // Get the count of online users from Redis
         const keys = await pubClient.keys("cs2market:user:*:status");
+        console.log(
+          `[socketService] Found ${keys.length} user status keys in Redis`
+        );
 
         // Filter keys to only include those with isOnline: true
         authenticatedActiveUsers = 0;
         for (const key of keys) {
-          const userStatus = await redisConfig.getHashCache(
-            key.replace("cs2market:", "")
-          );
-          if (userStatus && userStatus.isOnline === true) {
-            authenticatedActiveUsers++;
+          try {
+            const userStatus = await redisConfig.getHashCache(
+              key.replace("cs2market:", "")
+            );
+            if (userStatus && userStatus.isOnline === true) {
+              authenticatedActiveUsers++;
+            }
+          } catch (keyError) {
+            console.error(
+              `[socketService] Error checking status for key ${key}:`,
+              keyError.message
+            );
           }
         }
 
         // For anonymous users, we'll keep track locally
         anonymousActiveUsers = anonymousSockets.size;
         totalActiveUsers = authenticatedActiveUsers + anonymousActiveUsers;
+        console.log("[socketService] User counts from Redis:", {
+          authenticated: authenticatedActiveUsers,
+          anonymous: anonymousActiveUsers,
+          total: totalActiveUsers,
+        });
       } catch (error) {
-        console.error("Error getting user stats from Redis:", error);
+        console.error(
+          "[socketService] Error getting user stats from Redis:",
+          error.message
+        );
         // Fall back to local tracking
         authenticatedActiveUsers = activeUsers.size;
         anonymousActiveUsers = anonymousSockets.size;
         totalActiveUsers = authenticatedActiveUsers + anonymousActiveUsers;
+        console.log("[socketService] Falling back to local user counts:", {
+          authenticated: authenticatedActiveUsers,
+          anonymous: anonymousActiveUsers,
+          total: totalActiveUsers,
+        });
       }
     } else {
       // Use local tracking if Redis is not enabled
       authenticatedActiveUsers = activeUsers.size;
       anonymousActiveUsers = anonymousSockets.size;
       totalActiveUsers = authenticatedActiveUsers + anonymousActiveUsers;
+      console.log("[socketService] Using local user counts (Redis disabled):", {
+        authenticated: authenticatedActiveUsers,
+        anonymous: anonymousActiveUsers,
+        total: totalActiveUsers,
+      });
     }
 
     // If totalActiveUsers is 0 but we had a previous valid count, use that instead
@@ -469,7 +527,7 @@ const getLatestStats = async () => {
       lastStatsUpdate.onlineUsers.total > 0
     ) {
       console.log(
-        "Active users count is 0, using last known count:",
+        "[socketService] Active users count is 0, using last known count:",
         lastStatsUpdate.onlineUsers.total
       );
       totalActiveUsers = lastStatsUpdate.onlineUsers.total;
@@ -494,17 +552,34 @@ const getLatestStats = async () => {
 
     // Cache stats in Redis if enabled
     if (isRedisEnabled && pubClient) {
-      await redisConfig.setCache("site:stats", stats, 30); // 30 seconds expiry
+      try {
+        console.log("[socketService] Caching stats in Redis");
+        await redisConfig.setCache("site:stats", stats, 30); // 30 seconds expiry
+      } catch (cacheError) {
+        console.error(
+          "[socketService] Error caching stats in Redis:",
+          cacheError.message
+        );
+      }
     }
 
     lastStatsUpdate = stats;
+    console.log("[socketService] Returning fresh stats:", {
+      activeListings: stats.activeListings,
+      activeUsers: stats.activeUsers,
+      timestamp: stats.timestamp,
+    });
     return stats;
   } catch (error) {
-    console.error("Error getting latest stats:", error);
+    console.error(
+      "[socketService] Error getting latest stats:",
+      error.message,
+      error.stack
+    );
 
     // If we have previous stats, use those instead of zeros
     if (lastStatsUpdate) {
-      console.log("Using last known stats due to error");
+      console.log("[socketService] Using last known stats due to error");
       return {
         ...lastStatsUpdate,
         timestamp: new Date(), // Update timestamp
@@ -512,6 +587,7 @@ const getLatestStats = async () => {
     }
 
     // Return zeros as absolute fallback
+    console.log("[socketService] No previous stats available, returning zeros");
     return {
       activeListings: 0,
       activeUsers: 0,
