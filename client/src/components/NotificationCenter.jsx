@@ -442,8 +442,7 @@ const NotificationCenter = ({ user }) => {
   };
 
   // Handle opening the side panel with all notifications
-  const handleViewAllNotifications = (e) => {
-    e.preventDefault();
+  const handleViewAllNotifications = () => {
     setShowAllNotifications(true);
     fetchAllNotifications();
     setIsOpen(false); // Close the dropdown
@@ -469,6 +468,7 @@ const NotificationCenter = ({ user }) => {
   const SidePanel = ({ visible, onClose, children }) => {
     return visible ? (
       <div 
+        ref={sidePanelRef}
         style={{
           position: 'fixed',
           top: '70px', // Align exactly at the bottom of navbar
@@ -478,7 +478,7 @@ const NotificationCenter = ({ user }) => {
           backgroundColor: 'rgba(21, 28, 43, 0.95)', // Match navbar color
           boxShadow: '-4px 0 12px rgba(0, 0, 0, 0.2)',
           overflowY: 'auto',
-          zIndex: 900,
+          zIndex: 1500,
           backdropFilter: 'blur(8px)',
           border: '1px solid rgba(51, 115, 242, 0.3)',
           borderTop: 'none', // No border at top to connect with navbar
@@ -723,17 +723,16 @@ const NotificationCenter = ({ user }) => {
             ref={dropdownRef}
             style={{
               position: 'absolute',
-              top: '100%',
+              top: 'calc(100% + 8px)',
               right: '0',
               width: '320px',
-              maxHeight: '420px',
+              maxHeight: '400px',
               backgroundColor: 'rgba(21, 28, 43, 0.95)',
               boxShadow: '0 8px 16px rgba(0, 0, 0, 0.15)',
-              borderRadius: '0 0 8px 8px',
+              borderRadius: '8px',
               border: '1px solid rgba(51, 115, 242, 0.3)',
-              borderTop: 'none',
-              overflowY: 'auto',
-              zIndex: 999,
+              overflow: 'hidden',
+              zIndex: 1600,
               backdropFilter: 'blur(8px)',
             }}
           >
@@ -773,85 +772,87 @@ const NotificationCenter = ({ user }) => {
               </div>
             </div>
 
-            {loading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
-                <div className="loading-spinner"></div>
-              </div>
-            ) : notifications.length === 0 ? (
-              <div style={{ 
-                padding: '20px', 
-                textAlign: 'center', 
-                color: '#8a8f98', 
-                fontSize: '0.9rem'
-              }}>
-                No notifications
-              </div>
-            ) : (
-              <div>
-                {notifications.map((notification) => (
-                  <div
-                    key={notification._id}
-                    onClick={() => handleNotificationClick(notification)}
-                    style={{
-                      padding: '12px 16px',
-                      borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                      backgroundColor: notification.read ? 'transparent' : 'rgba(51, 115, 242, 0.1)',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = notification.read 
-                        ? 'rgba(255, 255, 255, 0.05)' 
-                        : 'rgba(51, 115, 242, 0.15)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = notification.read 
-                        ? 'transparent' 
-                        : 'rgba(51, 115, 242, 0.1)';
-                    }}
-                  >
-                    {/* Notification Icon */}
-                    <div style={{ marginRight: '12px', fontSize: '16px', color: getNotificationColor(notification.type) }}>
-                      {getNotificationIcon(notification.type)}
+            <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
+              {loading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+                  <div className="loading-spinner"></div>
+                </div>
+              ) : notifications.length === 0 ? (
+                <div style={{ 
+                  padding: '20px', 
+                  textAlign: 'center', 
+                  color: '#8a8f98', 
+                  fontSize: '0.9rem'
+                }}>
+                  No notifications
+                </div>
+              ) : (
+                <div>
+                  {notifications.slice(0, 5).map((notification) => (
+                    <div
+                      key={notification._id}
+                      onClick={() => handleNotificationClick(notification)}
+                      style={{
+                        padding: '12px 16px',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                        backgroundColor: notification.read ? 'transparent' : 'rgba(51, 115, 242, 0.1)',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        position: 'relative'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = notification.read 
+                          ? 'rgba(255, 255, 255, 0.05)' 
+                          : 'rgba(51, 115, 242, 0.15)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = notification.read 
+                          ? 'transparent' 
+                          : 'rgba(51, 115, 242, 0.1)';
+                      }}
+                    >
+                      {/* Notification Icon */}
+                      <div style={{ marginRight: '12px', fontSize: '16px', color: getNotificationColor(notification.type) }}>
+                        {getNotificationIcon(notification.type)}
+                      </div>
+                      
+                      {/* Notification Content */}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ 
+                          fontSize: '0.85rem', 
+                          color: '#fff', 
+                          fontWeight: notification.read ? 'normal' : 'bold',
+                          marginBottom: '4px'
+                        }}>
+                          {notification.title}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#8a8f98' }}>
+                          {notification.message}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#585d6a', marginTop: '4px' }}>
+                          {formatTimeAgo(notification.createdAt)}
+                        </div>
+                      </div>
+                      
+                      {/* Unread Indicator */}
+                      {!notification.read && (
+                        <div style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: getNotificationColor(notification.type),
+                          position: 'absolute',
+                          top: '16px',
+                          right: '16px'
+                        }}></div>
+                      )}
                     </div>
-                    
-                    {/* Notification Content */}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ 
-                        fontSize: '0.85rem', 
-                        color: '#fff', 
-                        fontWeight: notification.read ? 'normal' : 'bold',
-                        marginBottom: '4px'
-                      }}>
-                        {notification.title}
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: '#8a8f98' }}>
-                        {notification.message}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: '#585d6a', marginTop: '4px' }}>
-                        {formatTimeAgo(notification.createdAt)}
-                      </div>
-                    </div>
-                    
-                    {/* Unread Indicator */}
-                    {!notification.read && (
-                      <div style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        backgroundColor: getNotificationColor(notification.type),
-                        position: 'absolute',
-                        top: '16px',
-                        right: '16px'
-                      }}></div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
             
             <div style={{ 
               textAlign: 'center', 
@@ -859,10 +860,7 @@ const NotificationCenter = ({ user }) => {
               borderTop: '1px solid rgba(255, 255, 255, 0.05)'
             }}>
               <button
-                onClick={() => {
-                  setIsOpen(false);
-                  setIsSidePanelVisible(true);
-                }}
+                onClick={handleViewAllNotifications}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -881,7 +879,7 @@ const NotificationCenter = ({ user }) => {
       {/* Notification Side Panel */}
       {showAllNotifications && (
         <SidePanel visible={showAllNotifications} onClose={() => setShowAllNotifications(false)}>
-          {loading ? (
+          {allNotificationsLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
               <div className="spinner"></div>
             </div>
@@ -915,7 +913,7 @@ const NotificationCenter = ({ user }) => {
                     setShowAllNotifications(false);
                   }}
                 >
-                  <div style={{ marginRight: '12px', color: getNotificationIcon(notification.type) }}>
+                  <div style={{ marginRight: '12px', color: getNotificationColor(notification.type) }}>
                     {getNotificationIcon(notification.type)}
                   </div>
                   <div style={{ flex: 1 }}>
@@ -925,10 +923,15 @@ const NotificationCenter = ({ user }) => {
                       color: notification.read ? '#8a8f98' : '#fff',
                       fontWeight: notification.read ? 'normal' : 'bold'
                     }}>
-                      {notification.message}
+                      {notification.title || notification.message}
                     </div>
+                    {notification.title && (
+                      <div style={{ fontSize: '12px', color: '#8a8f98', marginBottom: '4px' }}>
+                        {notification.message}
+                      </div>
+                    )}
                     <div style={{ fontSize: '12px', color: '#8a8f98' }}>
-                      {formatDate(notification.createdAt)}
+                      {formatTimeAgo(notification.createdAt)}
                     </div>
                   </div>
                 </div>
