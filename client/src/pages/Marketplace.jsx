@@ -179,7 +179,7 @@ function Marketplace({ user }) {
   const fetchUserListings = useCallback(async () => {
     if (!user) return;
     try {
-      const response = await axios.get(`${API_URL}/marketplace/user-listings`, {
+      const response = await axios.get(`${API_URL}/marketplace/my-listings`, {
         withCredentials: true
       });
       setMyListings(response.data || []);
@@ -264,6 +264,38 @@ function Marketplace({ user }) {
             duration: 3000
           });
         }
+      }
+      
+      // Handle cancelled listings
+      if ((update.type === 'item_unavailable' || update.type === 'listing_cancelled') && update.itemId) {
+        console.log(`Item cancelled/removed: ${update.itemId} - ${update.marketHashName || 'Unknown item'}`);
+        
+        // Remove the item from the current list immediately
+        setItems(prevItems => {
+          const newItems = prevItems.filter(item => item._id !== update.itemId);
+          // If items were removed, update filtered items too
+          if (newItems.length !== prevItems.length) {
+            console.log(`Removed cancelled item ${update.itemId} from display`);
+            
+            // Also refresh user listings if the user is logged in
+            if (user) {
+              fetchUserListings();
+            }
+            
+            // Show a toast notification for the cancelled item
+            if (update.marketHashName) {
+              toast.info(`Listing cancelled: ${update.marketHashName}`, {
+                duration: 3000
+              });
+            }
+            
+            return newItems;
+          }
+          return prevItems;
+        });
+        
+        // Update market stats to reflect the change
+        fetchMarketStats();
       }
       
       // Handle user count updates
