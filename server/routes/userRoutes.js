@@ -6,8 +6,30 @@ const requireAuth = require("../middleware/requireAuth");
 // All user routes require authentication
 router.use(requireAuth);
 
-// Get current user profile
-router.get("/profile", userController.getUserProfile);
+// Get user profile (direct endpoint for fresh data)
+router.get("/profile", async (req, res) => {
+  try {
+    const userId = req.user._id;
+    console.log("Direct profile request for user:", userId);
+
+    // Always get fresh data from database
+    const User = require("../models/User");
+    const user = await User.findById(userId)
+      .select("-passwordHash -refreshToken -steamLoginSecure")
+      .lean();
+
+    if (!user) {
+      console.error("User not found in direct profile endpoint:", userId);
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    console.log("Returning fresh user data from direct endpoint");
+    return res.json(user);
+  } catch (err) {
+    console.error("Direct profile endpoint error:", err);
+    return res.status(500).json({ error: "Failed to retrieve profile data" });
+  }
+});
 
 // Update user settings
 router.put("/settings", userController.updateUserSettings);
@@ -21,7 +43,7 @@ router.put("/notifications/read", userController.markNotificationsRead);
 // Get user notifications
 router.get("/notifications", userController.getUserNotifications);
 
-// Complete user profile after Steam authentication
+// Complete user profile after initial steam login
 router.post("/complete-profile", userController.completeUserProfile);
 
 // Redis test endpoint (temporary, can be removed after testing)

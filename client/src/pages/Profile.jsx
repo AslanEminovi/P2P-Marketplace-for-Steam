@@ -8,6 +8,62 @@ import { FaSteam, FaCircle } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import './Profile.css';
 
+// Add direct function to get profile data without relying on any existing mechanisms
+const loadUserData = (setLoading, setProfile, setError, setFormData, isEditing, initializeFormData) => {
+  setLoading(true);
+  
+  const token = localStorage.getItem('auth_token');
+  if (!token) {
+    setError("Authentication required");
+    setLoading(false);
+    toast.error("Authentication required - please log in again");
+    return;
+  }
+  
+  const xhr = new XMLHttpRequest();
+  // Direct call to user endpoint - try a different endpoint
+  const url = `${API_URL}/user/profile?auth_token=${token}&nocache=${Date.now()}`;
+  
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4) {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          // Log the raw response for debugging
+          console.log("Raw user data response:", xhr.responseText);
+          
+          const userData = JSON.parse(xhr.responseText);
+          console.log("Parsed user data:", userData);
+          
+          // Set profile with the fresh data
+          setProfile(userData);
+          console.log("Profile state set with:", userData);
+          
+          // Initialize form with user data only if we're not editing
+          if (!isEditing) {
+            initializeFormData(userData);
+          }
+          
+          // Clear errors
+          setError(null);
+        } catch (err) {
+          console.error("Error parsing user data:", err);
+          setError("Failed to parse user data");
+        }
+      } else {
+        console.error("Failed to load user profile:", xhr.status, xhr.statusText);
+        console.error("Response:", xhr.responseText);
+        setError("Failed to load profile data");
+      }
+      setLoading(false);
+    }
+  };
+  
+  xhr.open('GET', url, true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+  xhr.send();
+};
+
 const Profile = ({ user, onBalanceUpdate }) => {
   const { user: authUser, updateUser: authUpdateUser } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
@@ -40,9 +96,11 @@ const Profile = ({ user, onBalanceUpdate }) => {
     }
   });
   
-  // Initialize form data with user profile
+  // Initialize form data with user profile - modified to handle the case where some fields may be missing
   const initializeFormData = useCallback((userData) => {
     if (!userData) return;
+    
+    console.log("Initializing form with data:", userData);
     
     setFormData({
       displayName: userData.displayName || '',
@@ -67,133 +125,24 @@ const Profile = ({ user, onBalanceUpdate }) => {
     });
   }, []);
   
-  // Use authUser as the most up-to-date source of user data
+  // Load user data on component mount and whenever the dependency changes
   useEffect(() => {
-    const currentUser = authUser || user;
-    if (currentUser) {
-      console.log("Setting profile with user data:", currentUser);
-      setProfile(currentUser);
-      
-      // Only initialize form data if we're not already editing
-      if (!isEditing) {
-        initializeFormData(currentUser);
-      }
-      
-      setLoading(false);
-    }
-  }, [authUser, user, initializeFormData, isEditing]);
-  
-  const fetchUserProfile = async () => {
-    setLoading(true);
-    setError(null);
+    loadUserData(setLoading, setProfile, setError, setFormData, isEditing, initializeFormData);
     
-    try {
-      console.log("Fetching user profile data...");
-      
-      // Get token for auth
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        setError("Authentication token not found. Please log in again.");
-        toast.error("Authentication token not found. Please log in again.");
-        setLoading(false);
-        return;
+    // Poll for updated data every 3 seconds while the page is open
+    const intervalId = setInterval(() => {
+      if (!isEditing && !saving) { // Don't refresh while editing or saving
+        console.log("Polling for fresh profile data...");
+        loadUserData(setLoading, setProfile, setError, setFormData, isEditing, initializeFormData);
       }
-      
-      // Use XMLHttpRequest directly to avoid CORS header issues
-      const xhr = new XMLHttpRequest();
-      const url = `${API_URL}/auth/user?auth_token=${token}&t=${Date.now()}`;
-      
-      xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4) {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const response = JSON.parse(xhr.responseText);
-              console.log("Received user data:", response);
-              
-              if (response.authenticated) {
-                const userData = response.user;
-                console.log("Setting profile with fresh user data:", userData);
-                
-                // Always use server data - it's the source of truth
-                setProfile(userData);
-                
-                // Update auth context with fresh data
-                if (authUpdateUser) {
-                  authUpdateUser(userData);
-                }
-                
-                // Update window global user
-                if (typeof window.updateGlobalUser === 'function') {
-                  window.updateGlobalUser(userData);
-                }
-                
-                // Initialize form with user data only if we're not editing
-                if (!isEditing) {
-                  initializeFormData(userData);
-                }
-                
-                // Clear any previous errors
-                setError(null);
-              } else {
-                // If not authenticated, show error
-                setError('Authentication error. Please log in again.');
-                toast.error('Authentication error. Please log in again.');
-                
-                // Redirect to login page
-                setTimeout(() => {
-                  window.location.href = `${API_URL}/auth/steam`;
-                }, 1500);
-              }
-            } catch (parseErr) {
-              console.error("Error parsing profile response:", parseErr);
-              setError("Failed to parse server response");
-              toast.error("Failed to parse server response");
-            }
-          } else {
-            // Error
-            console.error('Profile request failed with status:', xhr.status);
-            console.error('Response text:', xhr.responseText);
-            setError("Failed to load profile data");
-            toast.error("Failed to load profile data");
-          }
-          
-          setLoading(false);
-        }
-      };
-      
-      xhr.open('GET', url, true);
-      xhr.setRequestHeader('Content-Type', 'application/json');
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-      xhr.withCredentials = true;
-      xhr.send();
-      
-    } catch (err) {
-      console.error('Error in fetchUserProfile:', err);
-      setError('Failed to load profile data');
-      toast.error('Failed to load profile data');
-      setLoading(false);
-    }
-  };
-  
-  // Fetch initial profile data
-  useEffect(() => {
-    fetchUserProfile();
-  }, []);
-  
-  const refreshProfile = async () => {
-    if (isEditing) {
-      // Ask for confirmation before refreshing while editing
-      if (!window.confirm('Refreshing will discard your unsaved changes. Continue?')) {
-        return;
-      }
-      setIsEditing(false);
-    }
+    }, 3000);
     
-    // Just call the fetchUserProfile function since we've updated it to use XMLHttpRequest
-    await fetchUserProfile();
-    toast.success('Profile refreshed');
-  };
+    return () => {
+      clearInterval(intervalId); // Clean up on unmount
+    };
+  }, [initializeFormData, isEditing, saving]);
   
+  // Handle form field changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     
@@ -214,18 +163,21 @@ const Profile = ({ user, onBalanceUpdate }) => {
     }
   };
   
+  // Start editing the profile
   const startEditing = () => {
     // Make sure form data is initialized with current profile data before editing
     initializeFormData(profile);
     setIsEditing(true);
   };
   
+  // Cancel editing
   const cancelEditing = () => {
     // Reset form data to current profile values
     initializeFormData(profile);
     setIsEditing(false);
   };
   
+  // Save profile changes with direct XMLHttpRequest
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -247,61 +199,91 @@ const Profile = ({ user, onBalanceUpdate }) => {
         }
       };
       
-      // Get token for auth
-      const token = localStorage.getItem('auth_token');
-      
-      // Super simple approach - use XMLHttpRequest which has fewer restrictions
-      const xhr = new XMLHttpRequest();
-      const url = `${API_URL}/user/settings?auth_token=${token}&t=${Date.now()}`;
-      
-      // Set up completion handler
-      xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4) {
-          setSaving(false);
-          
-          if (xhr.status >= 200 && xhr.status < 300) {
-            // Success!
-            try {
-              const response = JSON.parse(xhr.responseText);
-              console.log('Profile saved successfully:', response);
-              
-              if (response.success) {
-                toast.success('Profile saved successfully - refreshing page with updated data');
-                
-                // Force a complete page reload to ensure all data is fresh
-                setTimeout(() => {
-                  window.location.href = window.location.href.split('?')[0] + '?t=' + Date.now();
-                }, 500);
-              } else {
-                toast.error(response.message || 'Failed to save profile');
-              }
-            } catch (parseError) {
-              console.error('Error parsing response:', parseError);
-              toast.error('Failed to save profile: unexpected response format');
-            }
-          } else {
-            // Error
-            console.error('XHR failed with status:', xhr.status);
-            console.error('Response text:', xhr.responseText);
-            toast.error('Failed to save profile. Please try again.');
+      // Create a Promise wrapper around XMLHttpRequest for easier handling
+      const saveData = () => {
+        return new Promise((resolve, reject) => {
+          const token = localStorage.getItem('auth_token');
+          if (!token) {
+            reject(new Error("Authentication token missing"));
+            return;
           }
-        }
+          
+          const xhr = new XMLHttpRequest();
+          const url = `${API_URL}/user/settings?auth_token=${token}&t=${Date.now()}`;
+          
+          xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                  const response = JSON.parse(xhr.responseText);
+                  resolve(response);
+                } catch (err) {
+                  reject(new Error("Failed to parse response"));
+                }
+              } else {
+                reject(new Error(`Server returned ${xhr.status}: ${xhr.statusText}`));
+              }
+            }
+          };
+          
+          xhr.open('PUT', url, true);
+          xhr.setRequestHeader('Content-Type', 'application/json');
+          xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+          xhr.withCredentials = true;
+          xhr.send(JSON.stringify(payload));
+        });
       };
       
-      // Set up and send request
-      xhr.open('PUT', url, true);
-      xhr.setRequestHeader('Content-Type', 'application/json');
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-      xhr.withCredentials = true;
-      xhr.send(JSON.stringify(payload));
+      // Save data and handle response
+      const response = await saveData();
+      console.log("Save response:", response);
       
+      if (response.success) {
+        toast.success("Profile saved successfully - reloading with fresh data");
+        
+        // Set editing to false
+        setIsEditing(false);
+        
+        // Immediately reload user data from server
+        await loadUserData(setLoading, setProfile, setError, setFormData, false, initializeFormData);
+        
+        // Update auth context with the new data
+        if (authUpdateUser && response.user) {
+          authUpdateUser(response.user);
+        }
+        
+        // Force an absolute hard refresh after a delay
+        setTimeout(() => {
+          window.location.href = window.location.href.split('?')[0] + '?forceRefresh=' + Date.now();
+        }, 1000);
+      } else {
+        toast.error(response.message || "Failed to save profile");
+      }
     } catch (err) {
-      console.error('Error saving profile:', err);
-      toast.error('Failed to save profile');
+      console.error("Error saving profile:", err);
+      toast.error(`Failed to save profile: ${err.message}`);
+    } finally {
       setSaving(false);
     }
   };
   
+  // Refresh profile data from server
+  const refreshProfile = async () => {
+    if (isEditing) {
+      // Ask for confirmation before refreshing while editing
+      if (!window.confirm('Refreshing will discard your unsaved changes. Continue?')) {
+        return;
+      }
+      setIsEditing(false);
+    }
+    
+    toast.info("Refreshing profile data...");
+    // Force reload user data
+    await loadUserData(setLoading, setProfile, setError, setFormData, false, initializeFormData);
+    toast.success("Profile data refreshed");
+  };
+  
+  // Loading state
   if (loading && !profile) {
     return (
       <div className="profile-loading">
