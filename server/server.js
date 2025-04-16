@@ -286,6 +286,25 @@ app.use(async (req, res, next) => {
   next();
 });
 
+// Middleware to disable caching for all user-related API routes
+app.use((req, res, next) => {
+  // Add cache control headers for user-related routes
+  if (
+    req.path.includes("/auth/user") ||
+    req.path.includes("/user/") ||
+    req.path.startsWith("/auth/") ||
+    req.path.startsWith("/user/")
+  ) {
+    console.log(`Adding no-cache headers for path: ${req.path}`);
+    res.set({
+      "Cache-Control": "no-store, no-cache, must-revalidate, private",
+      Pragma: "no-cache",
+      Expires: "0",
+    });
+  }
+  next();
+});
+
 // API Routes
 app.use("/auth", authRoutes);
 app.use("/inventory", inventoryRoutes);

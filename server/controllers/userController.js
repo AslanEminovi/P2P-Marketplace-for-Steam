@@ -4,24 +4,34 @@ const User = require("../models/User");
 exports.getUserProfile = async (req, res) => {
   try {
     const userId = req.user._id;
+    console.log("Getting profile for user:", userId);
 
-    // Get user with full profile data
-    const user = await User.findById(userId).select("-steamLoginSecure");
+    // Always get fresh data from database with no caching
+    const user = await User.findById(userId)
+      .select("-steamLoginSecure -refreshToken -passwordHash")
+      .lean(); // Use lean() for better performance
 
     if (!user) {
+      console.log("User not found:", userId);
       return res.status(404).json({ error: "User not found" });
     }
+
+    console.log("Retrieved user profile successfully");
 
     // Return sanitized user data
     return res.json({
       id: user._id,
       steamId: user.steamId,
       displayName: user.displayName,
+      firstName: user.firstName,
+      lastName: user.lastName,
       avatar: user.avatar,
       avatarMedium: user.avatarMedium,
       avatarFull: user.avatarFull,
       email: user.email,
       phone: user.phone,
+      country: user.country,
+      city: user.city,
       tradeUrl: user.tradeUrl,
       tradeUrlExpiry: user.tradeUrlExpiry,
       walletBalance: user.walletBalance,
@@ -43,6 +53,7 @@ exports.updateUserSettings = async (req, res) => {
   try {
     const userId = req.user.id;
     console.log("Updating settings for user:", userId);
+    console.log("User object from request:", req.user);
 
     // Get user data from request
     const {
@@ -58,91 +69,115 @@ exports.updateUserSettings = async (req, res) => {
 
     console.log("Received user data:", req.body);
 
-    // Find the user
-    const user = await User.findById(userId);
+    // Find the user with fresh data from database, not cached version
+    const user = await User.findById(userId).select("-refreshToken").lean();
 
     if (!user) {
       console.error("User not found:", userId);
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Update user fields that were provided
-    if (firstName !== undefined) user.firstName = firstName;
-    if (lastName !== undefined) user.lastName = lastName;
-    if (email !== undefined) user.email = email;
-    if (phone !== undefined) user.phone = phone;
-    if (country !== undefined) user.country = country;
-    if (city !== undefined) user.city = city;
-    if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
+    // Create update object with only the fields that were provided
+    const updateData = {};
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
+    if (country !== undefined) updateData.country = country;
+    if (city !== undefined) updateData.city = city;
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
 
     // Update settings if provided
     if (settings) {
       // Initialize settings object if it doesn't exist
-      if (!user.settings) {
-        user.settings = {};
-      }
+      updateData.settings = user.settings || {};
 
       // Update currency preference
       if (settings.currency) {
-        user.settings.currency = settings.currency;
+        updateData.settings.currency = settings.currency;
       }
 
       // Update theme preference
       if (settings.theme) {
-        user.settings.theme = settings.theme;
+        updateData.settings.theme = settings.theme;
       }
 
       // Update privacy settings
       if (settings.privacy) {
-        if (!user.settings.privacy) {
-          user.settings.privacy = {};
+        if (!updateData.settings.privacy) {
+          updateData.settings.privacy = {};
         }
 
         // Only update fields that were provided
         if (settings.privacy.showOnlineStatus !== undefined) {
-          user.settings.privacy.showOnlineStatus =
+          updateData.settings.privacy.showOnlineStatus =
             settings.privacy.showOnlineStatus;
         }
 
         if (settings.privacy.showInventoryValue !== undefined) {
-          user.settings.privacy.showInventoryValue =
+          updateData.settings.privacy.showInventoryValue =
             settings.privacy.showInventoryValue;
         }
       }
 
       // Update notification settings
       if (settings.notifications) {
-        if (!user.settings.notifications) {
-          user.settings.notifications = {};
+        if (!updateData.settings.notifications) {
+          updateData.settings.notifications = {};
         }
 
         // Only update fields that were provided
         if (settings.notifications.email !== undefined) {
-          user.settings.notifications.email = settings.notifications.email;
+          updateData.settings.notifications.email =
+            settings.notifications.email;
         }
 
         if (settings.notifications.push !== undefined) {
-          user.settings.notifications.push = settings.notifications.push;
+          updateData.settings.notifications.push = settings.notifications.push;
         }
 
         if (settings.notifications.offers !== undefined) {
-          user.settings.notifications.offers = settings.notifications.offers;
+          updateData.settings.notifications.offers =
+            settings.notifications.offers;
         }
 
         if (settings.notifications.trades !== undefined) {
-          user.settings.notifications.trades = settings.notifications.trades;
+          updateData.settings.notifications.trades =
+            settings.notifications.trades;
         }
       }
     }
 
-    // Save updated user
-    await user.save();
+    console.log("Updating user with data:", updateData);
+
+    // Update user with findOneAndUpdate to get the updated document back
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateData },
+      {
+        new: true, // Return the updated document
+        runValidators: true, // Run validators on update
+      }
+    ).select("-refreshToken -passwordHash");
+
+    if (!updatedUser) {
+      console.error("Failed to update user:", userId);
+      return res.status(500).json({ error: "Failed to update user" });
+    }
+
     console.log("User settings updated successfully");
 
-    // Get fresh user data to ensure we return all fields
-    const updatedUser = await User.findById(userId).select(
-      "-passwordHash -refreshToken"
-    );
+    // Force cache invalidation if using a token cache
+    if (global.tokenCache) {
+      console.log("Invalidating token cache for user:", userId);
+      // Iterate through all tokens in the cache and remove any associated with this user
+      for (const [token, cachedUser] of global.tokenCache.entries()) {
+        if (cachedUser._id.toString() === userId.toString()) {
+          global.tokenCache.delete(token);
+          console.log("Invalidated cached token for user:", userId);
+        }
+      }
+    }
 
     // Return success response with updated user
     return res.status(200).json({

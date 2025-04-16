@@ -266,22 +266,11 @@ const Profile = ({ user, onBalanceUpdate }) => {
               console.log('Profile saved successfully:', response);
               
               if (response.success) {
-                toast.success('Profile saved successfully');
+                toast.success('Profile saved successfully - refreshing page with updated data');
                 
-                // Update the profile state and auth context with the new data
-                if (response.user) {
-                  setProfile(response.user);
-                  
-                  if (authUpdateUser) {
-                    authUpdateUser(response.user);
-                  }
-                }
-                
-                setIsEditing(false);
-                
-                // Force reload after a short delay
+                // Force a complete page reload to ensure all data is fresh
                 setTimeout(() => {
-                  window.location.reload();
+                  window.location.href = window.location.href.split('?')[0] + '?t=' + Date.now();
                 }, 500);
               } else {
                 toast.error(response.message || 'Failed to save profile');
