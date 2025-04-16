@@ -194,7 +194,7 @@ function Marketplace({ user }) {
     console.log('Marketplace component mounted - initializing data');
     
     // Initial data fetch - ONLY ONCE AT MOUNT
-      fetchItems();
+    fetchItems();
     fetchMarketStats();
 
     if (user) {
@@ -210,9 +210,13 @@ function Marketplace({ user }) {
       console.log('Marketplace: Socket already connected');
     }
     
+    // Set current page to marketplace
+    socketService.setCurrentPage('marketplace');
+    
     // Return cleanup function
     return () => {
-      // No need to disconnect as the service manages this
+      // Set page to 'other' when leaving marketplace
+      socketService.setCurrentPage('other');
       console.log('Marketplace component unmounting');
     };
   }, []); // Empty dependency array - run ONLY on mount
@@ -222,6 +226,14 @@ function Marketplace({ user }) {
     // Handler for ONLY new listings and sales - NO automatic refreshes
     const handleMarketUpdate = async (update) => {
       console.log('Market update received:', update);
+      
+      // Ignore updates that aren't targeted for the marketplace page
+      if (update.targetPage === 'marketplace') {
+        console.log('Processing marketplace update');
+      } else if (update.targetPage && update.targetPage !== 'marketplace') {
+        console.log('Update is for a different page, ignoring');
+        return;
+      }
       
       // Only handle specific item updates, NO general refreshes
       if (update.type === 'new_listing' && update.item) {
@@ -337,7 +349,7 @@ function Marketplace({ user }) {
       socketService.off('market_update', handleMarketUpdate);
       socketService.off('user_count');
     };
-  }, []); // Empty dependency array - only register once
+  }, [user]); // Add user as dependency to properly handle user-specific messages
 
   // Handle connection status with minimal side-effects
   useEffect(() => {

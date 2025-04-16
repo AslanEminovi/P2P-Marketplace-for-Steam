@@ -2,15 +2,9 @@ const Item = require("../models/Item");
 const User = require("../models/User");
 const socketService = require("../services/socketService");
 const mongoose = require("mongoose");
-let io;
-try {
-  // Try to get the io instance from server.js
-  const server = require("../server");
-  io = server.io || null;
-} catch (error) {
-  console.error("Error importing io from server:", error);
-  io = null;
-}
+const redisCache = require("../config/redis");
+const CACHE_PREFIX = "marketplace:";
+const CACHE_DURATION = 15; // 15 seconds
 
 // POST /marketplace/list
 exports.listItem = async (req, res) => {
@@ -183,16 +177,25 @@ exports.listItem = async (req, res) => {
     // Send real-time notification via WebSocket
     socketService.sendNotification(req.user._id, notification);
 
-    // Broadcast new listing to all connected clients
-    socketService.sendMarketUpdate({
+    // Clear marketplace cache since we added a new item
+    await clearMarketplaceCache();
+
+    // Broadcast new listing to marketplace users only
+    const marketplaceUpdate = {
       type: "new_listing",
       item: newItem,
-    });
+      targetPage: "marketplace", // Only show to users on marketplace page
+    };
 
-    // Invalidate marketplace cache
-    marketItemsCache.timestamp = 0;
+    // Broadcast using both socket service and direct io
+    socketService.sendMarketUpdate(marketplaceUpdate);
 
-    // Emit socket event for new listing
+    // Use direct io for immediate delivery
+    if (io) {
+      io.emit("market_update", marketplaceUpdate);
+    }
+
+    // Emit socket event for new listing (activity feed)
     socketService.emitMarketActivity({
       type: "listing",
       itemName: newItem.marketHashName,
@@ -543,6 +546,40 @@ let marketItemsCache = {
   cacheDuration: 15 * 1000, // 15 seconds
 };
 
+// Helper function to get cached marketplace data
+const getCachedMarketplace = async (cacheKey) => {
+  try {
+    const fullKey = redisCache.createKey(`${CACHE_PREFIX}${cacheKey}`);
+    return await redisCache.getCache(fullKey);
+  } catch (err) {
+    console.error("Redis cache error:", err);
+    return null;
+  }
+};
+
+// Helper function to set cached marketplace data
+const setCachedMarketplace = async (cacheKey, data) => {
+  try {
+    const fullKey = redisCache.createKey(`${CACHE_PREFIX}${cacheKey}`);
+    await redisCache.setCache(fullKey, data, CACHE_DURATION);
+  } catch (err) {
+    console.error("Redis cache error:", err);
+    // Continue without caching
+  }
+};
+
+// Clear marketplace cache (call when data changes)
+const clearMarketplaceCache = async () => {
+  try {
+    // Use pattern to clear all marketplace cache keys
+    const pattern = redisCache.createKey(`${CACHE_PREFIX}*`);
+    await redisCache.deleteCache(pattern, true); // true for pattern matching
+    console.log("Marketplace cache cleared");
+  } catch (err) {
+    console.error("Error clearing marketplace cache:", err);
+  }
+};
+
 // GET /marketplace
 exports.getAllItems = async (req, res) => {
   try {
@@ -560,17 +597,14 @@ exports.getAllItems = async (req, res) => {
     const cacheKey = `${page}-${limit}-${sort}-${search}-${categories.join(
       ","
     )}-${minPrice}-${maxPrice}`;
-    const now = Date.now();
 
-    // Check if we have a valid cache and we're not being asked to skip it
-    if (
-      !skipCache &&
-      marketItemsCache.timestamp > 0 &&
-      now - marketItemsCache.timestamp < marketItemsCache.cacheDuration &&
-      marketItemsCache.cacheKey === cacheKey
-    ) {
-      console.log("Returning marketplace items from cache");
-      return res.json(marketItemsCache.data);
+    // Try to get from cache first
+    if (!skipCache) {
+      const cachedData = await getCachedMarketplace(cacheKey);
+      if (cachedData) {
+        console.log("Returning marketplace items from Redis cache");
+        return res.json(cachedData);
+      }
     }
 
     console.log(
@@ -650,15 +684,8 @@ exports.getAllItems = async (req, res) => {
       .populate("owner", "displayName avatar steamId")
       .lean();
 
-    // Get market statistics or use cached stats
-    let statsPromise;
-    if (marketItemsCache.stats && now - marketItemsCache.timestamp < 60000) {
-      statsPromise = Promise.resolve(marketItemsCache.stats);
-      console.log("Using cached market stats");
-    } else {
-      statsPromise = getMarketStats();
-      console.log("Fetching fresh market stats");
-    }
+    // Get market statistics
+    const statsPromise = getMarketStats();
 
     // Run all promises in parallel
     const [totalItems, items, stats] = await Promise.all([
@@ -693,14 +720,8 @@ exports.getAllItems = async (req, res) => {
       },
     };
 
-    // Update cache
-    marketItemsCache = {
-      cacheKey,
-      data: response,
-      timestamp: now,
-      stats,
-      cacheDuration: 15 * 1000, // 15 seconds
-    };
+    // Cache the result
+    await setCachedMarketplace(cacheKey, response);
 
     // Return response with items and metadata
     return res.json(response);
@@ -716,6 +737,14 @@ exports.getAllItems = async (req, res) => {
 // Helper function to get market statistics
 const getMarketStats = async () => {
   try {
+    // Try to get stats from cache first
+    const cachedStats = await getCachedMarketplace("stats");
+    if (cachedStats) {
+      console.log("Using cached market stats from Redis");
+      return cachedStats;
+    }
+
+    console.log("Calculating fresh market stats");
     const [totalListings, totalVolume, averagePrice] = await Promise.all([
       Item.countDocuments({ isListed: true }),
       Item.aggregate([
@@ -728,11 +757,16 @@ const getMarketStats = async () => {
       ]),
     ]);
 
-    return {
+    const stats = {
       totalListings,
       totalVolume: totalVolume[0]?.total || 0,
       averagePrice: averagePrice[0]?.avg || 0,
     };
+
+    // Cache the stats
+    await setCachedMarketplace("stats", stats);
+
+    return stats;
   } catch (err) {
     console.error("Error calculating market stats:", err);
     return {
@@ -979,7 +1013,10 @@ exports.cancelListing = async (req, res) => {
         // Continue regardless of notification errors
       }
 
-      // Step 6: Try to broadcast market updates without breaking the main flow
+      // Step 6: Clear the marketplace cache
+      await clearMarketplaceCache();
+
+      // Step 7: Try to broadcast market updates without breaking the main flow
       try {
         console.log(
           `Broadcasting cancellation for item ${itemCheck._id} by user ${userId}`
@@ -987,12 +1024,13 @@ exports.cancelListing = async (req, res) => {
 
         // First send immediate cancellation event to ensure it's processed without delay
         const cancellationEvent = {
-          type: "item_unavailable",
+          type: "listing_cancelled",
           itemId: itemCheck._id,
           marketHashName: itemCheck.marketHashName,
           userId: userId.toString(),
           timestamp: new Date().toISOString(),
           priority: "high", // Mark as high priority event
+          targetPage: "marketplace", // Only show to users on marketplace page
         };
 
         // Use direct broadcast to all clients for immediate effect

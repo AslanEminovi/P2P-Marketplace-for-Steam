@@ -21,6 +21,7 @@ class SocketService {
     this.isBrowserTabActive = true;
     this.heartbeatInterval = null;
     this.heartbeatDelay = 15000; // 15 seconds (reduced from 30)
+    this.currentPage = "other"; // Default to 'other' instead of marketplace
   }
 
   init() {
@@ -155,6 +156,9 @@ class SocketService {
 
         // Notify the server about our user status subscription needs
         this.subscribeToUserStatuses();
+
+        // Send current page information
+        this.emit("page_view", { page: this.currentPage });
 
         // Start sending heartbeats to maintain the connection
         this.startHeartbeat();
@@ -545,6 +549,9 @@ class SocketService {
         // Also manually notify server about user activity
         this.socket.emit("user_active");
 
+        // Resend current page info in case it was missed
+        this.emit("page_view", { page: this.currentPage });
+
         // For debugging purposes, log the current socket ID
         console.log("[SocketService] Current socket ID:", this.socket.id);
       }
@@ -568,6 +575,25 @@ class SocketService {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
     }
+  }
+
+  // Method to update the current page and notify the server
+  setCurrentPage(page) {
+    if (page !== this.currentPage) {
+      console.log(`[SocketService] User navigated to page: ${page}`);
+      this.currentPage = page;
+
+      // Notify server if connected
+      if (this.isConnected()) {
+        this.emit("page_view", { page });
+      }
+    }
+    return this;
+  }
+
+  // Method to get the current page
+  getCurrentPage() {
+    return this.currentPage;
   }
 }
 
