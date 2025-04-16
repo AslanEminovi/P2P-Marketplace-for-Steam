@@ -3,6 +3,9 @@
  * This service manages WebSocket connections and event handling
  */
 
+const redisConfig = require("../config/redis");
+const { pubClient } = redisConfig;
+
 let io = null;
 let activeSockets = new Map(); // Map of userId -> socket.id
 let anonymousSockets = new Set(); // Set to track anonymous connections
@@ -14,12 +17,26 @@ const USER_ACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 // Track connected users
 const connectedUsers = new Map();
 
+// Redis channels
+const REDIS_CHANNEL_NOTIFICATIONS = "notifications";
+const REDIS_CHANNEL_USER_STATUS = "user_status";
+const REDIS_CHANNEL_MARKET_UPDATE = "market_update";
+const REDIS_CHANNEL_TRADE_UPDATE = "trade_update";
+
+// Check if Redis is enabled
+const isRedisEnabled = process.env.USE_REDIS === "true";
+
 /**
  * Initialize the socket service with the io instance
  * @param {Object} ioInstance - The Socket.io instance
  */
 const init = (ioInstance) => {
   io = ioInstance;
+
+  // Setup Redis subscriptions if Redis is enabled
+  if (isRedisEnabled && redisConfig.subClient) {
+    setupRedisSubscriptions();
+  }
 
   // Setup global connection events
   io.on("connection", async (socket) => {
@@ -45,6 +62,35 @@ const init = (ioInstance) => {
 
       // Update user activity timestamp
       activeUsers.set(userId, Date.now());
+
+      // Store user status in Redis if enabled
+      if (isRedisEnabled && pubClient) {
+        try {
+          // Store user status with 6-minute expiry (slightly longer than activity timeout)
+          await redisConfig.setHashCache(
+            `user:${userId}:status`,
+            {
+              socketId: socket.id,
+              isOnline: true,
+              lastSeen: new Date().toISOString(),
+              serverId: process.env.SERVER_ID || "unknown",
+            },
+            360
+          ); // 6 minutes
+
+          // Publish user status update to all servers
+          await pubClient.publish(
+            REDIS_CHANNEL_USER_STATUS,
+            JSON.stringify({
+              userId,
+              isOnline: true,
+              lastSeen: new Date().toISOString(),
+            })
+          );
+        } catch (error) {
+          console.error("Redis error storing user status:", error);
+        }
+      }
 
       // Emit user activity
       emitUserActivity({
@@ -87,7 +133,23 @@ const init = (ioInstance) => {
     // Handle user activity
     socket.on("user_active", () => {
       if (userId) {
-        activeUsers.set(userId, Date.now());
+        const now = Date.now();
+        activeUsers.set(userId, now);
+
+        // Update activity timestamp in Redis if enabled
+        if (isRedisEnabled && pubClient) {
+          redisConfig
+            .setHashCache(
+              `user:${userId}:status`,
+              {
+                lastActivity: now,
+                isOnline: true,
+                lastSeen: new Date().toISOString(),
+              },
+              360
+            )
+            .catch(console.error);
+        }
       }
     });
 
@@ -98,7 +160,7 @@ const init = (ioInstance) => {
         if (activeSockets.get(userId) === socket.id) {
           activeSockets.delete(userId);
           // Don't immediately remove from activeUsers to allow for reconnection
-          setTimeout(() => {
+          setTimeout(async () => {
             // Only remove if they haven't reconnected
             if (!activeSockets.has(userId)) {
               activeUsers.delete(userId);
@@ -109,6 +171,34 @@ const init = (ioInstance) => {
 
               // Update user status
               connectedUsers.delete(userId);
+
+              // Update Redis status if enabled
+              if (isRedisEnabled && pubClient) {
+                try {
+                  // Update status to offline
+                  await redisConfig.setHashCache(
+                    `user:${userId}:status`,
+                    {
+                      isOnline: false,
+                      lastSeen: new Date().toISOString(),
+                      serverId: null,
+                    },
+                    360
+                  );
+
+                  // Publish offline status
+                  await pubClient.publish(
+                    REDIS_CHANNEL_USER_STATUS,
+                    JSON.stringify({
+                      userId,
+                      isOnline: false,
+                      lastSeen: new Date().toISOString(),
+                    })
+                  );
+                } catch (error) {
+                  console.error("Redis error updating offline status:", error);
+                }
+              }
 
               // Broadcast user status update
               io.emit("userStatusUpdate", {
@@ -162,10 +252,163 @@ const init = (ioInstance) => {
 };
 
 /**
- * Get the latest statistics
+ * Set up Redis subscriptions for cross-server communication
+ */
+const setupRedisSubscriptions = () => {
+  if (!redisConfig.subClient) {
+    console.error("Redis subscriber client not available for subscriptions");
+    return;
+  }
+
+  const subClient = redisConfig.subClient;
+
+  // Subscribe to channels
+  subClient.subscribe(REDIS_CHANNEL_NOTIFICATIONS);
+  subClient.subscribe(REDIS_CHANNEL_USER_STATUS);
+  subClient.subscribe(REDIS_CHANNEL_MARKET_UPDATE);
+  subClient.subscribe(REDIS_CHANNEL_TRADE_UPDATE);
+
+  // Handle messages
+  subClient.on("message", (channel, message) => {
+    try {
+      const data = JSON.parse(message);
+
+      switch (channel) {
+        case REDIS_CHANNEL_NOTIFICATIONS:
+          handleNotificationMessage(data);
+          break;
+        case REDIS_CHANNEL_USER_STATUS:
+          handleUserStatusMessage(data);
+          break;
+        case REDIS_CHANNEL_MARKET_UPDATE:
+          handleMarketUpdateMessage(data);
+          break;
+        case REDIS_CHANNEL_TRADE_UPDATE:
+          handleTradeUpdateMessage(data);
+          break;
+        default:
+          console.log(`Unknown Redis channel: ${channel}`);
+      }
+    } catch (error) {
+      console.error(
+        `Error processing Redis message on channel ${channel}:`,
+        error
+      );
+    }
+  });
+
+  console.log("Redis subscriptions initialized for cross-server communication");
+};
+
+/**
+ * Handle Redis notification messages
+ * @param {Object} data - The notification data
+ */
+const handleNotificationMessage = (data) => {
+  if (!io || !data.userId) return;
+
+  // If this server has the socket connection for the user, send the notification
+  if (activeSockets.has(data.userId)) {
+    const socketId = activeSockets.get(data.userId);
+    const socket = io.sockets.sockets.get(socketId);
+
+    if (socket) {
+      socket.emit("notification", data.notification);
+    }
+  }
+};
+
+/**
+ * Handle Redis user status messages
+ * @param {Object} data - The user status data
+ */
+const handleUserStatusMessage = (data) => {
+  if (!io || !data.userId) return;
+
+  // Update our local tracking map
+  if (data.isOnline) {
+    // We don't store the actual socket here since it might be on another server
+    connectedUsers.set(data.userId, {
+      lastSeen: new Date(data.lastSeen),
+    });
+  } else {
+    connectedUsers.delete(data.userId);
+  }
+
+  // Broadcast the status update to connected clients on this server
+  io.emit("userStatusUpdate", {
+    userId: data.userId,
+    isOnline: data.isOnline,
+    lastSeen: new Date(data.lastSeen),
+  });
+};
+
+/**
+ * Handle Redis market update messages
+ * @param {Object} data - The market update data
+ */
+const handleMarketUpdateMessage = (data) => {
+  if (!io) return;
+
+  // Broadcast market update to all clients on this server
+  io.emit("market_update", data);
+
+  // Update market activity feed if applicable
+  if (
+    [
+      "new_listing",
+      "item_unavailable",
+      "item_sold",
+      "listing_cancelled",
+    ].includes(data.type)
+  ) {
+    emitMarketActivity(data);
+  }
+};
+
+/**
+ * Handle Redis trade update messages
+ * @param {Object} data - The trade update data
+ */
+const handleTradeUpdateMessage = (data) => {
+  if (!io) return;
+
+  // If target user is connected to this server, send direct message
+  if (data.targetUserId && activeSockets.has(data.targetUserId)) {
+    const socketId = activeSockets.get(data.targetUserId);
+    const socket = io.sockets.sockets.get(socketId);
+
+    if (socket) {
+      socket.emit("trade_update", data);
+    }
+  }
+
+  // If we should broadcast this update (e.g., for market items being reserved)
+  if (data.broadcast) {
+    io.emit("trade_update", data);
+  }
+};
+
+/**
+ * Get the latest statistics - now with Redis caching
  */
 const getLatestStats = async () => {
   try {
+    // Try to get cached stats from Redis
+    if (isRedisEnabled && pubClient) {
+      const cachedStats = await redisConfig.getCache("site:stats");
+
+      // If stats are recent (< 60 seconds old), use them
+      if (
+        cachedStats &&
+        cachedStats.timestamp &&
+        Date.now() - new Date(cachedStats.timestamp).getTime() < 60000
+      ) {
+        return cachedStats;
+      }
+    }
+
+    // Fetch fresh stats from database
     const Item = require("../models/Item");
     const User = require("../models/User");
     const Trade = require("../models/Trade");
@@ -179,10 +422,43 @@ const getLatestStats = async () => {
         Trade.countDocuments({ status: "completed" }),
       ]);
 
-    // Calculate real active users (both authenticated and anonymous)
-    const authenticatedActiveUsers = activeUsers.size;
-    const anonymousActiveUsers = anonymousSockets.size;
-    const totalActiveUsers = authenticatedActiveUsers + anonymousActiveUsers;
+    // Get connected users from Redis if enabled
+    let totalActiveUsers = 0;
+    let authenticatedActiveUsers = 0;
+    let anonymousActiveUsers = 0;
+
+    if (isRedisEnabled && pubClient) {
+      try {
+        // Get the count of online users from Redis (need to implement this with a separate Redis set)
+        const keys = await pubClient.keys("cs2market:user:*:status");
+
+        // Filter keys to only include those with isOnline: true
+        authenticatedActiveUsers = 0;
+        for (const key of keys) {
+          const userStatus = await redisConfig.getHashCache(
+            key.replace("cs2market:", "")
+          );
+          if (userStatus && userStatus.isOnline === true) {
+            authenticatedActiveUsers++;
+          }
+        }
+
+        // For anonymous users, we'll keep track locally
+        anonymousActiveUsers = anonymousSockets.size;
+        totalActiveUsers = authenticatedActiveUsers + anonymousActiveUsers;
+      } catch (error) {
+        console.error("Error getting user stats from Redis:", error);
+        // Fall back to local tracking
+        authenticatedActiveUsers = activeUsers.size;
+        anonymousActiveUsers = anonymousSockets.size;
+        totalActiveUsers = authenticatedActiveUsers + anonymousActiveUsers;
+      }
+    } else {
+      // Use local tracking if Redis is not enabled
+      authenticatedActiveUsers = activeUsers.size;
+      anonymousActiveUsers = anonymousSockets.size;
+      totalActiveUsers = authenticatedActiveUsers + anonymousActiveUsers;
+    }
 
     const stats = {
       activeListings,
@@ -196,6 +472,11 @@ const getLatestStats = async () => {
       },
       timestamp: new Date(),
     };
+
+    // Cache stats in Redis if enabled
+    if (isRedisEnabled && pubClient) {
+      await redisConfig.setCache("site:stats", stats, 30); // 30 seconds expiry
+    }
 
     lastStatsUpdate = stats;
     return stats;
@@ -266,8 +547,16 @@ const sendMarketUpdate = (update, userId = null) => {
           throw new Error("User socket not found");
         }
       } else {
-        // Broadcast to all clients
-        io.emit("market_update", enrichedUpdate);
+        // Publish to Redis if enabled, otherwise broadcast directly
+        if (isRedisEnabled && pubClient) {
+          await pubClient.publish(
+            REDIS_CHANNEL_MARKET_UPDATE,
+            JSON.stringify(enrichedUpdate)
+          );
+        } else {
+          // Broadcast to all clients on this server
+          io.emit("market_update", enrichedUpdate);
+        }
       }
 
       // Also emit market activity for certain update types
@@ -328,7 +617,17 @@ const emitMarketActivity = (activity) => {
     timestamp: activity.timestamp || new Date().toISOString(),
   };
 
-  io.emit("market_activity", activityData);
+  // Publish to Redis if enabled, otherwise emit directly
+  if (isRedisEnabled && pubClient) {
+    pubClient
+      .publish(
+        REDIS_CHANNEL_MARKET_UPDATE,
+        JSON.stringify({ ...activityData, activityType: "market_activity" })
+      )
+      .catch(console.error);
+  } else {
+    io.emit("market_activity", activityData);
+  }
 };
 
 /**
@@ -352,8 +651,33 @@ const emitUserActivity = (activity) => {
  * Get the total count of connected clients (both authenticated and anonymous)
  * @returns {number} The number of connected clients
  */
-const getConnectedClientsCount = () => {
+const getConnectedClientsCount = async () => {
   if (!io) return 0;
+
+  if (isRedisEnabled && pubClient) {
+    try {
+      // Get authenticated users from Redis
+      const keys = await pubClient.keys("cs2market:user:*:status");
+      let onlineCount = 0;
+
+      for (const key of keys) {
+        const userStatus = await redisConfig.getHashCache(
+          key.replace("cs2market:", "")
+        );
+        if (userStatus && userStatus.isOnline === true) {
+          onlineCount++;
+        }
+      }
+
+      // Anonymous users are tracked locally only
+      return onlineCount + anonymousSockets.size;
+    } catch (error) {
+      console.error("Error getting connected client count from Redis:", error);
+      // Fall back to local tracking
+      return activeSockets.size + anonymousSockets.size;
+    }
+  }
+
   return activeSockets.size + anonymousSockets.size;
 };
 
@@ -363,11 +687,6 @@ const getConnectedClientsCount = () => {
  * @param {Object} notification - The notification object
  */
 const sendNotification = (userId, notification) => {
-  if (!io) {
-    console.warn("Socket.io not initialized when trying to send notification");
-    return;
-  }
-
   if (!userId || !notification) {
     console.warn("Invalid userId or notification");
     return;
@@ -377,6 +696,40 @@ const sendNotification = (userId, notification) => {
     ...notification,
     timestamp: new Date().toISOString(),
   };
+
+  // Use Redis for cross-server notifications if enabled
+  if (isRedisEnabled && pubClient) {
+    // Publish notification to Redis channel
+    pubClient
+      .publish(
+        REDIS_CHANNEL_NOTIFICATIONS,
+        JSON.stringify({
+          userId,
+          notification: enrichedNotification,
+        })
+      )
+      .catch((err) =>
+        console.error("Error publishing notification to Redis:", err)
+      );
+
+    // We still need to try sending it directly if the user is connected to this server
+    if (activeSockets.has(userId)) {
+      const socketId = activeSockets.get(userId);
+      const socket = io.sockets.sockets.get(socketId);
+
+      if (socket) {
+        socket.emit("notification", enrichedNotification);
+      }
+    }
+
+    return;
+  }
+
+  // If Redis is not enabled, use the original implementation with retries
+  if (!io) {
+    console.warn("Socket.io not initialized when trying to send notification");
+    return;
+  }
 
   // Add retry logic for notifications
   const maxRetries = 3;
@@ -417,8 +770,33 @@ const sendNotification = (userId, notification) => {
   sendNotification();
 };
 
-// Get user status
-const getUserStatus = (userId) => {
+// Get user status - now with Redis
+const getUserStatus = async (userId) => {
+  if (!userId) return { isOnline: false, lastSeen: null };
+
+  // If Redis is enabled, check there first
+  if (isRedisEnabled && pubClient) {
+    try {
+      const userStatus = await redisConfig.getHashCache(
+        `user:${userId}:status`
+      );
+
+      if (userStatus) {
+        return {
+          isOnline: userStatus.isOnline === true,
+          lastSeen: userStatus.lastSeen ? new Date(userStatus.lastSeen) : null,
+        };
+      }
+    } catch (error) {
+      console.error(
+        `Error getting user status from Redis for ${userId}:`,
+        error
+      );
+      // Fall back to local memory
+    }
+  }
+
+  // Fall back to local memory
   const userData = connectedUsers.get(userId);
   return {
     isOnline: !!userData,

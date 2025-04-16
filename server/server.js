@@ -9,6 +9,10 @@ const path = require("path");
 const http = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
+const { createAdapter } = require("@socket.io/redis-adapter");
+
+// Import Redis configuration
+const redisConfig = require("./config/redis");
 
 // Determine environment
 const isProduction = process.env.NODE_ENV === "production";
@@ -337,6 +341,19 @@ const updateSiteStats = async () => {
 // Create HTTP server
 const server = http.createServer(app);
 
+// Initialize Redis connections if enabled
+let redisAdapter = null;
+if (process.env.USE_REDIS === "true") {
+  try {
+    const { pubClient, subClient } = redisConfig.initRedis();
+    redisAdapter = createAdapter(pubClient, subClient);
+    console.log("Redis adapter for Socket.IO initialized successfully");
+  } catch (error) {
+    console.error("Failed to initialize Redis adapter:", error);
+    console.warn("Falling back to in-memory adapter");
+  }
+}
+
 // Set up Socket.io with CORS and connection settings
 const io = new Server(server, {
   cors: {
@@ -344,6 +361,8 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
     credentials: true,
   },
+  // Add adapter configuration only if Redis is available
+  ...(redisAdapter ? { adapter: redisAdapter } : {}),
 });
 
 // Socket middleware for authentication
@@ -453,6 +472,10 @@ process.on("SIGTERM", () => {
   console.log("SIGTERM received, shutting down gracefully");
   server.close(() => {
     console.log("Server closed");
+    // Close Redis connections if they exist
+    if (process.env.USE_REDIS === "true") {
+      redisConfig.closeConnections().catch(console.error);
+    }
     mongoose.connection.close(false, () => {
       console.log("MongoDB connection closed");
       process.exit(0);
