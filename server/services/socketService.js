@@ -369,26 +369,9 @@ const handleUserStatusMessage = (data) => {
 const handleMarketUpdateMessage = (data) => {
   if (!io) return;
 
-  // Check if this is a marketplace-targeted update
-  if (data.targetPage === "marketplace") {
-    console.log(
-      `Redis: Received marketplace-targeted update (type: ${data.type})`
-    );
-
-    // Only send to users who are on the marketplace page
-    for (const marketplaceUserId of usersOnMarketplace) {
-      const socketId = activeSockets.get(marketplaceUserId);
-      if (socketId) {
-        const socket = io.sockets.sockets.get(socketId);
-        if (socket) {
-          socket.emit("market_update", data);
-        }
-      }
-    }
-  } else {
-    // Broadcast market update to all clients on this server
-    io.emit("market_update", data);
-  }
+  // Always broadcast market updates to all clients for reliability
+  // Previous page-specific filtering was too restrictive
+  io.emit("market_update", data);
 
   // Update market activity feed if applicable
   if (
@@ -676,18 +659,7 @@ const sendMarketUpdate = (update, userId = null) => {
 
   const sendUpdate = async (retryDelay = 1000) => {
     try {
-      // Check if this update should only go to marketplace users
-      const isMarketplaceTargeted = update.targetPage === "marketplace";
-
       if (userId) {
-        // Check if user is on marketplace page for targeted updates
-        if (isMarketplaceTargeted && !usersOnMarketplace.has(userId)) {
-          console.log(
-            `Skipping market update for user ${userId} - not on marketplace page`
-          );
-          return;
-        }
-
         // Send to specific user
         const userSocket = Array.from(io.sockets.sockets.values()).find(
           (socket) => socket.userId === userId
@@ -699,42 +671,15 @@ const sendMarketUpdate = (update, userId = null) => {
           throw new Error("User socket not found");
         }
       } else {
-        // For marketplace-targeted updates, we need to filter recipients
-        if (isMarketplaceTargeted) {
-          console.log(
-            `Sending targeted marketplace update to ${usersOnMarketplace.size} users`
+        // Always broadcast to everyone - selective broadcasting was causing missed updates
+        if (isRedisEnabled && pubClient) {
+          await pubClient.publish(
+            REDIS_CHANNEL_MARKET_UPDATE,
+            JSON.stringify(enrichedUpdate)
           );
-
-          // First handle broadcast through Redis if enabled
-          if (isRedisEnabled && pubClient) {
-            // Include marketplace targeting info in the Redis message
-            await pubClient.publish(
-              REDIS_CHANNEL_MARKET_UPDATE,
-              JSON.stringify(enrichedUpdate)
-            );
-          } else {
-            // Send directly only to users on marketplace page
-            for (const marketplaceUserId of usersOnMarketplace) {
-              const socketId = activeSockets.get(marketplaceUserId);
-              if (socketId) {
-                const socket = io.sockets.sockets.get(socketId);
-                if (socket) {
-                  socket.emit("market_update", enrichedUpdate);
-                }
-              }
-            }
-          }
         } else {
-          // Regular broadcast to all users if not marketplace-targeted
-          if (isRedisEnabled && pubClient) {
-            await pubClient.publish(
-              REDIS_CHANNEL_MARKET_UPDATE,
-              JSON.stringify(enrichedUpdate)
-            );
-          } else {
-            // Broadcast to all clients on this server
-            io.emit("market_update", enrichedUpdate);
-          }
+          // Broadcast to all clients on this server
+          io.emit("market_update", enrichedUpdate);
         }
       }
 

@@ -227,13 +227,8 @@ function Marketplace({ user }) {
     const handleMarketUpdate = async (update) => {
       console.log('Market update received:', update);
       
-      // Ignore updates that aren't targeted for the marketplace page
-      if (update.targetPage === 'marketplace') {
-        console.log('Processing marketplace update');
-      } else if (update.targetPage && update.targetPage !== 'marketplace') {
-        console.log('Update is for a different page, ignoring');
-        return;
-      }
+      // Process all market updates regardless of targeting
+      // Remove the filtering based on targetPage as it's causing missed updates
       
       // Only handle specific item updates, NO general refreshes
       if (update.type === 'new_listing' && update.item) {
@@ -328,9 +323,34 @@ function Marketplace({ user }) {
       }
     };
     
-    // Register socket event listener - ONLY ONE
-    console.log('Registering market_update handler');
+    // Handler for direct item cancellation events
+    const handleItemCancelled = (data) => {
+      console.log('Direct item cancellation received:', data);
+      if (data && data.itemId) {
+        // Remove the item from the list immediately
+        setItems(prevItems => {
+          const newItems = prevItems.filter(item => item._id !== data.itemId);
+          
+          // Only show notification if we actually removed something
+          if (newItems.length !== prevItems.length) {
+            console.log(`Removed cancelled item ${data.itemId} from display (direct event)`);
+            
+            // No user-specific notification here as we're handling a dedicated cancellation event
+            // that's meant to be seen by everyone
+            
+            // Update market stats to reflect the change
+            fetchMarketStats();
+            return newItems;
+          }
+          return prevItems;
+        });
+      }
+    };
+    
+    // Register socket event listeners
+    console.log('Registering market event handlers');
     socketService.on('market_update', handleMarketUpdate);
+    socketService.on('item_cancelled', handleItemCancelled);
     
     // Register user count update handler
     socketService.on('user_count', (data) => {
@@ -345,8 +365,9 @@ function Marketplace({ user }) {
     
     // Cleanup event listener
     return () => {
-      console.log('Removing market_update handler');
+      console.log('Removing market event handlers');
       socketService.off('market_update', handleMarketUpdate);
+      socketService.off('item_cancelled', handleItemCancelled);
       socketService.off('user_count');
     };
   }, [user]); // Add user as dependency to properly handle user-specific messages

@@ -180,19 +180,36 @@ exports.listItem = async (req, res) => {
     // Clear marketplace cache since we added a new item
     await clearMarketplaceCache();
 
-    // Broadcast new listing to marketplace users only
+    // Create a complete update object with full item details
     const marketplaceUpdate = {
       type: "new_listing",
       item: newItem,
-      targetPage: "marketplace", // Only show to users on marketplace page
+      timestamp: new Date().toISOString(),
+      priority: "high",
     };
 
-    // Broadcast using both socket service and direct io
+    console.log(
+      `Broadcasting new listing: ${newItem.marketHashName} (${newItem._id})`
+    );
+
+    // Broadcast using socket service
     socketService.sendMarketUpdate(marketplaceUpdate);
 
-    // Use direct io for immediate delivery
-    if (io) {
-      io.emit("market_update", marketplaceUpdate);
+    // Get io instance directly for immediate broadcast
+    let io;
+    try {
+      const server = require("../server");
+      io = server.io;
+      if (io) {
+        console.log(
+          `Direct broadcasting new listing to all clients via io.emit`
+        );
+        io.emit("market_update", marketplaceUpdate);
+      } else {
+        console.log(`No io instance available for direct broadcast`);
+      }
+    } catch (err) {
+      console.error(`Error getting io instance: ${err.message}`);
     }
 
     // Emit socket event for new listing (activity feed)
@@ -546,8 +563,23 @@ let marketItemsCache = {
   cacheDuration: 15 * 1000, // 15 seconds
 };
 
+// Check if Redis is actually enabled and connected
+const isRedisEnabled = () => {
+  try {
+    return redisCache && redisCache.isConnected && redisCache.isConnected();
+  } catch (err) {
+    console.error("Error checking Redis connection:", err);
+    return false;
+  }
+};
+
 // Helper function to get cached marketplace data
 const getCachedMarketplace = async (cacheKey) => {
+  if (!isRedisEnabled()) {
+    console.log("Redis not enabled/connected, skipping cache lookup");
+    return null;
+  }
+
   try {
     const fullKey = redisCache.createKey(`${CACHE_PREFIX}${cacheKey}`);
     return await redisCache.getCache(fullKey);
@@ -559,6 +591,11 @@ const getCachedMarketplace = async (cacheKey) => {
 
 // Helper function to set cached marketplace data
 const setCachedMarketplace = async (cacheKey, data) => {
+  if (!isRedisEnabled()) {
+    console.log("Redis not enabled/connected, skipping cache storage");
+    return;
+  }
+
   try {
     const fullKey = redisCache.createKey(`${CACHE_PREFIX}${cacheKey}`);
     await redisCache.setCache(fullKey, data, CACHE_DURATION);
@@ -570,13 +607,39 @@ const setCachedMarketplace = async (cacheKey, data) => {
 
 // Clear marketplace cache (call when data changes)
 const clearMarketplaceCache = async () => {
+  if (!isRedisEnabled()) {
+    console.log("Redis not enabled/connected, no cache to clear");
+    return;
+  }
+
   try {
+    console.log("Attempting to clear marketplace cache");
+
     // Use pattern to clear all marketplace cache keys
     const pattern = redisCache.createKey(`${CACHE_PREFIX}*`);
-    await redisCache.deleteCache(pattern, true); // true for pattern matching
-    console.log("Marketplace cache cleared");
+
+    try {
+      // Try with pattern matching first
+      await redisCache.deleteCache(pattern, true); // true for pattern matching
+      console.log("Marketplace cache cleared using pattern");
+    } catch (patternError) {
+      console.error("Error with pattern-based cache clearing:", patternError);
+
+      // Fallback to clearing stats cache directly
+      try {
+        const statsKey = redisCache.createKey(`${CACHE_PREFIX}stats`);
+        await redisCache.deleteCache(statsKey, false);
+        console.log("Successfully cleared stats cache as fallback");
+      } catch (statsError) {
+        console.error("Failed to clear stats cache:", statsError);
+      }
+    }
+
+    // Add debugging message
+    console.log("✅ Cache clearing process completed");
   } catch (err) {
     console.error("Error clearing marketplace cache:", err);
+    // Continue operation even if cache clearing fails
   }
 };
 
@@ -1022,7 +1085,7 @@ exports.cancelListing = async (req, res) => {
           `Broadcasting cancellation for item ${itemCheck._id} by user ${userId}`
         );
 
-        // First send immediate cancellation event to ensure it's processed without delay
+        // Create a complete cancellation event
         const cancellationEvent = {
           type: "listing_cancelled",
           itemId: itemCheck._id,
@@ -1030,17 +1093,35 @@ exports.cancelListing = async (req, res) => {
           userId: userId.toString(),
           timestamp: new Date().toISOString(),
           priority: "high", // Mark as high priority event
-          targetPage: "marketplace", // Only show to users on marketplace page
         };
 
-        // Use direct broadcast to all clients for immediate effect
-        if (io) {
-          console.log(`Direct broadcasting cancellation to all clients`);
-          io.emit("market_update", cancellationEvent);
-        }
-
-        // Also send through normal channels for clients that might have missed the direct broadcast
+        // Use both direct and socket service broadcasting for maximum reach
+        console.log("Broadcasting cancellation via socketService");
         socketService.sendMarketUpdate(cancellationEvent);
+
+        // Get io instance directly for immediate broadcast
+        let io;
+        try {
+          const server = require("../server");
+          io = server.io;
+          if (io) {
+            console.log(
+              `Direct broadcasting cancellation to all clients via io.emit`
+            );
+            io.emit("market_update", cancellationEvent);
+
+            // Also send a separate event specifically for the cancellation
+            io.emit("item_cancelled", {
+              itemId: itemCheck._id,
+              marketHashName: itemCheck.marketHashName,
+              timestamp: new Date().toISOString(),
+            });
+          } else {
+            console.log(`No io instance available for direct broadcast`);
+          }
+        } catch (err) {
+          console.error(`Error getting io instance: ${err.message}`);
+        }
 
         // Send activity feed update
         socketService.emitMarketActivity({

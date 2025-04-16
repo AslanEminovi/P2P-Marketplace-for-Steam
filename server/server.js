@@ -76,21 +76,50 @@ const app = express();
 const PORT = config.PORT;
 
 // Enable CORS for your React client
-app.use(
-  cors({
-    origin: config.CLIENT_URL,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Requested-With",
-      "Accept",
-      "Origin",
-    ],
-    exposedHeaders: ["set-cookie"],
-    maxAge: 86400, // 24 hours in seconds
-  })
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, postman)
+    if (!origin) return callback(null, true);
+
+    // Check against whitelist
+    const allowedOrigins = [
+      config.CLIENT_URL,
+      "https://p2-p-marketplace-for-steam.vercel.app",
+      "http://localhost:3000",
+      "https://localhost:3000",
+    ];
+
+    if (allowedOrigins.indexOf(origin) !== -1 || !isProduction) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked request from origin: ${origin}`);
+      callback(new Error("CORS policy violation"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+  ],
+  exposedHeaders: ["set-cookie"],
+  maxAge: 86400, // 24 hours in seconds
+};
+
+app.use(cors(corsOptions));
+
+// Add OPTIONS handling for preflight requests
+app.options("*", cors(corsOptions));
+
+// Log CORS configuration
+console.log(
+  `CORS configured with following origins:`,
+  isProduction
+    ? [config.CLIENT_URL, "https://p2-p-marketplace-for-steam.vercel.app"]
+    : "All origins allowed in development"
 );
 
 // Increased body size limit for larger payloads (e.g., when submitting multiple items)
@@ -389,12 +418,35 @@ if (process.env.USE_REDIS === "true") {
 // Set up Socket.io with CORS and connection settings
 const io = new Server(server, {
   cors: {
-    origin: config.CLIENT_URL,
-    methods: ["GET", "POST"],
+    origin: function (origin, callback) {
+      // Allow requests with no origin
+      if (!origin) return callback(null, true);
+
+      // Check against whitelist
+      const allowedOrigins = [
+        config.CLIENT_URL,
+        "https://p2-p-marketplace-for-steam.vercel.app",
+        "http://localhost:3000",
+        "https://localhost:3000",
+      ];
+
+      if (allowedOrigins.indexOf(origin) !== -1 || !isProduction) {
+        callback(null, true);
+      } else {
+        console.warn(`Socket.io blocked connection from origin: ${origin}`);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "OPTIONS"],
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
   },
   // Add adapter configuration only if Redis is available
   ...(redisAdapter ? { adapter: redisAdapter } : {}),
+  // Add additional settings to improve stability
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  transports: ["websocket", "polling"],
 });
 
 // Socket middleware for authentication

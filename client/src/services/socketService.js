@@ -131,11 +131,16 @@ class SocketService {
         query: token ? { token } : {},
         transports: ["websocket", "polling"],
         reconnection: true,
-        reconnectionAttempts: 5,
+        reconnectionAttempts: 10,
         reconnectionDelay: 1000,
-        timeout: 10000,
+        reconnectionDelayMax: 10000,
+        timeout: 20000,
         autoConnect: true,
         forceNew: true, // Force a new connection
+        withCredentials: true,
+        extraHeaders: {
+          "Access-Control-Allow-Origin": "*",
+        },
       });
 
       // Setup connection event handlers
@@ -165,7 +170,7 @@ class SocketService {
       });
 
       this.socket.on("connect_error", (error) => {
-        console.error("[SocketService] Connection error:", error);
+        console.error("[SocketService] Connection error:", error.message);
         this.handleConnectionFailure();
       });
 
