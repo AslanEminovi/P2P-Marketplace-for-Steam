@@ -3,9 +3,10 @@
  * This service manages WebSocket connections and event handling
  */
 
-const redisConfig = require("../config/redis");
-const { pubClient } = redisConfig;
 const jwt = require("jsonwebtoken");
+const redis = require("../config/redis");
+const User = require("../models/User");
+const { pubClient } = redis;
 
 let io = null;
 let activeSockets = new Map(); // Map of userId -> socket.id
@@ -38,15 +39,77 @@ const init = (ioInstance) => {
   io = ioInstance;
 
   // Setup Redis subscriptions if Redis is enabled
-  if (isRedisEnabled && redisConfig.subClient) {
+  if (isRedisEnabled && redis.subClient) {
     setupRedisSubscriptions();
   }
 
+  // Setup socket middleware for authentication - BEFORE the connection event
+  io.use(async (socket, next) => {
+    try {
+      const token =
+        socket.handshake.auth.token ||
+        socket.handshake.headers.authorization?.split(" ")[1] ||
+        socket.handshake.query?.auth_token ||
+        socket.handshake.cookies?.auth_token;
+
+      if (!token) {
+        // Allow anonymous connections but mark them as such
+        socket.userId = null;
+        socket.username = null;
+        socket.isAuthenticated = false;
+        console.log("Anonymous socket connection accepted");
+        return next();
+      }
+
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // Find user
+      const user = await User.findById(decoded.id);
+      if (!user) {
+        console.error(
+          "User not found for token:",
+          token.substring(0, 10) + "..."
+        );
+        return next(new Error("User not found"));
+      }
+
+      // Attach user data to socket
+      socket.userId = user._id.toString();
+      socket.username =
+        user.username || user.displayName || user.steamName || "User";
+      socket.steamId = user.steamId; // Add Steam ID to socket for Steam-authenticated users
+      socket.isAuthenticated = true;
+
+      console.log(
+        `User ${socket.userId} (${socket.username}) authenticated with socket ${
+          socket.id
+        }${user.steamId ? " via Steam" : ""}`
+      );
+      next();
+    } catch (err) {
+      console.error("Socket authentication error:", err.message);
+      // If token verification fails, allow as anonymous
+      socket.userId = null;
+      socket.username = null;
+      socket.isAuthenticated = false;
+      next();
+    }
+  });
+
   // Setup global connection events
   io.on("connection", async (socket) => {
-    console.log("New socket connection:", socket.id);
+    console.log(
+      "New socket connection:",
+      socket.id,
+      socket.isAuthenticated
+        ? socket.steamId
+          ? "Steam-authenticated"
+          : "authenticated"
+        : "anonymous"
+    );
 
-    // We'll get the userId from the socket handshake auth in server.js
+    // We'll get the userId from the socket middleware
     const userId = socket.userId;
 
     if (userId) {
@@ -56,6 +119,9 @@ const init = (ioInstance) => {
         // If user has an existing socket, disconnect it first
         const existingSocket = io.sockets.sockets.get(existingSocketId);
         if (existingSocket) {
+          console.log(
+            `Disconnecting existing socket ${existingSocketId} for user ${userId}`
+          );
           existingSocket.disconnect(true);
         }
       }
@@ -72,6 +138,7 @@ const init = (ioInstance) => {
         socketId: socket.id,
         lastSeen: new Date(),
         isOnline: true,
+        steamId: socket.steamId, // Track if this is a Steam user
       });
 
       // Broadcast user status update
@@ -85,13 +152,14 @@ const init = (ioInstance) => {
       if (isRedisEnabled && pubClient) {
         try {
           // Store user status with 6-minute expiry (slightly longer than activity timeout)
-          await redisConfig.setHashCache(
+          await redis.setHashCache(
             `user:${userId}:status`,
             {
               socketId: socket.id,
               isOnline: true,
               lastSeen: new Date().toISOString(),
               serverId: process.env.SERVER_ID || "unknown",
+              steamId: socket.steamId || null, // Include Steam ID in Redis cache
             },
             360
           ); // 6 minutes
@@ -103,6 +171,7 @@ const init = (ioInstance) => {
               userId,
               isOnline: true,
               lastSeen: new Date().toISOString(),
+              steamId: socket.steamId || null, // Include Steam ID in published message
             })
           );
         } catch (error) {
@@ -110,15 +179,32 @@ const init = (ioInstance) => {
         }
       }
 
+      // Update user's last active status in the database
+      try {
+        await User.findByIdAndUpdate(userId, {
+          lastActive: new Date(),
+          isOnline: true,
+        });
+        console.log(`Updated user ${userId} status in database to online`);
+      } catch (dbErr) {
+        console.error(
+          `Failed to update user status in database:`,
+          dbErr.message
+        );
+      }
+
       // Emit user activity
       emitUserActivity({
         action: "join",
         user: socket.username || "A user",
+        steamAuth: !!socket.steamId,
       });
 
       // Log connection
       console.log(
-        `User ${userId} connected. Total connected users: ${connectedUsers.size}`
+        `User ${userId} connected${
+          socket.steamId ? " via Steam" : ""
+        }. Total connected users: ${connectedUsers.size}`
       );
     } else {
       // Track anonymous connections with a timestamp
@@ -143,7 +229,7 @@ const init = (ioInstance) => {
 
         // Update activity timestamp in Redis if enabled
         if (isRedisEnabled && pubClient) {
-          redisConfig
+          redis
             .setHashCache(
               `user:${userId}:status`,
               {
@@ -197,7 +283,7 @@ const init = (ioInstance) => {
               if (isRedisEnabled && pubClient) {
                 try {
                   // Update status to offline
-                  await redisConfig.setHashCache(
+                  await redis.setHashCache(
                     `user:${userId}:status`,
                     {
                       isOnline: false,
@@ -270,74 +356,18 @@ const init = (ioInstance) => {
     }
     broadcastStats();
   }, USER_ACTIVITY_TIMEOUT);
-
-  // Socket middleware for authentication
-  io.use(async (socket, next) => {
-    try {
-      const token =
-        socket.handshake.auth.token ||
-        socket.handshake.headers.authorization?.split(" ")[1];
-
-      if (!token) {
-        // Allow anonymous connections but mark them as such
-        socket.userId = null;
-        socket.username = null;
-        socket.isAuthenticated = false;
-        return next();
-      }
-
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // Find user
-      const user = await User.findById(decoded.id);
-      if (!user) {
-        return next(new Error("User not found"));
-      }
-
-      // Attach user data to socket
-      socket.userId = user._id.toString();
-      socket.username = user.username || user.steamName || "User";
-      socket.isAuthenticated = true;
-
-      // Update user's connection status
-      activeSockets.set(socket.userId, socket.id);
-      connectedUsers.set(socket.userId, {
-        socketId: socket.id,
-        lastSeen: new Date(),
-        isOnline: true,
-      });
-
-      console.log(`User ${socket.userId} connected with socket ${socket.id}`);
-
-      // Immediately broadcast the online status
-      io.emit("userStatusUpdate", {
-        userId: socket.userId,
-        isOnline: true,
-        lastSeen: new Date(),
-      });
-
-      next();
-    } catch (err) {
-      // If token verification fails, allow as anonymous
-      socket.userId = null;
-      socket.username = null;
-      socket.isAuthenticated = false;
-      next();
-    }
-  });
 };
 
 /**
  * Set up Redis subscriptions for cross-server communication
  */
 const setupRedisSubscriptions = () => {
-  if (!redisConfig.subClient) {
+  if (!redis.subClient) {
     console.error("Redis subscriber client not available for subscriptions");
     return;
   }
 
-  const subClient = redisConfig.subClient;
+  const subClient = redis.subClient;
 
   // Subscribe to channels
   subClient.subscribe(REDIS_CHANNEL_NOTIFICATIONS);
@@ -478,7 +508,7 @@ const getLatestStats = async () => {
     if (isRedisEnabled && pubClient) {
       try {
         console.log("[socketService] Attempting to get stats from Redis cache");
-        const cachedStats = await redisConfig.getCache("site:stats");
+        const cachedStats = await redis.getCache("site:stats");
 
         // If stats are recent (< 60 seconds old), use them
         if (
@@ -548,7 +578,7 @@ const getLatestStats = async () => {
         authenticatedActiveUsers = 0;
         for (const key of keys) {
           try {
-            const userStatus = await redisConfig.getHashCache(
+            const userStatus = await redis.getHashCache(
               key.replace("cs2market:", "")
             );
             if (userStatus && userStatus.isOnline === true) {
@@ -632,7 +662,7 @@ const getLatestStats = async () => {
     if (isRedisEnabled && pubClient) {
       try {
         console.log("[socketService] Caching stats in Redis");
-        await redisConfig.setCache("site:stats", stats, 30); // 30 seconds expiry
+        await redis.setCache("site:stats", stats, 30); // 30 seconds expiry
       } catch (cacheError) {
         console.error(
           "[socketService] Error caching stats in Redis:",
@@ -822,6 +852,7 @@ const emitUserActivity = (activity) => {
   const activityData = {
     action: activity.action,
     user: activity.user || "Anonymous",
+    steamAuth: activity.steamAuth || false,
     timestamp: new Date().toISOString(),
   };
 
@@ -843,7 +874,7 @@ const getConnectedClientsCount = async () => {
       let onlineCount = 0;
 
       for (const key of keys) {
-        const userStatus = await redisConfig.getHashCache(
+        const userStatus = await redis.getHashCache(
           key.replace("cs2market:", "")
         );
         if (userStatus && userStatus.isOnline === true) {
@@ -982,9 +1013,7 @@ const getUserStatus = async (userId) => {
   // If Redis is enabled, check there
   if (isRedisEnabled && pubClient) {
     try {
-      const userStatus = await redisConfig.getHashCache(
-        `user:${userId}:status`
-      );
+      const userStatus = await redis.getHashCache(`user:${userId}:status`);
 
       if (userStatus) {
         return {
