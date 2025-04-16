@@ -366,21 +366,19 @@
 .profile-button {
   display: flex;
   align-items: center;
-  padding: 4px 12px 4px 4px;
-  background-color: var(--gaming-bg-subtle);
-  border: 1px solid var(--gaming-border);
+  padding: 3px 10px 3px 3px;
+  background-color: rgba(31, 43, 69, 0.4);
+  border: 1px solid rgba(51, 115, 242, 0.2);
   border-radius: 50px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
+  height: 38px;
 }
 
 .profile-button:hover {
-  background-color: rgba(255, 255, 255, 0.15);
-}
-
-.profile-button:active {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(51, 115, 242, 0.2);
+  border-color: rgba(51, 115, 242, 0.4);
 }
 
 .dropdown-arrow {
@@ -388,6 +386,7 @@
   align-items: center;
   transition: transform 0.3s ease;
   pointer-events: none;
+  margin-left: 6px;
 }
 
 .dropdown-arrow svg {
@@ -467,18 +466,21 @@
   padding: 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   background: linear-gradient(180deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 24, 40, 0) 100%);
+  align-items: center;
+  text-align: center;
 }
 
 .dropdown-avatar-container {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
   margin-bottom: 10px;
+  width: 100%;
 }
 
 .dropdown-avatar {
-  width: 45px;
-  height: 45px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   background-color: #1F2B45;
   display: flex;
@@ -486,8 +488,8 @@
   justify-content: center;
   color: #fff;
   font-weight: 600;
-  font-size: 16px;
-  margin-right: 5px;
+  font-size: 20px;
+  margin: 0 auto 10px;
   border: 2px solid rgba(51, 115, 242, 0.3);
   padding: 2px;
 }

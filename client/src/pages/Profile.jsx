@@ -3,13 +3,13 @@ import axios from 'axios';
 import { API_URL } from '../config/constants';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { FiUser, FiMail, FiPhone, FiMapPin, FiGlobe, FiEdit, FiSave, FiShield } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiMapPin, FiGlobe, FiEdit, FiSave, FiShield, FiRefreshCw } from 'react-icons/fi';
 import { FaSteam, FaCircle } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import './Profile.css';
 
 const Profile = ({ user, onBalanceUpdate }) => {
-  const { updateUser: authUpdateUser } = useAuth();
+  const { user: authUser, updateUser: authUpdateUser } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,66 +40,83 @@ const Profile = ({ user, onBalanceUpdate }) => {
     }
   });
   
+  // Use authUser as the most up-to-date source of user data
   useEffect(() => {
-    if (user) {
-      // If parent component provides updated user data, use it to initialize the form
-      setProfile(user);
+    const currentUser = authUser || user;
+    if (currentUser) {
+      console.log("Setting profile with user data:", currentUser);
+      setProfile(currentUser);
       
       setFormData({
-        displayName: user.displayName || '',
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        country: user.country || '',
-        city: user.city || '',
-        preferredCurrency: user.settings?.currency || 'USD',
-        theme: user.settings?.theme || 'dark',
+        displayName: currentUser.displayName || '',
+        firstName: currentUser.firstName || '',
+        lastName: currentUser.lastName || '',
+        email: currentUser.email || '',
+        phone: currentUser.phone || '',
+        country: currentUser.country || '',
+        city: currentUser.city || '',
+        preferredCurrency: currentUser.settings?.currency || 'USD',
+        theme: currentUser.settings?.theme || 'dark',
         privacySettings: {
-          showOnlineStatus: user.settings?.privacy?.showOnlineStatus ?? true,
-          showInventoryValue: user.settings?.privacy?.showInventoryValue ?? false
+          showOnlineStatus: currentUser.settings?.privacy?.showOnlineStatus ?? true,
+          showInventoryValue: currentUser.settings?.privacy?.showInventoryValue ?? false
         },
         notificationSettings: {
-          email: user.settings?.notifications?.email ?? true,
-          push: user.settings?.notifications?.push ?? true,
-          offers: user.settings?.notifications?.offers ?? true,
-          trades: user.settings?.notifications?.trades ?? true
+          email: currentUser.settings?.notifications?.email ?? true,
+          push: currentUser.settings?.notifications?.push ?? true,
+          offers: currentUser.settings?.notifications?.offers ?? true,
+          trades: currentUser.settings?.notifications?.trades ?? true
         }
       });
       
-      // Also fetch from the server to ensure we have the latest data
+      // Also fetch fresh data
       fetchUserProfile();
     }
-  }, [user]);
+  }, [authUser, user]);
   
   const fetchUserProfile = async () => {
     setLoading(true);
     try {
+      console.log("Fetching user profile data...");
       const response = await axios.get(`${API_URL}/auth/user`, { withCredentials: true });
+      console.log("Received user data:", response.data);
+      
       if (response.data.authenticated) {
-        setProfile(response.data.user);
+        const userData = response.data.user;
+        console.log("Setting profile with fresh user data:", userData);
+        setProfile(userData);
+        
+        // Update auth context with fresh data
+        if (authUpdateUser) {
+          authUpdateUser(userData);
+        }
+        
+        // Update window global user
+        if (typeof window.updateGlobalUser === 'function') {
+          window.updateGlobalUser(userData);
+        }
         
         // Initialize form with user data
-        if (response.data.user) {
+        if (userData) {
           setFormData({
-            displayName: response.data.user.displayName || '',
-            firstName: response.data.user.firstName || '',
-            lastName: response.data.user.lastName || '',
-            email: response.data.user.email || '',
-            phone: response.data.user.phone || '',
-            country: response.data.user.country || '',
-            city: response.data.user.city || '',
-            preferredCurrency: response.data.user.settings?.currency || 'USD',
-            theme: response.data.user.settings?.theme || 'dark',
+            displayName: userData.displayName || '',
+            firstName: userData.firstName || '',
+            lastName: userData.lastName || '',
+            email: userData.email || '',
+            phone: userData.phone || '',
+            country: userData.country || '',
+            city: userData.city || '',
+            preferredCurrency: userData.settings?.currency || 'USD',
+            theme: userData.settings?.theme || 'dark',
             privacySettings: {
-              showOnlineStatus: response.data.user.settings?.privacy?.showOnlineStatus ?? true,
-              showInventoryValue: response.data.user.settings?.privacy?.showInventoryValue ?? false
+              showOnlineStatus: userData.settings?.privacy?.showOnlineStatus ?? true,
+              showInventoryValue: userData.settings?.privacy?.showInventoryValue ?? false
             },
             notificationSettings: {
-              email: response.data.user.settings?.notifications?.email ?? true,
-              push: response.data.user.settings?.notifications?.push ?? true,
-              offers: response.data.user.settings?.notifications?.offers ?? true,
-              trades: response.data.user.settings?.notifications?.trades ?? true
+              email: userData.settings?.notifications?.email ?? true,
+              push: userData.settings?.notifications?.push ?? true,
+              offers: userData.settings?.notifications?.offers ?? true,
+              trades: userData.settings?.notifications?.trades ?? true
             }
           });
         }
@@ -187,44 +204,10 @@ const Profile = ({ user, onBalanceUpdate }) => {
       console.log('Server response:', response.data);
       
       if (response.data.success) {
-        // Get the updated user data from the response
-        const updatedUser = response.data.user;
-        
         toast.success('Profile saved successfully');
         
-        // Update the user data in multiple places to ensure consistency
-        if (typeof window.updateGlobalUser === 'function') {
-          window.updateGlobalUser(updatedUser);
-        }
-        
-        // Update user in AuthContext
-        authUpdateUser(updatedUser);
-        
-        // Refresh local profile state
-        setProfile(updatedUser);
-        
-        // Update form data with the returned user data
-        setFormData({
-          displayName: updatedUser.displayName || '',
-          firstName: updatedUser.firstName || '',
-          lastName: updatedUser.lastName || '',
-          email: updatedUser.email || '',
-          phone: updatedUser.phone || '',
-          country: updatedUser.country || '',
-          city: updatedUser.city || '',
-          preferredCurrency: updatedUser.settings?.currency || 'USD',
-          theme: updatedUser.settings?.theme || 'dark',
-          privacySettings: {
-            showOnlineStatus: updatedUser.settings?.privacy?.showOnlineStatus ?? true,
-            showInventoryValue: updatedUser.settings?.privacy?.showInventoryValue ?? false
-          },
-          notificationSettings: {
-            email: updatedUser.settings?.notifications?.email ?? true,
-            push: updatedUser.settings?.notifications?.push ?? true,
-            offers: updatedUser.settings?.notifications?.offers ?? true,
-            trades: updatedUser.settings?.notifications?.trades ?? true
-          }
-        });
+        // Explicitly fetch fresh data from server to ensure consistency
+        await fetchUserProfile();
         
         setIsEditing(false);
       } else {
@@ -254,12 +237,12 @@ const Profile = ({ user, onBalanceUpdate }) => {
       <div className="profile-header">
         <div className="profile-user-info">
           <img 
-            src={user?.avatar || 'https://via.placeholder.com/150'} 
+            src={profile?.avatar || 'https://via.placeholder.com/150'} 
             alt="Profile" 
             className="profile-avatar"
           />
           <div className="profile-user-details">
-            <h1 className="profile-username">{user?.displayName || 'User'}</h1>
+            <h1 className="profile-username">{profile?.displayName || 'User'}</h1>
             <div className="profile-badges">
               <div className="profile-badge profile-badge-steam">
                 <FaSteam /> Steam Connected
@@ -267,20 +250,20 @@ const Profile = ({ user, onBalanceUpdate }) => {
               <div className="profile-badge profile-badge-online">
                 <FaCircle /> Online
               </div>
-              {user?.verificationLevel > 0 && (
+              {profile?.verificationLevel > 0 && (
                 <div className="profile-badge profile-badge-verified">
                   <FiShield /> Verified
                 </div>
               )}
             </div>
             <p className="profile-steam-id">
-              Steam ID: <span>{user?.steamId || 'Not available'}</span>
+              Steam ID: <span>{profile?.steamId || 'Not available'}</span>
             </p>
           </div>
         </div>
         <div className="profile-actions">
           <button className="profile-refresh-btn" onClick={refreshProfile} disabled={loading}>
-            {loading ? 'Loading...' : 'Refresh Profile'}
+            <FiRefreshCw /> {loading ? 'Loading...' : 'Refresh Profile'}
           </button>
           <Link to="/wallet" className="profile-wallet-btn">
             View Wallet
@@ -686,15 +669,15 @@ const Profile = ({ user, onBalanceUpdate }) => {
         <div className="profile-steam-info">
           <div className="profile-steam-status">
             <img 
-              src={user?.avatar || 'https://via.placeholder.com/80'} 
+              src={profile?.avatar || 'https://via.placeholder.com/80'} 
               alt="Steam Avatar" 
               className="profile-steam-avatar"
             />
             <div>
-              <h3>{user?.displayName}</h3>
-              <p>Steam ID: {user?.steamId}</p>
+              <h3>{profile?.displayName}</h3>
+              <p>Steam ID: {profile?.steamId}</p>
               <a 
-                href={user?.profileUrl || `https://steamcommunity.com/profiles/${user?.steamId}`} 
+                href={profile?.profileUrl || `https://steamcommunity.com/profiles/${profile?.steamId}`} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="profile-steam-link"
