@@ -29,6 +29,15 @@ const WEAR_COLORS = {
   'default': '#94a3b8'
 };
 
+// Exterior abbreviation to full name mapping
+const EXTERIOR_FULL_NAMES = {
+  'fn': 'Factory New',
+  'mw': 'Minimal Wear',
+  'ft': 'Field-Tested',
+  'ww': 'Well-Worn',
+  'bs': 'Battle-Scarred'
+};
+
 const ItemDetails = ({ 
   item: initialItem = null,
   itemId, 
@@ -208,11 +217,13 @@ const ItemDetails = ({
     
     // First check if exterior or wear is provided directly
     if (item.exterior) {
-      return item.exterior;
+      // Convert abbreviations to full names if needed
+      return EXTERIOR_FULL_NAMES[item.exterior.toLowerCase()] || item.exterior;
     }
     
     if (item.wear) {
-      return item.wear;
+      // Convert abbreviations to full names if needed
+      return EXTERIOR_FULL_NAMES[item.wear.toLowerCase()] || item.wear;
     }
     
     // Then try to extract from market hash name if available
@@ -304,7 +315,10 @@ const ItemDetails = ({
                     </div>
                     
                     <div className="item-header-details">
-                      <h2 className="item-title">{getTruncatedName(item)}</h2>
+                      <h2 className="item-title">
+                        {getTruncatedName(item)}
+                        {getWearName(item) && <span style={{ opacity: 0.75, fontWeight: 400, fontSize: '1.5rem' }}> ({getWearName(item)})</span>}
+                      </h2>
                       <p className="item-subtitle">
                         {getWeaponType(item)}
                         {getWearName(item) && ` | ${getWearName(item)}`}

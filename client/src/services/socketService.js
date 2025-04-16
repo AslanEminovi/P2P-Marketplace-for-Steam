@@ -15,12 +15,72 @@ class SocketService {
     this.disconnectedCallback = null;
     this.lastConnectionAttempt = 0;
     this.lastForcedRefresh = null;
+    this.forceReconnectInterval = 30000; // 30 seconds
+    this.lastSuccessfulConnection = null;
+    this.connectionCheckTimer = null;
+    this.isBrowserTabActive = true;
+    this.heartbeatInterval = null;
+    this.heartbeatDelay = 30000; // 30 seconds
   }
 
   init() {
     console.log("[SocketService] Initializing service");
-    // Just initialize the service, don't connect yet
+
+    // Setup tab visibility listener
+    if (typeof document !== "undefined") {
+      document.addEventListener(
+        "visibilitychange",
+        this.handleVisibilityChange.bind(this)
+      );
+    }
+
+    // Start periodic connection checking
+    this.startConnectionCheck();
+
     return this;
+  }
+
+  handleVisibilityChange() {
+    if (document.visibilityState === "visible") {
+      console.log("[SocketService] Tab became visible, checking connection");
+      this.isBrowserTabActive = true;
+
+      // When tab becomes visible, check if we need to reconnect
+      if (!this.isConnected()) {
+        this.reconnect();
+      }
+    } else {
+      console.log("[SocketService] Tab became hidden");
+      this.isBrowserTabActive = false;
+    }
+  }
+
+  startConnectionCheck() {
+    // Clear existing timer if any
+    if (this.connectionCheckTimer) {
+      clearInterval(this.connectionCheckTimer);
+    }
+
+    // Check connection periodically
+    this.connectionCheckTimer = setInterval(() => {
+      // Only check if the tab is active to avoid unnecessary reconnections
+      if (this.isBrowserTabActive) {
+        if (this.socket) {
+          if (!this.socket.connected) {
+            console.log(
+              "[SocketService] Detected disconnected socket during periodic check"
+            );
+            this.reconnect();
+          }
+        } else if (localStorage.getItem("auth_token")) {
+          // We have an auth token but no socket, try to connect
+          console.log(
+            "[SocketService] No socket but auth token exists, attempting connection"
+          );
+          this.connect();
+        }
+      }
+    }, this.forceReconnectInterval);
   }
 
   connect(token = null) {
@@ -89,6 +149,15 @@ class SocketService {
 
         // Re-register all event listeners after reconnection
         this.rebindEvents();
+
+        // If connection is successful, update the last successful connection time
+        this.lastSuccessfulConnection = Date.now();
+
+        // Notify the server about our user status subscription needs
+        this.subscribeToUserStatuses();
+
+        // Start sending heartbeats to maintain the connection
+        this.startHeartbeat();
       });
 
       this.socket.on("connect_error", (error) => {
@@ -148,6 +217,13 @@ class SocketService {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
+    }
+
+    this.stopHeartbeat();
+
+    if (this.connectionCheckTimer) {
+      clearInterval(this.connectionCheckTimer);
+      this.connectionCheckTimer = null;
     }
   }
 
@@ -334,6 +410,83 @@ class SocketService {
 
   isConnected() {
     return this.connected && this.socket && this.socket.connected;
+  }
+
+  // Add new method to subscribe to user statuses
+  subscribeToUserStatuses() {
+    if (!this.isConnected()) return;
+
+    try {
+      // Get subscribed user IDs from local storage if any
+      const subscribedUsers = JSON.parse(
+        localStorage.getItem("subscribed_user_statuses") || "[]"
+      );
+
+      if (subscribedUsers.length > 0) {
+        console.log(
+          `[SocketService] Resubscribing to ${subscribedUsers.length} user statuses`
+        );
+
+        // Re-subscribe to each user status
+        subscribedUsers.forEach((userId) => {
+          this.emit("subscribeToUserStatus", { userId });
+        });
+      }
+    } catch (error) {
+      console.error(
+        "[SocketService] Error resubscribing to user statuses:",
+        error
+      );
+    }
+  }
+
+  // Add method to track user status subscriptions
+  subscribeToUserStatus(userId) {
+    if (!userId) return;
+
+    try {
+      // Get current subscriptions
+      const subscribedUsers = JSON.parse(
+        localStorage.getItem("subscribed_user_statuses") || "[]"
+      );
+
+      // Add if not already there
+      if (!subscribedUsers.includes(userId)) {
+        subscribedUsers.push(userId);
+        localStorage.setItem(
+          "subscribed_user_statuses",
+          JSON.stringify(subscribedUsers)
+        );
+      }
+
+      // Send subscription message if connected
+      if (this.isConnected()) {
+        this.emit("subscribeToUserStatus", { userId });
+      }
+    } catch (error) {
+      console.error("[SocketService] Error subscribing to user status:", error);
+    }
+  }
+
+  startHeartbeat() {
+    // Clear any existing heartbeat interval
+    this.stopHeartbeat();
+
+    // Set up new heartbeat interval
+    this.heartbeatInterval = setInterval(() => {
+      // Only send heartbeat if socket is connected and tab is active
+      if (this.isConnected() && this.isBrowserTabActive) {
+        console.log("[SocketService] Sending heartbeat");
+        this.socket.emit("heartbeat");
+      }
+    }, this.heartbeatDelay);
+  }
+
+  stopHeartbeat() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
   }
 }
 

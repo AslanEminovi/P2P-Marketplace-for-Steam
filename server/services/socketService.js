@@ -63,6 +63,55 @@ const init = (ioInstance) => {
       // Update user activity timestamp
       activeUsers.set(userId, Date.now());
 
+      // Add a new handler for user status subscriptions
+      socket.on("subscribeToUserStatus", async (data) => {
+        if (!data || !data.userId) return;
+
+        try {
+          console.log(
+            `User ${socket.userId} subscribed to status of user ${data.userId}`
+          );
+
+          // Join a room specific to this user's status
+          socket.join(`status:${data.userId}`);
+
+          // Get current status and send it immediately
+          const currentStatus = await getUserStatus(data.userId);
+
+          // Send status update only to this socket
+          socket.emit("userStatusUpdate", {
+            userId: data.userId,
+            isOnline: currentStatus.isOnline,
+            lastSeen: currentStatus.lastSeen,
+          });
+        } catch (error) {
+          console.error(`Error in subscribeToUserStatus:`, error);
+        }
+      });
+
+      // Handle explicit heartbeat from clients to confirm they're still active
+      socket.on("heartbeat", () => {
+        if (userId) {
+          // Update activity timestamp
+          activeUsers.set(userId, Date.now());
+
+          // Also update Redis if enabled
+          if (isRedisEnabled && pubClient) {
+            redisConfig
+              .setHashCache(
+                `user:${userId}:status`,
+                {
+                  lastActivity: Date.now(),
+                  isOnline: true,
+                  lastSeen: new Date().toISOString(),
+                },
+                360
+              )
+              .catch(console.error);
+          }
+        }
+      });
+
       // Store user status in Redis if enabled
       if (isRedisEnabled && pubClient) {
         try {
@@ -336,10 +385,12 @@ const handleUserStatusMessage = (data) => {
   }
 
   // Broadcast the status update to connected clients on this server
-  io.emit("userStatusUpdate", {
+  // Instead of broadcasting to all clients, just send to those in the room
+  io.to(`status:${data.userId}`).emit("userStatusUpdate", {
     userId: data.userId,
     isOnline: data.isOnline,
     lastSeen: new Date(data.lastSeen),
+    lastSeenFormatted: formatLastSeen(new Date(data.lastSeen)),
   });
 };
 
@@ -802,6 +853,45 @@ const getUserStatus = async (userId) => {
     isOnline: !!userData,
     lastSeen: userData?.lastSeen || null,
   };
+};
+
+// New helper function to format last seen times
+const formatLastSeen = (date) => {
+  if (!date) return null;
+
+  const now = new Date();
+  const diff = now - date;
+
+  // Less than a minute
+  if (diff < 60000) {
+    return "just now";
+  }
+
+  // Less than an hour
+  if (diff < 3600000) {
+    const minutes = Math.floor(diff / 60000);
+    return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+  }
+
+  // Less than a day
+  if (diff < 86400000) {
+    const hours = Math.floor(diff / 3600000);
+    return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+  }
+
+  // Less than a week
+  if (diff < 604800000) {
+    const days = Math.floor(diff / 86400000);
+    return `${days} day${days !== 1 ? "s" : ""} ago`;
+  }
+
+  // More than a week
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+  });
 };
 
 module.exports = {

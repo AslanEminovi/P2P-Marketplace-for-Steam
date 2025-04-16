@@ -26,6 +26,15 @@ const WEAR_COLORS = {
   'default': '#94a3b8'
 };
 
+// Map of exterior abbreviations to full names
+const EXTERIOR_FULL_NAMES = {
+  'fn': 'Factory New',
+  'mw': 'Minimal Wear',
+  'ft': 'Field-Tested',
+  'ww': 'Well-Worn',
+  'bs': 'Battle-Scarred'
+};
+
 const ItemCard3D = ({ 
   item, 
   onClick, 
@@ -50,30 +59,39 @@ const ItemCard3D = ({
     return WEAR_COLORS[wear] || WEAR_COLORS.default;
   };
   
-  // Get truncated name for better display
-  const getTruncatedName = () => {
-    let name = item.marketHashName;
+  // Extract weapon name without wear information
+  const getItemBaseName = () => {
+    if (!item.marketHashName) return 'Unknown Item';
+    
     // Remove wear information from the name if present
-    name = name.replace(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i, '').trim();
+    let name = item.marketHashName.replace(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i, '').trim();
     
     // Truncate long names
     if (name.length > 25) {
-      return name.substring(0, 22) + '...';
+      name = name.substring(0, 22) + '...';
     }
     return name;
   };
   
   // Extract or identify wear from item data
   const getWearName = () => {
-    // First check if wear is provided directly
+    // First check if exterior or wear is provided directly
+    if (item.exterior) {
+      // Convert potential abbreviations to full names
+      return EXTERIOR_FULL_NAMES[item.exterior.toLowerCase()] || item.exterior;
+    }
+    
     if (item.wear) {
-      return item.wear;
+      // Convert potential abbreviations to full names
+      return EXTERIOR_FULL_NAMES[item.wear.toLowerCase()] || item.wear;
     }
     
     // Then try to extract from market hash name
-    const wearMatch = item.marketHashName.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i);
-    if (wearMatch) {
-      return wearMatch[0];
+    if (item.marketHashName) {
+      const wearMatch = item.marketHashName.match(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i);
+      if (wearMatch) {
+        return wearMatch[0];
+      }
     }
     
     return null;
@@ -81,6 +99,7 @@ const ItemCard3D = ({
   
   const wearName = getWearName();
   const rarityColor = getRarityColor(item.rarity);
+  const itemBaseName = getItemBaseName();
   
   return (
     <motion.div
@@ -89,9 +108,7 @@ const ItemCard3D = ({
       animate={{ 
         opacity: 1, 
         y: 0,
-        boxShadow: highlight 
-          ? `0 10px 30px ${rarityColor}33, 0 0 0 2px ${rarityColor}55`
-          : '0 10px 25px rgba(0, 0, 0, 0.2)'
+        boxShadow: `0 10px 30px ${rarityColor}33, 0 0 0 2px ${rarityColor}55`
       }}
       transition={{ 
         type: 'spring',
@@ -101,9 +118,7 @@ const ItemCard3D = ({
       }}
       whileHover={{
         y: -8,
-        boxShadow: highlight 
-          ? `0 15px 30px ${rarityColor}55, 0 0 0 2px ${rarityColor}66`
-          : '0 15px 35px rgba(0, 0, 0, 0.3)',
+        boxShadow: `0 15px 30px ${rarityColor}55, 0 0 0 2px ${rarityColor}66`,
         scale: 1.02
       }}
       whileTap={{ scale: 0.98 }}
@@ -112,14 +127,14 @@ const ItemCard3D = ({
       onClick={onClick}
       style={{
         position: 'relative',
-        backgroundColor: 'rgba(45, 27, 105, 0.7)',
+        backgroundColor: `rgba(${parseInt(rarityColor.slice(1, 3), 16)}, ${parseInt(rarityColor.slice(3, 5), 16)}, ${parseInt(rarityColor.slice(5, 7), 16)}, 0.15)`,
         borderRadius: '16px',
         overflow: 'hidden',
         padding: 0,
         display: 'flex',
         flexDirection: 'column',
         cursor: 'pointer',
-        border: `1px solid rgba(255, 255, 255, 0.1)`,
+        border: `1px solid ${rarityColor}33`,
         backdropFilter: 'blur(10px)',
         ...style
       }}
@@ -245,49 +260,6 @@ const ItemCard3D = ({
             }}
           />
         </motion.div>
-        
-        {/* Rarity badge */}
-        {item.rarity && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            style={{
-              position: 'absolute',
-              top: '12px',
-              left: '12px',
-              backgroundColor: 'rgba(15, 12, 41, 0.8)',
-              borderRadius: '8px',
-              padding: '4px 8px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              backdropFilter: 'blur(5px)',
-              border: `1px solid ${rarityColor}44`,
-              boxShadow: `0 2px 8px ${rarityColor}22`,
-              zIndex: 10
-            }}
-          >
-            <div
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: rarityColor,
-                boxShadow: `0 0 5px ${rarityColor}`
-              }}
-            />
-            <span
-              style={{
-                color: rarityColor,
-                fontSize: '0.7rem',
-                fontWeight: '600',
-                textShadow: `0 0 3px ${rarityColor}33`
-              }}
-            >
-              {item.rarity === '★' ? 'RARE' : item.rarity.replace(' Grade', '')}
-            </span>
-          </motion.div>
-        )}
       </motion.div>
       
       {/* Item details */}
@@ -303,7 +275,7 @@ const ItemCard3D = ({
           borderTop: '1px solid rgba(255, 255, 255, 0.05)'
         }}
       >
-        {/* Item name */}
+        {/* Item name with exterior in parentheses */}
         <h3
           style={{
             margin: 0,
@@ -313,10 +285,10 @@ const ItemCard3D = ({
             lineHeight: 1.3
           }}
         >
-          {getTruncatedName()}
+          {itemBaseName} {wearName && <span style={{ opacity: 0.75, fontWeight: '400' }}>({wearName})</span>}
         </h3>
         
-        {/* Wear indicator */}
+        {/* Wear indicator with full name */}
         {wearName && (
           <div
             style={{
@@ -335,8 +307,9 @@ const ItemCard3D = ({
             />
             <span
               style={{
-                color: '#94a3b8',
-                fontSize: '0.75rem'
+                color: getWearColor(wearName),
+                fontSize: '0.75rem',
+                fontWeight: '500'
               }}
             >
               {wearName}
@@ -473,6 +446,18 @@ const ItemCard3D = ({
               >
                 {item.owner.displayName || t('common.unknownSeller')}
               </span>
+              {item.owner.isOnline !== undefined && (
+                <div
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: item.owner.isOnline ? '#4ade80' : '#94a3b8',
+                    marginLeft: 'auto',
+                    boxShadow: item.owner.isOnline ? '0 0 5px rgba(74, 222, 128, 0.5)' : 'none'
+                  }}
+                />
+              )}
             </div>
           )}
         </div>

@@ -14,6 +14,8 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '' }) => {
   const [error, setError] = useState(null);
   const statusTimeoutRef = useRef(null);
   const socketRegisteredRef = useRef(false);
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 3;
 
   useEffect(() => {
     if (!sellerId) {
@@ -35,10 +37,18 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '' }) => {
         
         if (response.data) {
           setStatus(response.data);
+          retryCountRef.current = 0; // Reset retry counter on success
         }
       } catch (error) {
         console.error('Error fetching seller status:', error);
-        setError('Failed to load status');
+        retryCountRef.current++;
+        
+        if (retryCountRef.current <= MAX_RETRIES) {
+          console.log(`Retrying seller status fetch (${retryCountRef.current}/${MAX_RETRIES})`);
+          // Don't set the error state here, just retry silently
+        } else {
+          setError('Failed to load status');
+        }
       } finally {
         setLoading(false);
       }
@@ -52,38 +62,30 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '' }) => {
       fetchStatus();
     }, 60000); // Poll every minute as a fallback
 
-    // Set up socket listener for real-time updates
-    const setupSocketListener = () => {
-      if (socketService.isConnected()) {
-        const handleStatusUpdate = (data) => {
-          if (data.userId === sellerId) {
-            setStatus(prev => ({
-              ...prev,
-              isOnline: data.isOnline,
-              lastSeen: data.lastSeen,
-              lastSeenFormatted: data.lastSeenFormatted || prev.lastSeenFormatted
-            }));
-          }
-        };
+    // Subscribe to user status via socket
+    socketService.subscribeToUserStatus(sellerId);
 
-        // Only register listener once
-        if (!socketRegisteredRef.current) {
-          socketService.on('userStatusUpdate', handleStatusUpdate);
-          socketRegisteredRef.current = true;
-          
-          // Update socket connection if needed
-          socketService.emit('subscribeToUserStatus', { userId: sellerId });
-        }
-      } else {
-        // Try to connect socket if not connected
-        socketService.connect();
-        
-        // Check again in a second
-        setTimeout(setupSocketListener, 1000);
+    // Set up socket listener for real-time updates
+    const handleStatusUpdate = (data) => {
+      if (data && data.userId === sellerId) {
+        console.log(`Received status update for user ${sellerId}:`, data.isOnline ? 'Online' : 'Offline');
+        setStatus(prev => ({
+          ...prev,
+          isOnline: data.isOnline,
+          lastSeen: data.lastSeen,
+          lastSeenFormatted: data.lastSeenFormatted || prev.lastSeenFormatted
+        }));
       }
     };
+
+    // Register the event listener
+    socketService.on('userStatusUpdate', handleStatusUpdate);
+    socketRegisteredRef.current = true;
     
-    setupSocketListener();
+    // Force an immediate connection attempt if needed
+    if (!socketService.isConnected()) {
+      socketService.reconnect();
+    }
 
     // Cleanup
     return () => {
@@ -92,11 +94,7 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '' }) => {
       }
       
       if (socketRegisteredRef.current) {
-        socketService.off('userStatusUpdate', (data) => {
-          if (data.userId === sellerId) {
-            // This is our listener
-          }
-        });
+        socketService.off('userStatusUpdate', handleStatusUpdate);
         socketRegisteredRef.current = false;
       }
     };
@@ -107,9 +105,16 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '' }) => {
     return <div className={`seller-status-loading ${className}`}>Loading status</div>;
   }
   
-  // Error state
+  // Error state - but still show something useful
   if (error) {
-    return null; // Hide on error to not disrupt the UI
+    return (
+      <div className={`seller-status-container ${className}`}>
+        <div className="status-indicator offline" />
+        <div className="status-text">
+          <span className="offline-text">Status unavailable</span>
+        </div>
+      </div>
+    );
   }
 
   return (
