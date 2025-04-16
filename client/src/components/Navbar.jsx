@@ -40,6 +40,25 @@ const Navbar = ({ user, onLogout }) => {
     if (user) {
       console.log("User avatar:", user.avatar);
       console.log("User display name:", user.displayName);
+      console.log("User email:", user.email);
+    }
+    
+    // CRITICAL FIX: Force refresh of user data in localStorage
+    try {
+      const localData = localStorage.getItem('user_data_backup');
+      if (localData) {
+        const parsedData = JSON.parse(localData);
+        if (parsedData.email && (!user || user.email !== parsedData.email)) {
+          console.log("Email mismatch detected! Local storage has:", parsedData.email);
+          console.log("But current user object has:", user?.email);
+          // Force an update from localStorage data
+          if (typeof window.updateGlobalUser === 'function') {
+            window.updateGlobalUser(parsedData);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error checking localStorage for email:", err);
     }
   }, [user]);
   
@@ -218,6 +237,29 @@ const Navbar = ({ user, onLogout }) => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Force email to be correct in dropdown even if user object doesn't have it
+  const getUserEmail = () => {
+    // First try from user object
+    if (user && user.email) {
+      return user.email;
+    }
+    
+    // If not in user object, check localStorage backup
+    try {
+      const localData = localStorage.getItem('user_data_backup');
+      if (localData) {
+        const parsedData = JSON.parse(localData);
+        if (parsedData.email) {
+          return parsedData.email;
+        }
+      }
+    } catch (err) {
+      console.error("Error reading email from localStorage:", err);
+    }
+    
+    return 'No email provided';
+  };
 
   return (
     <>
@@ -402,7 +444,7 @@ const Navbar = ({ user, onLogout }) => {
                             <div className="dropdown-user-info">
                               <span className="dropdown-username">{user.displayName}</span>
                               <div className="dropdown-email-container">
-                                <span className="dropdown-email">{user.email || 'No email provided'}</span>
+                                <span className="dropdown-email">{getUserEmail()}</span>
                               </div>
                             </div>
                           </div>

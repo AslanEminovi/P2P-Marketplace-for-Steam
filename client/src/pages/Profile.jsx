@@ -199,17 +199,40 @@ const Profile = ({ user, onBalanceUpdate }) => {
         }
       };
 
-      // Always directly inject the new email into localStorage for maximum compatibility
+      console.log("CRITICAL: Saving profile with new email:", formData.email);
+      
+      // EMERGENCY FIX FOR EMAIL UPDATES
+      // Directly store the new email in localStorage regardless of other operations
       try {
-        const currentUserData = localStorage.getItem('user_data_backup');
-        if (currentUserData) {
-          const userData = JSON.parse(currentUserData);
-          userData.email = formData.email;
-          localStorage.setItem('user_data_backup', JSON.stringify(userData));
-          console.log("Pre-emptively updated email in localStorage backup");
+        // 1. Store in a dedicated location just for email
+        localStorage.setItem('user_email', formData.email);
+        console.log("Email saved directly to localStorage:", formData.email);
+        
+        // 2. Update any existing user backup data
+        const existingUserData = localStorage.getItem('user_data_backup');
+        if (existingUserData) {
+          try {
+            const userData = JSON.parse(existingUserData);
+            userData.email = formData.email;
+            localStorage.setItem('user_data_backup', JSON.stringify(userData));
+            console.log("Updated email in user_data_backup");
+          } catch (err) {
+            console.error("Error updating existing user data:", err);
+          }
+        }
+        
+        // 3. Create a backup even if none exists
+        if (!existingUserData) {
+          const minimalUserData = {
+            email: formData.email,
+            firstName: formData.firstName,
+            lastName: formData.lastName
+          };
+          localStorage.setItem('user_data_backup', JSON.stringify(minimalUserData));
+          console.log("Created new user_data_backup with email");
         }
       } catch (err) {
-        console.error("Failed to update localStorage email:", err);
+        console.error("Failed to store email in localStorage:", err);
       }
       
       // Create a Promise wrapper around XMLHttpRequest for easier handling
@@ -252,7 +275,7 @@ const Profile = ({ user, onBalanceUpdate }) => {
       console.log("Save response:", response);
       
       if (response.success) {
-        toast.success("Profile saved successfully");
+        toast.success("Profile updated successfully");
         
         // CRITICAL FIX: Explicitly create a complete user object
         // This fixes the email update issue by ensuring it's properly populated
@@ -297,10 +320,11 @@ const Profile = ({ user, onBalanceUpdate }) => {
           window.updateGlobalUser(completeUpdatedUser);
         }
         
-        // Force reload to ensure all components get the update
-        toast.success("Profile updated - refreshing page to apply changes");
+        // EXTREME MEASURE: Force a hard page reload 
+        // This should definitely refresh all components with the latest data
+        toast.success("Changes saved - refreshing page");
         setTimeout(() => {
-          window.location.reload(true); // Force reload from server, not cache
+          window.location.reload();
         }, 800);
       } else {
         toast.error(response.message || "Failed to save profile");
