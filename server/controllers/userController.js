@@ -50,6 +50,7 @@ exports.updateUserSettings = async (req, res) => {
       lastName,
       country,
       city,
+      tradeUrl,
       settings,
     } = req.body;
 
@@ -61,6 +62,7 @@ exports.updateUserSettings = async (req, res) => {
       lastName,
       country,
       city,
+      tradeUrl,
       settings,
     });
 
@@ -79,6 +81,11 @@ exports.updateUserSettings = async (req, res) => {
     if (lastName !== undefined) user.lastName = lastName;
     if (country !== undefined) user.country = country;
     if (city !== undefined) user.city = city;
+    if (tradeUrl !== undefined) {
+      user.tradeUrl = tradeUrl;
+      // Set trade URL expiry to 30 days from now
+      user.tradeUrlExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    }
 
     // Mark profile as complete if basic information is provided
     if ((firstName || lastName) && email) {
@@ -142,6 +149,31 @@ exports.updateUserSettings = async (req, res) => {
         if (settings.notifications.trades !== undefined) {
           user.settings.notifications.trades = !!settings.notifications.trades;
         }
+
+        if (settings.notifications.market !== undefined) {
+          user.settings.notifications.market = !!settings.notifications.market;
+        }
+
+        if (settings.notifications.pricing !== undefined) {
+          user.settings.notifications.pricing =
+            !!settings.notifications.pricing;
+        }
+      }
+
+      // Update security settings
+      if (settings.security) {
+        // Create security object if it doesn't exist
+        if (!user.settings.security) user.settings.security = {};
+
+        if (settings.security.twoFactorAuth !== undefined) {
+          user.settings.security.twoFactorAuth =
+            !!settings.security.twoFactorAuth;
+        }
+
+        if (settings.security.loginNotifications !== undefined) {
+          user.settings.security.loginNotifications =
+            !!settings.security.loginNotifications;
+        }
       }
     }
 
@@ -163,6 +195,8 @@ exports.updateUserSettings = async (req, res) => {
         phone: savedUser.phone,
         country: savedUser.country,
         city: savedUser.city,
+        tradeUrl: savedUser.tradeUrl,
+        tradeUrlExpiry: savedUser.tradeUrlExpiry,
         profileComplete: savedUser.profileComplete,
         verificationLevel: savedUser.verificationLevel,
         avatar: savedUser.avatar,

@@ -11,7 +11,10 @@ import {
   FaEnvelope,
   FaPhone,
   FaDollarSign,
-  FaWallet
+  FaWallet,
+  FaShieldAlt,
+  FaBell,
+  FaLock
 } from 'react-icons/fa';
 import { API_URL } from '../config/constants';
 import './Settings.css';
@@ -20,21 +23,24 @@ import { useAuth } from '../context/AuthContext';
 const Settings = ({ user, onBalanceUpdate }) => {
   const navigate = useNavigate();
   const { updateUser } = useAuth();
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState('steam');
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState(null);
 
   // Settings form data
   const [formData, setFormData] = useState({
-    displayName: '',
-    email: '',
-    phone: '',
-    currency: 'USD',
-    firstName: '',
-    lastName: '',
-    country: '',
-    city: ''
+    tradeUrl: '',
+    tradeUrlExpiry: null,
+    notificationPreferences: {
+      tradeOffers: true,
+      marketUpdates: true,
+      pricingAlerts: false
+    },
+    securitySettings: {
+      twoFactorAuth: false,
+      loginNotifications: true
+    }
   });
 
   // Fetch user profile data
@@ -55,14 +61,17 @@ const Settings = ({ user, onBalanceUpdate }) => {
         if (response.data.user) {
           console.log("Fetched user data:", response.data.user);
           setFormData({
-            displayName: response.data.user.displayName || '',
-            email: response.data.user.email || '',
-            phone: response.data.user.phone || '',
-            firstName: response.data.user.firstName || '',
-            lastName: response.data.user.lastName || '',
-            country: response.data.user.country || '',
-            city: response.data.user.city || '',
-            currency: response.data.user.settings?.currency || 'USD'
+            tradeUrl: response.data.user.tradeUrl || '',
+            tradeUrlExpiry: response.data.user.tradeUrlExpiry || null,
+            notificationPreferences: {
+              tradeOffers: response.data.user.settings?.notifications?.trades ?? true,
+              marketUpdates: response.data.user.settings?.notifications?.market ?? true,
+              pricingAlerts: response.data.user.settings?.notifications?.pricing ?? false
+            },
+            securitySettings: {
+              twoFactorAuth: response.data.user.settings?.security?.twoFactorAuth ?? false,
+              loginNotifications: response.data.user.settings?.security?.loginNotifications ?? true
+            }
           });
         }
       }
@@ -77,11 +86,23 @@ const Settings = ({ user, onBalanceUpdate }) => {
 
   // Handle form field changes
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
+    const { name, value, type, checked } = e.target;
+    
+    if (name.includes('.')) {
+      const [section, field] = name.split('.');
+      setFormData({
+        ...formData,
+        [section]: {
+          ...formData[section],
+          [field]: type === 'checkbox' ? checked : value
+        }
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: type === 'checkbox' ? checked : value
+      });
+    }
   };
 
   // Save settings
@@ -92,15 +113,17 @@ const Settings = ({ user, onBalanceUpdate }) => {
     try {
       // Log the data being sent for debugging
       console.log('Saving settings with data:', {
-        displayName: formData.displayName,
-        email: formData.email,
-        phone: formData.phone,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        country: formData.country,
-        city: formData.city,
+        tradeUrl: formData.tradeUrl,
         settings: {
-          currency: formData.currency
+          notifications: {
+            trades: formData.notificationPreferences.tradeOffers,
+            market: formData.notificationPreferences.marketUpdates,
+            pricing: formData.notificationPreferences.pricingAlerts
+          },
+          security: {
+            twoFactorAuth: formData.securitySettings.twoFactorAuth,
+            loginNotifications: formData.securitySettings.loginNotifications
+          }
         }
       });
 
@@ -108,15 +131,17 @@ const Settings = ({ user, onBalanceUpdate }) => {
       const response = await axios.put(
         `${API_URL}/user/settings`,
         {
-          displayName: formData.displayName,
-          email: formData.email,
-          phone: formData.phone,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          country: formData.country,
-          city: formData.city,
+          tradeUrl: formData.tradeUrl,
           settings: {
-            currency: formData.currency
+            notifications: {
+              trades: formData.notificationPreferences.tradeOffers,
+              market: formData.notificationPreferences.marketUpdates,
+              pricing: formData.notificationPreferences.pricingAlerts
+            },
+            security: {
+              twoFactorAuth: formData.securitySettings.twoFactorAuth,
+              loginNotifications: formData.securitySettings.loginNotifications
+            }
           }
         },
         { 
@@ -142,14 +167,17 @@ const Settings = ({ user, onBalanceUpdate }) => {
           
           // Update form data with the latest values from server
           setFormData({
-            displayName: response.data.user.displayName || '',
-            email: response.data.user.email || '',
-            phone: response.data.user.phone || '',
-            firstName: response.data.user.firstName || '',
-            lastName: response.data.user.lastName || '',
-            country: response.data.user.country || '',
-            city: response.data.user.city || '',
-            currency: response.data.user.settings?.currency || 'USD'
+            tradeUrl: response.data.user.tradeUrl || '',
+            tradeUrlExpiry: response.data.user.tradeUrlExpiry || null,
+            notificationPreferences: {
+              tradeOffers: response.data.user.settings?.notifications?.trades ?? true,
+              marketUpdates: response.data.user.settings?.notifications?.market ?? true,
+              pricingAlerts: response.data.user.settings?.notifications?.pricing ?? false
+            },
+            securitySettings: {
+              twoFactorAuth: response.data.user.settings?.security?.twoFactorAuth ?? false,
+              loginNotifications: response.data.user.settings?.security?.loginNotifications ?? true
+            }
           });
           
           // Log the updated user object in the context
@@ -160,16 +188,20 @@ const Settings = ({ user, onBalanceUpdate }) => {
           // Fallback to updating with form data
           updateUser({
             ...user,
-            displayName: formData.displayName,
-            email: formData.email,
-            phone: formData.phone,
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            country: formData.country,
-            city: formData.city,
+            tradeUrl: formData.tradeUrl,
             settings: {
               ...user.settings,
-              currency: formData.currency
+              notifications: {
+                ...(user.settings?.notifications || {}),
+                trades: formData.notificationPreferences.tradeOffers,
+                market: formData.notificationPreferences.marketUpdates,
+                pricing: formData.notificationPreferences.pricingAlerts
+              },
+              security: {
+                ...(user.settings?.security || {}),
+                twoFactorAuth: formData.securitySettings.twoFactorAuth,
+                loginNotifications: formData.securitySettings.loginNotifications
+              }
             }
           });
         }
@@ -193,8 +225,9 @@ const Settings = ({ user, onBalanceUpdate }) => {
   // Render sidebar navigation
   const renderSidebar = () => {
     const tabs = [
-      { id: 'general', label: 'General Settings', icon: <FaCog /> },
-      { id: 'steam', label: 'Steam Trading', icon: <FaSteam /> }
+      { id: 'steam', label: 'Steam Trading', icon: <FaSteam /> },
+      { id: 'notifications', label: 'Notifications', icon: <FaBell /> },
+      { id: 'security', label: 'Security', icon: <FaShieldAlt /> }
     ];
 
     return (
@@ -223,162 +256,15 @@ const Settings = ({ user, onBalanceUpdate }) => {
               <FaChevronRight className="settings-nav-arrow" />
             </button>
           ))}
+          
+          <div className="settings-nav-divider"></div>
+          
+          <Link to="/profile" className="settings-nav-item">
+            <span className="settings-nav-icon"><FaUser /></span>
+            <span className="settings-nav-label">Profile Settings</span>
+            <FaChevronRight className="settings-nav-arrow" />
+          </Link>
         </nav>
-      </div>
-    );
-  };
-
-  // Render general settings form
-  const renderGeneralSettings = () => {
-    return (
-      <div className="settings-content-section">
-        <h2><FaUser className="settings-title-icon" /> Profile Settings</h2>
-        <form onSubmit={handleSaveSettings}>
-          <div className="settings-form-group">
-            <label htmlFor="displayName">
-              <FaUser className="settings-input-icon" /> Display Name
-            </label>
-            <input
-              type="text"
-              id="displayName"
-              name="displayName"
-              value={formData.displayName}
-              onChange={handleChange}
-              className="settings-input"
-              placeholder="Your display name"
-              disabled={true}
-            />
-            <small className="settings-input-help">Display name is synchronized with your Steam profile</small>
-          </div>
-
-          <div className="settings-form-row">
-            <div className="settings-form-group">
-              <label htmlFor="firstName">
-                <FaUser className="settings-input-icon" /> First Name
-              </label>
-              <input
-                type="text"
-                id="firstName"
-                name="firstName"
-                value={formData.firstName}
-                onChange={handleChange}
-                className="settings-input"
-                placeholder="Your first name"
-              />
-            </div>
-
-            <div className="settings-form-group">
-              <label htmlFor="lastName">
-                <FaUser className="settings-input-icon" /> Last Name
-              </label>
-              <input
-                type="text"
-                id="lastName"
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleChange}
-                className="settings-input"
-                placeholder="Your last name"
-              />
-            </div>
-          </div>
-
-          <div className="settings-form-group">
-            <label htmlFor="email">
-              <FaEnvelope className="settings-input-icon" /> Email Address
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="settings-input"
-              placeholder="Your email address"
-            />
-          </div>
-
-          <div className="settings-form-group">
-            <label htmlFor="phone">
-              <FaPhone className="settings-input-icon" /> Phone Number
-            </label>
-            <input
-              type="tel"
-              id="phone"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              className="settings-input"
-              placeholder="Your phone number"
-            />
-          </div>
-
-          <div className="settings-form-row">
-            <div className="settings-form-group">
-              <label htmlFor="country">
-                <FaUser className="settings-input-icon" /> Country
-              </label>
-              <input
-                type="text"
-                id="country"
-                name="country"
-                value={formData.country}
-                onChange={handleChange}
-                className="settings-input"
-                placeholder="Your country"
-              />
-            </div>
-
-            <div className="settings-form-group">
-              <label htmlFor="city">
-                <FaUser className="settings-input-icon" /> City
-              </label>
-              <input
-                type="text"
-                id="city"
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                className="settings-input"
-                placeholder="Your city"
-              />
-            </div>
-          </div>
-
-          <h2 className="settings-section-title"><FaCog className="settings-title-icon" /> Preferences</h2>
-
-          <div className="settings-form-group">
-            <label htmlFor="currency">
-              <FaDollarSign className="settings-input-icon" /> Preferred Currency
-            </label>
-            <select
-              id="currency"
-              name="currency"
-              value={formData.currency}
-              onChange={handleChange}
-              className="settings-input"
-            >
-              <option value="USD">US Dollar (USD)</option>
-              <option value="GEL">Georgian Lari (GEL)</option>
-              <option value="EUR">Euro (EUR)</option>
-              <option value="GBP">British Pound (GBP)</option>
-            </select>
-          </div>
-
-          <button type="submit" className="settings-save-button" disabled={loading}>
-            {loading ? (
-              <>
-                <div className="settings-spinner"></div>
-                Saving...
-              </>
-            ) : (
-              <>
-                <FaSave className="settings-button-icon" />
-                Save Changes
-              </>
-            )}
-          </button>
-        </form>
       </div>
     );
   };
@@ -412,21 +298,188 @@ const Settings = ({ user, onBalanceUpdate }) => {
           </div>
         </div>
         
-        <div className="settings-steam-card">
-          <h3>Trade URL</h3>
-          <p>Your Steam trade URL is required to receive trade offers from other users</p>
-          <a 
-            href="https://steamcommunity.com/my/tradeoffers/privacy" 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="settings-action-button steam-external"
-          >
-            Get Steam Trade URL
-          </a>
-          <Link to="/settings/steam" className="settings-action-button">
-            Configure Trade Settings
-          </Link>
-        </div>
+        <form onSubmit={handleSaveSettings} className="settings-form">
+          <div className="settings-form-group">
+            <label htmlFor="tradeUrl">
+              <FaLock className="settings-input-icon" /> Trade URL
+            </label>
+            <input
+              type="text"
+              id="tradeUrl"
+              name="tradeUrl"
+              value={formData.tradeUrl}
+              onChange={handleChange}
+              className="settings-input"
+              placeholder="Enter your Steam trade URL"
+            />
+            <small className="settings-input-help">
+              Your Steam trade URL is needed for receiving trade offers. 
+              <a 
+                href="https://steamcommunity.com/my/tradeoffers/privacy" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="settings-link"
+              >
+                Get your trade URL
+              </a>
+            </small>
+          </div>
+
+          <button type="submit" className="settings-save-button" disabled={loading}>
+            {loading ? (
+              <>
+                <div className="settings-spinner"></div>
+                Saving...
+              </>
+            ) : (
+              <>
+                <FaSave className="settings-button-icon" />
+                Save Trade URL
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+    );
+  };
+
+  // Render notification settings
+  const renderNotificationSettings = () => {
+    return (
+      <div className="settings-content-section">
+        <h2><FaBell className="settings-title-icon" /> Notification Preferences</h2>
+        <p className="settings-description">
+          Control which notifications you receive from the marketplace.
+        </p>
+        
+        <form onSubmit={handleSaveSettings} className="settings-form">
+          <div className="settings-check-group">
+            <input
+              type="checkbox"
+              id="tradeOffers"
+              name="notificationPreferences.tradeOffers"
+              checked={formData.notificationPreferences.tradeOffers}
+              onChange={handleChange}
+              className="settings-checkbox"
+            />
+            <label htmlFor="tradeOffers">
+              Trade Offers and Updates
+            </label>
+            <small className="settings-input-help">
+              Receive notifications when you receive trade offers or when trade status changes
+            </small>
+          </div>
+          
+          <div className="settings-check-group">
+            <input
+              type="checkbox"
+              id="marketUpdates"
+              name="notificationPreferences.marketUpdates"
+              checked={formData.notificationPreferences.marketUpdates}
+              onChange={handleChange}
+              className="settings-checkbox"
+            />
+            <label htmlFor="marketUpdates">
+              Marketplace Updates
+            </label>
+            <small className="settings-input-help">
+              Receive notifications about new listings and marketplace news
+            </small>
+          </div>
+          
+          <div className="settings-check-group">
+            <input
+              type="checkbox"
+              id="pricingAlerts"
+              name="notificationPreferences.pricingAlerts"
+              checked={formData.notificationPreferences.pricingAlerts}
+              onChange={handleChange}
+              className="settings-checkbox"
+            />
+            <label htmlFor="pricingAlerts">
+              Pricing Alerts
+            </label>
+            <small className="settings-input-help">
+              Get notified when items in your wishlist change in price
+            </small>
+          </div>
+          
+          <button type="submit" className="settings-save-button" disabled={loading}>
+            {loading ? (
+              <>
+                <div className="settings-spinner"></div>
+                Saving...
+              </>
+            ) : (
+              <>
+                <FaSave className="settings-button-icon" />
+                Save Notification Settings
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+    );
+  };
+
+  // Render security settings
+  const renderSecuritySettings = () => {
+    return (
+      <div className="settings-content-section">
+        <h2><FaShieldAlt className="settings-title-icon" /> Security Settings</h2>
+        <p className="settings-description">
+          Enhance the security of your account with these settings.
+        </p>
+        
+        <form onSubmit={handleSaveSettings} className="settings-form">
+          <div className="settings-check-group">
+            <input
+              type="checkbox"
+              id="twoFactorAuth"
+              name="securitySettings.twoFactorAuth"
+              checked={formData.securitySettings.twoFactorAuth}
+              onChange={handleChange}
+              className="settings-checkbox"
+            />
+            <label htmlFor="twoFactorAuth">
+              Enable Two-Factor Authentication
+            </label>
+            <small className="settings-input-help">
+              Add an extra layer of security to your account
+            </small>
+          </div>
+          
+          <div className="settings-check-group">
+            <input
+              type="checkbox"
+              id="loginNotifications"
+              name="securitySettings.loginNotifications"
+              checked={formData.securitySettings.loginNotifications}
+              onChange={handleChange}
+              className="settings-checkbox"
+            />
+            <label htmlFor="loginNotifications">
+              Login Notifications
+            </label>
+            <small className="settings-input-help">
+              Receive notifications when someone logs into your account
+            </small>
+          </div>
+          
+          <button type="submit" className="settings-save-button" disabled={loading}>
+            {loading ? (
+              <>
+                <div className="settings-spinner"></div>
+                Saving...
+              </>
+            ) : (
+              <>
+                <FaSave className="settings-button-icon" />
+                Save Security Settings
+              </>
+            )}
+          </button>
+        </form>
       </div>
     );
   };
@@ -434,12 +487,14 @@ const Settings = ({ user, onBalanceUpdate }) => {
   // Render content based on active tab
   const renderContent = () => {
     switch(activeTab) {
-      case 'general':
-        return renderGeneralSettings();
       case 'steam':
         return renderSteamSettings();
+      case 'notifications':
+        return renderNotificationSettings();
+      case 'security':
+        return renderSecuritySettings();
       default:
-        return renderGeneralSettings();
+        return renderSteamSettings();
     }
   };
 

@@ -416,18 +416,9 @@ const Navbar = ({ user, onLogout }) => {
                           </div>
                           <div className="dropdown-user-info">
                             <span className="dropdown-username">{user.displayName}</span>
-                            <span className="dropdown-email">{user.email || 'No email provided'}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="dropdown-balance">
-                          <div className="dropdown-balance-label">Balance</div>
-                          <div className="dropdown-balance-amount">
-                            <span className="dropdown-currency-symbol">
-                              {selectedCurrency === 'USD' ? '$' : selectedCurrency === 'GEL' ? '₾' : '€'}
-                            </span>
-                            {formatBalance(user.walletBalance || 0)}
-                            <span className="dropdown-currency-code">{selectedCurrency}</span>
+                            <div className="dropdown-email-container">
+                              <span className="dropdown-email">{user.email || 'No email provided'}</span>
+                            </div>
                           </div>
                         </div>
                         
