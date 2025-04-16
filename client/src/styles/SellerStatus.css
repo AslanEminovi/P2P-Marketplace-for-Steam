@@ -10,12 +10,13 @@
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.2);
 }
 
 .status-indicator.online {
   background-color: #4ade80;
   box-shadow: 0 0 5px rgba(74, 222, 128, 0.5);
-  animation: pulse 2s infinite;
+  animation: subtle-pulse 3s infinite;
 }
 
 .status-indicator.offline {
@@ -25,10 +26,14 @@
 .status-text {
   font-size: 0.8rem;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .online-text {
   color: #4ade80;
+  font-weight: 600;
 }
 
 .offline-text {
@@ -39,21 +44,47 @@
   color: #64748b;
   font-size: 0.75rem;
   font-weight: 400;
+  margin-left: 2px;
 }
 
 .seller-status-loading {
   font-size: 0.8rem;
   color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-@keyframes pulse {
+.seller-status-loading::before {
+  content: "";
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid rgba(100, 116, 139, 0.2);
+  border-top-color: #64748b;
+  animation: spin 1s linear infinite;
+}
+
+/* Replace the intense pulse with a more subtle one */
+@keyframes subtle-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4);
   }
-  70% {
-    box-shadow: 0 0 0 6px rgba(74, 222, 128, 0);
+  50% {
+    box-shadow: 0 0 0 4px rgba(74, 222, 128, 0);
   }
   100% {
     box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+  }
+}
+
+/* Add a spin animation for the loading indicator */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
   }
 } 

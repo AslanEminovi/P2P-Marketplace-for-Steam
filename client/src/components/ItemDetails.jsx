@@ -366,8 +366,17 @@ const ItemDetails = ({
                                 </div>
                               )}
                             </div>
-                            <div className="owner-name">
-                              {item.owner.displayName || 'Anonymous Seller'}
+                            <div className="owner-details">
+                              <div className="owner-name">
+                                {item.owner.displayName || 'Anonymous Seller'}
+                              </div>
+                              {item.owner._id && (
+                                <SellerStatus 
+                                  sellerId={item.owner._id} 
+                                  showLastSeen={true}
+                                  className="item-details-seller-status"
+                                />
+                              )}
                             </div>
                           </div>
                         </div>

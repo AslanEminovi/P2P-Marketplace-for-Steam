@@ -214,6 +214,7 @@
   overflow: hidden;
   flex-shrink: 0;
   border: 2px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(15, 23, 42, 0.5);
 }
 
 .owner-avatar img {
@@ -234,10 +235,38 @@
   font-size: 1rem;
 }
 
+.owner-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
 .owner-name {
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   color: white;
+}
+
+/* Enhanced styles for seller status in item details */
+.item-details-seller-status {
+  background-color: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  padding: 2px 6px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.item-details-seller-status .status-indicator {
+  width: 10px;
+  height: 10px;
+}
+
+.item-details-seller-status .online-text {
+  font-weight: 600;
+}
+
+.item-details-seller-status .last-seen-text {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* Action Buttons Container */
