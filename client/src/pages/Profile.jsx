@@ -220,17 +220,28 @@ const Profile = ({ user, onBalanceUpdate }) => {
       
       console.log('Sending payload to server:', payload);
       
-      const response = await axios.put(
-        `${API_URL}/user/settings`,
-        payload,
-        { 
-          withCredentials: true,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache' // Ensure no caching
-          }
+      // Get the current auth token to ensure proper authentication
+      const authToken = localStorage.getItem('auth_token');
+      
+      // Simplified API call with better error handling and explicit configuration
+      const response = await axios({
+        method: 'PUT',
+        url: `${API_URL}/user/settings`,
+        data: payload,
+        withCredentials: true,
+        timeout: 10000, // 10 second timeout
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          // Include auth token in header if available
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+        },
+        // Add auth token as query param as well (belt and suspenders approach)
+        params: {
+          ...(authToken ? { auth_token: authToken } : {}),
+          _t: Date.now() // Add timestamp to prevent caching
         }
-      );
+      });
       
       console.log('Server response:', response.data);
       
@@ -277,7 +288,6 @@ const Profile = ({ user, onBalanceUpdate }) => {
         
         // Also update local storage if it's being used (optional backup)
         try {
-          const authToken = localStorage.getItem('auth_token');
           if (authToken) {
             localStorage.setItem('user_data', JSON.stringify(completeUpdatedUser));
           }
@@ -286,19 +296,54 @@ const Profile = ({ user, onBalanceUpdate }) => {
         }
         
         setIsEditing(false);
-        
-        // Optional: Refresh data from server after a short delay to ensure consistency
-        setTimeout(() => {
-          fetchUserProfile();
-        }, 1000);
       } else {
+        console.error('Server returned error:', response.data);
         toast.error(response.data.message || 'Failed to save profile');
       }
     } catch (err) {
       console.error('Error saving profile:', err);
-      console.error('Error response:', err.response?.data);
-      setError(err.response?.data?.error || 'Failed to save profile');
-      toast.error('Failed to save profile: ' + (err.response?.data?.error || err.message));
+      
+      // More detailed error logging
+      const errorMessage = err.response ? 
+        `Failed to save profile: ${err.response.status} - ${err.response.statusText}` :
+        `Failed to save profile: ${err.message || 'Network error'}`;
+        
+      console.error(errorMessage);
+      console.error('Error details:', err);
+      
+      if (err.response) {
+        console.error('Response data:', err.response.data);
+      }
+      
+      // Show a more specific error message to the user
+      let userErrorMessage = 'Failed to save profile';
+      
+      if (err.message === 'Network Error') {
+        userErrorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (err.response) {
+        if (err.response.status === 401 || err.response.status === 403) {
+          userErrorMessage = 'Authentication error. Please log in again.';
+        } else if (err.response.status === 400) {
+          userErrorMessage = err.response.data?.error || 'Invalid data submitted.';
+        } else if (err.response.status >= 500) {
+          userErrorMessage = 'Server error. Please try again later.';
+        }
+      } else if (err.code === 'ECONNABORTED') {
+        userErrorMessage = 'Request timed out. Please try again later.';
+      }
+      
+      setError(userErrorMessage);
+      toast.error(userErrorMessage);
+      
+      // If authentication error, refresh the token
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        // Refresh token or redirect to login
+        if (typeof window.location !== 'undefined') {
+          setTimeout(() => {
+            window.location.href = `${API_URL}/auth/steam`;
+          }, 1500);
+        }
+      }
     } finally {
       setSaving(false);
     }
