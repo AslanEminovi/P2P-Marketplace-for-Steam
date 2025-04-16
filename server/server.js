@@ -10,6 +10,8 @@ const http = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const { createAdapter } = require("@socket.io/redis-adapter");
+const connectRedis = require("connect-redis");
+const { redisClient } = require("./config/redis");
 
 // Import Redis configuration
 const redisConfig = require("./config/redis");
@@ -101,40 +103,33 @@ if (!process.env.SESSION_SECRET) {
   );
 }
 
-// Express session configuration (required by Passport)
-const sessionMiddleware = session({
-  secret: process.env.SESSION_SECRET,
-  resave: true, // Changed to true to ensure session is saved
-  saveUninitialized: true, // Changed to true to create session for all users
-  cookie: {
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-    secure: process.env.NODE_ENV === "production", // Set true in production
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Needed for cross-site cookie in production
-    httpOnly: true, // Prevents client-side JS from reading the cookie
-    // Let the browser handle cookie domain
-    domain: undefined,
-    path: "/",
-  },
-});
-
-// Log session configuration for debugging
-console.log("Session configuration:");
-console.log("- NODE_ENV:", process.env.NODE_ENV);
-console.log("- PORT:", PORT);
-console.log("- CLIENT_URL:", config.CLIENT_URL);
-console.log("- Cookie secure:", process.env.NODE_ENV === "production");
+// Session configuration
 console.log(
-  "- Cookie sameSite:",
-  process.env.NODE_ENV === "production" ? "none" : "lax"
+  `Environment: ${process.env.NODE_ENV}, Port: ${PORT}, Client URL: ${process.env.CLIENT_URL}`
 );
-console.log("- Cookie domain: undefined (browser will handle)");
-console.log("- Cookie path: /");
-console.log(
-  "- Session secret length:",
-  process.env.SESSION_SECRET ? process.env.SESSION_SECRET.length : "not set"
-);
+console.log(`Secure cookies: ${process.env.NODE_ENV === "production"}`);
+console.log(`Session secret length: ${process.env.SESSION_SECRET?.length}`);
 
-app.use(sessionMiddleware);
+// Initialize Redis session store
+const RedisStore = connectRedis(session);
+
+// Configure express-session
+app.use(
+  session({
+    store: new RedisStore({
+      client: redisClient,
+      prefix: "cs2marketplace:sess:",
+    }),
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    },
+  })
+);
 
 // Initialize Passport and restore authentication state
 app.use(passport.initialize());
