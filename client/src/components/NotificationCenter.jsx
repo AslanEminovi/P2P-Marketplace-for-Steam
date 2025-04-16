@@ -5,6 +5,7 @@ import { useTranslation } from '../utils/languageUtils';
 import OfferActionMenu from './OfferActionMenu';
 import { API_URL } from '../config/constants';
 import socketService from '../services/socketService';
+import { FaTimes } from 'react-icons/fa';
 
 // Define notification types and their associated colors/icons
 const NOTIFICATION_TYPES = {
@@ -78,6 +79,7 @@ const NotificationCenter = ({ user }) => {
   const [allNotifications, setAllNotifications] = useState([]);
   const [allNotificationsLoading, setAllNotificationsLoading] = useState(false);
   const [welcomeShown, setWelcomeShown] = useState(false);
+  const [isSidePanelVisible, setIsSidePanelVisible] = useState(false);
   const dropdownRef = useRef(null);
   const sidePanelRef = useRef(null);
   const { t } = useTranslation();
@@ -463,6 +465,148 @@ const NotificationCenter = ({ user }) => {
     };
   }, [showAllNotifications]);
 
+  // Side panel for notifications (mobile or detailed view)
+  const SidePanel = ({ visible, onClose, children }) => {
+    return visible ? (
+      <div 
+        style={{
+          position: 'fixed',
+          top: '70px', // Align exactly at the bottom of navbar
+          right: '0',
+          width: '380px',
+          height: 'calc(100vh - 70px)', // Full height minus navbar height
+          backgroundColor: 'rgba(21, 28, 43, 0.95)', // Match navbar color
+          boxShadow: '-4px 0 12px rgba(0, 0, 0, 0.2)',
+          overflowY: 'auto',
+          zIndex: 900,
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(51, 115, 242, 0.3)',
+          borderTop: 'none', // No border at top to connect with navbar
+          padding: 0,
+          margin: 0,
+          transition: 'transform 0.3s ease-in-out',
+          transform: visible ? 'translateX(0)' : 'translateX(100%)'
+        }}
+      >
+        <div style={{ 
+          padding: '16px', 
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center' 
+        }}>
+          <h3 style={{ 
+            margin: 0,
+            color: '#fff',
+            fontSize: '1.2rem'
+          }}>
+            Notifications
+            {unreadCount > 0 && (
+              <span style={{
+                marginLeft: '8px',
+                backgroundColor: 'rgba(51, 115, 242, 0.2)',
+                color: '#fff',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                padding: '2px 6px',
+                borderRadius: '10px'
+              }}>
+                {unreadCount}
+              </span>
+            )}
+          </h3>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#8a8f98',
+              cursor: 'pointer',
+              fontSize: '20px',
+              padding: '4px'
+            }}
+          >
+            <FaTimes />
+          </button>
+        </div>
+        <div style={{ padding: '10px' }}>
+          {children}
+        </div>
+      </div>
+    ) : null;
+  };
+
+  // Handle notification click
+  const handleNotificationClick = (notification) => {
+    if (!notification.read) {
+      markAsRead(notification._id);
+    }
+
+    if (notification.link) {
+      window.location.href = notification.link;
+    }
+  };
+
+  // Get notification color based on type
+  const getNotificationColor = (type) => {
+    const typeMap = {
+      'success': '#4ade80',
+      'error': '#ef4444',
+      'info': '#38bdf8',
+      'warning': '#f59e0b',
+      'trade': '#8b5cf6',
+      'offer': '#8b5cf6',
+      'transaction': '#4ade80',
+      'system': '#38bdf8'
+    };
+    
+    return typeMap[type] || '#38bdf8';
+  };
+
+  // Format time ago
+  const formatTimeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now - date;
+    
+    // Less than a minute
+    if (diff < 60 * 1000) {
+      return 'Just now';
+    }
+    
+    // Less than an hour
+    if (diff < 60 * 60 * 1000) {
+      const minutes = Math.floor(diff / (60 * 1000));
+      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    }
+    
+    // Less than a day
+    if (diff < 24 * 60 * 60 * 1000) {
+      const hours = Math.floor(diff / (60 * 60 * 1000));
+      return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    }
+    
+    // Less than a week
+    if (diff < 7 * 24 * 60 * 60 * 1000) {
+      const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+      return `${days} day${days > 1 ? 's' : ''} ago`;
+    }
+    
+    // Otherwise show the date
+    return date.toLocaleDateString();
+  };
+
+  // Mark all notifications as read
+  const markAllAsRead = async () => {
+    if (loading) return;
+    
+    try {
+      await markAsRead(); // Call the existing function with no parameters to mark all as read
+    } catch (err) {
+      console.error('Error marking all notifications as read:', err);
+    }
+  };
+
   return (
     <>
       {/* Welcome notification - only shown on first visit */}
@@ -576,439 +720,188 @@ const NotificationCenter = ({ user }) => {
 
         {isOpen && (
           <div
-            className="notification-dropdown"
             ref={dropdownRef}
             style={{
-              backgroundColor: '#1f2937',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '8px',
-              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)',
+              position: 'absolute',
+              top: '100%',
+              right: '0',
               width: '320px',
-              maxHeight: '550px',
+              maxHeight: '420px',
+              backgroundColor: 'rgba(21, 28, 43, 0.95)',
+              boxShadow: '0 8px 16px rgba(0, 0, 0, 0.15)',
+              borderRadius: '0 0 8px 8px',
+              border: '1px solid rgba(51, 115, 242, 0.3)',
+              borderTop: 'none',
               overflowY: 'auto',
-              zIndex: 1000
+              zIndex: 999,
+              backdropFilter: 'blur(8px)',
             }}
           >
-            <div style={{
-              padding: '14px 16px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <h3 style={{
-                margin: 0,
-                color: '#f1f1f1',
-                fontSize: '16px',
-                fontWeight: '600'
-              }}>
-                {t('notifications.title')}
-                {unreadCount > 0 && (
-                  <span style={{
-                    marginLeft: '8px',
-                    backgroundColor: 'rgba(76, 44, 166, 0.2)',
-                    color: '#a78bfa',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    padding: '2px 6px',
-                    borderRadius: '10px'
-                  }}>
-                    {unreadCount}
-                  </span>
-                )}
-              </h3>
-
-              {unreadCount > 0 && (
-                <button
-                  style={{
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    color: '#94a3b8',
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onClick={() => markAsRead()}
-                >
-                  {t('notifications.markAllRead')}
-                </button>
-              )}
-            </div>
-
-            <div style={{
-              maxHeight: '400px',
-              overflowY: 'auto',
-              padding: '10px',
-              scrollbarWidth: 'thin',
-              scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
-            }}>
-              {loading && notifications.length === 0 ? (
-                <div
-                  style={{
-                    padding: '20px',
-                    textAlign: 'center',
-                    color: '#94a3b8'
-                  }}
-                >
-                  <div className="spinner" style={{
-                    display: 'inline-block',
-                    width: '30px',
-                    height: '30px',
-                    border: '3px solid rgba(255, 255, 255, 0.1)',
-                    borderTop: '3px solid #4ade80',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite',
-                    marginBottom: '10px'
-                  }} />
-                  <p>{t('notifications.loading')}</p>
-                </div>
-              ) : notifications.length === 0 ? (
-                <div
-                  style={{
-                    padding: '30px 20px',
-                    textAlign: 'center',
-                    color: '#94a3b8',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '200px'
-                  }}
-                >
-                  <svg
-                    width="48"
-                    height="48"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ marginBottom: '16px', opacity: 0.7 }}
-                  >
-                    <path d="M21 15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                    <path d="M3 9l9 6 9-6"></path>
-                  </svg>
-                  <p style={{ margin: '0 0 8px 0', fontWeight: '500' }}>{t('notifications.empty')}</p>
-                  <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.7 }}>New notifications will appear here</p>
-                </div>
-              ) : (
-                notifications.map(notification => (
-                  <div
-                    key={notification._id}
-                    style={{
-                      position: 'relative',
-                      padding: '12px',
-                      marginBottom: '8px',
-                      backgroundColor: notification.read ? 'transparent' : 'rgba(76, 44, 166, 0.1)',
-                      borderRadius: '8px',
-                      border: `1px solid ${notification.read ? 'rgba(255, 255, 255, 0.05)' : 'rgba(76, 44, 166, 0.2)'}`,
-                      boxShadow: notification.read ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onClick={() => {
-                      if (!notification.read) {
-                        markAsRead(notification._id);
-                      }
-
-                      if (notification.link) {
-                        window.location.href = notification.link;
-                      }
-
-                      setIsOpen(false);
-                    }}
-                  >
-                    <div style={{
-                      display: 'flex'
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: '0', color: '#fff', fontSize: '1rem' }}>
+                  Notifications
+                  {unreadCount > 0 && (
+                    <span style={{
+                      marginLeft: '8px',
+                      backgroundColor: 'rgba(51, 115, 242, 0.2)', 
+                      color: '#fff',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      padding: '2px 6px',
+                      borderRadius: '10px'
                     }}>
-                      <div
-                        style={{
-                          marginRight: '12px',
-                          padding: '8px',
-                          backgroundColor: notification.read
-                            ? 'rgba(255, 255, 255, 0.1)'
-                            : 'rgba(76, 44, 166, 0.8)',
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxShadow: notification.read
-                            ? 'none'
-                            : '0 0 15px rgba(76, 44, 166, 0.3)',
-                          width: '36px',
-                          height: '36px',
-                          minWidth: '36px',
-                          alignSelf: 'flex-start'
-                        }}
-                      >
-                        {getNotificationIcon(notification.type)}
-                      </div>
-
-                      <div>
-                        <div style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          marginBottom: '4px'
-                        }}>
-                          <h4 style={{
-                            margin: 0,
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            color: notification.read ? '#e5e7eb' : '#f1f1f1'
-                          }}>
-                            {notification.title}
-                          </h4>
-                          <span style={{
-                            fontSize: '11px',
-                            color: '#9ca3af',
-                            marginLeft: '8px'
-                          }}>
-                            {formatDate(notification.createdAt)}
-                          </span>
-                        </div>
-
-                        <p style={{
-                          margin: 0,
-                          fontSize: '12px',
-                          color: notification.read ? '#94a3b8' : '#d1d5db',
-                          lineHeight: '1.5'
-                        }}>
-                          {notification.message}
-                        </p>
-                      </div>
-                    </div>
-
-                    {!notification.read && (
-                      <div
-                        className="pulse"
-                        style={{
-                          position: 'absolute',
-                          top: '15px',
-                          right: '16px',
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: '#4ade80',
-                          boxShadow: '0 0 10px rgba(74, 222, 128, 0.5)'
-                        }}
-                      />
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Add View All button at the bottom of dropdown */}
-            {notifications.length > 0 && (
-              <div
-                style={{
-                  padding: '12px',
-                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                  textAlign: 'center'
-                }}
-              >
+                      {unreadCount}
+                    </span>
+                  )}
+                </h3>
                 <button
-                  onClick={handleViewAllNotifications}
+                  onClick={markAllAsRead}
+                  disabled={loading || notifications.every(n => n.read)}
                   style={{
-                    color: '#cbd5e1',
-                    textDecoration: 'none',
-                    fontSize: '14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '5px',
-                    padding: '8px',
-                    borderRadius: '8px',
-                    transition: 'all 0.2s ease',
                     background: 'none',
                     border: 'none',
-                    width: '100%',
-                    cursor: 'pointer'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
-                    e.target.style.color = '#f1f1f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = 'transparent';
-                    e.target.style.color = '#cbd5e1';
+                    color: notifications.some(n => !n.read) ? '#3373f2' : '#585d6a',
+                    cursor: notifications.some(n => !n.read) ? 'pointer' : 'default',
+                    fontSize: '0.8rem',
+                    padding: '0',
+                    opacity: loading ? 0.5 : 1
                   }}
                 >
-                  View All Notifications
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 12h14M12 5l7 7-7 7" />
-                  </svg>
+                  Mark all read
                 </button>
               </div>
+            </div>
+
+            {loading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+                <div className="loading-spinner"></div>
+              </div>
+            ) : notifications.length === 0 ? (
+              <div style={{ 
+                padding: '20px', 
+                textAlign: 'center', 
+                color: '#8a8f98', 
+                fontSize: '0.9rem'
+              }}>
+                No notifications
+              </div>
+            ) : (
+              <div>
+                {notifications.map((notification) => (
+                  <div
+                    key={notification._id}
+                    onClick={() => handleNotificationClick(notification)}
+                    style={{
+                      padding: '12px 16px',
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                      backgroundColor: notification.read ? 'transparent' : 'rgba(51, 115, 242, 0.1)',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = notification.read 
+                        ? 'rgba(255, 255, 255, 0.05)' 
+                        : 'rgba(51, 115, 242, 0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = notification.read 
+                        ? 'transparent' 
+                        : 'rgba(51, 115, 242, 0.1)';
+                    }}
+                  >
+                    {/* Notification Icon */}
+                    <div style={{ marginRight: '12px', fontSize: '16px', color: getNotificationColor(notification.type) }}>
+                      {getNotificationIcon(notification.type)}
+                    </div>
+                    
+                    {/* Notification Content */}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ 
+                        fontSize: '0.85rem', 
+                        color: '#fff', 
+                        fontWeight: notification.read ? 'normal' : 'bold',
+                        marginBottom: '4px'
+                      }}>
+                        {notification.title}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#8a8f98' }}>
+                        {notification.message}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#585d6a', marginTop: '4px' }}>
+                        {formatTimeAgo(notification.createdAt)}
+                      </div>
+                    </div>
+                    
+                    {/* Unread Indicator */}
+                    {!notification.read && (
+                      <div style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        backgroundColor: getNotificationColor(notification.type),
+                        position: 'absolute',
+                        top: '16px',
+                        right: '16px'
+                      }}></div>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
+            
+            <div style={{ 
+              textAlign: 'center', 
+              padding: '12px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.05)'
+            }}>
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsSidePanelVisible(true);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#3373f2',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem'
+                }}
+              >
+                View All
+              </button>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Add Side Panel for All Notifications */}
+      {/* Notification Side Panel */}
       {showAllNotifications && (
-        <div
-          style={{
-            position: 'fixed',
-            top: '70px',
-            right: 0,
-            width: '400px',
-            maxWidth: '90vw',
-            height: 'calc(100vh - 70px)',
-            backgroundColor: 'rgba(31, 41, 55, 0.95)',
-            boxShadow: '-5px 0 25px rgba(0, 0, 0, 0.3)',
-            zIndex: 999,
-            overflowY: 'auto',
-            backdropFilter: 'blur(8px)',
-            transition: 'transform 0.3s ease-in-out',
-            transform: showAllNotifications ? 'translateX(0)' : 'translateX(100%)',
-            borderTopLeftRadius: '12px',
-            borderBottomLeftRadius: '12px'
-          }}
-          ref={sidePanelRef}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '14px 16px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-            }}
-          >
-            <h3 style={{ 
-              color: '#f1f1f1', 
-              margin: 0, 
-              fontSize: '16px',
-              fontWeight: '600'
-            }}>
-              All Notifications
-            </h3>
-            <button
-              onClick={() => setShowAllNotifications(false)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#f1f1f1',
-                cursor: 'pointer',
-                padding: '8px',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          </div>
-
-          <div style={{ padding: '20px' }}>
-            {unreadCount > 0 && (
-              <button
-                onClick={() => markAsRead()}
-                style={{
-                  backgroundColor: 'rgba(74, 222, 128, 0.2)',
-                  color: '#4ade80',
-                  border: 'none',
-                  padding: '10px 15px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '0.9rem',
-                  fontWeight: '500',
-                  marginBottom: '20px',
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 6L9 17 4 12"></path>
-                </svg>
-                Mark All as Read
-              </button>
-            )}
-
-            {allNotificationsLoading ? (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '40px 0'
-                }}
-              >
-                <div className="spinner" style={{
-                  display: 'inline-block',
-                  width: '40px',
-                  height: '40px',
-                  border: '3px solid rgba(255, 255, 255, 0.1)',
-                  borderTop: '3px solid #4ade80',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
-                  marginBottom: '15px'
-                }} />
-                <p style={{ color: '#94a3b8' }}>Loading notifications...</p>
-              </div>
-            ) : allNotifications.length === 0 ? (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '60px 0',
-                  color: '#94a3b8'
-                }}
-              >
-                <svg
-                  width="64"
-                  height="64"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{ marginBottom: '20px', opacity: 0.7 }}
-                >
-                  <path d="M21 15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                  <path d="M3 9l9 6 9-6"></path>
-                </svg>
-                <h3 style={{ margin: '0 0 10px 0' }}>No notifications yet</h3>
-                <p style={{ margin: 0, opacity: 0.7 }}>You'll see your notifications here when you receive them</p>
-              </div>
-            ) : (
-              allNotifications.map((notification) => (
+        <SidePanel visible={showAllNotifications} onClose={() => setShowAllNotifications(false)}>
+          {loading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+              <div className="spinner"></div>
+            </div>
+          ) : allNotifications.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px', color: '#8a8f98' }}>
+              No notifications to display
+            </div>
+          ) : (
+            <div>
+              {allNotifications.map((notification) => (
                 <div
                   key={notification._id}
-                  className="notification-item"
                   style={{
-                    padding: '15px',
-                    marginBottom: '12px',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                    background: notification.read
-                      ? 'transparent'
-                      : 'rgba(76, 44, 166, 0.1)',
-                    borderRadius: '8px',
-                    border: `1px solid ${notification.read ? 'rgba(255, 255, 255, 0.05)' : 'rgba(76, 44, 166, 0.2)'}`,
-                    backdropFilter: 'blur(8px)',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    position: 'relative',
-                    boxShadow: notification.read ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                    padding: '12px',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                    backgroundColor: notification.read ? 'transparent' : 'rgba(51, 115, 242, 0.1)',
+                    cursor: notification.link ? 'pointer' : 'default',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    transition: 'background-color 0.2s ease'
                   }}
                   onClick={() => {
                     if (!notification.read) {
@@ -1017,122 +910,32 @@ const NotificationCenter = ({ user }) => {
 
                     if (notification.link) {
                       window.location.href = notification.link;
-                      setShowAllNotifications(false);
                     }
+
+                    setShowAllNotifications(false);
                   }}
                 >
-                  <div style={{ display: 'flex' }}>
-                    <div
-                      style={{
-                        marginRight: '15px',
-                        padding: '10px',
-                        backgroundColor: notification.read
-                          ? 'rgba(255, 255, 255, 0.1)'
-                          : 'rgba(76, 44, 166, 0.8)',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: notification.read
-                          ? 'none'
-                          : '0 0 15px rgba(76, 44, 166, 0.3)',
-                        width: '42px',
-                        height: '42px',
-                        minWidth: '42px',
-                        alignSelf: 'flex-start'
-                      }}
-                    >
-                      {getNotificationIcon(notification.type)}
+                  <div style={{ marginRight: '12px', color: getNotificationIcon(notification.type) }}>
+                    {getNotificationIcon(notification.type)}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ 
+                      fontSize: '14px', 
+                      marginBottom: '4px', 
+                      color: notification.read ? '#8a8f98' : '#fff',
+                      fontWeight: notification.read ? 'normal' : 'bold'
+                    }}>
+                      {notification.message}
                     </div>
-
-                    <div style={{ flex: 1 }}>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        justifyContent: 'space-between',
-                        marginBottom: '6px'
-                      }}>
-                        <h4 style={{
-                          margin: 0,
-                          fontSize: '16px',
-                          fontWeight: '600',
-                          color: '#f1f1f1'
-                        }}>
-                          {notification.title}
-                        </h4>
-
-                        <span style={{
-                          color: '#9ca3af',
-                          fontSize: '12px',
-                          marginLeft: '10px',
-                          flexShrink: 0
-                        }}>
-                          {formatDate(notification.createdAt)}
-                        </span>
-                      </div>
-
-                      <p style={{
-                        color: notification.read ? '#94a3b8' : '#d1d5db',
-                        margin: '0 0 8px 0',
-                        fontSize: '14px',
-                        lineHeight: '1.5'
-                      }}>
-                        {notification.message}
-                      </p>
-
-                      {notification.link && (
-                        <div>
-                          <Link
-                            to={notification.link}
-                            style={{
-                              color: '#4ade80',
-                              fontSize: '14px',
-                              textDecoration: 'none',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '5px',
-                              marginTop: '6px',
-                              fontWeight: '500'
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowAllNotifications(false);
-                              if (!notification.read) {
-                                markAsRead(notification._id);
-                              }
-                            }}
-                          >
-                            View Details
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M5 12h14M12 5l7 7-7 7" />
-                            </svg>
-                          </Link>
-                        </div>
-                      )}
+                    <div style={{ fontSize: '12px', color: '#8a8f98' }}>
+                      {formatDate(notification.createdAt)}
                     </div>
                   </div>
-
-                  {/* Unread indicator */}
-                  {!notification.read && (
-                    <div
-                      className="pulse"
-                      style={{
-                        position: 'absolute',
-                        top: '15px',
-                        right: '16px',
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        backgroundColor: '#4ade80',
-                        boxShadow: '0 0 10px rgba(74, 222, 128, 0.5)'
-                      }}
-                    />
-                  )}
                 </div>
-              ))
-            )}
-          </div>
-        </div>
+              ))}
+            </div>
+          )}
+        </SidePanel>
       )}
     </>
   );
