@@ -6,7 +6,8 @@ import NotificationCenter from './NotificationCenter';
 import LanguageSwitcher from './LanguageSwitcher';
 import './Navbar.css';
 import { toast } from 'react-hot-toast';
-import { FaWallet, FaCaretDown, FaPlus, FaSearch, FaUser, FaBars, FaTimes, FaMoneyBillWave, FaDollarSign, FaLiraSign } from 'react-icons/fa';
+import { FaWallet, FaCaretDown, FaPlus, FaSearch, FaUser, FaBars, FaTimes, FaMoneyBillWave, FaDollarSign, FaLiraSign, FaChevronDown, FaExchangeAlt } from 'react-icons/fa';
+import { IoMdClose } from 'react-icons/io';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/cs-logo.png';
 
@@ -150,14 +151,8 @@ const Navbar = ({ user, onLogout }) => {
   
   // Get user initials for avatar placeholder
   const getUserInitials = () => {
-    if (!user || !user.displayName) return '?';
-    
-    const names = user.displayName.split(' ');
-    if (names.length >= 2) {
-      return `${names[0][0]}${names[1][0]}`.toUpperCase();
-    }
-    
-    return names[0][0].toUpperCase();
+    if (!user || !user.displayName) return '';
+    return user.displayName.charAt(0).toUpperCase();
   };
   
   // Format balance
@@ -348,11 +343,13 @@ const Navbar = ({ user, onLogout }) => {
                                 e.target.style.display = 'none';
                                 e.target.parentNode.innerHTML = getUserInitials();
                               }}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', padding: "2px", border: "1px solid var(--gaming-highlight)" }}
                             />
                           </>
                         ) : (
-                          getUserInitials()
+                          <div className="user-avatar-placeholder">
+                            {getUserInitials()}
+                          </div>
                         )}
                       </div>
                       <span className="desktop-only">{user.displayName}</span>
@@ -408,6 +405,7 @@ const Navbar = ({ user, onLogout }) => {
                                   src={user.avatar || user.avatarUrl || user.avatarfull} 
                                   alt={user.displayName || 'User'} 
                                   className="dropdown-avatar-img"
+                                  style={{ padding: "2px", border: "1px solid var(--gaming-highlight)" }}
                                 />
                               ) : (
                                 <div className="dropdown-avatar-placeholder">

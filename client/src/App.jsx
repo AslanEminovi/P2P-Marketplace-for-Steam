@@ -309,16 +309,23 @@ function AppContent() {
   useEffect(() => {
     window.updateGlobalUser = (updatedUser) => {
       console.log('Updating global user state:', updatedUser);
+      
+      // Update the local state
       setUserState(prevUser => ({
         ...prevUser,
         ...updatedUser
       }));
+      
+      // Also update AuthContext user state
+      if (updateUser) {
+        updateUser(updatedUser);
+      }
     };
     
     return () => {
       delete window.updateGlobalUser;
     };
-  }, []);
+  }, [updateUser]);
 
   return (
     <PageWrapper>

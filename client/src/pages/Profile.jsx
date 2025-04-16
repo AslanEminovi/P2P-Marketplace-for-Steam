@@ -5,9 +5,11 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { FiUser, FiMail, FiPhone, FiMapPin, FiGlobe, FiEdit, FiSave, FiShield } from 'react-icons/fi';
 import { FaSteam, FaCircle } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
 import './Profile.css';
 
 const Profile = ({ user, onBalanceUpdate }) => {
+  const { updateUser: authUpdateUser } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -154,7 +156,7 @@ const Profile = ({ user, onBalanceUpdate }) => {
     
     try {
       const payload = {
-        displayName: formData.displayName,
+        // Don't include displayName in the payload as it should be preserved from Steam
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
@@ -185,14 +187,45 @@ const Profile = ({ user, onBalanceUpdate }) => {
       console.log('Server response:', response.data);
       
       if (response.data.success) {
+        // Get the updated user data from the response
+        const updatedUser = response.data.user;
+        
         toast.success('Profile saved successfully');
         
-        // Explicitly update the user in parent component if callback is provided
+        // Update the user data in multiple places to ensure consistency
         if (typeof window.updateGlobalUser === 'function') {
-          window.updateGlobalUser(response.data.user);
+          window.updateGlobalUser(updatedUser);
         }
         
-        await fetchUserProfile();
+        // Update user in AuthContext
+        authUpdateUser(updatedUser);
+        
+        // Refresh local profile state
+        setProfile(updatedUser);
+        
+        // Update form data with the returned user data
+        setFormData({
+          displayName: updatedUser.displayName || '',
+          firstName: updatedUser.firstName || '',
+          lastName: updatedUser.lastName || '',
+          email: updatedUser.email || '',
+          phone: updatedUser.phone || '',
+          country: updatedUser.country || '',
+          city: updatedUser.city || '',
+          preferredCurrency: updatedUser.settings?.currency || 'USD',
+          theme: updatedUser.settings?.theme || 'dark',
+          privacySettings: {
+            showOnlineStatus: updatedUser.settings?.privacy?.showOnlineStatus ?? true,
+            showInventoryValue: updatedUser.settings?.privacy?.showInventoryValue ?? false
+          },
+          notificationSettings: {
+            email: updatedUser.settings?.notifications?.email ?? true,
+            push: updatedUser.settings?.notifications?.push ?? true,
+            offers: updatedUser.settings?.notifications?.offers ?? true,
+            trades: updatedUser.settings?.notifications?.trades ?? true
+          }
+        });
+        
         setIsEditing(false);
       } else {
         toast.error(response.data.message || 'Failed to save profile');
@@ -297,16 +330,18 @@ const Profile = ({ user, onBalanceUpdate }) => {
                   <div className="profile-form-grid">
                     <div className="profile-form-group">
                       <label htmlFor="displayName">
-                        <FiUser /> Display Name
+                        <FiUser /> Display Name (Steam)
                       </label>
                       <input
                         type="text"
                         id="displayName"
                         name="displayName"
                         value={formData.displayName}
-                        onChange={handleChange}
-                        className="profile-input"
+                        disabled
+                        className="profile-input profile-input-disabled"
+                        title="Display name is synced with your Steam profile"
                       />
+                      <small className="input-helper-text">Your display name is synchronized with your Steam account</small>
                     </div>
                     
                     <div className="profile-form-group">

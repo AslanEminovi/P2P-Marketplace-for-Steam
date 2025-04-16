@@ -296,6 +296,21 @@
   box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.25);
 }
 
+.profile-input-disabled {
+  background-color: rgba(31, 43, 69, 0.4);
+  cursor: not-allowed;
+  border-color: rgba(51, 115, 242, 0.2);
+  color: var(--gaming-text-dim);
+}
+
+.input-helper-text {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--gaming-text-dim);
+  margin-top: 4px;
+  font-style: italic;
+}
+
 .profile-form-actions {
   display: flex;
   justify-content: flex-end;

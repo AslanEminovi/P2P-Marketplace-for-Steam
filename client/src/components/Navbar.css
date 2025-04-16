@@ -366,17 +366,13 @@
 .profile-button {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: none;
-  border: none;
+  padding: 4px 12px 4px 4px;
+  background-color: var(--gaming-bg-subtle);
+  border: 1px solid var(--gaming-border);
+  border-radius: 50px;
   cursor: pointer;
-  padding: 6px 10px;
-  border-radius: 6px;
-  color: #FFFFFF;
-  height: 42px;
-  transition: background-color 0.2s ease;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
 .profile-button:hover {
@@ -414,13 +410,26 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background-color: #3373F2;
+  overflow: hidden;
+  background-color: var(--gaming-bg-dark);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  color: #0A0E17;
+  font-weight: bold;
+  color: var(--gaming-text);
+  margin-right: 8px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.user-display-name {
+  font-size: 14px;
+  margin-left: 8px;
+  color: var(--gaming-text);
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
 }
 
 /* Dropdown Menu */
