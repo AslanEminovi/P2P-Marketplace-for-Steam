@@ -111,7 +111,7 @@ console.log(`Secure cookies: ${process.env.NODE_ENV === "production"}`);
 console.log(`Session secret length: ${process.env.SESSION_SECRET?.length}`);
 
 // Initialize Redis session store
-const RedisStore = connectRedis(session);
+const RedisStore = require("connect-redis").default;
 
 // Configure express-session
 app.use(
