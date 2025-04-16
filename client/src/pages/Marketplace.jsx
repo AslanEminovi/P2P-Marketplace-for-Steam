@@ -270,23 +270,25 @@ function Marketplace({ user }) {
       if ((update.type === 'item_unavailable' || update.type === 'listing_cancelled') && update.itemId) {
         console.log(`Item cancelled/removed: ${update.itemId} - ${update.marketHashName || 'Unknown item'}`);
         
-        // Remove the item from the current list immediately
+        // Remove the item from the current list immediately for all users
         setItems(prevItems => {
           const newItems = prevItems.filter(item => item._id !== update.itemId);
           // If items were removed, update filtered items too
           if (newItems.length !== prevItems.length) {
             console.log(`Removed cancelled item ${update.itemId} from display`);
             
-            // Also refresh user listings if the user is logged in
-            if (user) {
-              fetchUserListings();
+            // Show toast ONLY if this user is the one who cancelled the item - check by userId
+            if (update.userId && user && update.userId === user._id) {
+              if (update.marketHashName) {
+                toast(`Your listing for ${update.marketHashName} was cancelled`, {
+                  duration: 3000
+                });
+              }
             }
             
-            // Show a toast notification for the cancelled item
-            if (update.marketHashName) {
-              toast(`Listing cancelled: ${update.marketHashName}`, {
-                duration: 3000
-              });
+            // If this is the user who owns the listing, refresh their listings
+            if (user && update.userId === user._id) {
+              fetchUserListings();
             }
             
             return newItems;

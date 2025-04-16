@@ -455,6 +455,7 @@ app.set("io", io);
 module.exports = {
   server,
   updateSiteStats,
+  io, // Export the io instance
 };
 
 // Error handling middleware

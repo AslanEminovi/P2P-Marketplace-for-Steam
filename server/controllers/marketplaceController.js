@@ -2,6 +2,15 @@ const Item = require("../models/Item");
 const User = require("../models/User");
 const socketService = require("../services/socketService");
 const mongoose = require("mongoose");
+let io;
+try {
+  // Try to get the io instance from server.js
+  const server = require("../server");
+  io = server.io || null;
+} catch (error) {
+  console.error("Error importing io from server:", error);
+  io = null;
+}
 
 // POST /marketplace/list
 exports.listItem = async (req, res) => {
@@ -972,18 +981,51 @@ exports.cancelListing = async (req, res) => {
 
       // Step 6: Try to broadcast market updates without breaking the main flow
       try {
-        socketService.sendMarketUpdate({
+        console.log(
+          `Broadcasting cancellation for item ${itemCheck._id} by user ${userId}`
+        );
+
+        // First send immediate cancellation event to ensure it's processed without delay
+        const cancellationEvent = {
           type: "item_unavailable",
           itemId: itemCheck._id,
           marketHashName: itemCheck.marketHashName,
-        });
+          userId: userId.toString(),
+          timestamp: new Date().toISOString(),
+          priority: "high", // Mark as high priority event
+        };
 
+        // Use direct broadcast to all clients for immediate effect
+        if (io) {
+          console.log(`Direct broadcasting cancellation to all clients`);
+          io.emit("market_update", cancellationEvent);
+        }
+
+        // Also send through normal channels for clients that might have missed the direct broadcast
+        socketService.sendMarketUpdate(cancellationEvent);
+
+        // Send activity feed update
         socketService.emitMarketActivity({
           type: "listing_cancelled",
           itemName: itemCheck.marketHashName,
           user: req.user.displayName || req.user.steamName || "A user",
+          userId: userId.toString(),
           timestamp: new Date().toISOString(),
         });
+
+        // Force an immediate stats update to reflect the change
+        const { updateSiteStats } = require("../server");
+        if (typeof updateSiteStats === "function") {
+          updateSiteStats()
+            .then((stats) => {
+              if (io) {
+                io.emit("stats_update", stats);
+              }
+            })
+            .catch((err) =>
+              console.error("Error updating stats after cancellation:", err)
+            );
+        }
       } catch (marketUpdateError) {
         console.error("Error with market updates:", marketUpdateError);
         // Don't break the main flow for socket errors
