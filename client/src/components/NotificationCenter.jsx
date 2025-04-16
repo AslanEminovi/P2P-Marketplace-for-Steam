@@ -855,17 +855,20 @@ const NotificationCenter = ({ user }) => {
         <div
           style={{
             position: 'fixed',
-            top: 0,
+            top: '70px',
             right: 0,
             width: '400px',
-            height: '100vh',
+            maxWidth: '90vw',
+            height: 'calc(100vh - 70px)',
             backgroundColor: 'rgba(23, 15, 60, 0.95)',
             boxShadow: '-5px 0 25px rgba(0, 0, 0, 0.3)',
-            zIndex: 9999,
+            zIndex: 999,
             overflowY: 'auto',
             backdropFilter: 'blur(10px)',
             transition: 'transform 0.3s ease-in-out',
-            transform: showAllNotifications ? 'translateX(0)' : 'translateX(100%)'
+            transform: showAllNotifications ? 'translateX(0)' : 'translateX(100%)',
+            borderTopLeftRadius: '12px',
+            borderBottomLeftRadius: '12px'
           }}
           ref={sidePanelRef}
         >

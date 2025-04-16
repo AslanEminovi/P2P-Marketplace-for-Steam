@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { toast } from 'react-toastify';
 import './Contact.css';
-import { FaMapMarkerAlt, FaEnvelope, FaSteam, FaFacebookF, FaDiscord, FaPhone, FaClock, FaHeadset } from 'react-icons/fa';
+import { FaEnvelope, FaDiscord, FaHeadset } from 'react-icons/fa';
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -111,35 +111,10 @@ const Contact = () => {
           <div className="contact-info">
             <div className="contact-card">
               <div className="contact-icon">
-                <FaMapMarkerAlt />
-              </div>
-              <h3>Our Location</h3>
-              <p>Tbilisi, Georgia</p>
-            </div>
-            
-            <div className="contact-card">
-              <div className="contact-icon">
                 <FaEnvelope />
               </div>
               <h3>Email Us</h3>
               <p>spectervale1@gmail.com</p>
-            </div>
-            
-            <div className="contact-card">
-              <div className="contact-icon">
-                <FaPhone />
-              </div>
-              <h3>Call Us</h3>
-              <p>+995 555 123 456</p>
-            </div>
-            
-            <div className="contact-card">
-              <div className="contact-icon">
-                <FaClock />
-              </div>
-              <h3>Support Hours</h3>
-              <p>Monday - Friday: 9am - 6pm</p>
-              <p>Saturday: 10am - 4pm</p>
             </div>
             
             <div className="contact-support">
@@ -166,6 +141,7 @@ const Contact = () => {
                   value={formData.name}
                   onChange={handleChange}
                   className={errors.name ? 'error' : ''}
+                  placeholder="Enter your name"
                 />
                 {errors.name && <span className="error-message">{errors.name}</span>}
               </div>
@@ -179,6 +155,7 @@ const Contact = () => {
                   value={formData.email}
                   onChange={handleChange}
                   className={errors.email ? 'error' : ''}
+                  placeholder="Enter your email"
                 />
                 {errors.email && <span className="error-message">{errors.email}</span>}
               </div>
@@ -192,6 +169,7 @@ const Contact = () => {
                   value={formData.subject}
                   onChange={handleChange}
                   className={errors.subject ? 'error' : ''}
+                  placeholder="Enter subject"
                 />
                 {errors.subject && <span className="error-message">{errors.subject}</span>}
               </div>
@@ -205,6 +183,7 @@ const Contact = () => {
                   value={formData.message}
                   onChange={handleChange}
                   className={errors.message ? 'error' : ''}
+                  placeholder="Type your message here..."
                 ></textarea>
                 {errors.message && <span className="error-message">{errors.message}</span>}
               </div>
