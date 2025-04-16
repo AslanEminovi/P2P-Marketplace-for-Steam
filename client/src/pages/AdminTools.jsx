@@ -472,11 +472,11 @@ const AdminTools = () => {
                         <span className="admin-badge admin-badge-success">99.2%</span>
                   </td>
                 </tr>
-            </tbody>
+                      </tbody>
                 </table>
-          </div>
-          </div>
-        </div>
+                        </div>
+                      </div>
+                          </div>
       )}
 
         {/* Users Tab */}
@@ -485,7 +485,7 @@ const AdminTools = () => {
             <div className="admin-search-bar">
               <FaSearch className="admin-search-icon" />
               <input
-                type="text"
+                  type="text" 
                 placeholder="Search users by name, Steam ID or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -497,13 +497,13 @@ const AdminTools = () => {
               >
                 Search
               </button>
-            </div>
+              </div>
             
             {loading && users.length > 0 ? (
               <div className="admin-loading-overlay">
                 <ClipLoader size={30} color="#3a6ff7" />
                 <p>Refreshing data...</p>
-        </div>
+                  </div>
             ) : null}
 
             <div className="admin-table-wrapper">
@@ -525,10 +525,10 @@ const AdminTools = () => {
                           <div className="admin-user-info">
                             <img 
                               src={user.avatar || 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/fe/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb.jpg'} 
-                              alt={user.displayName} 
+                        alt={user.displayName}
                               className="admin-user-avatar" 
-                            />
-                            <div>
+                          />
+                        <div>
                               <div className="admin-user-name">
                                 {user.displayName || 'Anonymous User'}
                                 {user.isBanned && <span className="admin-banned-badge">Banned</span>}
@@ -536,9 +536,9 @@ const AdminTools = () => {
                               </div>
                               <div className="admin-user-id">ID: {user.steamId || 'No Steam ID'}</div>
                               <div className="admin-user-date">Joined: {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}</div>
-                            </div>
-                          </div>
-                        </td>
+                        </div>
+                    </div>
+                  </td>
                         <td>
                           <div className="admin-user-profile">
                             <div className="admin-profile-completion">
@@ -552,15 +552,15 @@ const AdminTools = () => {
                               ) : (
                                 <span className="admin-missing-info">No name provided</span>
                               )}
-                            </div>
+          </div>
                             <div className="admin-profile-location">
                               {user.country || user.city ? (
                                 <span>{user.city || ''}{user.city && user.country ? ', ' : ''}{user.country || ''}</span>
                               ) : (
                                 <span className="admin-missing-info">No location provided</span>
                               )}
-                            </div>
-                          </div>
+            </div>
+        </div>
                         </td>
                         <td>
                           <div className="admin-user-contact">
@@ -570,19 +570,19 @@ const AdminTools = () => {
                               ) : (
                                 <span className="admin-missing-info">No email provided</span>
                               )}
-                            </div>
+                        </div>
                             <div className="admin-contact-phone">
                               {user.phone ? (
                                 <span>{user.phone}</span>
                               ) : (
                                 <span className="admin-missing-info">No phone provided</span>
                               )}
-                            </div>
-                          </div>
-                        </td>
-                        <td>
+                        </div>
+                    </div>
+                  </td>
+                    <td>
                           {renderUserStatus(user)}
-                        </td>
+                    </td>
                         <td>
                           <div className="admin-actions-inline">
                             <button 
@@ -600,7 +600,7 @@ const AdminTools = () => {
                               {user.isAdmin ? 'Remove Admin' : 'Make Admin'}
                             </button>
                           </div>
-                        </td>
+                    </td>
                       </tr>
                     ))
                   ) : (
@@ -608,8 +608,8 @@ const AdminTools = () => {
                       <td colSpan="5" className="admin-no-data">
                         <FaInfoCircle size={24} />
                         <p>No users found</p>
-                      </td>
-                    </tr>
+                    </td>
+                </tr>
                   )}
             </tbody>
               </table>

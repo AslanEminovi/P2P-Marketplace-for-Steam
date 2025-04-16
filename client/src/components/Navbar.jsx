@@ -326,26 +326,22 @@ const Navbar = ({ user, onLogout }) => {
 
                 {/* Wrap both profile button and notification in a flex container */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div className="dropdown-wrapper">
+                  <div className="profile-dropdown-container">
                     <button 
                       ref={profileBtnRef}
+                      className="profile-button" 
                       onClick={toggleDropdown}
-                      className="profile-button"
+                      aria-expanded={dropdownOpen}
+                      aria-haspopup="true"
                     >
-                      <div className="user-avatar-container">
-                        {user && (user.avatar || user.avatarUrl || user.avatarfull) ? (
-                          <>
-                            <img 
-                              src={user.avatar || user.avatarUrl || user.avatarfull} 
-                              alt={user.displayName || 'User'} 
-                              onError={(e) => {
-                                console.log("Avatar image failed to load:", e);
-                                e.target.style.display = 'none';
-                                e.target.parentNode.innerHTML = getUserInitials();
-                              }}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', padding: "2px", border: "1px solid var(--gaming-highlight)" }}
-                            />
-                          </>
+                      {/* User Avatar - Restored to button */}
+                      <div className="user-avatar">
+                        {user.avatarUrl ? (
+                          <img 
+                            src={user.avatarUrl} 
+                            alt={`${user.displayName}'s avatar`} 
+                            className="user-avatar-image"
+                          />
                         ) : (
                           <div className="user-avatar-placeholder">
                             {getUserInitials()}
@@ -398,26 +394,10 @@ const Navbar = ({ user, onLogout }) => {
                         className="user-dropdown"
                       >
                         <div className="dropdown-header">
-                          <div className="dropdown-avatar-container">
-                            <div className="dropdown-avatar">
-                              {user && (user.avatar || user.avatarUrl || user.avatarfull) ? (
-                                <img 
-                                  src={user.avatar || user.avatarUrl || user.avatarfull} 
-                                  alt={user.displayName || 'User'} 
-                                  className="dropdown-avatar-img"
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-                                />
-                              ) : (
-                                <div className="dropdown-avatar-placeholder">
-                                  {getUserInitials()}
-                                </div>
-                              )}
-                            </div>
-                            <div className="dropdown-user-info">
-                              <span className="dropdown-username">{user.displayName}</span>
-                              <div className="dropdown-email-container">
-                                <span className="dropdown-email">{user.email || 'No email provided'}</span>
-                              </div>
+                          <div className="dropdown-user-info">
+                            <span className="dropdown-username">{user.displayName}</span>
+                            <div className="dropdown-email-container">
+                              <span className="dropdown-email">{user.email || 'No email provided'}</span>
                             </div>
                           </div>
                         </div>
