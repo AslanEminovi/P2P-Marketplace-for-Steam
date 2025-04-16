@@ -220,29 +220,50 @@ function Marketplace({ user }) {
   // REMOVE ALL AUTO-REFRESH LOGIC - only respond to specific events
   useEffect(() => {
     // Handler for ONLY new listings and sales - NO automatic refreshes
-    const handleMarketUpdate = (update) => {
+    const handleMarketUpdate = async (update) => {
       console.log('Market update received:', update);
       
       // Only handle specific item updates, NO general refreshes
       if (update.type === 'new_listing' && update.item) {
         console.log('New listing received:', update.item.marketHashName);
         
-        // Add the new item to the list without full refresh
-        setItems(prevItems => {
-          // Check if this item already exists to avoid duplicates
-          const itemExists = prevItems.some(item => item._id === update.item._id);
-          if (itemExists) {
-            console.log('Item already exists in list, skipping');
-            return prevItems;
-          }
-          console.log('Adding new item to list');
-          // Add at the beginning for "latest" sorting
-          return [update.item, ...prevItems];
-        });
-        
-        toast.success(`New item listed: ${update.item.marketHashName}`, {
-          duration: 3000
-        });
+        try {
+          // Fetch complete item details with owner information
+          const response = await axios.get(`${API_URL}/marketplace/item/${update.item._id}`, {
+            withCredentials: true
+          });
+          
+          const itemWithOwner = response.data;
+          
+          // Add the new item to the list without full refresh
+          setItems(prevItems => {
+            // Check if this item already exists to avoid duplicates
+            const itemExists = prevItems.some(item => item._id === itemWithOwner._id);
+            if (itemExists) {
+              console.log('Item already exists in list, skipping');
+              return prevItems;
+            }
+            console.log('Adding new item with complete owner info to list');
+            // Add at the beginning for "latest" sorting
+            return [itemWithOwner, ...prevItems];
+          });
+          
+          toast.success(`New item listed: ${itemWithOwner.marketHashName}`, {
+            duration: 3000
+          });
+        } catch (err) {
+          console.error('Error fetching complete item details:', err);
+          // Fallback to using the update data even without full owner info
+          setItems(prevItems => {
+            const itemExists = prevItems.some(item => item._id === update.item._id);
+            if (itemExists) return prevItems;
+            return [update.item, ...prevItems];
+          });
+          
+          toast.success(`New item listed: ${update.item.marketHashName}`, {
+            duration: 3000
+          });
+        }
       }
       
       // Handle user count updates
