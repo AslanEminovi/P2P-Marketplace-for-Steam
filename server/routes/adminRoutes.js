@@ -152,6 +152,9 @@ router.get("/users", async (req, res) => {
             { displayName: { $regex: search, $options: "i" } },
             { steamId: { $regex: search, $options: "i" } },
             { email: { $regex: search, $options: "i" } },
+            { firstName: { $regex: search, $options: "i" } },
+            { lastName: { $regex: search, $options: "i" } },
+            { phone: { $regex: search, $options: "i" } },
           ],
         }
       : {};
@@ -159,12 +162,29 @@ router.get("/users", async (req, res) => {
     // Get total count
     const total = await User.countDocuments(searchFilter);
 
-    // Get paginated users
+    // Get paginated users with all profile fields
     const users = await User.find(searchFilter)
+      .select(
+        "_id steamId displayName avatar firstName lastName email phone country city profileComplete isAdmin isBanned createdAt lastLogin"
+      )
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
+
+    console.log(`Found ${users.length} users matching search "${search}"`);
+
+    // Log the first user's profile info for debugging
+    if (users.length > 0) {
+      console.log("Sample user profile data:", {
+        id: users[0]._id,
+        name: users[0].displayName,
+        profileComplete: users[0].profileComplete,
+        hasName: !!(users[0].firstName || users[0].lastName),
+        hasEmail: !!users[0].email,
+        hasPhone: !!users[0].phone,
+      });
+    }
 
     // Add real-time status to each user
     const usersWithStatus = users.map((user) => ({
@@ -492,81 +512,136 @@ router.get("/statistics", async (req, res) => {
   }
 });
 
-// Users route
-router.get("/users", async (req, res) => {
+/**
+ * @route   GET /admin/user-inventory-value/:steamId
+ * @desc    Get just the total value of a user's inventory (lightweight)
+ * @access  Admin
+ */
+router.get("/user-inventory-value/:steamId", async (req, res) => {
   try {
-    console.log("⭐ Admin dashboard: getUsers called");
+    const { steamId } = req.params;
 
-    const User = mongoose.model("User");
-    const Item = mongoose.model("Item");
-    const Trade = mongoose.model("Trade");
-
-    // First try a simple query to make sure we can retrieve users
-    const userCount = await User.countDocuments();
-    console.log(`📊 Total user count from simple query: ${userCount}`);
-
-    // Get all users with a simpler query first
-    const users = await User.find()
-      .sort({ createdAt: -1 })
-      .limit(100)
-      .select(
-        "steamId displayName avatar avatarMedium avatarFull createdAt lastLogin lastLoginAt isAdmin isBanned balance email tradeUrl"
-      );
-
-    console.log(`✅ Found ${users.length} users with direct query`);
-
-    if (users.length > 0) {
-      console.log("First user from direct query:", {
-        id: users[0]._id,
-        displayName: users[0].displayName,
-        steamId: users[0].steamId,
-        avatar: users[0].avatar ? "exists" : "missing",
-        avatarMedium: users[0].avatarMedium ? "exists" : "missing",
-        avatarFull: users[0].avatarFull ? "exists" : "missing",
-      });
-    } else {
-      console.log("❌ No users found with direct query");
+    if (!steamId) {
+      return res.status(400).json({ error: "Steam ID is required" });
     }
 
-    // Add additional data for each user
-    const enhancedUsers = await Promise.all(
-      users.map(async (user) => {
-        // Convert Mongoose document to plain object
-        const userObj = user.toObject();
+    // Find the user by steamId first
+    const User = mongoose.model("User");
+    const user = await User.findOne({ steamId }).lean();
 
-        // Get item count for this user
-        const itemCount = await Item.countDocuments({ owner: user._id });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ error: "User not found with that Steam ID", totalValue: 0 });
+    }
 
-        // Get trade counts
-        const tradeCount = await Trade.countDocuments({
-          $or: [{ buyer: user._id }, { seller: user._id }],
-        });
+    // Find the user's items in our system
+    const Item = mongoose.model("Item");
+    const userItems = await Item.find({
+      ownerId: user._id,
+      owner: user._id,
+    }).lean();
 
-        const completedTradeCount = await Trade.countDocuments({
-          $or: [{ buyer: user._id }, { seller: user._id }],
-          status: "completed",
-        });
+    // Calculate total value
+    const totalValue = userItems.reduce((sum, item) => {
+      return sum + (parseFloat(item.price) || 0);
+    }, 0);
 
-        // Make sure lastActive is set to something
-        const lastActive = user.lastLoginAt || user.lastLogin || user.createdAt;
-
-        // Return enhanced user object
-        return {
-          ...userObj,
-          itemCount,
-          tradeCount,
-          completedTradeCount,
-          lastActive,
-        };
-      })
+    console.log(
+      `Total inventory value for user ${steamId}: $${totalValue.toFixed(2)}`
     );
 
-    console.log(`✅ Enhanced ${enhancedUsers.length} users with counts`);
-
-    res.status(200).json(enhancedUsers);
+    res.json({
+      totalValue,
+      itemCount: userItems.length,
+      timestamp: new Date(),
+    });
   } catch (error) {
-    console.error("❌ Error fetching users:", error);
-    res.status(500).json({ error: "Server error: " + error.message });
+    console.error("Error calculating inventory value:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to calculate inventory value", totalValue: 0 });
+  }
+});
+
+/**
+ * @route   POST /admin/users/:userId/role
+ * @desc    Add or remove user role (admin/moderator)
+ * @access  Admin
+ */
+router.post("/users/:userId/role", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role, action } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    if (!role || !["admin", "moderator"].includes(role)) {
+      return res
+        .status(400)
+        .json({ error: "Valid role (admin/moderator) is required" });
+    }
+
+    if (!action || !["add", "remove"].includes(action)) {
+      return res
+        .status(400)
+        .json({ error: "Valid action (add/remove) is required" });
+    }
+
+    // Validate the userId format
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.error(`Invalid user ID format: ${userId}`);
+      return res.status(400).json({ error: "Invalid user ID format" });
+    }
+
+    // Make sure admin isn't removing their own admin role
+    if (
+      userId === req.user._id.toString() &&
+      role === "admin" &&
+      action === "remove"
+    ) {
+      return res
+        .status(400)
+        .json({ error: "You cannot remove your own admin role" });
+    }
+
+    // Get the User model
+    const User = mongoose.model("User");
+
+    // Update field depends on the role
+    const updateField = role === "admin" ? "isAdmin" : "isModerator";
+    const updateValue = action === "add";
+
+    // Update the user's role
+    const updateData = {};
+    updateData[updateField] = updateValue;
+
+    const user = await User.findByIdAndUpdate(userId, updateData, {
+      new: true,
+    }).select("-refreshToken");
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    console.log(
+      `Admin ${req.user.displayName} (${req.user._id}) ${action}ed ${role} role for user ${user.displayName} (${user._id})`
+    );
+
+    res.json({
+      success: true,
+      user: {
+        _id: user._id,
+        displayName: user.displayName,
+        isAdmin: user.isAdmin,
+        isModerator: user.isModerator,
+      },
+    });
+  } catch (error) {
+    console.error("Error changing user role:", error);
+    res.status(500).json({ error: "Failed to update user role" });
   }
 });
 

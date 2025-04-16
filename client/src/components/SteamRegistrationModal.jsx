@@ -82,6 +82,7 @@ const SteamRegistrationModal = ({ user, onClose, onComplete }) => {
     setLoading(true);
     
     try {
+      console.log("Submitting profile data:", formData);
       const response = await axios.post(`${API_URL}/user/complete-profile`, formData, {
         withCredentials: true
       });
@@ -89,18 +90,42 @@ const SteamRegistrationModal = ({ user, onClose, onComplete }) => {
       if (response.data.success) {
         toast.success('Profile completed successfully!');
         
-        if (onComplete) {
-          onComplete({
+        // Log the response for debugging
+        console.log("Profile completion response:", response.data);
+        
+        if (onComplete && response.data.user) {
+          // Use the user data returned from the server
+          console.log("Updating user data with:", response.data.user);
+          onComplete(response.data.user);
+        } else if (onComplete) {
+          // Fallback to the local user update
+          const updatedUser = {
             ...user,
             ...formData,
             profileComplete: true
-          });
+          };
+          console.log("Fallback: Updating user data with:", updatedUser);
+          onComplete(updatedUser);
         }
+        
+        // Double check profile completion status
+        setTimeout(async () => {
+          try {
+            const userCheck = await axios.get(`${API_URL}/auth/user`, {
+              withCredentials: true
+            });
+            console.log("User data after profile completion:", userCheck.data);
+          } catch (err) {
+            console.error("Error checking user data after profile completion:", err);
+          }
+        }, 1000);
       } else {
+        console.error("Profile completion failed:", response.data);
         toast.error(response.data.message || 'Failed to complete profile');
       }
     } catch (error) {
       console.error('Error completing profile:', error);
+      console.error('Error response:', error.response?.data);
       toast.error(error.response?.data?.message || 'An error occurred while saving your profile');
     } finally {
       setLoading(false);

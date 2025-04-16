@@ -511,8 +511,9 @@ const AdminTools = () => {
             <thead>
                   <tr>
                     <th>User</th>
+                    <th>Profile Info</th>
+                    <th>Contact</th>
                     <th>Status</th>
-                    <th>Joined</th>
                     <th>Actions</th>
               </tr>
             </thead>
@@ -531,18 +532,58 @@ const AdminTools = () => {
                               <div className="admin-user-name">
                                 {user.displayName || 'Anonymous User'}
                                 {user.isBanned && <span className="admin-banned-badge">Banned</span>}
-                        </div>
-                              <div className="admin-user-id">{user.steamId || 'No Steam ID'}</div>
-                        </div>
-                    </div>
-                  </td>
-                    <td>
-                          {renderUserStatus(user)}
-                    </td>
+                                {user.isAdmin && <span className="admin-admin-badge">Admin</span>}
+                              </div>
+                              <div className="admin-user-id">ID: {user.steamId || 'No Steam ID'}</div>
+                              <div className="admin-user-date">Joined: {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}</div>
+                            </div>
+                          </div>
+                        </td>
                         <td>
-                          {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
-                    </td>
-                  <td>
+                          <div className="admin-user-profile">
+                            <div className="admin-profile-completion">
+                              <span className={`admin-completion-status ${user.profileComplete ? 'complete' : 'incomplete'}`}>
+                                {user.profileComplete ? 'Complete' : 'Incomplete'}
+                              </span>
+                            </div>
+                            <div className="admin-profile-name">
+                              {user.firstName || user.lastName ? (
+                                <span>{user.firstName || ''} {user.lastName || ''}</span>
+                              ) : (
+                                <span className="admin-missing-info">No name provided</span>
+                              )}
+                            </div>
+                            <div className="admin-profile-location">
+                              {user.country || user.city ? (
+                                <span>{user.city || ''}{user.city && user.country ? ', ' : ''}{user.country || ''}</span>
+                              ) : (
+                                <span className="admin-missing-info">No location provided</span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="admin-user-contact">
+                            <div className="admin-contact-email">
+                              {user.email ? (
+                                <a href={`mailto:${user.email}`} className="admin-email-link">{user.email}</a>
+                              ) : (
+                                <span className="admin-missing-info">No email provided</span>
+                              )}
+                            </div>
+                            <div className="admin-contact-phone">
+                              {user.phone ? (
+                                <span>{user.phone}</span>
+                              ) : (
+                                <span className="admin-missing-info">No phone provided</span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          {renderUserStatus(user)}
+                        </td>
+                        <td>
                           <div className="admin-actions-inline">
                             <button 
                               className={`admin-btn admin-btn-small ${user.isBanned ? 'admin-btn-success' : 'admin-btn-danger'}`}
@@ -564,11 +605,11 @@ const AdminTools = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="4" className="admin-no-data">
+                      <td colSpan="5" className="admin-no-data">
                         <FaInfoCircle size={24} />
                         <p>No users found</p>
-                    </td>
-                </tr>
+                      </td>
+                    </tr>
                   )}
             </tbody>
               </table>

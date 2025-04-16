@@ -263,10 +263,13 @@ exports.completeUserProfile = async (req, res) => {
     const userId = req.user._id;
     const { firstName, lastName, email, phone, country, city } = req.body;
 
+    console.log(`Completing profile for user ${userId} with data:`, req.body);
+
     // Find user
     const user = await User.findById(userId);
 
     if (!user) {
+      console.error(`User not found: ${userId}`);
       return res.status(404).json({ error: "User not found" });
     }
 
@@ -286,27 +289,40 @@ exports.completeUserProfile = async (req, res) => {
       user.verificationLevel = 1;
     }
 
-    await user.save();
+    // Save the user to database
+    const savedUser = await user.save();
+    console.log(
+      `Profile completed for user ${userId}, profile complete status: ${savedUser.profileComplete}`
+    );
 
     return res.json({
       success: true,
       message: "User profile completed successfully",
       user: {
-        id: user._id,
-        steamId: user.steamId,
-        displayName: user.displayName,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        country: user.country,
-        city: user.city,
-        profileComplete: user.profileComplete,
-        verificationLevel: user.verificationLevel,
+        id: savedUser._id,
+        steamId: savedUser.steamId,
+        displayName: savedUser.displayName,
+        firstName: savedUser.firstName,
+        lastName: savedUser.lastName,
+        email: savedUser.email,
+        phone: savedUser.phone,
+        country: savedUser.country,
+        city: savedUser.city,
+        profileComplete: savedUser.profileComplete,
+        verificationLevel: savedUser.verificationLevel,
+        avatar: savedUser.avatar,
+        avatarMedium: savedUser.avatarMedium,
+        avatarFull: savedUser.avatarFull,
+        walletBalance: savedUser.walletBalance,
+        walletBalanceGEL: savedUser.walletBalanceGEL,
+        isAdmin: savedUser.isAdmin,
+        settings: savedUser.settings,
       },
     });
   } catch (err) {
     console.error("Complete user profile error:", err);
-    return res.status(500).json({ error: "Failed to complete user profile" });
+    return res
+      .status(500)
+      .json({ error: "Failed to complete user profile", details: err.message });
   }
 };
