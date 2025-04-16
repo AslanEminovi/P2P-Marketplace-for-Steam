@@ -25,15 +25,34 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
     handleStatusUpdateRef.current = (data) => {
       if (data && data.userId === sellerId) {
         console.log(`Received status update for user ${sellerId}:`, data.isOnline ? 'Online' : 'Offline', 'Last seen:', data.lastSeen);
+        
+        // Use the server-provided formatted time or our local formatting
+        const formattedTime = data.lastSeenFormatted || formatLastSeen(data.lastSeen);
+        
         setStatus(prev => ({
           ...prev,
           isOnline: data.isOnline,
           lastSeen: data.lastSeen,
-          lastSeenFormatted: data.lastSeenFormatted || formatLastSeen(data.lastSeen)
+          lastSeenFormatted: formattedTime
         }));
+        
         // Reset loading and error states since we have data
         setLoading(false);
         setError(null);
+        
+        // Store status in local storage for immediate display on page reload
+        try {
+          const statusCache = JSON.parse(localStorage.getItem('seller_status_cache') || '{}');
+          statusCache[sellerId] = {
+            isOnline: data.isOnline,
+            lastSeen: data.lastSeen,
+            lastSeenFormatted: formattedTime,
+            timestamp: Date.now()
+          };
+          localStorage.setItem('seller_status_cache', JSON.stringify(statusCache));
+        } catch (err) {
+          console.error('Error caching seller status:', err);
+        }
       }
     };
   }, [sellerId]);
@@ -144,6 +163,25 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
       setLoading(false);
       setError('No seller ID provided');
       return;
+    }
+
+    // Check for cached status first for immediate display
+    try {
+      const statusCache = JSON.parse(localStorage.getItem('seller_status_cache') || '{}');
+      const cachedStatus = statusCache[sellerId];
+      
+      // Use cached status if it's less than 5 minutes old
+      if (cachedStatus && Date.now() - cachedStatus.timestamp < 5 * 60 * 1000) {
+        console.log(`Using cached status for user ${sellerId}:`, cachedStatus.isOnline ? 'Online' : 'Offline');
+        setStatus({
+          isOnline: cachedStatus.isOnline,
+          lastSeen: cachedStatus.lastSeen,
+          lastSeenFormatted: cachedStatus.lastSeenFormatted
+        });
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Error reading cached status:', err);
     }
 
     // Initial fetch

@@ -105,6 +105,10 @@ class SocketService {
         "[SocketService] Socket already connected, skipping connection"
       );
       this.connected = true;
+
+      // Still ensure subscriptions are active
+      this.subscribeToUserStatuses();
+
       return this.socket;
     }
 

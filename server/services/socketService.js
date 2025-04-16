@@ -32,6 +32,45 @@ const REDIS_CHANNEL_TRADE_UPDATE = "trade_update";
 const isRedisEnabled = process.env.USE_REDIS === "true";
 
 /**
+ * Format last seen time for user-friendly display
+ * @param {Date} lastSeenDate - The last seen date
+ * @returns {string} Formatted string (e.g., "2 minutes ago")
+ */
+const formatLastSeen = (lastSeenDate) => {
+  if (!lastSeenDate) return null;
+
+  const now = new Date();
+  const lastSeen = new Date(lastSeenDate);
+  const diffMs = now - lastSeen;
+
+  // If less than a minute
+  if (diffMs < 60 * 1000) {
+    return "just now";
+  }
+
+  // If less than an hour
+  if (diffMs < 60 * 60 * 1000) {
+    const minutes = Math.floor(diffMs / (60 * 1000));
+    return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+  }
+
+  // If less than a day
+  if (diffMs < 24 * 60 * 60 * 1000) {
+    const hours = Math.floor(diffMs / (60 * 60 * 1000));
+    return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+  }
+
+  // If less than a week
+  if (diffMs < 7 * 24 * 60 * 60 * 1000) {
+    const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+    return `${days} day${days !== 1 ? "s" : ""} ago`;
+  }
+
+  // More than a week
+  return lastSeen.toLocaleDateString();
+};
+
+/**
  * Initialize the socket service with the io instance
  * @param {Object} ioInstance - The Socket.io instance
  */
@@ -221,26 +260,40 @@ const init = (ioInstance) => {
       socket.emit("stats_update", stats);
     });
 
-    // Handle user activity
+    // Handle user activity for heartbeat
     socket.on("user_active", () => {
       if (userId) {
-        const now = Date.now();
-        activeUsers.set(userId, now);
+        // Update user activity timestamp
+        activeUsers.set(userId, Date.now());
+      }
+    });
 
-        // Update activity timestamp in Redis if enabled
-        if (isRedisEnabled && pubClient) {
-          redis
-            .setHashCache(
-              `user:${userId}:status`,
-              {
-                lastActivity: now,
-                isOnline: true,
-                lastSeen: new Date().toISOString(),
-              },
-              360
-            )
-            .catch(console.error);
+    // Handle user status subscription requests
+    socket.on("subscribeToUserStatus", async (data) => {
+      try {
+        if (!data || !data.userId) {
+          console.log("Invalid subscribeToUserStatus data", data);
+          return;
         }
+
+        console.log(
+          `User ${
+            userId || "anonymous"
+          } subscribed to status updates for user ${data.userId}`
+        );
+
+        // Get current status for the requested user
+        const status = await getUserStatus(data.userId);
+
+        // Immediately send current status to the requester
+        socket.emit("userStatusUpdate", {
+          userId: data.userId,
+          isOnline: status.isOnline,
+          lastSeen: status.lastSeen,
+          lastSeenFormatted: formatLastSeen(status.lastSeen),
+        });
+      } catch (err) {
+        console.error("Error handling subscribeToUserStatus:", err);
       }
     });
 
@@ -1046,4 +1099,5 @@ module.exports = {
   sendNotification,
   getUserStatus,
   getLatestStats,
+  formatLastSeen,
 };
