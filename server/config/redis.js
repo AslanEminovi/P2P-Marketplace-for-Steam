@@ -11,8 +11,22 @@ const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 const REDIS_PASSWORD = process.env.REDIS_PASSWORD;
 const REDIS_PREFIX = process.env.REDIS_PREFIX || "cs2market:";
 
+// Log Redis config (hiding password)
+console.log("=== REDIS CONFIGURATION ===");
+console.log("Redis URL:", REDIS_URL.replace(/\/\/(.+?)@/, "//****@"));
+console.log("Redis Password:", REDIS_PASSWORD ? "****" : "Not set");
+console.log("Redis Prefix:", REDIS_PREFIX);
+console.log("Redis Enabled:", process.env.USE_REDIS === "true" ? "Yes" : "No");
+console.log("Server ID:", process.env.SERVER_ID || "Not set");
+console.log("========================");
+
 // Create a Redis client with retry strategy
 const createRedisClient = () => {
+  console.log(
+    "Creating Redis client with URL:",
+    REDIS_URL.replace(/\/\/(.+?)@/, "//****@")
+  );
+
   const options = {
     retryStrategy: (times) => {
       const delay = Math.min(times * 50, 2000);
@@ -23,10 +37,18 @@ const createRedisClient = () => {
 
   // Add password if provided
   if (REDIS_PASSWORD) {
+    console.log("Using Redis password from environment variable");
     options.password = REDIS_PASSWORD;
   }
 
-  return new Redis(REDIS_URL, options);
+  try {
+    const client = new Redis(REDIS_URL, options);
+    console.log("Redis client created successfully");
+    return client;
+  } catch (err) {
+    console.error("Error creating Redis client:", err);
+    throw err;
+  }
 };
 
 /**
@@ -42,16 +64,39 @@ const initRedis = () => {
     subClient = createRedisClient();
 
     // Add error handling
-    pubClient.on("error", (err) =>
-      console.error("Redis Publisher Error:", err)
-    );
+    pubClient.on("error", (err) => {
+      console.error("Redis Publisher Error:", err);
+      console.error("Redis connection details:", {
+        url: REDIS_URL.replace(/\/\/(.+?)@/, "//****@"),
+        hasPassword: !!REDIS_PASSWORD,
+        status: pubClient ? pubClient.status : "Not Available",
+      });
+    });
+
     subClient.on("error", (err) =>
       console.error("Redis Subscriber Error:", err)
     );
 
     // Add connection handlers
-    pubClient.on("connect", () => console.log("Redis Publisher connected"));
-    subClient.on("connect", () => console.log("Redis Subscriber connected"));
+    pubClient.on("connect", () =>
+      console.log("Redis Publisher connected successfully")
+    );
+    subClient.on("connect", () =>
+      console.log("Redis Subscriber connected successfully")
+    );
+
+    // Add ready handlers
+    pubClient.on("ready", () => {
+      console.log("Redis Publisher ready");
+      // Test the connection with a ping
+      pubClient.ping((err, result) => {
+        if (err) {
+          console.error("Redis PING failed:", err);
+        } else {
+          console.log("Redis PING successful:", result);
+        }
+      });
+    });
 
     return { pubClient, subClient };
   } catch (error) {

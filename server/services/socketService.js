@@ -63,55 +63,6 @@ const init = (ioInstance) => {
       // Update user activity timestamp
       activeUsers.set(userId, Date.now());
 
-      // Add a new handler for user status subscriptions
-      socket.on("subscribeToUserStatus", async (data) => {
-        if (!data || !data.userId) return;
-
-        try {
-          console.log(
-            `User ${socket.userId} subscribed to status of user ${data.userId}`
-          );
-
-          // Join a room specific to this user's status
-          socket.join(`status:${data.userId}`);
-
-          // Get current status and send it immediately
-          const currentStatus = await getUserStatus(data.userId);
-
-          // Send status update only to this socket
-          socket.emit("userStatusUpdate", {
-            userId: data.userId,
-            isOnline: currentStatus.isOnline,
-            lastSeen: currentStatus.lastSeen,
-          });
-        } catch (error) {
-          console.error(`Error in subscribeToUserStatus:`, error);
-        }
-      });
-
-      // Handle explicit heartbeat from clients to confirm they're still active
-      socket.on("heartbeat", () => {
-        if (userId) {
-          // Update activity timestamp
-          activeUsers.set(userId, Date.now());
-
-          // Also update Redis if enabled
-          if (isRedisEnabled && pubClient) {
-            redisConfig
-              .setHashCache(
-                `user:${userId}:status`,
-                {
-                  lastActivity: Date.now(),
-                  isOnline: true,
-                  lastSeen: new Date().toISOString(),
-                },
-                360
-              )
-              .catch(console.error);
-          }
-        }
-      });
-
       // Store user status in Redis if enabled
       if (isRedisEnabled && pubClient) {
         try {
@@ -385,12 +336,10 @@ const handleUserStatusMessage = (data) => {
   }
 
   // Broadcast the status update to connected clients on this server
-  // Instead of broadcasting to all clients, just send to those in the room
-  io.to(`status:${data.userId}`).emit("userStatusUpdate", {
+  io.emit("userStatusUpdate", {
     userId: data.userId,
     isOnline: data.isOnline,
     lastSeen: new Date(data.lastSeen),
-    lastSeenFormatted: formatLastSeen(new Date(data.lastSeen)),
   });
 };
 
@@ -823,13 +772,27 @@ const sendNotification = (userId, notification) => {
 
 // Get user status - now with Redis
 const getUserStatus = async (userId) => {
-  if (!userId) return { isOnline: false, lastSeen: null };
+  if (!userId) {
+    console.log(
+      `[socketService] getUserStatus called with invalid userId: ${userId}`
+    );
+    return { isOnline: false, lastSeen: null };
+  }
 
+  console.log(`[socketService] Getting status for user ${userId}`);
   // If Redis is enabled, check there first
   if (isRedisEnabled && pubClient) {
     try {
-      const userStatus = await redisConfig.getHashCache(
-        `user:${userId}:status`
+      console.log(
+        `[socketService] Redis enabled, checking for user status in Redis`
+      );
+      const redisKey = `user:${userId}:status`;
+      console.log(`[socketService] Checking Redis key: ${redisKey}`);
+
+      const userStatus = await redisConfig.getHashCache(redisKey);
+      console.log(
+        `[socketService] Redis status for user ${userId}:`,
+        userStatus
       );
 
       if (userStatus) {
@@ -841,17 +804,25 @@ const getUserStatus = async (userId) => {
         const now = new Date();
         const isRecentlyActive = lastSeenDate && now - lastSeenDate < 300000;
 
+        // Convert string "true"/"false" to boolean if needed
+        let isOnlineValue = userStatus.isOnline;
+        if (typeof isOnlineValue === "string") {
+          isOnlineValue = isOnlineValue.toLowerCase() === "true";
+        }
+
         console.log(`[socketService] User ${userId} status from Redis:`, {
-          storedStatus: userStatus.isOnline,
+          storedStatus: isOnlineValue,
           lastSeen: lastSeenDate,
           isRecentlyActive,
           timeSinceLastSeen: lastSeenDate ? now - lastSeenDate : "N/A",
         });
 
         return {
-          isOnline: userStatus.isOnline === true || isRecentlyActive,
+          isOnline: isOnlineValue === true || isRecentlyActive,
           lastSeen: lastSeenDate,
         };
+      } else {
+        console.log(`[socketService] No Redis data found for user ${userId}`);
       }
     } catch (error) {
       console.error(
@@ -860,6 +831,12 @@ const getUserStatus = async (userId) => {
       );
       // Fall back to local memory
     }
+  } else {
+    console.log(
+      `[socketService] Redis not enabled or client not available. USE_REDIS=${
+        process.env.USE_REDIS
+      }, pubClient=${!!pubClient}`
+    );
   }
 
   // Fall back to local memory
@@ -871,51 +848,33 @@ const getUserStatus = async (userId) => {
     isOnline,
     lastSeen,
     activeSocketCount: activeSockets.has(userId) ? 1 : 0,
+    connectedUsersSize: connectedUsers.size,
+    activeSocketsSize: activeSockets.size,
   });
+
+  // Store the last seen time in Redis if available
+  if (isRedisEnabled && pubClient && !isOnline && lastSeen) {
+    try {
+      console.log(
+        `[socketService] Storing last seen time for offline user in Redis`
+      );
+      await redisConfig.setHashCache(
+        `user:${userId}:status`,
+        {
+          isOnline: false,
+          lastSeen: lastSeen.toISOString(),
+        },
+        360
+      );
+    } catch (error) {
+      console.error(`Error storing offline status in Redis:`, error);
+    }
+  }
 
   return {
     isOnline,
     lastSeen,
   };
-};
-
-// New helper function to format last seen times
-const formatLastSeen = (date) => {
-  if (!date) return null;
-
-  const now = new Date();
-  const diff = now - date;
-
-  // Less than a minute
-  if (diff < 60000) {
-    return "just now";
-  }
-
-  // Less than an hour
-  if (diff < 3600000) {
-    const minutes = Math.floor(diff / 60000);
-    return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
-  }
-
-  // Less than a day
-  if (diff < 86400000) {
-    const hours = Math.floor(diff / 3600000);
-    return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
-  }
-
-  // Less than a week
-  if (diff < 604800000) {
-    const days = Math.floor(diff / 86400000);
-    return `${days} day${days !== 1 ? "s" : ""} ago`;
-  }
-
-  // More than a week
-  return date.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
-  });
 };
 
 module.exports = {
