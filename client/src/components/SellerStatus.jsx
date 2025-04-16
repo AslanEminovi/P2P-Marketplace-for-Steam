@@ -17,22 +17,26 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
   const retryCountRef = useRef(0);
   const MAX_RETRIES = 3;
   const fetchTimeoutRef = useRef(null);
+  const handleStatusUpdateRef = useRef(null);
 
   // Handle status updates from socket
-  const handleStatusUpdate = (data) => {
-    if (data && data.userId === sellerId) {
-      console.log(`Received status update for user ${sellerId}:`, data.isOnline ? 'Online' : 'Offline');
-      setStatus(prev => ({
-        ...prev,
-        isOnline: data.isOnline,
-        lastSeen: data.lastSeen,
-        lastSeenFormatted: data.lastSeenFormatted || prev.lastSeenFormatted
-      }));
-      // Reset loading and error states since we have data
-      setLoading(false);
-      setError(null);
-    }
-  };
+  useEffect(() => {
+    // Create a stable reference to the handler function
+    handleStatusUpdateRef.current = (data) => {
+      if (data && data.userId === sellerId) {
+        console.log(`Received status update for user ${sellerId}:`, data.isOnline ? 'Online' : 'Offline');
+        setStatus(prev => ({
+          ...prev,
+          isOnline: data.isOnline,
+          lastSeen: data.lastSeen,
+          lastSeenFormatted: data.lastSeenFormatted || prev.lastSeenFormatted
+        }));
+        // Reset loading and error states since we have data
+        setLoading(false);
+        setError(null);
+      }
+    };
+  }, [sellerId]);
 
   // Force immediate status check
   const checkStatus = () => {
@@ -73,7 +77,10 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
       
       if (retryCountRef.current <= MAX_RETRIES) {
         console.log(`Retrying seller status fetch (${retryCountRef.current}/${MAX_RETRIES})`);
-        // Don't set the error state here, just retry silently
+        // Schedule a retry with exponential backoff
+        setTimeout(() => {
+          fetchStatus();
+        }, Math.min(1000 * Math.pow(2, retryCountRef.current - 1), 10000));
       } else {
         setError('Failed to load status');
       }
@@ -100,11 +107,17 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
     
     // Set up regular polling as a fallback if socket fails
     statusTimeoutRef.current = setInterval(() => {
-      fetchStatus();
-    }, 30000); // Poll every 30 seconds as a fallback
+      if (document.visibilityState === 'visible') {
+        fetchStatus();
+      }
+    }, 30000); // Poll every 30 seconds as a fallback when tab is visible
 
     // Register the event listener
-    socketService.on('userStatusUpdate', handleStatusUpdate);
+    socketService.on('userStatusUpdate', data => {
+      if (handleStatusUpdateRef.current) {
+        handleStatusUpdateRef.current(data);
+      }
+    });
     socketRegisteredRef.current = true;
     
     // Subscribe to user status via socket
@@ -114,6 +127,15 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
     if (!socketService.isConnected()) {
       socketService.reconnect();
     }
+
+    // Recheck status on visibility change
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkStatus();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Cleanup
     return () => {
@@ -126,13 +148,19 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
       }
       
       if (socketRegisteredRef.current) {
-        socketService.off('userStatusUpdate', handleStatusUpdate);
+        socketService.off('userStatusUpdate', data => {
+          if (data.userId === sellerId && handleStatusUpdateRef.current) {
+            handleStatusUpdateRef.current(data);
+          }
+        });
         socketRegisteredRef.current = false;
       }
+      
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [sellerId, forceStatus]);
 
-  // Simple loading state with spinner - show very briefly
+  // Simple loading state - show very briefly
   if (loading && !status.isOnline) {
     return (
       <div className={`seller-status-loading ${className}`}>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { motion, AnimatePresence } from 'framer-motion';
 import { formatCurrency, API_URL } from '../config/constants';
 import TradePanel from './TradePanel';
-import '../styles/ItemDetails.css';
 import SellerStatus from './SellerStatus';
+import '../styles/ItemDetails.css';
 
 // Define rarity colors mapping - same as in ItemCard3D
 const RARITY_COLORS = {
@@ -29,7 +30,7 @@ const WEAR_COLORS = {
   'default': '#94a3b8'
 };
 
-// Exterior abbreviation to full name mapping
+// Map of exterior abbreviations to full names
 const EXTERIOR_FULL_NAMES = {
   'fn': 'Factory New',
   'mw': 'Minimal Wear',
@@ -109,7 +110,6 @@ const ItemDetails = ({
   const handleBuyNow = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log("Buy Now button clicked");
     
     if (onAction) {
       onAction('buy');
@@ -124,7 +124,6 @@ const ItemDetails = ({
   const handleMakeOffer = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log("Make Offer button clicked");
     
     if (onAction) {
       onAction('offer');
@@ -195,14 +194,17 @@ const ItemDetails = ({
       window.removeEventListener('keydown', handleEsc);
     };
   }, [onClose]);
-  
-  // Get truncated name for better display
-  const getTruncatedName = (item) => {
+
+  // Get clean item name without wear information
+  const getItemBaseName = (item) => {
     if (!item) return '';
     
     let name = item.marketHashName || item.name || '';
     // Remove wear information from the name if present
     name = name.replace(/(Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)/i, '').trim();
+    
+    // Remove trailing pipe character if present
+    name = name.replace(/\|$/g, '').trim();
     
     // Truncate long names
     if (name.length > 40) {
@@ -211,18 +213,18 @@ const ItemDetails = ({
     return name;
   };
   
-  // Extract or identify wear from item data
+  // Extract or identify wear from item data with proper full names
   const getWearName = (item) => {
     if (!item) return null;
     
     // First check if exterior or wear is provided directly
     if (item.exterior) {
-      // Convert abbreviations to full names if needed
+      // Convert abbreviations to full names
       return EXTERIOR_FULL_NAMES[item.exterior.toLowerCase()] || item.exterior;
     }
     
     if (item.wear) {
-      // Convert abbreviations to full names if needed
+      // Convert abbreviations to full names
       return EXTERIOR_FULL_NAMES[item.wear.toLowerCase()] || item.wear;
     }
     
@@ -263,6 +265,12 @@ const ItemDetails = ({
   
   if (!isOpen) return null;
   
+  // Get values for display
+  const itemBaseName = item ? getItemBaseName(item) : '';
+  const itemWear = item ? getWearName(item) : null;
+  const itemRarityColor = item && item.rarity ? getRarityColor(item.rarity) : RARITY_COLORS.default;
+  const itemWearColor = itemWear ? getWearColor(itemWear) : WEAR_COLORS.default;
+  
   return (
     <>
       {isOpen && (
@@ -274,7 +282,9 @@ const ItemDetails = ({
           />
           
           {/* Main modal container */}
-          <div className="item-details-container">
+          <div className="item-details-container" style={{
+            borderTop: `4px solid ${itemRarityColor}`
+          }}>
             {/* Close button */}
             <button
               className="item-details-close-btn"
@@ -299,94 +309,94 @@ const ItemDetails = ({
                 </div>
               ) : item ? (
                 <>
-                  {/* Header with image and basic details */}
-                  <div className="item-header">
-                    <div 
-                      className="item-header-image"
-                      style={{
-                        background: `radial-gradient(circle at top right, ${getRarityColor(item.rarity)}22, transparent 70%)`
-                      }}
-                    >
-                      <img 
-                        src={getItemImage(item)}
-                        alt={getTruncatedName(item)}
-                        className="item-img"
-                      />
+                  {/* New layout with better organization */}
+                  <div className="item-details-grid">
+                    {/* Left column - Image */}
+                    <div className="item-image-column">
+                      <div 
+                        className="item-header-image"
+                        style={{
+                          background: `radial-gradient(circle at top right, ${itemRarityColor}22, transparent 70%)`,
+                          borderColor: `${itemRarityColor}44`
+                        }}
+                      >
+                        <img 
+                          src={getItemImage(item)}
+                          alt={itemBaseName}
+                          className="item-img"
+                        />
+                      </div>
+                      
+                      {/* Rarity tag */}
+                      {item.rarity && (
+                        <div className="item-tag" style={{ 
+                          backgroundColor: `${itemRarityColor}22`,
+                          color: itemRarityColor,
+                          borderColor: `${itemRarityColor}44` 
+                        }}>
+                          {item.rarity}
+                        </div>
+                      )}
+                      
+                      {/* Wear tag */}
+                      {itemWear && (
+                        <div className="item-tag" style={{ 
+                          backgroundColor: `${itemWearColor}22`,
+                          color: itemWearColor,
+                          borderColor: `${itemWearColor}44` 
+                        }}>
+                          {itemWear}
+                        </div>
+                      )}
                     </div>
                     
-                    <div className="item-header-details">
-                      <h2 className="item-title">
-                        {getTruncatedName(item)}
-                        {getWearName(item) && <span style={{ opacity: 0.75, fontWeight: 400, fontSize: '1.5rem' }}> ({getWearName(item)})</span>}
-                      </h2>
-                      <p className="item-subtitle">
-                        {getWeaponType(item)}
-                        {getWearName(item) && ` | ${getWearName(item)}`}
-                      </p>
+                    {/* Right column - Details */}
+                    <div className="item-details-column">
+                      {/* Item name and category */}
+                      <h2 className="item-title">{itemBaseName}</h2>
+                      <p className="item-category">{getWeaponType(item)}</p>
                       
-                      <div className="item-price-tag">
-                        {formatCurrency(item.price, 'USD')}
-                      </div>
-                      
-                      <div className="item-meta">
-                        {getWearName(item) && (
-                          <div className="meta-item">
-                            <div className="meta-label">Exterior</div>
-                            <div className="meta-value" style={{ color: getWearColor(getWearName(item)) }}>
-                              {getWearName(item)}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {item.rarity && (
-                          <div className="meta-item">
-                            <div className="meta-label">Rarity</div>
-                            <div className="meta-value" style={{ color: getRarityColor(item.rarity) }}>
-                              {item.rarity}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {item.float_value && (
-                          <div className="meta-item">
-                            <div className="meta-label">Float Value</div>
-                            <div className="meta-value">
-                              {parseFloat(item.float_value).toFixed(8)}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {item.created_at && (
-                          <div className="meta-item">
-                            <div className="meta-label">Listed</div>
-                            <div className="meta-value">
-                              {new Date(item.created_at).toLocaleDateString()}
-                            </div>
+                      {/* Price info */}
+                      <div className="item-price-container">
+                        <div className="item-price-tag">
+                          {formatCurrency(item.price, 'USD')}
+                        </div>
+                        {item.originalPrice && item.originalPrice > item.price && (
+                          <div className="item-discount">
+                            <span className="original-price">{formatCurrency(item.originalPrice, 'USD')}</span>
+                            <span className="discount-percent">-{Math.round((1 - item.price / item.originalPrice) * 100)}%</span>
                           </div>
                         )}
                       </div>
                       
-                      {/* Owner info section */}
+                      {/* Seller info */}
                       {item.owner && (
-                        <div className="item-owner">
-                          <div className="meta-label">Listed by</div>
-                          <div className="owner-info">
-                            <div className="owner-avatar">
+                        <div className="seller-card">
+                          <div className="seller-header">Listed by</div>
+                          <div className="seller-profile">
+                            <div className="seller-avatar">
                               {item.owner.avatar ? (
-                                <img src={item.owner.avatar} alt={item.owner.displayName || 'Seller'} />
+                                <img 
+                                  src={item.owner.avatar} 
+                                  alt={item.owner.displayName || 'Seller'} 
+                                  onError={(e) => {
+                                    e.target.src = '/default-avatar.png';
+                                  }}
+                                />
                               ) : (
                                 <div className="avatar-placeholder">
                                   {(item.owner.displayName?.[0] || '?').toUpperCase()}
                                 </div>
                               )}
                             </div>
-                            <div className="owner-details">
-                              <div className="owner-name">
+                            <div className="seller-info">
+                              <div className="seller-name">
                                 {item.owner.displayName || 'Anonymous Seller'}
                               </div>
                               {item.owner._id && (
                                 <SellerStatus 
-                                  sellerId={item.owner._id} 
+                                  sellerId={item.owner._id}
+                                  forceStatus={item.owner.isOnline} 
                                   showLastSeen={true}
                                   className="item-details-seller-status"
                                 />
@@ -395,55 +405,79 @@ const ItemDetails = ({
                           </div>
                         </div>
                       )}
+                      
+                      {/* Item properties grid */}
+                      <div className="item-props-grid">
+                        {item.float_value && (
+                          <div className="item-prop">
+                            <div className="prop-label">Float</div>
+                            <div className="prop-value">{parseFloat(item.float_value).toFixed(8)}</div>
+                          </div>
+                        )}
+                        
+                        {item.pattern && (
+                          <div className="item-prop">
+                            <div className="prop-label">Pattern</div>
+                            <div className="prop-value">{item.pattern}</div>
+                          </div>
+                        )}
+                        
+                        {item.created_at && (
+                          <div className="item-prop">
+                            <div className="prop-label">Listed</div>
+                            <div className="prop-value">{new Date(item.created_at).toLocaleDateString()}</div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Action buttons */}
+                      <div className="item-action-buttons-container">
+                        {!isUserOwner ? (
+                          <>
+                            <button 
+                              className="action-button action-button-buy"
+                              onClick={handleBuyNow}
+                              type="button"
+                            >
+                              <span>Buy Now</span>
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="9" cy="21" r="1"></circle>
+                                <circle cx="20" cy="21" r="1"></circle>
+                                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                              </svg>
+                            </button>
+                            <button 
+                              className="action-button action-button-offer"
+                              onClick={handleMakeOffer}
+                              type="button"
+                            >
+                              <span>Make Offer</span>
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="12" y1="1" x2="12" y2="23"></line>
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                              </svg>
+                            </button>
+                          </>
+                        ) : (
+                          <button 
+                            className="action-button action-button-cancel"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleCancelListing(item._id);
+                            }}
+                            type="button"
+                          >
+                            <span>Cancel Listing</span>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="12" r="10"></circle>
+                              <line x1="15" y1="9" x2="9" y2="15"></line>
+                              <line x1="9" y1="9" x2="15" y2="15"></line>
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  
-                  {/* Action buttons moved outside other containers for better visibility */}
-                  <div className="item-action-buttons-container">
-                    {!isUserOwner ? (
-                      <>
-                        <button 
-                          className="action-button action-button-buy"
-                          onClick={handleBuyNow}
-                          type="button"
-                        >
-                          <span>Buy Now</span>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="9" cy="21" r="1"></circle>
-                            <circle cx="20" cy="21" r="1"></circle>
-                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-                          </svg>
-                        </button>
-                        <button 
-                          className="action-button action-button-offer"
-                          onClick={handleMakeOffer}
-                          type="button"
-                        >
-                          <span>Make Offer</span>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="12" y1="1" x2="12" y2="23"></line>
-                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                          </svg>
-                        </button>
-                      </>
-                    ) : (
-                      <button 
-                        className="action-button action-button-cancel"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleCancelListing(item._id);
-                        }}
-                        type="button"
-                      >
-                        <span>Cancel Listing</span>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10"></circle>
-                          <line x1="15" y1="9" x2="9" y2="15"></line>
-                          <line x1="9" y1="9" x2="15" y2="15"></line>
-                        </svg>
-                      </button>
-                    )}
                   </div>
                   
                   {/* Description if available */}
