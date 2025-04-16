@@ -7,7 +7,6 @@ import { FiUser, FiMail, FiPhone, FiMapPin, FiGlobe, FiEdit, FiSave, FiShield, F
 import { FaSteam, FaCircle } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import './Profile.css';
-import apiClient from '../services/axiosConfig';
 
 const Profile = ({ user, onBalanceUpdate }) => {
   const { user: authUser, updateUser: authUpdateUser } = useAuth();
@@ -86,72 +85,92 @@ const Profile = ({ user, onBalanceUpdate }) => {
   
   const fetchUserProfile = async () => {
     setLoading(true);
+    setError(null);
+    
     try {
       console.log("Fetching user profile data...");
       
-      // Use the configured API client which already has auth tokens and cache busting
-      const response = await apiClient.get('/auth/user');
-      
-      console.log("Received user data:", response.data);
-      
-      if (response.data.authenticated) {
-        const userData = response.data.user;
-        console.log("Setting profile with fresh user data:", userData);
-        
-        // Always use server data - it's the source of truth
-        setProfile(userData);
-        
-        // Update auth context with fresh data
-        if (authUpdateUser) {
-          authUpdateUser(userData);
-        }
-        
-        // Update window global user
-        if (typeof window.updateGlobalUser === 'function') {
-          window.updateGlobalUser(userData);
-        }
-        
-        // Initialize form with user data only if we're not editing
-        if (!isEditing) {
-          initializeFormData(userData);
-        }
-        
-        // Clear any previous errors
-        setError(null);
-      } else {
-        // If not authenticated, show error
-        setError('Authentication error. Please log in again.');
-        toast.error('Authentication error. Please log in again.');
-        
-        // Potentially redirect to login page
-        setTimeout(() => {
-          window.location.href = `${API_URL}/auth/steam`;
-        }, 1500);
+      // Get token for auth
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setError("Authentication token not found. Please log in again.");
+        toast.error("Authentication token not found. Please log in again.");
+        setLoading(false);
+        return;
       }
-    } catch (err) {
-      console.error('Error fetching profile:', err);
       
-      let errorMessage = 'Failed to load profile information';
+      // Use XMLHttpRequest directly to avoid CORS header issues
+      const xhr = new XMLHttpRequest();
+      const url = `${API_URL}/auth/user?auth_token=${token}&t=${Date.now()}`;
       
-      // Provide more specific error messages based on the error type
-      if (err.message === 'Network Error') {
-        errorMessage = 'Network error. Please check your internet connection and try again.';
-      } else if (err.response) {
-        if (err.response.status === 401 || err.response.status === 403) {
-          errorMessage = 'Authentication error. Please log in again.';
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const response = JSON.parse(xhr.responseText);
+              console.log("Received user data:", response);
+              
+              if (response.authenticated) {
+                const userData = response.user;
+                console.log("Setting profile with fresh user data:", userData);
+                
+                // Always use server data - it's the source of truth
+                setProfile(userData);
+                
+                // Update auth context with fresh data
+                if (authUpdateUser) {
+                  authUpdateUser(userData);
+                }
+                
+                // Update window global user
+                if (typeof window.updateGlobalUser === 'function') {
+                  window.updateGlobalUser(userData);
+                }
+                
+                // Initialize form with user data only if we're not editing
+                if (!isEditing) {
+                  initializeFormData(userData);
+                }
+                
+                // Clear any previous errors
+                setError(null);
+              } else {
+                // If not authenticated, show error
+                setError('Authentication error. Please log in again.');
+                toast.error('Authentication error. Please log in again.');
+                
+                // Redirect to login page
+                setTimeout(() => {
+                  window.location.href = `${API_URL}/auth/steam`;
+                }, 1500);
+              }
+            } catch (parseErr) {
+              console.error("Error parsing profile response:", parseErr);
+              setError("Failed to parse server response");
+              toast.error("Failed to parse server response");
+            }
+          } else {
+            // Error
+            console.error('Profile request failed with status:', xhr.status);
+            console.error('Response text:', xhr.responseText);
+            setError("Failed to load profile data");
+            toast.error("Failed to load profile data");
+          }
           
-          // Redirect to login if authentication error
-          setTimeout(() => {
-            window.location.href = `${API_URL}/auth/steam`;
-          }, 1500);
-        } else if (err.response.status >= 500) {
-          errorMessage = 'Server error. Please try again later.';
+          setLoading(false);
         }
-      }
+      };
       
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
+      xhr.open('GET', url, true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.withCredentials = true;
+      xhr.send();
+      
+    } catch (err) {
+      console.error('Error in fetchUserProfile:', err);
+      setError('Failed to load profile data');
+      toast.error('Failed to load profile data');
       setLoading(false);
     }
   };
@@ -170,18 +189,9 @@ const Profile = ({ user, onBalanceUpdate }) => {
       setIsEditing(false);
     }
     
-    setLoading(true);
-    setError(null);
-    try {
-      await fetchUserProfile();
-      toast.success('Profile refreshed successfully');
-    } catch (err) {
-      console.error('Error refreshing profile:', err);
-      setError(err.response?.data?.error || 'Failed to refresh profile');
-      toast.error('Failed to refresh profile data');
-    } finally {
-      setLoading(false);
-    }
+    // Just call the fetchUserProfile function since we've updated it to use XMLHttpRequest
+    await fetchUserProfile();
+    toast.success('Profile refreshed');
   };
   
   const handleChange = (e) => {
