@@ -335,15 +335,16 @@ const Navbar = ({ user, onLogout }) => {
                       aria-haspopup="true"
                     >
                       {/* User Avatar - Restored to button */}
-                      <div className="user-avatar">
+                      <div className="user-avatar-container">
                         {user.avatarUrl ? (
                           <img 
                             src={user.avatarUrl} 
                             alt={`${user.displayName}'s avatar`} 
                             className="user-avatar-image"
+                            style={{width: '100%', height: '100%', objectFit: 'cover'}}
                           />
                         ) : (
-                          <div className="user-avatar-placeholder">
+                          <div className="user-avatar-container">
                             {getUserInitials()}
                           </div>
                         )}
@@ -395,7 +396,9 @@ const Navbar = ({ user, onLogout }) => {
                       >
                         <div className="dropdown-header">
                           <div className="dropdown-user-info">
-                            <span className="dropdown-username">{user.displayName}</span>
+                            <span className="dropdown-username">
+                              {user.displayName}
+                            </span>
                             <div className="dropdown-email-container">
                               <span className="dropdown-email">{user.email || 'No email provided'}</span>
                             </div>

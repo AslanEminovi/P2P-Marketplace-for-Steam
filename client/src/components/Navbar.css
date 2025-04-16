@@ -411,7 +411,7 @@
   font-size: 18px;
   font-weight: 600;
   margin-bottom: 4px;
-  color: var(--text-color);
+  color: #FFFFFF;
 }
 
 .dropdown-email-container {
@@ -1338,4 +1338,24 @@
 .notifications-dropdown .mark-read-btn:disabled {
   color: #585d6a;
   cursor: default;
+}
+
+/* User Avatar */
+.user-avatar-container {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #3373F2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #0a0e17;
+  overflow: hidden;
+}
+
+.user-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
