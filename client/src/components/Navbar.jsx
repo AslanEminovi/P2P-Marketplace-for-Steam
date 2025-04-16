@@ -398,7 +398,7 @@ const Navbar = ({ user, onLogout }) => {
                       <span className="desktop-only" style={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.displayName}</span>
                       
                       {/* Admin Badge for admins */}
-                      {user.isAdmin && (
+                      {user.isAdmin ? (
                         <span 
                           className="admin-badge" 
                           style={{
@@ -416,6 +416,25 @@ const Navbar = ({ user, onLogout }) => {
                           }}
                         >
                           ADMIN
+                        </span>
+                      ) : (
+                        <span 
+                          className="user-badge" 
+                          style={{
+                            backgroundColor: '#f59e0b',
+                            color: '#000',
+                            fontSize: '0.6rem',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            marginLeft: '6px',
+                            fontWeight: 'bold',
+                            letterSpacing: '0.5px',
+                            border: '1px solid rgba(0,0,0,0.1)',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                            textTransform: 'uppercase'
+                          }}
+                        >
+                          USER
                         </span>
                       )}
                       <div className={`dropdown-arrow ${dropdownOpen ? 'active' : ''}`}>
