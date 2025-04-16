@@ -1,0 +1,243 @@
+.steam-reg-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+
+.steam-reg-modal {
+  width: 90%;
+  max-width: 600px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(79, 79, 255, 0.2);
+  overflow: hidden;
+  animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.steam-reg-header {
+  background: linear-gradient(90deg, #0f1923 0%, #213555 100%);
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(79, 79, 255, 0.3);
+}
+
+.steam-reg-steam-info {
+  display: flex;
+  align-items: center;
+}
+
+.steam-reg-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(79, 79, 255, 0.5);
+  margin-right: 12px;
+}
+
+.steam-reg-steam-name {
+  display: flex;
+  flex-direction: column;
+}
+
+.steam-reg-steam-name span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.steam-reg-steam-name strong {
+  font-size: 16px;
+  color: #fff;
+}
+
+.steam-reg-steps {
+  display: flex;
+  align-items: center;
+}
+
+.steam-reg-step-indicator {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.steam-reg-step-indicator.active {
+  background-color: #4d78ff;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(77, 120, 255, 0.5);
+}
+
+.steam-reg-step-line {
+  width: 30px;
+  height: 2px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 0 5px;
+  transition: all 0.3s ease;
+}
+
+.steam-reg-step-line.active {
+  background-color: #4d78ff;
+}
+
+.steam-reg-step {
+  padding: 24px;
+}
+
+.steam-reg-step h2 {
+  color: #fff;
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.steam-reg-info {
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.steam-reg-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 640px) {
+  .steam-reg-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.steam-reg-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.steam-reg-field label {
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.steam-reg-field input {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 12px 16px;
+  color: #fff;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.steam-reg-field input:focus {
+  outline: none;
+  border-color: #4d78ff;
+  box-shadow: 0 0 0 2px rgba(77, 120, 255, 0.2);
+}
+
+.steam-reg-field input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.steam-reg-field input.error {
+  border-color: #ff4d4d;
+}
+
+.steam-reg-error {
+  color: #ff4d4d;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.steam-reg-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.steam-reg-btn {
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  font-size: 16px;
+}
+
+.steam-reg-btn-back {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.steam-reg-btn-back:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.steam-reg-btn-next, .steam-reg-btn-submit {
+  background: linear-gradient(90deg, #4d78ff 0%, #5e93ff 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(77, 120, 255, 0.3);
+}
+
+.steam-reg-btn-next:hover, .steam-reg-btn-submit:hover {
+  background: linear-gradient(90deg, #3a6eff 0%, #4b84ff 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(77, 120, 255, 0.4);
+}
+
+.steam-reg-btn-submit:disabled {
+  background: linear-gradient(90deg, #4d78ff80 0%, #5e93ff80 100%);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+@media (max-width: 768px) {
+  .steam-reg-modal {
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  .steam-reg-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .steam-reg-steps {
+    width: 100%;
+    justify-content: center;
+  }
+} 

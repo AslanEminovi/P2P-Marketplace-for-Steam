@@ -180,7 +180,24 @@ export const AuthProvider = ({ children }) => {
 
         if (response.data.authenticated) {
           setIsAuthenticated(true);
-          setUser(response.data.user);
+
+          // Ensure profileComplete field is included
+          const userData = {
+            ...response.data.user,
+            profileComplete: response.data.user.profileComplete || false,
+            firstName: response.data.user.firstName || "",
+            lastName: response.data.user.lastName || "",
+            country: response.data.user.country || "",
+            city: response.data.user.city || "",
+          };
+
+          setUser(userData);
+
+          // Log user information for debugging
+          console.log("User authenticated:", {
+            steamId: userData.steamId,
+            profileComplete: userData.profileComplete,
+          });
         } else {
           setIsAuthenticated(false);
           setUser(null);
@@ -253,10 +270,14 @@ export const AuthProvider = ({ children }) => {
 
   // Update user data
   const updateUser = (userData) => {
-    setUser((prevUser) => ({
-      ...prevUser,
-      ...userData,
-    }));
+    setUser((prevUser) => {
+      const updatedUser = {
+        ...prevUser,
+        ...userData,
+      };
+      console.log("User data updated:", updatedUser);
+      return updatedUser;
+    });
   };
 
   // Context value

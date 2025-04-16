@@ -256,3 +256,57 @@ exports.getUserNotifications = async (req, res) => {
     return res.status(500).json({ error: "Failed to retrieve notifications" });
   }
 };
+
+// POST /user/complete-profile
+exports.completeUserProfile = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { firstName, lastName, email, phone, country, city } = req.body;
+
+    // Find user
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Update fields if provided
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
+    if (email) user.email = email;
+    if (phone) user.phone = phone;
+    if (country) user.country = country;
+    if (city) user.city = city;
+
+    // Mark profile as complete
+    user.profileComplete = true;
+
+    // Set verification level to 1 (email verification) if email is provided
+    if (email && user.verificationLevel === 0) {
+      user.verificationLevel = 1;
+    }
+
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "User profile completed successfully",
+      user: {
+        id: user._id,
+        steamId: user.steamId,
+        displayName: user.displayName,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+        country: user.country,
+        city: user.city,
+        profileComplete: user.profileComplete,
+        verificationLevel: user.verificationLevel,
+      },
+    });
+  } catch (err) {
+    console.error("Complete user profile error:", err);
+    return res.status(500).json({ error: "Failed to complete user profile" });
+  }
+};

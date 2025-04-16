@@ -10,6 +10,7 @@ import Footer from './components/Footer';
 import SocketConnectionIndicator from './components/SocketConnectionIndicator';
 import LiveActivityFeed from './components/LiveActivityFeed';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import SteamRegistrationModal from './components/SteamRegistrationModal';
 
 // Pages
 import Home from './pages/Home';
@@ -98,6 +99,7 @@ function AppContent() {
   const [notifications, setNotifications] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
   const [showConnectionIndicator, setShowConnectionIndicator] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const navigate = useNavigate();
 
   // Function to show a notification
@@ -286,6 +288,21 @@ function AppContent() {
     }
   };
 
+  // Check if user needs to complete registration after Steam auth
+  useEffect(() => {
+    if (user && user.steamId && !user.profileComplete && isAuthenticated) {
+      setShowRegistrationModal(true);
+    } else {
+      setShowRegistrationModal(false);
+    }
+  }, [user, isAuthenticated]);
+
+  // Handle registration completion
+  const handleRegistrationComplete = (updatedUser) => {
+    updateUser(updatedUser);
+    setShowRegistrationModal(false);
+  };
+
   return (
     <PageWrapper>
       <ScrollToTop />
@@ -346,6 +363,15 @@ function AppContent() {
         <Footer />
       </div>
       <LiveActivityFeed />
+      
+      {/* Steam Registration Modal */}
+      {showRegistrationModal && user && (
+        <SteamRegistrationModal 
+          user={user}
+          onClose={() => setShowRegistrationModal(false)} 
+          onComplete={handleRegistrationComplete}
+        />
+      )}
     </PageWrapper>
   );
 }

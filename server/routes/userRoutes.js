@@ -21,6 +21,9 @@ router.put("/notifications/read", userController.markNotificationsRead);
 // Get user notifications
 router.get("/notifications", userController.getUserNotifications);
 
+// Complete user profile after Steam authentication
+router.post("/complete-profile", userController.completeUserProfile);
+
 // Redis test endpoint (temporary, can be removed after testing)
 router.get("/redis-status", async (req, res) => {
   const redisConfig = require("../config/redis");

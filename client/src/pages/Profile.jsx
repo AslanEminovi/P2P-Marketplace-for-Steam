@@ -1,26 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config/constants';
-import Wallet from '../components/Wallet';
 import { Link } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
+import { FiUser, FiMail, FiPhone, FiMapPin, FiGlobe, FiEdit, FiSave, FiShield } from 'react-icons/fi';
+import { FaSteam, FaCircle } from 'react-icons/fa';
+import './Profile.css';
 
-const Profile = ({ user, onBalanceUpdate, defaultTab = 'wallet' }) => {
-  const [activeTab, setActiveTab] = useState(defaultTab);
+const Profile = ({ user, onBalanceUpdate }) => {
+  const [activeTab, setActiveTab] = useState('profile');
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   
-  // Settings form
-  const [displayName, setDisplayName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [preferredCurrency, setPreferredCurrency] = useState('USD');
-  const [theme, setTheme] = useState('dark');
-  const [notificationSettings, setNotificationSettings] = useState({
-    email: true,
-    push: true,
-    offers: true,
-    trades: true
+  // Profile form state
+  const [formData, setFormData] = useState({
+    displayName: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    country: '',
+    city: '',
+    preferredCurrency: 'USD',
+    theme: 'dark',
+    privacySettings: {
+      showOnlineStatus: true,
+      showInventoryValue: false
+    },
+    notificationSettings: {
+      email: true,
+      push: true,
+      offers: true,
+      trades: true
+    }
   });
   
   useEffect(() => {
@@ -38,22 +53,33 @@ const Profile = ({ user, onBalanceUpdate, defaultTab = 'wallet' }) => {
         
         // Initialize form with user data
         if (response.data.user) {
-          setDisplayName(response.data.user.displayName || '');
-          setEmail(response.data.user.email || '');
-          setPhone(response.data.user.phone || '');
-          setPreferredCurrency(response.data.user.settings?.currency || 'USD');
-          setTheme(response.data.user.settings?.theme || 'dark');
-          setNotificationSettings({
-            email: response.data.user.settings?.notifications?.email ?? true,
-            push: response.data.user.settings?.notifications?.push ?? true,
-            offers: response.data.user.settings?.notifications?.offers ?? true,
-            trades: response.data.user.settings?.notifications?.trades ?? true
+          setFormData({
+            displayName: response.data.user.displayName || '',
+            firstName: response.data.user.firstName || '',
+            lastName: response.data.user.lastName || '',
+            email: response.data.user.email || '',
+            phone: response.data.user.phone || '',
+            country: response.data.user.country || '',
+            city: response.data.user.city || '',
+            preferredCurrency: response.data.user.settings?.currency || 'USD',
+            theme: response.data.user.settings?.theme || 'dark',
+            privacySettings: {
+              showOnlineStatus: response.data.user.settings?.privacy?.showOnlineStatus ?? true,
+              showInventoryValue: response.data.user.settings?.privacy?.showInventoryValue ?? false
+            },
+            notificationSettings: {
+              email: response.data.user.settings?.notifications?.email ?? true,
+              push: response.data.user.settings?.notifications?.push ?? true,
+              offers: response.data.user.settings?.notifications?.offers ?? true,
+              trades: response.data.user.settings?.notifications?.trades ?? true
+            }
           });
         }
       }
     } catch (err) {
       console.error('Error fetching profile:', err);
       setError('Failed to load profile information');
+      toast.error('Failed to load profile information');
     } finally {
       setLoading(false);
     }
@@ -63,822 +89,546 @@ const Profile = ({ user, onBalanceUpdate, defaultTab = 'wallet' }) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`${API_URL}/auth/refresh-profile`, { withCredentials: true });
-      if (response.data.success) {
-        fetchUserProfile(); // Reload the profile data after refresh
-        if (onBalanceUpdate) {
-          onBalanceUpdate(); // Update parent component if needed
-        }
-      } else {
-        setError('Failed to refresh profile data');
-      }
+      await fetchUserProfile();
+      toast.success('Profile refreshed successfully');
     } catch (err) {
       console.error('Error refreshing profile:', err);
       setError(err.response?.data?.error || 'Failed to refresh profile');
+      toast.error('Failed to refresh profile data');
     } finally {
       setLoading(false);
     }
   };
   
-  const handleSaveSettings = async (e) => {
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    
+    if (name.includes('.')) {
+      const [section, field] = name.split('.');
+      setFormData({
+        ...formData,
+        [section]: {
+          ...formData[section],
+          [field]: type === 'checkbox' ? checked : value
+        }
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: type === 'checkbox' ? checked : value
+      });
+    }
+  };
+  
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setSaving(true);
     
     try {
       const response = await axios.put(
         `${API_URL}/user/settings`,
         {
-          displayName,
-          email,
-          phone,
+          displayName: formData.displayName,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          country: formData.country,
+          city: formData.city,
           settings: {
-            currency: preferredCurrency,
-            theme,
-            notifications: notificationSettings
+            currency: formData.preferredCurrency,
+            theme: formData.theme,
+            privacy: formData.privacySettings,
+            notifications: formData.notificationSettings
           }
         },
         { withCredentials: true }
       );
       
       if (response.data.success) {
-        fetchUserProfile(); // Refresh user data
+        toast.success('Profile saved successfully');
+        fetchUserProfile();
+        setIsEditing(false);
       }
     } catch (err) {
-      console.error('Error saving settings:', err);
-      setError(err.response?.data?.error || 'Failed to save settings');
+      console.error('Error saving profile:', err);
+      setError(err.response?.data?.error || 'Failed to save profile');
+      toast.error('Failed to save profile');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
   
   if (loading && !profile) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center',
-        height: '80vh',
-        flexDirection: 'column',
-        gap: '1.5rem'
-      }}>
-        <div style={{
-          width: '60px',
-          height: '60px',
-          border: '4px solid rgba(255,255,255,0.1)',
-          borderRadius: '50%',
-          borderTopColor: '#4ade80',
-          animation: 'spin 1s linear infinite'
-        }} />
-        <p style={{ 
-          color: '#e2e8f0', 
-          fontSize: '1.2rem',
-          fontWeight: '500'
-        }}>
-          Loading profile...
-        </p>
+      <div className="profile-loading">
+        <div className="profile-spinner"></div>
+        <p>Loading profile...</p>
       </div>
     );
   }
   
   return (
-    <div style={{
-      maxWidth: '1200px',
-      margin: '0 auto',
-      padding: '20px'
-    }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        marginBottom: '30px',
-        background: 'rgba(45, 27, 105, 0.3)',
-        padding: '25px',
-        borderRadius: '16px',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
-        backdropFilter: 'blur(8px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)'
-      }}>
-        <div>
+    <div className="profile-container">
+      <div className="profile-header">
+        <div className="profile-user-info">
           <img 
             src={user?.avatar || 'https://via.placeholder.com/150'} 
             alt="Profile" 
-            style={{
-              width: '100px',
-              height: '100px',
-              borderRadius: '50%',
-              marginRight: '25px',
-              border: '4px solid #4ade80',
-              boxShadow: '0 0 20px rgba(74, 222, 128, 0.4)'
-            }}
+            className="profile-avatar"
           />
-        </div>
-        <div>
-          <h1 style={{ 
-            color: '#f1f1f1', 
-            margin: '0 0 10px 0',
-            fontSize: '1.8rem',
-            background: 'linear-gradient(90deg, #4ade80, #38bdf8)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          }}>
-            {user?.displayName || 'User'}
-          </h1>
-          <p style={{ color: '#aaa', margin: '0' }}>
-            Steam ID: {user?.steamId || 'Not available'}
-          </p>
-          <div style={{ 
-            display: 'flex',
-            gap: '15px',
-            marginTop: '15px'
-          }}>
-            <span style={{ 
-              background: 'rgba(74, 222, 128, 0.2)', 
-              padding: '4px 12px', 
-              borderRadius: '50px',
-              fontSize: '0.8rem',
-              color: '#4ade80',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}>
-              <span>●</span>Online
-            </span>
-            <span style={{ 
-              background: 'rgba(139, 92, 246, 0.2)', 
-              padding: '4px 12px', 
-              borderRadius: '50px',
-              fontSize: '0.8rem',
-              color: '#8b5cf6',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}>
-              <span>{user?.verificationLevel > 0 ? '✓' : '○'}</span>
-              {user?.verificationLevel > 0 ? 'Verified' : 'Unverified'}
-            </span>
-            
-            {/* Refresh Profile Button */}
-            <span style={{ 
-              background: 'rgba(56, 189, 248, 0.2)', 
-              padding: '4px 12px', 
-              borderRadius: '50px',
-              fontSize: '0.8rem',
-              color: '#38bdf8',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }} 
-            onClick={refreshProfile}
-            onMouseEnter={(e) => {
-              e.target.style.background = 'rgba(56, 189, 248, 0.3)';
-              e.target.style.transform = 'scale(1.05)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = 'rgba(56, 189, 248, 0.2)';
-              e.target.style.transform = 'scale(1)';
-            }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 4v6h-6"></path>
-                <path d="M1 20v-6h6"></path>
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path>
-                <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"></path>
-              </svg>
-              Refresh Profile
-            </span>
-          </div>
-        </div>
-      </div>
-      
-      {/* Tabs */}
-      <div style={{
-        display: 'flex',
-        marginBottom: '30px',
-        background: 'rgba(45, 27, 105, 0.2)',
-        padding: '10px',
-        borderRadius: '16px',
-        border: '1px solid rgba(255, 255, 255, 0.05)'
-      }}>
-        {['wallet', 'settings', 'verification'].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            style={{
-              flex: 1,
-              backgroundColor: activeTab === tab ? '#4ade80' : 'transparent',
-              color: activeTab === tab ? '#242424' : '#f1f1f1',
-              border: 'none',
-              padding: '14px 20px',
-              cursor: 'pointer',
-              textTransform: 'capitalize',
-              fontWeight: '600',
-              borderRadius: '12px',
-              margin: '0 5px',
-              transition: 'all 0.3s ease',
-              boxShadow: activeTab === tab ? '0 4px 12px rgba(74, 222, 128, 0.3)' : 'none'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              {tab === 'wallet' && (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="5" width="20" height="14" rx="2" />
-                  <line x1="2" y1="10" x2="22" y2="10" />
-                </svg>
+          <div className="profile-user-details">
+            <h1 className="profile-username">{user?.displayName || 'User'}</h1>
+            <div className="profile-badges">
+              <div className="profile-badge profile-badge-steam">
+                <FaSteam /> Steam Connected
+              </div>
+              <div className="profile-badge profile-badge-online">
+                <FaCircle /> Online
+              </div>
+              {user?.verificationLevel > 0 && (
+                <div className="profile-badge profile-badge-verified">
+                  <FiShield /> Verified
+                </div>
               )}
-              {tab === 'settings' && (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-              )}
-              {tab === 'verification' && (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <polyline points="22 4 12 14.01 9 11.01" />
-                </svg>
-              )}
-              {tab}
             </div>
+            <p className="profile-steam-id">
+              Steam ID: <span>{user?.steamId || 'Not available'}</span>
+            </p>
+          </div>
+        </div>
+        <div className="profile-actions">
+          <button className="profile-refresh-btn" onClick={refreshProfile} disabled={loading}>
+            {loading ? 'Loading...' : 'Refresh Profile'}
           </button>
-        ))}
+          <Link to="/wallet" className="profile-wallet-btn">
+            View Wallet
+          </Link>
+        </div>
       </div>
       
-      {/* Error display */}
-      {error && (
-        <div style={{
-          backgroundColor: 'rgba(220, 38, 38, 0.2)',
-          color: '#fca5a5',
-          padding: '15px 20px',
-          borderRadius: '12px',
-          marginBottom: '25px',
-          border: '1px solid rgba(220, 38, 38, 0.3)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          boxShadow: '0 4px 12px rgba(220, 38, 38, 0.15)'
-        }}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-          {error}
+      <div className="profile-content">
+        <div className="profile-tabs">
+          <button 
+            className={`profile-tab ${activeTab === 'profile' ? 'active' : ''}`}
+            onClick={() => setActiveTab('profile')}
+          >
+            <FiUser /> Personal Info
+          </button>
+          <button 
+            className={`profile-tab ${activeTab === 'privacy' ? 'active' : ''}`}
+            onClick={() => setActiveTab('privacy')}
+          >
+            <FiShield /> Privacy Settings
+          </button>
+          <button 
+            className={`profile-tab ${activeTab === 'notifications' ? 'active' : ''}`}
+            onClick={() => setActiveTab('notifications')}
+          >
+            <FiMail /> Notifications
+          </button>
         </div>
-      )}
-      
-      {/* Tab Content */}
-      <div style={{ minHeight: '400px' }}>
-        {/* Wallet Tab */}
-        {activeTab === 'wallet' && (
-          <div>
-            <Wallet user={user} onBalanceUpdate={onBalanceUpdate} />
-          </div>
-        )}
         
-        {/* Settings Tab */}
-        {activeTab === 'settings' && (
-          <div>
-            <div style={{
-              background: 'rgba(45, 27, 105, 0.3)',
-              borderRadius: '16px',
-              padding: '25px',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              marginBottom: '30px'
-            }}>
-              <h2 style={{ 
-                color: '#f1f1f1', 
-                marginBottom: '25px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                fontSize: '1.75rem'
-              }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-                Account Settings
-              </h2>
-          
-              <form onSubmit={handleSaveSettings}>
-                {/* Profile Section */}
-                <div style={{ marginBottom: '30px' }}>
-                  <h3 style={{ color: '#4ade80', marginBottom: '15px' }}>Profile Information</h3>
-                  
-                  <div style={{ marginBottom: '15px' }}>
-                    <label style={{ color: '#f1f1f1', display: 'block', marginBottom: '5px' }}>
-                      Display Name
-                    </label>
-                    <input
-                      type="text"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      style={{
-                        width: '100%',
-                        backgroundColor: '#333',
-                        border: '1px solid #555',
-                        padding: '10px',
-                        color: '#f1f1f1',
-                        borderRadius: '4px'
-                      }}
-                      placeholder="Your display name"
-                    />
+        <div className="profile-tab-content">
+          {activeTab === 'profile' && (
+            <div className="profile-section">
+              <div className="profile-section-header">
+                <h2>Personal Information</h2>
+                {!isEditing && (
+                  <button 
+                    className="profile-edit-btn" 
+                    onClick={() => setIsEditing(true)}
+                  >
+                    <FiEdit /> Edit
+                  </button>
+                )}
+              </div>
+              
+              {isEditing ? (
+                <form onSubmit={handleSaveProfile} className="profile-form">
+                  <div className="profile-form-grid">
+                    <div className="profile-form-group">
+                      <label htmlFor="displayName">
+                        <FiUser /> Display Name
+                      </label>
+                      <input
+                        type="text"
+                        id="displayName"
+                        name="displayName"
+                        value={formData.displayName}
+                        onChange={handleChange}
+                        className="profile-input"
+                      />
+                    </div>
+                    
+                    <div className="profile-form-group">
+                      <label htmlFor="firstName">
+                        <FiUser /> First Name
+                      </label>
+                      <input
+                        type="text"
+                        id="firstName"
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        className="profile-input"
+                      />
+                    </div>
+                    
+                    <div className="profile-form-group">
+                      <label htmlFor="lastName">
+                        <FiUser /> Last Name
+                      </label>
+                      <input
+                        type="text"
+                        id="lastName"
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        className="profile-input"
+                      />
+                    </div>
+                    
+                    <div className="profile-form-group">
+                      <label htmlFor="email">
+                        <FiMail /> Email
+                      </label>
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        className="profile-input"
+                      />
+                    </div>
+                    
+                    <div className="profile-form-group">
+                      <label htmlFor="phone">
+                        <FiPhone /> Phone
+                      </label>
+                      <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        className="profile-input"
+                      />
+                    </div>
+                    
+                    <div className="profile-form-group">
+                      <label htmlFor="country">
+                        <FiGlobe /> Country
+                      </label>
+                      <input
+                        type="text"
+                        id="country"
+                        name="country"
+                        value={formData.country}
+                        onChange={handleChange}
+                        className="profile-input"
+                      />
+                    </div>
+                    
+                    <div className="profile-form-group">
+                      <label htmlFor="city">
+                        <FiMapPin /> City
+                      </label>
+                      <input
+                        type="text"
+                        id="city"
+                        name="city"
+                        value={formData.city}
+                        onChange={handleChange}
+                        className="profile-input"
+                      />
+                    </div>
+                    
+                    <div className="profile-form-group">
+                      <label htmlFor="preferredCurrency">
+                        Preferred Currency
+                      </label>
+                      <select
+                        id="preferredCurrency"
+                        name="preferredCurrency"
+                        value={formData.preferredCurrency}
+                        onChange={handleChange}
+                        className="profile-select"
+                      >
+                        <option value="USD">USD</option>
+                        <option value="GEL">GEL</option>
+                      </select>
+                    </div>
                   </div>
                   
-                  <div style={{ marginBottom: '15px' }}>
-                    <label style={{ color: '#f1f1f1', display: 'block', marginBottom: '5px' }}>
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      style={{
-                        width: '100%',
-                        backgroundColor: '#333',
-                        border: '1px solid #555',
-                        padding: '10px',
-                        color: '#f1f1f1',
-                        borderRadius: '4px'
-                      }}
-                      placeholder="Your email address"
-                    />
+                  <div className="profile-form-actions">
+                    <button 
+                      type="button" 
+                      className="profile-cancel-btn"
+                      onClick={() => setIsEditing(false)}
+                      disabled={saving}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit" 
+                      className="profile-save-btn"
+                      disabled={saving}
+                    >
+                      <FiSave /> {saving ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="profile-info-grid">
+                  <div className="profile-info-item">
+                    <span className="profile-info-label">
+                      <FiUser /> Display Name
+                    </span>
+                    <span className="profile-info-value">{profile?.displayName || '-'}</span>
                   </div>
                   
-                  <div style={{ marginBottom: '15px' }}>
-                    <label style={{ color: '#f1f1f1', display: 'block', marginBottom: '5px' }}>
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      style={{
-                        width: '100%',
-                        backgroundColor: '#333',
-                        border: '1px solid #555',
-                        padding: '10px',
-                        color: '#f1f1f1',
-                        borderRadius: '4px'
-                      }}
-                      placeholder="Your phone number"
-                    />
+                  <div className="profile-info-item">
+                    <span className="profile-info-label">
+                      <FiUser /> Full Name
+                    </span>
+                    <span className="profile-info-value">
+                      {profile?.firstName && profile?.lastName 
+                        ? `${profile.firstName} ${profile.lastName}` 
+                        : '-'}
+                    </span>
                   </div>
-                </div>
-                
-                {/* Preferences Section */}
-                <div style={{ marginBottom: '30px' }}>
-                  <h3 style={{ color: '#4ade80', marginBottom: '15px' }}>Preferences</h3>
                   
-                  <div style={{ marginBottom: '15px' }}>
-                    <label style={{ color: '#f1f1f1', display: 'block', marginBottom: '5px' }}>
+                  <div className="profile-info-item">
+                    <span className="profile-info-label">
+                      <FiMail /> Email
+                    </span>
+                    <span className="profile-info-value">{profile?.email || '-'}</span>
+                  </div>
+                  
+                  <div className="profile-info-item">
+                    <span className="profile-info-label">
+                      <FiPhone /> Phone
+                    </span>
+                    <span className="profile-info-value">{profile?.phone || '-'}</span>
+                  </div>
+                  
+                  <div className="profile-info-item">
+                    <span className="profile-info-label">
+                      <FiGlobe /> Location
+                    </span>
+                    <span className="profile-info-value">
+                      {profile?.country && profile?.city 
+                        ? `${profile.city}, ${profile.country}` 
+                        : profile?.country || profile?.city || '-'}
+                    </span>
+                  </div>
+                  
+                  <div className="profile-info-item">
+                    <span className="profile-info-label">
+                      Member Since
+                    </span>
+                    <span className="profile-info-value">
+                      {profile?.createdAt 
+                        ? new Date(profile.createdAt).toLocaleDateString() 
+                        : '-'}
+                    </span>
+                  </div>
+                  
+                  <div className="profile-info-item">
+                    <span className="profile-info-label">
+                      Verification Level
+                    </span>
+                    <span className="profile-info-value">
+                      {profile?.verificationLevel === 0 && 'Not Verified'}
+                      {profile?.verificationLevel === 1 && 'Email Verified'}
+                      {profile?.verificationLevel === 2 && 'Phone Verified'}
+                      {profile?.verificationLevel === 3 && 'Fully Verified'}
+                    </span>
+                  </div>
+                  
+                  <div className="profile-info-item">
+                    <span className="profile-info-label">
                       Preferred Currency
-                    </label>
-                    <select
-                      value={preferredCurrency}
-                      onChange={(e) => setPreferredCurrency(e.target.value)}
-                      style={{
-                        width: '100%',
-                        backgroundColor: '#333',
-                        border: '1px solid #555',
-                        padding: '10px',
-                        color: '#f1f1f1',
-                        borderRadius: '4px'
-                      }}
-                    >
-                      <option value="USD">USD</option>
-                      <option value="GEL">GEL</option>
-                    </select>
-                  </div>
-                  
-                  <div style={{ marginBottom: '15px' }}>
-                    <label style={{ color: '#f1f1f1', display: 'block', marginBottom: '5px' }}>
-                      Theme
-                    </label>
-                    <select
-                      value={theme}
-                      onChange={(e) => setTheme(e.target.value)}
-                      style={{
-                        width: '100%',
-                        backgroundColor: '#333',
-                        border: '1px solid #555',
-                        padding: '10px',
-                        color: '#f1f1f1',
-                        borderRadius: '4px'
-                      }}
-                    >
-                      <option value="dark">Dark</option>
-                      <option value="light">Light</option>
-                    </select>
+                    </span>
+                    <span className="profile-info-value">
+                      {profile?.settings?.currency || 'USD'}
+                    </span>
                   </div>
                 </div>
-                
-                {/* Notification Settings */}
-                <div style={{ marginBottom: '30px' }}>
-                  <h3 style={{ color: '#4ade80', marginBottom: '15px' }}>Notification Settings</h3>
-                  
-                  <div style={{ marginBottom: '10px' }}>
-                    <label style={{
-                      color: '#f1f1f1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      cursor: 'pointer'
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.email}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          email: e.target.checked
-                        })}
-                        style={{ marginRight: '10px' }}
-                      />
-                      Email Notifications
-                    </label>
-                  </div>
-                  
-                  <div style={{ marginBottom: '10px' }}>
-                    <label style={{
-                      color: '#f1f1f1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      cursor: 'pointer'
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.push}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          push: e.target.checked
-                        })}
-                        style={{ marginRight: '10px' }}
-                      />
-                      Push Notifications
-                    </label>
-                  </div>
-                  
-                  <div style={{ marginBottom: '10px' }}>
-                    <label style={{
-                      color: '#f1f1f1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      cursor: 'pointer'
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.offers}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          offers: e.target.checked
-                        })}
-                        style={{ marginRight: '10px' }}
-                      />
-                      Offer Notifications
-                    </label>
-                  </div>
-                  
-                  <div style={{ marginBottom: '10px' }}>
-                    <label style={{
-                      color: '#f1f1f1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      cursor: 'pointer'
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.trades}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          trades: e.target.checked
-                        })}
-                        style={{ marginRight: '10px' }}
-                      />
-                      Trade Notifications
-                    </label>
-                  </div>
+              )}
+            </div>
+          )}
+          
+          {activeTab === 'privacy' && (
+            <div className="profile-section">
+              <div className="profile-section-header">
+                <h2>Privacy Settings</h2>
+              </div>
+              
+              <form className="profile-privacy-form">
+                <div className="profile-checkbox-group">
+                  <input
+                    type="checkbox"
+                    id="showOnlineStatus"
+                    name="privacySettings.showOnlineStatus"
+                    checked={formData.privacySettings.showOnlineStatus}
+                    onChange={handleChange}
+                  />
+                  <label htmlFor="showOnlineStatus">
+                    Show Online Status
+                  </label>
+                  <p className="profile-setting-description">
+                    Allow others to see when you're online on the marketplace
+                  </p>
                 </div>
                 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  style={{
-                    backgroundColor: '#4ade80',
-                    color: '#242424',
-                    border: 'none',
-                    padding: '12px 20px',
-                    borderRadius: '4px',
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    opacity: loading ? 0.7 : 1,
-                    fontWeight: 'bold',
-                    width: '100%'
-                  }}
+                <div className="profile-checkbox-group">
+                  <input
+                    type="checkbox"
+                    id="showInventoryValue"
+                    name="privacySettings.showInventoryValue"
+                    checked={formData.privacySettings.showInventoryValue}
+                    onChange={handleChange}
+                  />
+                  <label htmlFor="showInventoryValue">
+                    Show Inventory Value
+                  </label>
+                  <p className="profile-setting-description">
+                    Allow others to see the total value of your inventory
+                  </p>
+                </div>
+                
+                <button 
+                  type="button" 
+                  className="profile-save-btn"
+                  onClick={handleSaveProfile}
+                  disabled={saving}
                 >
-                  {loading ? 'Saving...' : 'Save Settings'}
+                  <FiSave /> {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </form>
             </div>
-            
-            {/* Steam Trading Settings Section */}
-            <div style={{
-              background: 'rgba(45, 27, 105, 0.3)',
-              borderRadius: '16px',
-              padding: '25px',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              marginBottom: '30px'
-            }}>
-              <h2 style={{ 
-                color: '#f1f1f1', 
-                marginBottom: '25px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                fontSize: '1.75rem'
-              }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M15 5v2" />
-                  <path d="M15 11v2" />
-                  <path d="M15 17v2" />
-                  <path d="M5 5h14" />
-                  <path d="M5 11h14" />
-                  <path d="M5 17h14" />
-                </svg>
-                Steam Trading Settings
-              </h2>
+          )}
+          
+          {activeTab === 'notifications' && (
+            <div className="profile-section">
+              <div className="profile-section-header">
+                <h2>Notification Settings</h2>
+              </div>
               
-              <p style={{ color: '#e2e8f0', marginBottom: '20px' }}>
-                Configure your Steam trade URL and login secure token to enable selling and trading items.
-              </p>
-              
-              <Link 
-                to="/steam-settings"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  backgroundColor: '#3b82f6',
-                  textDecoration: 'none',
-                  color: '#ffffff',
-                  padding: '14px 20px',
-                  borderRadius: '12px',
-                  transition: 'background-color 0.2s',
-                  fontWeight: '500',
-                  width: 'fit-content'
-                }}
-                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
-                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                </svg>
-                Manage Steam Settings
-              </Link>
-            </div>
-          </div>
-        )}
-        
-        {/* Verification Tab */}
-        {activeTab === 'verification' && (
-          <div>
-            <div style={{
-              background: 'rgba(45, 27, 105, 0.3)',
-              borderRadius: '16px',
-              padding: '25px',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)'
-            }}>
-              <h2 style={{ 
-                color: '#f1f1f1', 
-                marginBottom: '25px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                fontSize: '1.75rem'
-              }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <polyline points="22 4 12 14.01 9 11.01" />
-                </svg>
-                Identity Verification
-              </h2>
-            
-              <div style={{
-                backgroundColor: '#333',
-                padding: '15px',
-                borderRadius: '8px',
-                marginBottom: '20px'
-              }}>
-                <h3 style={{ color: '#4ade80', marginBottom: '10px' }}>Verification Status</h3>
-                <p style={{ color: '#f1f1f1' }}>
-                  Current verification level: {profile?.verificationLevel === 0 ? 'Not verified' : 
-                  profile?.verificationLevel === 1 ? 'Email verified' :
-                  profile?.verificationLevel === 2 ? 'Phone verified' :
-                  profile?.verificationLevel === 3 ? 'ID verified' : 'Unknown'}
-                </p>
-                
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginTop: '20px',
-                  gap: '15px'
-                }}>
-                  <div style={{
-                    flex: 1,
-                    padding: '15px',
-                    textAlign: 'center',
-                    backgroundColor: profile?.verificationLevel >= 1 
-                      ? 'rgba(74, 222, 128, 0.2)' 
-                      : 'rgba(45, 27, 105, 0.2)',
-                    borderRadius: '12px',
-                    border: profile?.verificationLevel >= 1 
-                      ? '1px solid rgba(74, 222, 128, 0.3)' 
-                      : '1px solid rgba(255, 255, 255, 0.1)',
-                    boxShadow: profile?.verificationLevel >= 1 
-                      ? '0 8px 16px rgba(74, 222, 128, 0.2)' 
-                      : 'none'
-                  }}>
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      marginBottom: '10px' 
-                    }}>
-                      <span style={{
-                        width: '32px',
-                        height: '32px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderRadius: '50%',
-                        backgroundColor: profile?.verificationLevel >= 1 
-                          ? 'rgba(74, 222, 128, 0.2)' 
-                          : 'rgba(255, 255, 255, 0.1)',
-                        color: profile?.verificationLevel >= 1 ? '#4ade80' : '#9ca3af'
-                      }}>
-                        {profile?.verificationLevel >= 1 ? '✓' : '1'}
-                      </span>
-                    </div>
-                    <p style={{ 
-                      color: profile?.verificationLevel >= 1 ? '#4ade80' : '#f1f1f1', 
-                      margin: '0',
-                      fontWeight: '600'
-                    }}>Level 1</p>
-                    <p style={{ 
-                      color: profile?.verificationLevel >= 1 ? '#4ade80' : '#aaa', 
-                      margin: '5px 0 0 0', 
-                      fontSize: '0.9rem' 
-                    }}>Email</p>
-                  </div>
-                  
-                  <div style={{
-                    flex: 1,
-                    padding: '15px',
-                    textAlign: 'center',
-                    backgroundColor: profile?.verificationLevel >= 2 
-                      ? 'rgba(74, 222, 128, 0.2)' 
-                      : 'rgba(45, 27, 105, 0.2)',
-                    borderRadius: '12px',
-                    border: profile?.verificationLevel >= 2 
-                      ? '1px solid rgba(74, 222, 128, 0.3)' 
-                      : '1px solid rgba(255, 255, 255, 0.1)',
-                    boxShadow: profile?.verificationLevel >= 2 
-                      ? '0 8px 16px rgba(74, 222, 128, 0.2)' 
-                      : 'none'
-                  }}>
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      marginBottom: '10px' 
-                    }}>
-                      <span style={{
-                        width: '32px',
-                        height: '32px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderRadius: '50%',
-                        backgroundColor: profile?.verificationLevel >= 2 
-                          ? 'rgba(74, 222, 128, 0.2)' 
-                          : 'rgba(255, 255, 255, 0.1)',
-                        color: profile?.verificationLevel >= 2 ? '#4ade80' : '#9ca3af'
-                      }}>
-                        {profile?.verificationLevel >= 2 ? '✓' : '2'}
-                      </span>
-                    </div>
-                    <p style={{ 
-                      color: profile?.verificationLevel >= 2 ? '#4ade80' : '#f1f1f1', 
-                      margin: '0',
-                      fontWeight: '600'
-                    }}>Level 2</p>
-                    <p style={{ 
-                      color: profile?.verificationLevel >= 2 ? '#4ade80' : '#aaa', 
-                      margin: '5px 0 0 0', 
-                      fontSize: '0.9rem' 
-                    }}>Phone</p>
-                  </div>
-                  
-                  <div style={{
-                    flex: 1,
-                    padding: '15px',
-                    textAlign: 'center',
-                    backgroundColor: profile?.verificationLevel >= 3 
-                      ? 'rgba(74, 222, 128, 0.2)' 
-                      : 'rgba(45, 27, 105, 0.2)',
-                    borderRadius: '12px',
-                    border: profile?.verificationLevel >= 3 
-                      ? '1px solid rgba(74, 222, 128, 0.3)' 
-                      : '1px solid rgba(255, 255, 255, 0.1)',
-                    boxShadow: profile?.verificationLevel >= 3 
-                      ? '0 8px 16px rgba(74, 222, 128, 0.2)' 
-                      : 'none'
-                  }}>
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      marginBottom: '10px' 
-                    }}>
-                      <span style={{
-                        width: '32px',
-                        height: '32px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderRadius: '50%',
-                        backgroundColor: profile?.verificationLevel >= 3 
-                          ? 'rgba(74, 222, 128, 0.2)' 
-                          : 'rgba(255, 255, 255, 0.1)',
-                        color: profile?.verificationLevel >= 3 ? '#4ade80' : '#9ca3af'
-                      }}>
-                        {profile?.verificationLevel >= 3 ? '✓' : '3'}
-                      </span>
-                    </div>
-                    <p style={{ 
-                      color: profile?.verificationLevel >= 3 ? '#4ade80' : '#f1f1f1', 
-                      margin: '0',
-                      fontWeight: '600'
-                    }}>Level 3</p>
-                    <p style={{ 
-                      color: profile?.verificationLevel >= 3 ? '#4ade80' : '#aaa', 
-                      margin: '5px 0 0 0', 
-                      fontSize: '0.9rem' 
-                    }}>ID</p>
-                  </div>
+              <form className="profile-notifications-form">
+                <div className="profile-checkbox-group">
+                  <input
+                    type="checkbox"
+                    id="emailNotifications"
+                    name="notificationSettings.email"
+                    checked={formData.notificationSettings.email}
+                    onChange={handleChange}
+                  />
+                  <label htmlFor="emailNotifications">
+                    Email Notifications
+                  </label>
+                  <p className="profile-setting-description">
+                    Receive important notifications via email
+                  </p>
                 </div>
-              </div>
-              
-              <div style={{
-                backgroundColor: '#333',
-                padding: '15px',
-                borderRadius: '8px'
-              }}>
-                <h3 style={{ color: '#4ade80', marginBottom: '10px' }}>Required for higher limits</h3>
-                <p style={{ color: '#f1f1f1' }}>
-                  Complete identity verification to increase your wallet limits:
-                </p>
-                <ul style={{ color: '#f1f1f1', paddingLeft: '20px' }}>
-                  <li>Level 1 (Email): $1,000 monthly limit</li>
-                  <li>Level 2 (Phone): $10,000 monthly limit</li>
-                  <li>Level 3 (ID): $50,000 monthly limit</li>
-                </ul>
                 
-                <button
-                  type="button"
-                  style={{
-                    background: 'linear-gradient(135deg, #4ade80 0%, #22d3ee 100%)',
-                    color: '#0f1729',
-                    border: 'none',
-                    padding: '15px 25px',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    width: '100%',
-                    marginTop: '25px',
-                    fontSize: '1rem',
-                    boxShadow: '0 8px 16px rgba(74, 222, 128, 0.2)',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    gap: '10px'
-                  }}
+                <div className="profile-checkbox-group">
+                  <input
+                    type="checkbox"
+                    id="pushNotifications"
+                    name="notificationSettings.push"
+                    checked={formData.notificationSettings.push}
+                    onChange={handleChange}
+                  />
+                  <label htmlFor="pushNotifications">
+                    Push Notifications
+                  </label>
+                  <p className="profile-setting-description">
+                    Receive real-time push notifications in the browser
+                  </p>
+                </div>
+                
+                <div className="profile-checkbox-group">
+                  <input
+                    type="checkbox"
+                    id="offerNotifications"
+                    name="notificationSettings.offers"
+                    checked={formData.notificationSettings.offers}
+                    onChange={handleChange}
+                  />
+                  <label htmlFor="offerNotifications">
+                    Offer Notifications
+                  </label>
+                  <p className="profile-setting-description">
+                    Get notified about new offers on your listings
+                  </p>
+                </div>
+                
+                <div className="profile-checkbox-group">
+                  <input
+                    type="checkbox"
+                    id="tradeNotifications"
+                    name="notificationSettings.trades"
+                    checked={formData.notificationSettings.trades}
+                    onChange={handleChange}
+                  />
+                  <label htmlFor="tradeNotifications">
+                    Trade Notifications
+                  </label>
+                  <p className="profile-setting-description">
+                    Get notified about trade status updates
+                  </p>
+                </div>
+                
+                <button 
+                  type="button" 
+                  className="profile-save-btn"
+                  onClick={handleSaveProfile}
+                  disabled={saving}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="9 11 12 14 22 4"></polyline>
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-                  </svg>
-                  Start Verification Process
+                  <FiSave /> {saving ? 'Saving...' : 'Save Changes'}
                 </button>
-              </div>
+              </form>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className="profile-steam-section">
+        <div className="profile-section-header">
+          <h2><FaSteam /> Steam Account</h2>
+        </div>
+        
+        <div className="profile-steam-info">
+          <div className="profile-steam-status">
+            <img 
+              src={user?.avatar || 'https://via.placeholder.com/80'} 
+              alt="Steam Avatar" 
+              className="profile-steam-avatar"
+            />
+            <div>
+              <h3>{user?.displayName}</h3>
+              <p>Steam ID: {user?.steamId}</p>
+              <a 
+                href={user?.profileUrl || `https://steamcommunity.com/profiles/${user?.steamId}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="profile-steam-link"
+              >
+                View Steam Profile
+              </a>
             </div>
           </div>
-        )}
+          
+          <div className="profile-steam-actions">
+            <Link to="/steam-settings" className="profile-button">
+              Manage Steam Settings
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

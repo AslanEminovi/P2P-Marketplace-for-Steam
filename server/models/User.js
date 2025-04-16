@@ -43,6 +43,8 @@ const notificationSchema = new mongoose.Schema({
 const userSchema = new mongoose.Schema({
   steamId: { type: String, required: true, unique: true },
   displayName: String,
+  firstName: String,
+  lastName: String,
   profileUrl: String,
   avatar: String,
   avatarMedium: String,
@@ -50,20 +52,25 @@ const userSchema = new mongoose.Schema({
   email: { type: String },
   phone: { type: String },
 
-  // Wallet balance for compatibility with existing code
+  profileComplete: { type: Boolean, default: false },
+  registrationDate: { type: Date, default: Date.now },
+
+  country: { type: String },
+  city: { type: String },
+
   walletBalance: { type: Number, default: 0 },
   walletBalanceGEL: { type: Number, default: 0 },
 
   steamLoginSecure: {
     type: String,
-    select: false, // Don't include in regular queries for security
+    select: false,
   },
-  tradeUrl: { type: String }, // User's Steam trade URL
-  tradeUrlExpiry: { type: Date }, // When trade URL needs refreshing
+  tradeUrl: { type: String },
+  tradeUrlExpiry: { type: Date },
   tradeHistory: [{ type: mongoose.Schema.Types.ObjectId, ref: "Trade" }],
 
   isVerified: { type: Boolean, default: false },
-  verificationLevel: { type: Number, default: 0 }, // 0: None, 1: Email, 2: Phone, 3: ID
+  verificationLevel: { type: Number, default: 0 },
 
   settings: {
     notifications: {
@@ -74,6 +81,10 @@ const userSchema = new mongoose.Schema({
     },
     currency: { type: String, enum: ["USD", "GEL"], default: "USD" },
     theme: { type: String, enum: ["light", "dark"], default: "dark" },
+    privacy: {
+      showOnlineStatus: { type: Boolean, default: true },
+      showInventoryValue: { type: Boolean, default: false },
+    },
   },
 
   transactions: [transactionSchema],
@@ -82,7 +93,6 @@ const userSchema = new mongoose.Schema({
   isBanned: { type: Boolean, default: false },
   banReason: { type: String },
 
-  // Admin status
   isAdmin: { type: Boolean, default: false },
 
   createdAt: {
@@ -90,9 +100,10 @@ const userSchema = new mongoose.Schema({
     default: Date.now,
   },
   lastLoginAt: { type: Date },
+  lastActive: { type: Date },
+  isOnline: { type: Boolean, default: false },
 });
 
-// Create compound index for faster notification queries
 userSchema.index({ "notifications.read": 1, "notifications.createdAt": -1 });
 
 module.exports = mongoose.model("User", userSchema);
