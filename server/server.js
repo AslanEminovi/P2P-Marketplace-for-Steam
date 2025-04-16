@@ -12,6 +12,7 @@ const jwt = require("jsonwebtoken");
 const { createAdapter } = require("@socket.io/redis-adapter");
 const connectRedis = require("connect-redis");
 const { redisClient } = require("./config/redis");
+const Redis = require("ioredis");
 
 // Import Redis configuration
 const redisConfig = require("./config/redis");
@@ -113,23 +114,59 @@ console.log(`Session secret length: ${process.env.SESSION_SECRET?.length}`);
 // Initialize Redis session store
 const RedisStore = require("connect-redis").default;
 
-// Configure express-session
-app.use(
-  session({
-    store: new RedisStore({
-      client: redisClient,
-      prefix: "cs2marketplace:sess:",
-    }),
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+// Create a Redis client for sessions
+let sessionClient;
+try {
+  const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+  console.log(
+    `Connecting to Redis at ${redisUrl.split("@")[1] || redisUrl.split("@")[0]}`
+  );
+
+  sessionClient = new Redis(redisUrl, {
+    password: process.env.REDIS_PASSWORD,
+    retryStrategy: (times) => {
+      const delay = Math.min(times * 50, 2000);
+      console.log(
+        `Redis session connection retry in ${delay}ms (attempt #${times})`
+      );
+      return delay;
     },
-  })
-);
+  });
+
+  sessionClient.on("error", (err) =>
+    console.error("Redis Session Error:", err)
+  );
+  sessionClient.on("connect", () => console.log("Redis Session connected"));
+} catch (error) {
+  console.error("Failed to initialize Redis session client:", error);
+}
+
+// Configure express-session with Redis or fallback to memory store
+const sessionConfig = {
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  },
+};
+
+// Only add Redis store if Redis client is initialized
+if (sessionClient) {
+  sessionConfig.store = new RedisStore({
+    client: sessionClient,
+    prefix: "cs2marketplace:sess:",
+  });
+  console.log("Using Redis store for sessions");
+} else {
+  console.warn(
+    "Fallback to memory store for sessions (not recommended for production)"
+  );
+}
+
+app.use(session(sessionConfig));
 
 // Initialize Passport and restore authentication state
 app.use(passport.initialize());
