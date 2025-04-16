@@ -224,7 +224,6 @@ const Profile = ({ user, onBalanceUpdate }) => {
     
     try {
       const payload = {
-        // Don't include displayName in the payload as it should be preserved from Steam
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
@@ -241,26 +240,80 @@ const Profile = ({ user, onBalanceUpdate }) => {
       
       console.log('Sending payload to server:', payload);
       
-      // Use apiClient instead of direct axios call
-      const response = await apiClient.put('/user/settings', payload);
+      // Get the auth token
+      const authToken = localStorage.getItem('auth_token');
+      if (!authToken) {
+        toast.error('Not logged in! Please log in again.');
+        window.location.href = `${API_URL}/auth/steam`;
+        return;
+      }
       
-      console.log('Server response:', response.data);
+      // Using native browser fetch API as a fallback
+      const url = new URL(`${API_URL}/user/settings`);
+      url.searchParams.append('auth_token', authToken);
+      url.searchParams.append('_t', Date.now().toString());
+      
+      // Log all request details for debugging
+      console.log('Making request to:', url.toString());
+      console.log('With payload:', JSON.stringify(payload));
+      
+      const fetchResponse = await fetch(url.toString(), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+      
+      if (!fetchResponse.ok) {
+        // Log detailed error info
+        console.error('Fetch error status:', fetchResponse.status);
+        console.error('Fetch error statusText:', fetchResponse.statusText);
+        
+        const errorText = await fetchResponse.text();
+        console.error('Error response text:', errorText);
+        
+        let errorJson;
+        try {
+          errorJson = JSON.parse(errorText);
+          console.error('Error response JSON:', errorJson);
+        } catch (e) {
+          console.error('Could not parse error response as JSON');
+        }
+        
+        throw new Error(`Server returned ${fetchResponse.status}: ${fetchResponse.statusText}`);
+      }
+      
+      const responseText = await fetchResponse.text();
+      console.log('Raw response text:', responseText);
+      
+      let response;
+      try {
+        response = { data: JSON.parse(responseText) };
+        console.log('Parsed response data:', response.data);
+      } catch (e) {
+        console.error('Could not parse response as JSON:', e);
+        throw new Error('Invalid response from server');
+      }
       
       if (response.data.success) {
         toast.success('Profile saved successfully');
         
-        // Update profile with response data but keep form data unchanged
+        // Update profile with response data
         const updatedUser = response.data.user;
         
-        // Make a copy of the updated user to ensure all fields are properly updated
+        // Make a copy of the updated user
         const completeUpdatedUser = {
-          ...profile, // Keep any fields not returned by the API
-          ...updatedUser, // Update with new data
-          // Ensure settings object is complete
+          ...profile,
+          ...updatedUser,
           settings: {
             ...(profile?.settings || {}),
             ...(updatedUser.settings || {}),
-            // Ensure nested settings objects are complete
             privacy: {
               ...(profile?.settings?.privacy || {}),
               ...(updatedUser.settings?.privacy || {})
@@ -272,58 +325,39 @@ const Profile = ({ user, onBalanceUpdate }) => {
           }
         };
         
-        console.log('Complete updated user object:', completeUpdatedUser);
+        console.log('Updated user object:', completeUpdatedUser);
         
-        // Set the complete user object in state and other contexts
+        // Set the complete user object in state
         setProfile(completeUpdatedUser);
         
-        // Update auth context with the complete user data
+        // Update auth context
         if (authUpdateUser) {
           authUpdateUser(completeUpdatedUser);
         }
         
-        // Update global user state with the complete user data
+        // Update global user state
         if (typeof window.updateGlobalUser === 'function') {
           window.updateGlobalUser(completeUpdatedUser);
         }
         
-        // Also update local storage if it's being used (optional backup)
-        try {
-          const authToken = localStorage.getItem('auth_token');
-          if (authToken) {
-            localStorage.setItem('user_data', JSON.stringify(completeUpdatedUser));
-          }
-        } catch (e) {
-          console.error('Error updating localStorage:', e);
-        }
+        // Store in localStorage for redundancy
+        localStorage.setItem('user_data', JSON.stringify(completeUpdatedUser));
         
         setIsEditing(false);
+        
+        // Force refresh page after 1 second to ensure we have latest data
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       } else {
         console.error('Server returned error:', response.data);
         toast.error(response.data.message || 'Failed to save profile');
       }
     } catch (err) {
-      console.error('Error saving profile:', err);
+      console.error('Profile save error:', err);
+      console.error('Error stack:', err.stack);
       
-      // Show a more user-friendly error message
-      let userErrorMessage = 'Failed to save profile';
-      
-      if (err.message === 'Network Error') {
-        userErrorMessage = 'Network error. Please check your internet connection and try again.';
-      } else if (err.response) {
-        if (err.response.status === 401 || err.response.status === 403) {
-          userErrorMessage = 'Authentication error. Please log in again.';
-        } else if (err.response.status === 400) {
-          userErrorMessage = err.response.data?.error || 'Invalid data submitted.';
-        } else if (err.response.status >= 500) {
-          userErrorMessage = 'Server error. Please try again later.';
-        }
-      } else if (err.code === 'ECONNABORTED') {
-        userErrorMessage = 'Request timed out. Please try again later.';
-      }
-      
-      setError(userErrorMessage);
-      toast.error(userErrorMessage);
+      toast.error('Failed to update profile. Please try again or refresh the page.');
     } finally {
       setSaving(false);
     }
