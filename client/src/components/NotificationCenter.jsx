@@ -476,29 +476,35 @@ const NotificationCenter = ({ user }) => {
           width: '380px',
           height: 'calc(100vh - 70px)', // Full height minus navbar height
           backgroundColor: 'rgba(21, 28, 43, 0.95)', // Match navbar color
-          boxShadow: '-4px 0 12px rgba(0, 0, 0, 0.2)',
+          boxShadow: '-8px 0 25px rgba(0, 0, 0, 0.3), 0 0 15px rgba(51, 115, 242, 0.15)',
           overflowY: 'auto',
           zIndex: 1500,
-          backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(51, 115, 242, 0.3)',
-          borderTop: 'none', // No border at top to connect with navbar
+          backdropFilter: 'blur(12px)',
+          borderLeft: '1px solid rgba(51, 115, 242, 0.3)',
+          borderBottom: '1px solid rgba(51, 115, 242, 0.3)',
+          borderTopLeftRadius: '12px',
+          borderBottomLeftRadius: '12px',
           padding: 0,
           margin: 0,
-          transition: 'transform 0.3s ease-in-out',
-          transform: visible ? 'translateX(0)' : 'translateX(100%)'
+          transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+          transform: visible ? 'translateX(0)' : 'translateX(100%)',
+          opacity: visible ? 1 : 0
         }}
       >
         <div style={{ 
-          padding: '16px', 
+          padding: '18px', 
           borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center' 
+          alignItems: 'center',
+          background: 'linear-gradient(to bottom, rgba(51, 115, 242, 0.1), transparent)'
         }}>
           <h3 style={{ 
             margin: 0,
             color: '#fff',
-            fontSize: '1.2rem'
+            fontSize: '1.2rem',
+            fontWeight: '600',
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
           }}>
             Notifications
             {unreadCount > 0 && (
@@ -508,8 +514,9 @@ const NotificationCenter = ({ user }) => {
                 color: '#fff',
                 fontSize: '12px',
                 fontWeight: 'bold',
-                padding: '2px 6px',
-                borderRadius: '10px'
+                padding: '3px 8px',
+                borderRadius: '12px',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
               }}>
                 {unreadCount}
               </span>
@@ -518,18 +525,27 @@ const NotificationCenter = ({ user }) => {
           <button
             onClick={onClose}
             style={{
-              background: 'none',
+              background: 'rgba(255, 255, 255, 0.1)',
               border: 'none',
               color: '#8a8f98',
               cursor: 'pointer',
-              fontSize: '20px',
-              padding: '4px'
+              fontSize: '16px',
+              padding: '8px',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease'
             }}
+            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
           >
             <FaTimes />
           </button>
         </div>
-        <div style={{ padding: '10px' }}>
+        <div style={{ padding: '12px' }}>
           {children}
         </div>
       </div>
@@ -893,13 +909,25 @@ const NotificationCenter = ({ user }) => {
                 <div
                   key={notification._id}
                   style={{
-                    padding: '12px',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                    padding: '14px',
+                    marginBottom: '8px',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
                     backgroundColor: notification.read ? 'transparent' : 'rgba(51, 115, 242, 0.1)',
                     cursor: notification.link ? 'pointer' : 'default',
                     display: 'flex',
                     alignItems: 'flex-start',
-                    transition: 'background-color 0.2s ease'
+                    transition: 'background-color 0.2s ease',
+                    borderRadius: '8px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = notification.read 
+                      ? 'rgba(255, 255, 255, 0.03)' 
+                      : 'rgba(51, 115, 242, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = notification.read 
+                      ? 'transparent' 
+                      : 'rgba(51, 115, 242, 0.1)';
                   }}
                   onClick={() => {
                     if (!notification.read) {
@@ -913,7 +941,16 @@ const NotificationCenter = ({ user }) => {
                     setShowAllNotifications(false);
                   }}
                 >
-                  <div style={{ marginRight: '12px', color: getNotificationColor(notification.type) }}>
+                  <div style={{ 
+                    marginRight: '14px', 
+                    color: getNotificationColor(notification.type),
+                    padding: '8px',
+                    backgroundColor: `${getNotificationColor(notification.type)}10`,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
                     {getNotificationIcon(notification.type)}
                   </div>
                   <div style={{ flex: 1 }}>

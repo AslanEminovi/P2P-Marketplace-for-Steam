@@ -250,7 +250,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .settings-loading {
@@ -414,15 +416,15 @@
   .settings-layout {
     flex-direction: column;
   }
-  
+
   .settings-sidebar {
     width: 100%;
   }
-  
+
   .settings-user-info {
     justify-content: center;
   }
-  
+
   .settings-nav {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -434,26 +436,26 @@
   .settings-container {
     padding: 15px;
   }
-  
+
   .settings-header h1 {
     font-size: 1.8rem;
   }
-  
+
   .settings-content {
     padding: 20px;
   }
-  
+
   .settings-steam-status {
     flex-direction: column;
     text-align: center;
     gap: 15px;
   }
-  
+
   .settings-steam-account {
     flex-direction: column;
     text-align: center;
   }
-  
+
   .settings-save-button {
     max-width: 100%;
   }
@@ -463,8 +465,8 @@
   .settings-nav {
     grid-template-columns: 1fr;
   }
-  
+
   .settings-content-section h2 {
     font-size: 1.3rem;
   }
-} 
+}
