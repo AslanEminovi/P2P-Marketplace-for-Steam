@@ -443,9 +443,7 @@ const Navbar = ({ user, onLogout }) => {
                           <div className="dropdown-avatar-container">
                             <div className="dropdown-user-info">
                               <span className="dropdown-username">{user.displayName}</span>
-                              <div className="dropdown-email-container">
-                                <span className="dropdown-email">{getUserEmail()}</span>
-                              </div>
+                              {/* Email removed as requested */}
                             </div>
                           </div>
                         </div>

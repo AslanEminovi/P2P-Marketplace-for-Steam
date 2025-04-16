@@ -125,22 +125,16 @@ const Profile = ({ user, onBalanceUpdate }) => {
     });
   }, []);
   
-  // Load user data on component mount and whenever the dependency changes
+  // Load user data only on component mount and when editing status changes
   useEffect(() => {
+    // Load profile data on initial load
     loadUserData(setLoading, setProfile, setError, setFormData, isEditing, initializeFormData);
     
-    // Poll for updated data every 3 seconds while the page is open
-    const intervalId = setInterval(() => {
-      if (!isEditing && !saving) { // Don't refresh while editing or saving
-        console.log("Polling for fresh profile data...");
-        loadUserData(setLoading, setProfile, setError, setFormData, isEditing, initializeFormData);
-      }
-    }, 3000);
-    
+    // No continuous polling - only load when needed
     return () => {
-      clearInterval(intervalId); // Clean up on unmount
+      // No cleanup needed since we're not setting up an interval
     };
-  }, [initializeFormData, isEditing, saving]);
+  }, [initializeFormData, isEditing]);
   
   // Handle form field changes
   const handleChange = (e) => {
@@ -405,8 +399,14 @@ const Profile = ({ user, onBalanceUpdate }) => {
           </div>
         </div>
         <div className="profile-actions">
-          <button className="profile-refresh-btn" onClick={refreshProfile} disabled={loading}>
-            <FiRefreshCw /> {loading ? 'Loading...' : 'Refresh Profile'}
+          <button 
+            className="profile-refresh-btn" 
+            onClick={refreshProfile} 
+            disabled={loading}
+            style={{ marginRight: '10px' }}
+          >
+            <FiRefreshCw style={{ marginRight: '5px' }} /> 
+            {loading ? 'Loading...' : 'Refresh'}
           </button>
           <Link to="/wallet" className="profile-wallet-btn">
             View Wallet
