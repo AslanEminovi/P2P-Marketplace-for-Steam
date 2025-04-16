@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from '../utils/languageUtils';
@@ -666,15 +666,30 @@ const Home = ({ user }) => {
     users: 0,
     trades: 0
   });
+  
+  // Cache last valid stats to prevent flickering to zero
+  const lastValidStats = useRef(stats);
 
   // Function to handle stats updates from socket
   const handleStatsUpdate = useCallback((statsData) => {
     console.log("Received real-time stats update:", statsData);
-    setStats({
-      items: statsData.activeListings || 0,
-      users: statsData.activeUsers || 0,
-      trades: statsData.completedTrades || 0
-    });
+    
+    // Only update stats if we have valid data
+    if (statsData && (statsData.activeListings > 0 || statsData.activeUsers > 0 || statsData.completedTrades > 0)) {
+      const newStats = {
+        items: statsData.activeListings || lastValidStats.current.items,
+        users: statsData.activeUsers || lastValidStats.current.users,
+        trades: statsData.completedTrades || lastValidStats.current.trades
+      };
+      
+      // Update the ref with the new valid stats
+      lastValidStats.current = newStats;
+      
+      // Update state with new stats
+      setStats(newStats);
+    } else {
+      console.log("Received invalid or empty stats, using cached values");
+    }
   }, []);
 
   // Fetch data from API endpoints
@@ -716,13 +731,29 @@ const Home = ({ user }) => {
         setFeaturedItems([]);
       }
 
-      // Request updated stats
+      // Also fetch stats directly if socket isn't connected
+      if (!socketService.isConnected()) {
+        try {
+          console.log("Socket not connected, fetching stats via HTTP");
+          const statsResponse = await axios.get(`${API_URL}/marketplace/stats`, { 
+            withCredentials: true 
+          });
+          if (statsResponse.data) {
+            handleStatsUpdate(statsResponse.data);
+          }
+        } catch (statsError) {
+          console.error("Error fetching stats via HTTP:", statsError);
+        }
+      }
+
+      // Request updated stats via socket if connected
       if (socketService.isConnected()) {
         console.log("Requesting stats update from server");
         socketService.emit('request_stats_update');
       } else {
         console.log("Socket not connected, attempting to reconnect");
-        socketService.reconnect();
+        // Use a delayed reconnect to prevent rapid connection attempts
+        setTimeout(() => socketService.reconnect(), 1000);
       }
 
       setLoading(false);
@@ -731,7 +762,7 @@ const Home = ({ user }) => {
       setFeaturedItems([]);
       setLoading(false);
     }
-  }, []);
+  }, [handleStatsUpdate]);
 
   // Initialize socket connection and set up listeners
   useEffect(() => {
@@ -759,23 +790,20 @@ const Home = ({ user }) => {
       if (document.visibilityState === 'visible') {
         console.log("Page became visible again, refreshing data");
         fetchMarketplaceData();
-        if (socketService.isConnected && socketService.socket) {
-          socketService.socket.emit('request_stats_update');
-        }
       }
     };
 
     const handleFocus = () => {
       console.log("Window regained focus, refreshing data");
       fetchMarketplaceData();
-      if (socketService.isConnected && socketService.socket) {
-        socketService.socket.emit('request_stats_update');
-      }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
 
+    // Fetch data initially
+    fetchMarketplaceData();
+    
     // Clean up listeners when component unmounts
     return () => {
       socketService.off('stats_update', handleStatsUpdate);
@@ -784,11 +812,6 @@ const Home = ({ user }) => {
       window.removeEventListener('focus', handleFocus);
     };
   }, [handleStatsUpdate, fetchMarketplaceData]);
-
-  // Initial fetch of marketplace data
-  useEffect(() => {
-    fetchMarketplaceData();
-  }, [fetchMarketplaceData]);
 
   return (
     <div className="home-container">

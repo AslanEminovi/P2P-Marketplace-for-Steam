@@ -30,32 +30,25 @@ router.get("/stats", async (req, res) => {
     }
 
     console.log("Fetching fresh marketplace stats");
-    const Item = mongoose.model("Item");
-    const User = mongoose.model("User");
-    const Trade = mongoose.model("Trade");
 
-    // Get counts of active listings, users, and completed trades
-    const [activeListings, activeUsers, completedTrades] = await Promise.all([
-      Item.countDocuments({ isListed: true }),
-      User.countDocuments({
-        lastLogin: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-      }),
-      Trade.countDocuments({ status: "completed" }),
-    ]);
+    // Use the same function that the socket service uses to ensure consistency
+    const socketService = require("../services/socketService");
+    const stats = await socketService.getLatestStats();
 
-    // Create stats object
-    const stats = {
-      activeListings,
-      activeUsers,
-      completedTrades,
-      timestamp: new Date(),
+    // Format for the HTTP response
+    const formattedStats = {
+      activeListings: stats.activeListings,
+      activeUsers: stats.activeUsers || stats.onlineUsers?.total || 0,
+      registeredUsers: stats.registeredUsers,
+      completedTrades: stats.completedTrades,
+      timestamp: stats.timestamp || new Date(),
     };
 
     // Update cache
-    statsCache.data = stats;
+    statsCache.data = formattedStats;
     statsCache.timestamp = now;
 
-    res.json(stats);
+    res.json(formattedStats);
   } catch (error) {
     console.error("Error getting marketplace stats:", error);
 

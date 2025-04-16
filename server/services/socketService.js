@@ -63,55 +63,6 @@ const init = (ioInstance) => {
       // Update user activity timestamp
       activeUsers.set(userId, Date.now());
 
-      // Add a new handler for user status subscriptions
-      socket.on("subscribeToUserStatus", async (data) => {
-        if (!data || !data.userId) return;
-
-        try {
-          console.log(
-            `User ${socket.userId} subscribed to status of user ${data.userId}`
-          );
-
-          // Join a room specific to this user's status
-          socket.join(`status:${data.userId}`);
-
-          // Get current status and send it immediately
-          const currentStatus = await getUserStatus(data.userId);
-
-          // Send status update only to this socket
-          socket.emit("userStatusUpdate", {
-            userId: data.userId,
-            isOnline: currentStatus.isOnline,
-            lastSeen: currentStatus.lastSeen,
-          });
-        } catch (error) {
-          console.error(`Error in subscribeToUserStatus:`, error);
-        }
-      });
-
-      // Handle explicit heartbeat from clients to confirm they're still active
-      socket.on("heartbeat", () => {
-        if (userId) {
-          // Update activity timestamp
-          activeUsers.set(userId, Date.now());
-
-          // Also update Redis if enabled
-          if (isRedisEnabled && pubClient) {
-            redisConfig
-              .setHashCache(
-                `user:${userId}:status`,
-                {
-                  lastActivity: Date.now(),
-                  isOnline: true,
-                  lastSeen: new Date().toISOString(),
-                },
-                360
-              )
-              .catch(console.error);
-          }
-        }
-      });
-
       // Store user status in Redis if enabled
       if (isRedisEnabled && pubClient) {
         try {
@@ -385,12 +336,10 @@ const handleUserStatusMessage = (data) => {
   }
 
   // Broadcast the status update to connected clients on this server
-  // Instead of broadcasting to all clients, just send to those in the room
-  io.to(`status:${data.userId}`).emit("userStatusUpdate", {
+  io.emit("userStatusUpdate", {
     userId: data.userId,
     isOnline: data.isOnline,
     lastSeen: new Date(data.lastSeen),
-    lastSeenFormatted: formatLastSeen(new Date(data.lastSeen)),
   });
 };
 
@@ -455,6 +404,7 @@ const getLatestStats = async () => {
         cachedStats.timestamp &&
         Date.now() - new Date(cachedStats.timestamp).getTime() < 60000
       ) {
+        console.log("Using cached stats from Redis:", cachedStats);
         return cachedStats;
       }
     }
@@ -480,7 +430,7 @@ const getLatestStats = async () => {
 
     if (isRedisEnabled && pubClient) {
       try {
-        // Get the count of online users from Redis (need to implement this with a separate Redis set)
+        // Get the count of online users from Redis
         const keys = await pubClient.keys("cs2market:user:*:status");
 
         // Filter keys to only include those with isOnline: true
@@ -511,6 +461,24 @@ const getLatestStats = async () => {
       totalActiveUsers = authenticatedActiveUsers + anonymousActiveUsers;
     }
 
+    // If totalActiveUsers is 0 but we had a previous valid count, use that instead
+    if (
+      totalActiveUsers === 0 &&
+      lastStatsUpdate &&
+      lastStatsUpdate.onlineUsers &&
+      lastStatsUpdate.onlineUsers.total > 0
+    ) {
+      console.log(
+        "Active users count is 0, using last known count:",
+        lastStatsUpdate.onlineUsers.total
+      );
+      totalActiveUsers = lastStatsUpdate.onlineUsers.total;
+      authenticatedActiveUsers =
+        lastStatsUpdate.onlineUsers.authenticated || activeUsers.size;
+      anonymousActiveUsers =
+        lastStatsUpdate.onlineUsers.anonymous || anonymousSockets.size;
+    }
+
     const stats = {
       activeListings,
       activeUsers: totalActiveUsers,
@@ -533,20 +501,29 @@ const getLatestStats = async () => {
     return stats;
   } catch (error) {
     console.error("Error getting latest stats:", error);
-    return (
-      lastStatsUpdate || {
-        activeListings: 0,
-        activeUsers: 0,
-        registeredUsers: 0,
-        completedTrades: 0,
-        onlineUsers: {
-          total: 0,
-          authenticated: 0,
-          anonymous: 0,
-        },
-        timestamp: new Date(),
-      }
-    );
+
+    // If we have previous stats, use those instead of zeros
+    if (lastStatsUpdate) {
+      console.log("Using last known stats due to error");
+      return {
+        ...lastStatsUpdate,
+        timestamp: new Date(), // Update timestamp
+      };
+    }
+
+    // Return zeros as absolute fallback
+    return {
+      activeListings: 0,
+      activeUsers: 0,
+      registeredUsers: 0,
+      completedTrades: 0,
+      onlineUsers: {
+        total: 0,
+        authenticated: 0,
+        anonymous: 0,
+      },
+      timestamp: new Date(),
+    };
   }
 };
 
@@ -833,24 +810,9 @@ const getUserStatus = async (userId) => {
       );
 
       if (userStatus) {
-        // Consider a user online if their status is explicitly set to true
-        // or if the status was updated in the last 5 minutes (300000ms)
-        const lastSeenDate = userStatus.lastSeen
-          ? new Date(userStatus.lastSeen)
-          : null;
-        const now = new Date();
-        const isRecentlyActive = lastSeenDate && now - lastSeenDate < 300000;
-
-        console.log(`[socketService] User ${userId} status from Redis:`, {
-          storedStatus: userStatus.isOnline,
-          lastSeen: lastSeenDate,
-          isRecentlyActive,
-          timeSinceLastSeen: lastSeenDate ? now - lastSeenDate : "N/A",
-        });
-
         return {
-          isOnline: userStatus.isOnline === true || isRecentlyActive,
-          lastSeen: lastSeenDate,
+          isOnline: userStatus.isOnline === true,
+          lastSeen: userStatus.lastSeen ? new Date(userStatus.lastSeen) : null,
         };
       }
     } catch (error) {
@@ -864,58 +826,10 @@ const getUserStatus = async (userId) => {
 
   // Fall back to local memory
   const userData = connectedUsers.get(userId);
-  const isOnline = !!userData;
-  const lastSeen = userData?.lastSeen || null;
-
-  console.log(`[socketService] User ${userId} status from local memory:`, {
-    isOnline,
-    lastSeen,
-    activeSocketCount: activeSockets.has(userId) ? 1 : 0,
-  });
-
   return {
-    isOnline,
-    lastSeen,
+    isOnline: !!userData,
+    lastSeen: userData?.lastSeen || null,
   };
-};
-
-// New helper function to format last seen times
-const formatLastSeen = (date) => {
-  if (!date) return null;
-
-  const now = new Date();
-  const diff = now - date;
-
-  // Less than a minute
-  if (diff < 60000) {
-    return "just now";
-  }
-
-  // Less than an hour
-  if (diff < 3600000) {
-    const minutes = Math.floor(diff / 60000);
-    return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
-  }
-
-  // Less than a day
-  if (diff < 86400000) {
-    const hours = Math.floor(diff / 3600000);
-    return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
-  }
-
-  // Less than a week
-  if (diff < 604800000) {
-    const days = Math.floor(diff / 86400000);
-    return `${days} day${days !== 1 ? "s" : ""} ago`;
-  }
-
-  // More than a week
-  return date.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
-  });
 };
 
 module.exports = {
@@ -927,4 +841,5 @@ module.exports = {
   emitUserActivity,
   sendNotification,
   getUserStatus,
+  getLatestStats,
 };
