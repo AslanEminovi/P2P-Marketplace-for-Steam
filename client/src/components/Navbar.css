@@ -366,19 +366,20 @@
 .profile-button {
   display: flex;
   align-items: center;
-  padding: 1px 6px 1px 1px;
-  background-color: var(--gaming-bg-dark);
+  padding: 1px 4px 1px 1px;
+  background-color: rgba(10, 14, 23, 0.95);
   border: 1px solid rgba(0, 210, 255, 0.3);
   border-radius: 50px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
-  height: 30px;
+  height: 32px;
   box-shadow: 0 0 8px rgba(0, 210, 255, 0.15);
+  max-width: 110px;
 }
 
 .profile-button:hover {
-  background-color: var(--gaming-bg-dark);
+  background-color: rgba(10, 14, 23, 1);
   border-color: rgba(0, 210, 255, 0.6);
   box-shadow: 0 0 12px rgba(0, 210, 255, 0.3);
 }
@@ -414,13 +415,13 @@
 }
 
 .user-display-name {
-  font-size: 13px;
+  font-size: 12px;
   margin-left: 2px;
   color: var(--gaming-text-bright);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100px;
+  max-width: 70px;
 }
 
 /* Dropdown Menu */
