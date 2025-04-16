@@ -106,6 +106,22 @@ exports.updateUserSettings = async (req, res) => {
         user.settings.theme = settings.theme;
       }
 
+      // Update privacy settings
+      if (settings.privacy) {
+        // Create privacy object if it doesn't exist
+        if (!user.settings.privacy) user.settings.privacy = {};
+
+        if (settings.privacy.showOnlineStatus !== undefined) {
+          user.settings.privacy.showOnlineStatus =
+            !!settings.privacy.showOnlineStatus;
+        }
+
+        if (settings.privacy.showInventoryValue !== undefined) {
+          user.settings.privacy.showInventoryValue =
+            !!settings.privacy.showInventoryValue;
+        }
+      }
+
       // Update notification settings
       if (settings.notifications) {
         // Create notifications object if it doesn't exist

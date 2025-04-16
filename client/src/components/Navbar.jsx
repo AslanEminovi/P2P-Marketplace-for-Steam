@@ -417,16 +417,6 @@ const Navbar = ({ user, onLogout }) => {
                           <div className="dropdown-user-info">
                             <span className="dropdown-username">{user.displayName}</span>
                             <span className="dropdown-email">{user.email || 'No email provided'}</span>
-                            {user.profileComplete && (user.firstName || user.lastName) && (
-                              <span className="dropdown-full-name">
-                                {user.firstName} {user.lastName}
-                              </span>
-                            )}
-                            {user.profileComplete && (user.city || user.country) && (
-                              <span className="dropdown-location">
-                                {user.city}{user.city && user.country ? ', ' : ''}{user.country}
-                              </span>
-                            )}
                           </div>
                         </div>
                         

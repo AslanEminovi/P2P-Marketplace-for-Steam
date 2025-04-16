@@ -124,26 +124,34 @@ const Profile = ({ user, onBalanceUpdate }) => {
     e.preventDefault();
     setSaving(true);
     
+    console.log('Saving profile with form data:', formData);
+    
     try {
+      const payload = {
+        displayName: formData.displayName,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        country: formData.country,
+        city: formData.city,
+        settings: {
+          currency: formData.preferredCurrency,
+          theme: formData.theme,
+          privacy: formData.privacySettings,
+          notifications: formData.notificationSettings
+        }
+      };
+      
+      console.log('Sending payload to server:', payload);
+      
       const response = await axios.put(
         `${API_URL}/user/settings`,
-        {
-          displayName: formData.displayName,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          country: formData.country,
-          city: formData.city,
-          settings: {
-            currency: formData.preferredCurrency,
-            theme: formData.theme,
-            privacy: formData.privacySettings,
-            notifications: formData.notificationSettings
-          }
-        },
+        payload,
         { withCredentials: true }
       );
+      
+      console.log('Server response:', response.data);
       
       if (response.data.success) {
         toast.success('Profile saved successfully');
@@ -467,7 +475,7 @@ const Profile = ({ user, onBalanceUpdate }) => {
                 <h2>Privacy Settings</h2>
               </div>
               
-              <form className="profile-privacy-form">
+              <form className="profile-privacy-form" onSubmit={handleSaveProfile}>
                 <div className="profile-checkbox-group">
                   <input
                     type="checkbox"
@@ -501,9 +509,8 @@ const Profile = ({ user, onBalanceUpdate }) => {
                 </div>
                 
                 <button 
-                  type="button" 
+                  type="submit" 
                   className="profile-save-btn"
-                  onClick={handleSaveProfile}
                   disabled={saving}
                 >
                   <FiSave /> {saving ? 'Saving...' : 'Save Changes'}
@@ -518,7 +525,7 @@ const Profile = ({ user, onBalanceUpdate }) => {
                 <h2>Notification Settings</h2>
               </div>
               
-              <form className="profile-notifications-form">
+              <form className="profile-notifications-form" onSubmit={handleSaveProfile}>
                 <div className="profile-checkbox-group">
                   <input
                     type="checkbox"
@@ -584,9 +591,8 @@ const Profile = ({ user, onBalanceUpdate }) => {
                 </div>
                 
                 <button 
-                  type="button" 
+                  type="submit" 
                   className="profile-save-btn"
-                  onClick={handleSaveProfile}
                   disabled={saving}
                 >
                   <FiSave /> {saving ? 'Saving...' : 'Save Changes'}

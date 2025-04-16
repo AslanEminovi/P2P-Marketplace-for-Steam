@@ -567,13 +567,15 @@ let marketItemsCache = {
 const isRedisEnabled = () => {
   try {
     // Additional safety check: verify all required methods exist
-    return redisCache && 
-           redisCache.isConnected && 
-           redisCache.isConnected() && 
-           typeof redisCache.createKey === 'function' &&
-           typeof redisCache.getCache === 'function' &&
-           typeof redisCache.setCache === 'function' &&
-           typeof redisCache.deleteCache === 'function';
+    return (
+      redisCache &&
+      redisCache.isConnected &&
+      redisCache.isConnected() &&
+      typeof redisCache.createKey === "function" &&
+      typeof redisCache.getCache === "function" &&
+      typeof redisCache.setCache === "function" &&
+      typeof redisCache.deleteCache === "function"
+    );
   } catch (err) {
     console.error("Error checking Redis connection:", err);
     return false;
@@ -583,10 +585,12 @@ const isRedisEnabled = () => {
 // Helper function to get cached marketplace data
 const getCachedMarketplace = async (cacheKey) => {
   if (!isRedisEnabled()) {
-    console.log("Redis not enabled/connected or missing required methods, skipping cache lookup");
+    console.log(
+      "Redis not enabled/connected or missing required methods, skipping cache lookup"
+    );
     return null;
   }
-  
+
   try {
     const fullKey = redisCache.createKey(`${CACHE_PREFIX}${cacheKey}`);
     return await redisCache.getCache(fullKey);
@@ -599,10 +603,12 @@ const getCachedMarketplace = async (cacheKey) => {
 // Helper function to set cached marketplace data
 const setCachedMarketplace = async (cacheKey, data) => {
   if (!isRedisEnabled()) {
-    console.log("Redis not enabled/connected or missing required methods, skipping cache storage");
+    console.log(
+      "Redis not enabled/connected or missing required methods, skipping cache storage"
+    );
     return;
   }
-  
+
   try {
     const fullKey = redisCache.createKey(`${CACHE_PREFIX}${cacheKey}`);
     await redisCache.setCache(fullKey, data, CACHE_DURATION);
@@ -615,23 +621,25 @@ const setCachedMarketplace = async (cacheKey, data) => {
 // Clear marketplace cache (call when data changes)
 const clearMarketplaceCache = async () => {
   if (!isRedisEnabled()) {
-    console.log("Redis not enabled/connected or missing required methods, no cache to clear");
+    console.log(
+      "Redis not enabled/connected or missing required methods, no cache to clear"
+    );
     return;
   }
-  
+
   try {
     console.log("Attempting to clear marketplace cache");
-    
+
     // Use pattern to clear all marketplace cache keys
     const pattern = redisCache.createKey(`${CACHE_PREFIX}*`);
-    
+
     try {
       // Try with pattern matching first
       await redisCache.deleteCache(pattern, true); // true for pattern matching
       console.log("Marketplace cache cleared using pattern");
     } catch (patternError) {
       console.error("Error with pattern-based cache clearing:", patternError);
-      
+
       // Fallback to clearing stats cache directly
       try {
         const statsKey = redisCache.createKey(`${CACHE_PREFIX}stats`);
@@ -641,7 +649,7 @@ const clearMarketplaceCache = async () => {
         console.error("Failed to clear stats cache:", statsError);
       }
     }
-    
+
     // Add debugging message
     console.log("✅ Cache clearing process completed");
   } catch (err) {

@@ -130,14 +130,17 @@ const Settings = ({ user, onBalanceUpdate }) => {
       if (response.data.success) {
         toast.success('Settings saved successfully');
         
+        // Log the raw response for debugging
+        console.log('Raw server response:', response.data);
+        
         // Check if server returned updated user data
         if (response.data.user) {
           console.log('Server returned updated user data:', response.data.user);
           
-          // Update the user data in context with server-returned data
+          // Update the user data in context with complete server-returned data
           updateUser(response.data.user);
           
-          // Update form data with the latest values
+          // Update form data with the latest values from server
           setFormData({
             displayName: response.data.user.displayName || '',
             email: response.data.user.email || '',
@@ -148,10 +151,15 @@ const Settings = ({ user, onBalanceUpdate }) => {
             city: response.data.user.city || '',
             currency: response.data.user.settings?.currency || 'USD'
           });
+          
+          // Log the updated user object in the context
+          console.log('User data updated in context');
         } else {
-          // Fallback to updating with form data if server didn't return user data
-          console.log('Server did not return updated user data, using form data');
+          // Warn if server didn't return user data
+          console.warn('Server did not return updated user data');
+          // Fallback to updating with form data
           updateUser({
+            ...user,
             displayName: formData.displayName,
             email: formData.email,
             phone: formData.phone,
@@ -238,7 +246,9 @@ const Settings = ({ user, onBalanceUpdate }) => {
               onChange={handleChange}
               className="settings-input"
               placeholder="Your display name"
+              disabled={true}
             />
+            <small className="settings-input-help">Display name is synchronized with your Steam profile</small>
           </div>
 
           <div className="settings-form-row">

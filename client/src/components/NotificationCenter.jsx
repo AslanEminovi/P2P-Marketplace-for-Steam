@@ -743,18 +743,24 @@ const NotificationCenter = ({ user }) => {
               right: '0',
               width: '320px',
               maxHeight: '400px',
-              backgroundColor: 'rgba(21, 28, 43, 0.95)',
-              boxShadow: '0 8px 16px rgba(0, 0, 0, 0.15)',
-              borderRadius: '8px',
+              backgroundColor: 'var(--gaming-bg-dark, rgba(21, 28, 43, 0.95))',
+              boxShadow: '0 8px 20px rgba(0, 0, 0, 0.25)',
+              borderRadius: '12px',
               border: '1px solid rgba(51, 115, 242, 0.3)',
               overflow: 'hidden',
               zIndex: 1600,
-              backdropFilter: 'blur(8px)',
+              backdropFilter: 'blur(12px)',
+              animation: 'dropdown-fade-in 0.2s ease-out'
             }}
+            className="notifications-dropdown"
           >
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+            <div style={{ 
+              padding: '14px 16px', 
+              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+              background: 'linear-gradient(180deg, rgba(59, 130, 246, 0.15) 0%, rgba(16, 24, 40, 0) 100%)'
+            }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: '0', color: '#fff', fontSize: '1rem' }}>
+                <h3 style={{ margin: '0', color: '#fff', fontSize: '1rem', fontWeight: '600' }}>
                   Notifications
                   {unreadCount > 0 && (
                     <span style={{
@@ -763,7 +769,7 @@ const NotificationCenter = ({ user }) => {
                       color: '#fff',
                       fontSize: '12px',
                       fontWeight: 'bold',
-                      padding: '2px 6px',
+                      padding: '2px 8px',
                       borderRadius: '10px'
                     }}>
                       {unreadCount}
@@ -779,8 +785,19 @@ const NotificationCenter = ({ user }) => {
                     color: notifications.some(n => !n.read) ? '#3373f2' : '#585d6a',
                     cursor: notifications.some(n => !n.read) ? 'pointer' : 'default',
                     fontSize: '0.8rem',
-                    padding: '0',
-                    opacity: loading ? 0.5 : 1
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    opacity: loading ? 0.5 : 1,
+                    transition: 'all 0.2s ease',
+                    fontWeight: '500'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (notifications.some(n => !n.read)) {
+                      e.currentTarget.style.backgroundColor = 'rgba(51, 115, 242, 0.1)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
                   }}
                 >
                   Mark all read
@@ -795,12 +812,20 @@ const NotificationCenter = ({ user }) => {
                 </div>
               ) : notifications.length === 0 ? (
                 <div style={{ 
-                  padding: '20px', 
+                  padding: '30px 20px', 
                   textAlign: 'center', 
                   color: '#8a8f98', 
-                  fontSize: '0.9rem'
+                  fontSize: '0.9rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '10px'
                 }}>
-                  No notifications
+                  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                  </svg>
+                  <div>No notifications</div>
                 </div>
               ) : (
                 <div>
@@ -809,9 +834,9 @@ const NotificationCenter = ({ user }) => {
                       key={notification._id}
                       onClick={() => handleNotificationClick(notification)}
                       style={{
-                        padding: '12px 16px',
+                        padding: '14px 16px',
                         borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                        backgroundColor: notification.read ? 'transparent' : 'rgba(51, 115, 242, 0.1)',
+                        backgroundColor: notification.read ? 'transparent' : 'rgba(51, 115, 242, 0.08)',
                         cursor: 'pointer',
                         transition: 'background-color 0.2s ease',
                         display: 'flex',
@@ -826,66 +851,106 @@ const NotificationCenter = ({ user }) => {
                       onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor = notification.read 
                           ? 'transparent' 
-                          : 'rgba(51, 115, 242, 0.1)';
+                          : 'rgba(51, 115, 242, 0.08)';
                       }}
                     >
+                      {!notification.read && (
+                        <div style={{
+                          position: 'absolute',
+                          left: '5px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          width: '4px',
+                          height: '4px',
+                          borderRadius: '50%',
+                          backgroundColor: '#3373f2'
+                        }}></div>
+                      )}
+                      
                       {/* Notification Icon */}
-                      <div style={{ marginRight: '12px', fontSize: '16px', color: getNotificationColor(notification.type) }}>
+                      <div style={{ 
+                        marginRight: '12px', 
+                        fontSize: '16px', 
+                        color: getNotificationColor(notification.type),
+                        backgroundColor: `${getNotificationColor(notification.type)}20`,
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
                         {getNotificationIcon(notification.type)}
                       </div>
                       
                       {/* Notification Content */}
                       <div style={{ flex: 1 }}>
                         <div style={{ 
-                          fontSize: '0.85rem', 
+                          fontSize: '0.9rem', 
                           color: '#fff', 
-                          fontWeight: notification.read ? 'normal' : 'bold',
-                          marginBottom: '4px'
+                          fontWeight: notification.read ? 'normal' : '500',
+                          marginBottom: '4px',
+                          lineHeight: '1.3'
                         }}>
                           {notification.title}
                         </div>
-                        <div style={{ fontSize: '0.8rem', color: '#8a8f98' }}>
+                        <div style={{ 
+                          fontSize: '0.8rem', 
+                          color: '#8a8f98',
+                          marginBottom: '6px',
+                          lineHeight: '1.3'
+                        }}>
                           {notification.message}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: '#585d6a', marginTop: '4px' }}>
+                        <div style={{
+                          fontSize: '0.75rem',
+                          color: '#6b7280',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                          </svg>
                           {formatTimeAgo(notification.createdAt)}
                         </div>
                       </div>
-                      
-                      {/* Unread Indicator */}
-                      {!notification.read && (
-                        <div style={{
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: getNotificationColor(notification.type),
-                          position: 'absolute',
-                          top: '16px',
-                          right: '16px'
-                        }}></div>
-                      )}
                     </div>
                   ))}
                 </div>
               )}
             </div>
             
-            <div style={{ 
-              textAlign: 'center', 
-              padding: '12px',
-              borderTop: '1px solid rgba(255, 255, 255, 0.05)'
+            {/* Footer with View All button */}
+            <div style={{
+              padding: '12px 16px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+              display: 'flex',
+              justifyContent: 'center'
             }}>
-              <button
+              <button 
                 onClick={handleViewAllNotifications}
                 style={{
-                  background: 'none',
-                  border: 'none',
+                  background: 'linear-gradient(180deg, rgba(51, 115, 242, 0.15) 0%, rgba(51, 115, 242, 0.05) 100%)',
+                  border: '1px solid rgba(51, 115, 242, 0.3)',
+                  borderRadius: '6px',
+                  padding: '8px 16px',
                   color: '#3373f2',
+                  width: '100%',
+                  fontSize: '0.9rem',
+                  fontWeight: '500',
                   cursor: 'pointer',
-                  fontSize: '0.9rem'
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(180deg, rgba(51, 115, 242, 0.25) 0%, rgba(51, 115, 242, 0.15) 100%)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(180deg, rgba(51, 115, 242, 0.15) 0%, rgba(51, 115, 242, 0.05) 100%)';
                 }}
               >
-                View All
+                View All Notifications
               </button>
             </div>
           </div>
