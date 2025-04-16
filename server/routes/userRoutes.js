@@ -83,4 +83,53 @@ router.get("/redis-status", async (req, res) => {
   }
 });
 
+// Get user online status
+router.get("/status/:userId", async (req, res) => {
+  const { userId } = req.params;
+  const socketService = require("../services/socketService");
+
+  if (!userId) {
+    return res.status(400).json({ error: "User ID is required" });
+  }
+
+  try {
+    // Get user status from socketService
+    const status = await socketService.getUserStatus(userId);
+
+    // Format last seen time
+    let lastSeenFormatted = null;
+    if (status.lastSeen) {
+      const now = new Date();
+      const lastSeen = new Date(status.lastSeen);
+      const diffMs = now - lastSeen;
+
+      // If less than a day, show hours/minutes
+      if (diffMs < 24 * 60 * 60 * 1000) {
+        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+        if (hours > 0) {
+          lastSeenFormatted = `${hours}h ago`;
+        } else if (minutes > 0) {
+          lastSeenFormatted = `${minutes}m ago`;
+        } else {
+          lastSeenFormatted = "Just now";
+        }
+      } else {
+        // Simple date format for older times
+        lastSeenFormatted = lastSeen.toLocaleDateString();
+      }
+    }
+
+    return res.json({
+      isOnline: status.isOnline,
+      lastSeen: status.lastSeen,
+      lastSeenFormatted,
+    });
+  } catch (error) {
+    console.error("Error getting user status:", error);
+    return res.status(500).json({ error: "Failed to get user status" });
+  }
+});
+
 module.exports = router;

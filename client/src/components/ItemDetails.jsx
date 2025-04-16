@@ -3,6 +3,7 @@ import axios from 'axios';
 import { formatCurrency, API_URL } from '../config/constants';
 import TradePanel from './TradePanel';
 import '../styles/ItemDetails.css';
+import SellerStatus from './SellerStatus';
 
 // Define rarity colors mapping - same as in ItemCard3D
 const RARITY_COLORS = {
