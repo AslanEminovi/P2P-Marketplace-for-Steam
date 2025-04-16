@@ -154,7 +154,7 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
       if (document.visibilityState === 'visible') {
         fetchStatus();
       }
-    }, 15000); // Poll every 15 seconds as a fallback when tab is visible (reduced from 30)
+    }, 60000); // Poll every 60 seconds as a fallback (increased from 15 seconds)
 
     // Register the event listener
     socketService.on('userStatusUpdate', data => {

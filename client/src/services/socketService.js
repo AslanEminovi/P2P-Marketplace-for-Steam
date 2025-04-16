@@ -20,7 +20,7 @@ class SocketService {
     this.connectionCheckTimer = null;
     this.isBrowserTabActive = true;
     this.heartbeatInterval = null;
-    this.heartbeatDelay = 15000; // 15 seconds (reduced from 30)
+    this.heartbeatDelay = 60000; // Increasing from 15 seconds to 60 seconds (1 minute)
     this.currentPage = "other"; // Default to 'other' instead of marketplace
   }
 
