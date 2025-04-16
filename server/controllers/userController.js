@@ -42,7 +42,27 @@ exports.getUserProfile = async (req, res) => {
 exports.updateUserSettings = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { displayName, email, phone, settings } = req.body;
+    const {
+      displayName,
+      email,
+      phone,
+      firstName,
+      lastName,
+      country,
+      city,
+      settings,
+    } = req.body;
+
+    console.log(`Updating settings for user ${userId}:`, {
+      displayName,
+      email,
+      phone,
+      firstName,
+      lastName,
+      country,
+      city,
+      settings,
+    });
 
     // Find user
     const user = await User.findById(userId);
@@ -55,6 +75,15 @@ exports.updateUserSettings = async (req, res) => {
     if (displayName !== undefined) user.displayName = displayName;
     if (email !== undefined) user.email = email;
     if (phone !== undefined) user.phone = phone;
+    if (firstName !== undefined) user.firstName = firstName;
+    if (lastName !== undefined) user.lastName = lastName;
+    if (country !== undefined) user.country = country;
+    if (city !== undefined) user.city = city;
+
+    // Mark profile as complete if basic information is provided
+    if ((firstName || lastName) && email) {
+      user.profileComplete = true;
+    }
 
     // Update settings if provided
     if (settings) {
@@ -100,11 +129,33 @@ exports.updateUserSettings = async (req, res) => {
       }
     }
 
-    await user.save();
+    // Save the updated user
+    const savedUser = await user.save();
+    console.log(`User ${userId} settings updated successfully`);
 
+    // Return complete updated user data
     return res.json({
       success: true,
       message: "User settings updated successfully",
+      user: {
+        id: savedUser._id,
+        steamId: savedUser.steamId,
+        displayName: savedUser.displayName,
+        firstName: savedUser.firstName,
+        lastName: savedUser.lastName,
+        email: savedUser.email,
+        phone: savedUser.phone,
+        country: savedUser.country,
+        city: savedUser.city,
+        profileComplete: savedUser.profileComplete,
+        verificationLevel: savedUser.verificationLevel,
+        avatar: savedUser.avatar,
+        avatarMedium: savedUser.avatarMedium,
+        avatarFull: savedUser.avatarFull,
+        walletBalance: savedUser.walletBalance,
+        walletBalanceGEL: savedUser.walletBalanceGEL,
+        settings: savedUser.settings,
+      },
     });
   } catch (err) {
     console.error("Update user settings error:", err);

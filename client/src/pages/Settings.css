@@ -470,3 +470,21 @@
     font-size: 1.3rem;
   }
 }
+
+.settings-form-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.settings-form-row .settings-form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .settings-form-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+}

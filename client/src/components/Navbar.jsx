@@ -401,8 +401,44 @@ const Navbar = ({ user, onLogout }) => {
                         className="user-dropdown"
                       >
                         <div className="dropdown-header">
-                          <span className="dropdown-username">{user.displayName}</span>
-                          <span className="dropdown-email">{user.email || 'No email provided'}</span>
+                          <div className="dropdown-avatar">
+                            {user && (user.avatar || user.avatarUrl || user.avatarfull) ? (
+                              <img 
+                                src={user.avatar || user.avatarUrl || user.avatarfull} 
+                                alt={user.displayName || 'User'} 
+                                className="dropdown-avatar-img"
+                              />
+                            ) : (
+                              <div className="dropdown-avatar-placeholder">
+                                {getUserInitials()}
+                              </div>
+                            )}
+                          </div>
+                          <div className="dropdown-user-info">
+                            <span className="dropdown-username">{user.displayName}</span>
+                            <span className="dropdown-email">{user.email || 'No email provided'}</span>
+                            {user.profileComplete && (user.firstName || user.lastName) && (
+                              <span className="dropdown-full-name">
+                                {user.firstName} {user.lastName}
+                              </span>
+                            )}
+                            {user.profileComplete && (user.city || user.country) && (
+                              <span className="dropdown-location">
+                                {user.city}{user.city && user.country ? ', ' : ''}{user.country}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="dropdown-balance">
+                          <div className="dropdown-balance-label">Balance</div>
+                          <div className="dropdown-balance-amount">
+                            <span className="dropdown-currency-symbol">
+                              {selectedCurrency === 'USD' ? '$' : selectedCurrency === 'GEL' ? '₾' : '€'}
+                            </span>
+                            {formatBalance(user.walletBalance || 0)}
+                            <span className="dropdown-currency-code">{selectedCurrency}</span>
+                          </div>
                         </div>
                         
                         <div className="dropdown-menu-items">

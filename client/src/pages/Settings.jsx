@@ -15,9 +15,11 @@ import {
 } from 'react-icons/fa';
 import { API_URL } from '../config/constants';
 import './Settings.css';
+import { useAuth } from '../context/AuthContext';
 
 const Settings = ({ user, onBalanceUpdate }) => {
   const navigate = useNavigate();
+  const { updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState('general');
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState(null);
@@ -28,7 +30,11 @@ const Settings = ({ user, onBalanceUpdate }) => {
     displayName: '',
     email: '',
     phone: '',
-    currency: 'USD'
+    currency: 'USD',
+    firstName: '',
+    lastName: '',
+    country: '',
+    city: ''
   });
 
   // Fetch user profile data
@@ -47,10 +53,15 @@ const Settings = ({ user, onBalanceUpdate }) => {
         
         // Initialize form with user data
         if (response.data.user) {
+          console.log("Fetched user data:", response.data.user);
           setFormData({
             displayName: response.data.user.displayName || '',
             email: response.data.user.email || '',
             phone: response.data.user.phone || '',
+            firstName: response.data.user.firstName || '',
+            lastName: response.data.user.lastName || '',
+            country: response.data.user.country || '',
+            city: response.data.user.city || '',
             currency: response.data.user.settings?.currency || 'USD'
           });
         }
@@ -84,6 +95,10 @@ const Settings = ({ user, onBalanceUpdate }) => {
         displayName: formData.displayName,
         email: formData.email,
         phone: formData.phone,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        country: formData.country,
+        city: formData.city,
         settings: {
           currency: formData.currency
         }
@@ -96,6 +111,10 @@ const Settings = ({ user, onBalanceUpdate }) => {
           displayName: formData.displayName,
           email: formData.email,
           phone: formData.phone,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          country: formData.country,
+          city: formData.city,
           settings: {
             currency: formData.currency
           }
@@ -110,7 +129,45 @@ const Settings = ({ user, onBalanceUpdate }) => {
       
       if (response.data.success) {
         toast.success('Settings saved successfully');
-        fetchUserProfile(); // Refresh user data
+        
+        // Check if server returned updated user data
+        if (response.data.user) {
+          console.log('Server returned updated user data:', response.data.user);
+          
+          // Update the user data in context with server-returned data
+          updateUser(response.data.user);
+          
+          // Update form data with the latest values
+          setFormData({
+            displayName: response.data.user.displayName || '',
+            email: response.data.user.email || '',
+            phone: response.data.user.phone || '',
+            firstName: response.data.user.firstName || '',
+            lastName: response.data.user.lastName || '',
+            country: response.data.user.country || '',
+            city: response.data.user.city || '',
+            currency: response.data.user.settings?.currency || 'USD'
+          });
+        } else {
+          // Fallback to updating with form data if server didn't return user data
+          console.log('Server did not return updated user data, using form data');
+          updateUser({
+            displayName: formData.displayName,
+            email: formData.email,
+            phone: formData.phone,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            country: formData.country,
+            city: formData.city,
+            settings: {
+              ...user.settings,
+              currency: formData.currency
+            }
+          });
+        }
+        
+        // Double-check that the user data was updated by fetching it again
+        setTimeout(() => fetchUserProfile(), 1000);
       } else {
         console.error('Save response not successful:', response.data);
         toast.error(response.data?.message || 'Failed to save settings');
@@ -184,6 +241,38 @@ const Settings = ({ user, onBalanceUpdate }) => {
             />
           </div>
 
+          <div className="settings-form-row">
+            <div className="settings-form-group">
+              <label htmlFor="firstName">
+                <FaUser className="settings-input-icon" /> First Name
+              </label>
+              <input
+                type="text"
+                id="firstName"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleChange}
+                className="settings-input"
+                placeholder="Your first name"
+              />
+            </div>
+
+            <div className="settings-form-group">
+              <label htmlFor="lastName">
+                <FaUser className="settings-input-icon" /> Last Name
+              </label>
+              <input
+                type="text"
+                id="lastName"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                className="settings-input"
+                placeholder="Your last name"
+              />
+            </div>
+          </div>
+
           <div className="settings-form-group">
             <label htmlFor="email">
               <FaEnvelope className="settings-input-icon" /> Email Address
@@ -212,6 +301,38 @@ const Settings = ({ user, onBalanceUpdate }) => {
               className="settings-input"
               placeholder="Your phone number"
             />
+          </div>
+
+          <div className="settings-form-row">
+            <div className="settings-form-group">
+              <label htmlFor="country">
+                <FaUser className="settings-input-icon" /> Country
+              </label>
+              <input
+                type="text"
+                id="country"
+                name="country"
+                value={formData.country}
+                onChange={handleChange}
+                className="settings-input"
+                placeholder="Your country"
+              />
+            </div>
+
+            <div className="settings-form-group">
+              <label htmlFor="city">
+                <FaUser className="settings-input-icon" /> City
+              </label>
+              <input
+                type="text"
+                id="city"
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                className="settings-input"
+                placeholder="Your city"
+              />
+            </div>
           </div>
 
           <h2 className="settings-section-title"><FaCog className="settings-title-icon" /> Preferences</h2>
