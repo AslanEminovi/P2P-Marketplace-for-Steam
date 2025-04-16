@@ -4,6 +4,9 @@ import { API_URL } from '../config/constants';
 import socketService from '../services/socketService';
 import '../styles/SellerStatus.css';
 
+// Add a global debugging flag - DEBUG mode
+const DEBUG_MODE = true;
+
 const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStatus = null }) => {
   const [status, setStatus] = useState({
     isOnline: forceStatus !== null ? forceStatus : false,
@@ -19,15 +22,29 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
   const fetchTimeoutRef = useRef(null);
   const handleStatusUpdateRef = useRef(null);
 
+  // Debug helper function
+  const debug = (message, data = null) => {
+    if (DEBUG_MODE) {
+      console.log(`[SellerStatus:${sellerId}] ${message}`, data || '');
+    }
+  };
+
   // Handle status updates from socket
   useEffect(() => {
     // Create a stable reference to the handler function
     handleStatusUpdateRef.current = (data) => {
       if (data && data.userId === sellerId) {
-        console.log(`Received status update for user ${sellerId}:`, data.isOnline ? 'Online' : 'Offline', 'Last seen:', data.lastSeen);
+        debug(`Received status update for user:`, data);
+        debug(`User online status:`, data.isOnline ? 'ONLINE' : 'OFFLINE');
         
         // Use the server-provided formatted time or our local formatting
         const formattedTime = data.lastSeenFormatted || formatLastSeen(data.lastSeen);
+        
+        debug(`Setting new status:`, { 
+          isOnline: data.isOnline,
+          lastSeen: data.lastSeen, 
+          formattedTime 
+        });
         
         setStatus(prev => ({
           ...prev,
@@ -50,6 +67,7 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
             timestamp: Date.now()
           };
           localStorage.setItem('seller_status_cache', JSON.stringify(statusCache));
+          debug('Cached seller status in localStorage');
         } catch (err) {
           console.error('Error caching seller status:', err);
         }
@@ -96,6 +114,8 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
   const checkStatus = () => {
     if (!sellerId) return;
     
+    debug('Manual status check requested');
+    
     // Clear any pending fetch timeout
     if (fetchTimeoutRef.current) {
       clearTimeout(fetchTimeoutRef.current);
@@ -111,19 +131,37 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
   const fetchStatus = async () => {
     if (!sellerId) return;
     
+    debug('Fetching status from server');
+    
     try {
       setLoading(true);
       
       const response = await axios.get(`${API_URL}/user/status/${sellerId}`, {
         withCredentials: true,
-        timeout: 3000 // Shorter timeout for faster feedback
+        timeout: 3000, // Shorter timeout for faster feedback
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        params: {
+          _t: Date.now() // Add timestamp to prevent caching
+        }
       });
       
       if (response.data) {
-        console.log(`Fetched status for user ${sellerId}:`, response.data);
+        debug(`Fetched status for user:`, response.data);
+        
         // Use local formatting if the server didn't provide formatted time
         const lastSeenFormatted = response.data.lastSeenFormatted || 
                                   (response.data.lastSeen ? formatLastSeen(response.data.lastSeen) : null);
+        
+        debug(`Setting status from server response:`, {
+          isOnline: response.data.isOnline, 
+          lastSeen: response.data.lastSeen,
+          lastSeenFormatted
+        });
         
         setStatus({
           isOnline: response.data.isOnline,
@@ -131,15 +169,18 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
           lastSeenFormatted: lastSeenFormatted
         });
         retryCountRef.current = 0; // Reset retry counter on success
+      } else {
+        debug('Server returned empty response');
       }
       
       setError(null);
     } catch (error) {
       console.error('Error fetching seller status:', error);
+      debug('Error response:', error.response?.data);
       retryCountRef.current++;
       
       if (retryCountRef.current <= MAX_RETRIES) {
-        console.log(`Retrying seller status fetch (${retryCountRef.current}/${MAX_RETRIES})`);
+        debug(`Retrying seller status fetch (${retryCountRef.current}/${MAX_RETRIES})`);
         // Schedule a retry with exponential backoff
         setTimeout(() => {
           fetchStatus();
@@ -153,13 +194,17 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
   };
 
   useEffect(() => {
+    debug('Component mounted or sellerId changed');
+    
     // Use forced status if provided (for immediate feedback)
     if (forceStatus !== null) {
+      debug(`Using forced status: ${forceStatus ? 'ONLINE' : 'OFFLINE'}`);
       setStatus(prev => ({ ...prev, isOnline: forceStatus }));
       setLoading(false);
     }
     
     if (!sellerId) {
+      debug('No sellerId provided, aborting');
       setLoading(false);
       setError('No seller ID provided');
       return;
@@ -172,13 +217,15 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
       
       // Use cached status if it's less than 5 minutes old
       if (cachedStatus && Date.now() - cachedStatus.timestamp < 5 * 60 * 1000) {
-        console.log(`Using cached status for user ${sellerId}:`, cachedStatus.isOnline ? 'Online' : 'Offline');
+        debug(`Using cached status for user:`, cachedStatus);
         setStatus({
           isOnline: cachedStatus.isOnline,
           lastSeen: cachedStatus.lastSeen,
           lastSeenFormatted: cachedStatus.lastSeenFormatted
         });
         setLoading(false);
+      } else {
+        debug('No recent cached status found');
       }
     } catch (err) {
       console.error('Error reading cached status:', err);
@@ -187,15 +234,18 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
     // Initial fetch
     fetchStatus();
     
-    // Set up regular polling as a fallback if socket fails
-    statusTimeoutRef.current = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        fetchStatus();
-      }
-    }, 60000); // Poll every 60 seconds as a fallback (increased from 15 seconds)
-
-    // Register the event listener
+    // Ensure the socket is connected
+    if (!socketService.isConnected()) {
+      debug('Socket not connected, attempting to connect...');
+      socketService.reconnect();
+    } else {
+      debug('Socket already connected');
+    }
+    
+    // Register for status updates via socket
+    debug(`Subscribing to userStatusUpdate events for ${sellerId}`);
     socketService.on('userStatusUpdate', data => {
+      debug('Received userStatusUpdate event:', data);
       if (handleStatusUpdateRef.current) {
         handleStatusUpdateRef.current(data);
       }
@@ -203,16 +253,21 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
     socketRegisteredRef.current = true;
     
     // Subscribe to user status via socket
+    debug(`Calling subscribeToUserStatus for ${sellerId}`);
     socketService.subscribeToUserStatus(sellerId);
     
-    // Force an immediate connection attempt if needed
-    if (!socketService.isConnected()) {
-      socketService.reconnect();
-    }
+    // Set up regular polling as a fallback if socket fails
+    statusTimeoutRef.current = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        debug('Polling for status update (fallback)');
+        fetchStatus();
+      }
+    }, 60000); // Poll every 60 seconds as a fallback (increased from 15 seconds)
 
     // Recheck status on visibility change
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        debug('Tab became visible, checking status');
         checkStatus();
       }
     };
@@ -221,6 +276,7 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
 
     // Cleanup
     return () => {
+      debug('Component unmounting, cleaning up');
       if (statusTimeoutRef.current) {
         clearInterval(statusTimeoutRef.current);
       }
@@ -230,17 +286,52 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
       }
       
       if (socketRegisteredRef.current) {
-        socketService.off('userStatusUpdate', data => {
-          if (data.userId === sellerId && handleStatusUpdateRef.current) {
-            handleStatusUpdateRef.current(data);
-          }
-        });
+        debug('Removing socket event listeners');
+        socketService.off('userStatusUpdate');
         socketRegisteredRef.current = false;
       }
       
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [sellerId, forceStatus]);
+
+  // Debug current state in the UI
+  if (DEBUG_MODE) {
+    return (
+      <div className={`seller-status-container ${className}`} style={{border: '1px dashed #666', padding: '10px', background: '#111', margin: '10px 0'}}>
+        <div className={`status-indicator ${status.isOnline ? 'online' : 'offline'}`} />
+        
+        <div className="status-text">
+          {status.isOnline ? (
+            <span className="online-text">Online</span>
+          ) : (
+            <span className="offline-text">
+              Offline
+              {showLastSeen && status.lastSeenFormatted && (
+                <span className="last-seen-text"> • Last active {status.lastSeenFormatted}</span>
+              )}
+            </span>
+          )}
+        </div>
+        
+        <div style={{fontSize: '10px', color: '#999', marginTop: '4px'}}>
+          <div>ID: {sellerId}</div>
+          <div>State: {loading ? 'Loading' : error ? 'Error' : status.isOnline ? 'Online' : 'Offline'}</div>
+          <div>Socket: {socketService.isConnected() ? 'Connected' : 'Disconnected'}</div>
+          <button 
+            onClick={() => { 
+              debug('Manual refresh clicked'); 
+              socketService.subscribeToUserStatus(sellerId); 
+              fetchStatus(); 
+            }}
+            style={{fontSize: '9px', marginTop: '2px', padding: '2px 5px'}}
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Simple loading state - show very briefly
   if (loading && !status.isOnline) {

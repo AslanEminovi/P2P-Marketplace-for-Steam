@@ -284,14 +284,83 @@ const init = (ioInstance) => {
 
         // Get current status for the requested user
         const status = await getUserStatus(data.userId);
+        console.log(`Status data for ${data.userId}:`, status);
+
+        // Check active socket connection directly
+        const isSocketActive = isUserConnected(data.userId);
+        console.log(
+          `Socket connection for ${data.userId}: ${
+            isSocketActive ? "ACTIVE" : "INACTIVE"
+          }`
+        );
+
+        // If socket is active but status is offline, override
+        if (isSocketActive && !status.isOnline) {
+          console.log(
+            `User ${data.userId} has active socket but status is offline - overriding`
+          );
+          status.isOnline = true;
+          status.lastSeen = new Date();
+        }
+
+        // Also check database for recent activity as another fallback
+        try {
+          const User = require("../models/User");
+          const user = await User.findById(data.userId);
+
+          if (user && user.lastActive) {
+            const lastActiveTime = new Date(user.lastActive).getTime();
+            const now = Date.now();
+            const fiveMinutesAgo = now - 5 * 60 * 1000;
+
+            console.log(
+              `User ${data.userId} last active time:`,
+              user.lastActive
+            );
+            console.log(
+              `Is within last 5 minutes: ${lastActiveTime > fiveMinutesAgo}`
+            );
+
+            // If user was active in the last 5 minutes but status shows offline, override
+            if (lastActiveTime > fiveMinutesAgo && !status.isOnline) {
+              console.log(
+                `User ${data.userId} was active in last 5 minutes but status is offline - overriding`
+              );
+              status.isOnline = true;
+              status.lastSeen = user.lastActive;
+            }
+          }
+        } catch (dbErr) {
+          console.error(
+            `Error checking database for user ${data.userId}:`,
+            dbErr
+          );
+        }
+
+        // Format last seen string
+        const lastSeenFormatted = formatLastSeen(status.lastSeen);
+        console.log(
+          `Formatted last seen for ${data.userId}:`,
+          lastSeenFormatted
+        );
 
         // Immediately send current status to the requester
         socket.emit("userStatusUpdate", {
           userId: data.userId,
           isOnline: status.isOnline,
           lastSeen: status.lastSeen,
-          lastSeenFormatted: formatLastSeen(status.lastSeen),
+          lastSeenFormatted,
         });
+
+        // Also broadcast to all clients to ensure consistency
+        io.emit("userStatusUpdate", {
+          userId: data.userId,
+          isOnline: status.isOnline,
+          lastSeen: status.lastSeen,
+          lastSeenFormatted,
+        });
+
+        console.log(`Status update for ${data.userId} sent to client`);
       } catch (err) {
         console.error("Error handling subscribeToUserStatus:", err);
       }
@@ -1089,6 +1158,69 @@ const getUserStatus = async (userId) => {
   };
 };
 
+/**
+ * Check if a user has an active socket connection
+ * @param {string} userId - The user ID to check
+ * @returns {boolean} - True if the user has an active socket connection
+ */
+const isUserConnected = (userId) => {
+  if (!userId) return false;
+
+  console.log(`[socketService] Checking if user ${userId} is connected`);
+  console.log(
+    `[socketService] activeSockets has ${userId}:`,
+    activeSockets.has(userId)
+  );
+  console.log(
+    `[socketService] connectedUsers has ${userId}:`,
+    connectedUsers.has(userId)
+  );
+
+  // First check if user has a local socket connection
+  if (activeSockets.has(userId)) {
+    const socketId = activeSockets.get(userId);
+    console.log(`[socketService] User ${userId} has socketId ${socketId}`);
+
+    // Verify the socket is still valid
+    const socket = io?.sockets?.sockets?.get(socketId);
+    if (socket) {
+      console.log(
+        `[socketService] Socket for user ${userId} is valid and connected`
+      );
+      return true;
+    } else {
+      console.log(
+        `[socketService] Socket for user ${userId} is no longer valid`
+      );
+    }
+  }
+
+  // Check if user is in the connectedUsers map
+  if (connectedUsers.has(userId)) {
+    console.log(`[socketService] User ${userId} is in connectedUsers map`);
+    return true;
+  }
+
+  // If Redis is enabled, check there
+  if (isRedisEnabled && redis && redis.getHashCache) {
+    try {
+      // This is async, but we need a sync check, so just log that we should check Redis
+      console.log(
+        `[socketService] Should check Redis for user ${userId} status`
+      );
+      // We'll assume not connected here, and the async getUserStatus function will be more accurate
+    } catch (error) {
+      console.error(
+        `[socketService] Error checking Redis for user ${userId}:`,
+        error
+      );
+    }
+  }
+
+  console.log(`[socketService] User ${userId} is not connected`);
+  return false;
+};
+
 module.exports = {
   init,
   broadcastStats,
@@ -1100,4 +1232,5 @@ module.exports = {
   getUserStatus,
   getLatestStats,
   formatLastSeen,
+  isUserConnected,
 };

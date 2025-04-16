@@ -118,9 +118,28 @@ router.get("/status/:userId", async (req, res) => {
   }
 
   try {
+    console.log(`[userRoutes] GET /status/${userId} request received`);
+
     // Get user status from socketService
     const status = await socketService.getUserStatus(userId);
     console.log(`[userRoutes] Retrieved status for user ${userId}:`, status);
+
+    // Double-check active connections
+    const isSocketConnected = socketService.isUserConnected(userId);
+    console.log(
+      `[userRoutes] Socket connection check for ${userId}: ${
+        isSocketConnected ? "CONNECTED" : "NOT CONNECTED"
+      }`
+    );
+
+    // If the status says offline but we detect an active socket, override
+    if (!status.isOnline && isSocketConnected) {
+      console.log(
+        `[userRoutes] Overriding status for ${userId} to ONLINE based on active socket`
+      );
+      status.isOnline = true;
+      status.lastSeen = new Date();
+    }
 
     // Format last seen time with more detail
     let lastSeenFormatted = null;
@@ -164,14 +183,29 @@ router.get("/status/:userId", async (req, res) => {
       }
     }
 
-    return res.json({
+    // Send the response with cache control headers
+    res.set({
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    });
+
+    const responseData = {
+      userId,
       isOnline: status.isOnline,
       lastSeen: status.lastSeen,
       lastSeenFormatted,
-    });
-  } catch (error) {
-    console.error("Error getting user status:", error);
-    return res.status(500).json({ error: "Failed to get user status" });
+      timestamp: new Date(),
+    };
+
+    console.log(
+      `[userRoutes] Sending status response for ${userId}:`,
+      responseData
+    );
+    res.json(responseData);
+  } catch (err) {
+    console.error(`[userRoutes] Error getting user status for ${userId}:`, err);
+    res.status(500).json({ error: "Error retrieving user status" });
   }
 });
 
