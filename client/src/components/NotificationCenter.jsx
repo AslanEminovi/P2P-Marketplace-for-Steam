@@ -860,11 +860,11 @@ const NotificationCenter = ({ user }) => {
             width: '400px',
             maxWidth: '90vw',
             height: 'calc(100vh - 70px)',
-            backgroundColor: 'rgba(23, 15, 60, 0.95)',
+            backgroundColor: 'rgba(31, 41, 55, 0.95)',
             boxShadow: '-5px 0 25px rgba(0, 0, 0, 0.3)',
             zIndex: 999,
             overflowY: 'auto',
-            backdropFilter: 'blur(10px)',
+            backdropFilter: 'blur(8px)',
             transition: 'transform 0.3s ease-in-out',
             transform: showAllNotifications ? 'translateX(0)' : 'translateX(100%)',
             borderTopLeftRadius: '12px',
@@ -877,13 +877,18 @@ const NotificationCenter = ({ user }) => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '20px',
+              padding: '14px 16px',
               borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
             }}
           >
-            <h2 style={{ color: '#f1f1f1', margin: 0, fontSize: '1.5rem' }}>
+            <h3 style={{ 
+              color: '#f1f1f1', 
+              margin: 0, 
+              fontSize: '16px',
+              fontWeight: '600'
+            }}>
               All Notifications
-            </h2>
+            </h3>
             <button
               onClick={() => setShowAllNotifications(false)}
               style={{
@@ -995,14 +1000,15 @@ const NotificationCenter = ({ user }) => {
                     marginBottom: '12px',
                     borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
                     background: notification.read
-                      ? 'rgba(45, 27, 105, 0.5)'
-                      : 'rgba(76, 44, 166, 0.2)',
+                      ? 'transparent'
+                      : 'rgba(76, 44, 166, 0.1)',
+                    borderRadius: '8px',
+                    border: `1px solid ${notification.read ? 'rgba(255, 255, 255, 0.05)' : 'rgba(76, 44, 166, 0.2)'}`,
                     backdropFilter: 'blur(8px)',
                     cursor: 'pointer',
                     transition: 'all 0.3s ease',
                     position: 'relative',
-                    borderRadius: '12px',
-                    boxShadow: notification.read ? 'none' : '0 4px 12px rgba(0, 0, 0, 0.1)'
+                    boxShadow: notification.read ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
                   }}
                   onClick={() => {
                     if (!notification.read) {

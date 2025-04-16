@@ -233,7 +233,7 @@ const Navbar = ({ user, onLogout }) => {
               {/* Display logo text and Georgian text next to each other */}
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <span className="logo-text">CS2 Marketplace</span>
-                <span className="georgian-text">საქართველო</span>
+                <span className="georgian-text" style={{ marginTop: '4px', fontSize: '0.8em' }}>საქართველო</span>
               </div>
             </Link>
             
