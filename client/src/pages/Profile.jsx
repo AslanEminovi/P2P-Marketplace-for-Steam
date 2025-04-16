@@ -104,13 +104,7 @@ const Profile = ({ user, onBalanceUpdate }) => {
         const userData = response.data.user;
         console.log("Setting profile with fresh user data:", userData);
         
-        // Force a full server refetch after a successful update
-        if (!userData.firstName && profile?.firstName) {
-          console.warn("Server returned incomplete user data, using cached data");
-          // The server returned incomplete data, preserve our local data
-          return;
-        }
-        
+        // Always use server data - it's the source of truth
         setProfile(userData);
         
         // Update auth context with fresh data
@@ -127,6 +121,10 @@ const Profile = ({ user, onBalanceUpdate }) => {
         if (!isEditing) {
           initializeFormData(userData);
         }
+      } else {
+        // If not authenticated, show error
+        setError('Authentication error. Please log in again.');
+        toast.error('Authentication error. Please log in again.');
       }
     } catch (err) {
       console.error('Error fetching profile:', err);
@@ -228,7 +226,8 @@ const Profile = ({ user, onBalanceUpdate }) => {
         { 
           withCredentials: true,
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache' // Ensure no caching
           }
         }
       );
@@ -240,18 +239,58 @@ const Profile = ({ user, onBalanceUpdate }) => {
         
         // Update profile with response data but keep form data unchanged
         const updatedUser = response.data.user;
-        setProfile(updatedUser);
         
-        // Update auth context and global user
+        // Make a copy of the updated user to ensure all fields are properly updated
+        const completeUpdatedUser = {
+          ...profile, // Keep any fields not returned by the API
+          ...updatedUser, // Update with new data
+          // Ensure settings object is complete
+          settings: {
+            ...(profile?.settings || {}),
+            ...(updatedUser.settings || {}),
+            // Ensure nested settings objects are complete
+            privacy: {
+              ...(profile?.settings?.privacy || {}),
+              ...(updatedUser.settings?.privacy || {})
+            },
+            notifications: {
+              ...(profile?.settings?.notifications || {}),
+              ...(updatedUser.settings?.notifications || {})
+            }
+          }
+        };
+        
+        console.log('Complete updated user object:', completeUpdatedUser);
+        
+        // Set the complete user object in state and other contexts
+        setProfile(completeUpdatedUser);
+        
+        // Update auth context with the complete user data
         if (authUpdateUser) {
-          authUpdateUser(updatedUser);
+          authUpdateUser(completeUpdatedUser);
         }
         
+        // Update global user state with the complete user data
         if (typeof window.updateGlobalUser === 'function') {
-          window.updateGlobalUser(updatedUser);
+          window.updateGlobalUser(completeUpdatedUser);
+        }
+        
+        // Also update local storage if it's being used (optional backup)
+        try {
+          const authToken = localStorage.getItem('auth_token');
+          if (authToken) {
+            localStorage.setItem('user_data', JSON.stringify(completeUpdatedUser));
+          }
+        } catch (e) {
+          console.error('Error updating localStorage:', e);
         }
         
         setIsEditing(false);
+        
+        // Optional: Refresh data from server after a short delay to ensure consistency
+        setTimeout(() => {
+          fetchUserProfile();
+        }, 1000);
       } else {
         toast.error(response.data.message || 'Failed to save profile');
       }

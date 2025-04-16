@@ -270,12 +270,42 @@ export const AuthProvider = ({ children }) => {
 
   // Update user data
   const updateUser = (userData) => {
+    console.log("AuthContext: Updating user data:", userData);
+
     setUser((prevUser) => {
+      // Create a complete user object that preserves existing fields
+      // and merges in the new data properly, including nested objects
       const updatedUser = {
         ...prevUser,
         ...userData,
+        // Ensure settings object is properly merged
+        settings: {
+          ...(prevUser?.settings || {}),
+          ...(userData?.settings || {}),
+          // Ensure nested settings objects are properly merged
+          privacy: {
+            ...(prevUser?.settings?.privacy || {}),
+            ...(userData?.settings?.privacy || {}),
+          },
+          notifications: {
+            ...(prevUser?.settings?.notifications || {}),
+            ...(userData?.settings?.notifications || {}),
+          },
+        },
       };
-      console.log("User data updated:", updatedUser);
+
+      console.log("User data updated in AuthContext:", updatedUser);
+
+      // Also update localStorage backup if available
+      try {
+        const authToken = localStorage.getItem("auth_token");
+        if (authToken) {
+          localStorage.setItem("user_data", JSON.stringify(updatedUser));
+        }
+      } catch (e) {
+        console.error("Error updating local storage:", e);
+      }
+
       return updatedUser;
     });
   };

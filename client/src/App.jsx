@@ -308,24 +308,87 @@ function AppContent() {
   // Make updateUser available globally for components to use
   useEffect(() => {
     window.updateGlobalUser = (updatedUser) => {
-      console.log('Updating global user state:', updatedUser);
+      console.log('App: Updating global user state:', updatedUser);
       
-      // Update the local state
-      setUserState(prevUser => ({
-        ...prevUser,
-        ...updatedUser
-      }));
+      // Create a deep merged object to ensure all fields are preserved
+      const mergedUser = prevUser => {
+        if (!prevUser) return updatedUser;
+        
+        return {
+          ...prevUser,
+          ...updatedUser,
+          // Deep merge settings if they exist
+          settings: prevUser.settings || updatedUser.settings ? {
+            ...(prevUser.settings || {}),
+            ...(updatedUser.settings || {}),
+            // Deep merge privacy settings
+            privacy: {
+              ...((prevUser.settings && prevUser.settings.privacy) || {}),
+              ...((updatedUser.settings && updatedUser.settings.privacy) || {})
+            },
+            // Deep merge notification settings
+            notifications: {
+              ...((prevUser.settings && prevUser.settings.notifications) || {}),
+              ...((updatedUser.settings && updatedUser.settings.notifications) || {})
+            }
+          } : undefined
+        };
+      };
       
-      // Also update AuthContext user state
+      // Update the local state with deep merging
+      setUserState(mergedUser);
+      
+      // Also update AuthContext user state with proper merging
       if (updateUser) {
         updateUser(updatedUser);
       }
+      
+      // Force a refresh of user data from server after a delay
+      setTimeout(() => {
+        fetchUserProfile();
+      }, 2000);
     };
     
     return () => {
       delete window.updateGlobalUser;
     };
   }, [updateUser]);
+  
+  // Function to fetch user profile data directly
+  const fetchUserProfile = async () => {
+    try {
+      console.log("App: Fetching fresh user data");
+      const response = await axios.get(`${API_URL}/auth/user`, { 
+        withCredentials: true,
+        headers: {
+          'Cache-Control': 'no-cache, no-store',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        params: {
+          _t: new Date().getTime() // Add timestamp to bust cache
+        }
+      });
+      
+      if (response.data && response.data.authenticated && response.data.user) {
+        console.log("App: Received fresh user data:", response.data.user);
+        const freshUserData = response.data.user;
+        
+        // Update user in AuthContext
+        if (updateUser) {
+          updateUser(freshUserData);
+        }
+        
+        // Update local state
+        setUserState(prevState => ({
+          ...prevState,
+          ...freshUserData
+        }));
+      }
+    } catch (err) {
+      console.error("Error fetching user profile:", err);
+    }
+  };
 
   return (
     <PageWrapper>
