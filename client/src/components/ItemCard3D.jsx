@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from '../utils/languageUtils';
+import SellerStatus from './SellerStatus';
 
 // Define rarity colors mapping
 const RARITY_COLORS = {
@@ -275,7 +276,7 @@ const ItemCard3D = ({
           borderTop: '1px solid rgba(255, 255, 255, 0.05)'
         }}
       >
-        {/* Item name with exterior in parentheses */}
+        {/* Item name with exterior in parentheses - FIXED to prevent redundant parentheses */}
         <h3
           style={{
             margin: 0,
@@ -288,8 +289,8 @@ const ItemCard3D = ({
           {itemBaseName} {wearName && <span style={{ opacity: 0.75, fontWeight: '400' }}>({wearName})</span>}
         </h3>
         
-        {/* Wear indicator with full name */}
-        {wearName && (
+        {/* Hide redundant wear indicator since we're showing it in the title */}
+        {false && wearName && (
           <div
             style={{
               display: 'flex',
@@ -409,12 +410,15 @@ const ItemCard3D = ({
                 {item.owner.avatar ? (
                   <img
                     src={item.owner.avatar}
-                    alt={item.owner.displayName}
+                    alt={item.owner.displayName || 'Seller'}
                     style={{
                       width: '100%',
                       height: '100%',
                       objectFit: 'cover',
                       objectPosition: 'center'
+                    }}
+                    onError={(e) => {
+                      e.target.src = '/default-avatar.png';
                     }}
                   />
                 ) : (
@@ -431,7 +435,7 @@ const ItemCard3D = ({
                       fontSize: '0.7rem'
                     }}
                   >
-                    {item.owner.displayName?.charAt(0) || 'U'}
+                    {item.owner.displayName?.[0] || 'U'}
                   </div>
                 )}
               </div>
@@ -444,18 +448,14 @@ const ItemCard3D = ({
                   textOverflow: 'ellipsis'
                 }}
               >
-                {item.owner.displayName || t('common.unknownSeller')}
+                {item.owner.displayName || (t && t('common.unknownSeller')) || 'Unknown Seller'}
               </span>
-              {item.owner.isOnline !== undefined && (
-                <div
-                  style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: item.owner.isOnline ? '#4ade80' : '#94a3b8',
-                    marginLeft: 'auto',
-                    boxShadow: item.owner.isOnline ? '0 0 5px rgba(74, 222, 128, 0.5)' : 'none'
-                  }}
+              {item.owner._id && (
+                <SellerStatus 
+                  sellerId={item.owner._id} 
+                  forceStatus={item.owner.isOnline}
+                  showLastSeen={false}
+                  className="item-card-seller-status"
                 />
               )}
             </div>

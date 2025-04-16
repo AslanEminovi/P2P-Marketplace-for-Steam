@@ -66,6 +66,25 @@
   animation: spin 1s linear infinite;
 }
 
+/* Custom styles for item card */
+.item-card-seller-status {
+  margin-top: 0;
+  margin-left: auto;
+}
+
+.item-card-seller-status .status-text {
+  display: none; /* Hide text in cards to save space */
+}
+
+.item-card-seller-status .status-indicator {
+  width: 8px;
+  height: 8px;
+}
+
+.item-card-seller-status .status-indicator.online {
+  box-shadow: 0 0 5px rgba(74, 222, 128, 0.5);
+}
+
 /* Replace the intense pulse with a more subtle one */
 @keyframes subtle-pulse {
   0% {

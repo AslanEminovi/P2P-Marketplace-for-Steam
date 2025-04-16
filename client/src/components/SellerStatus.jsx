@@ -4,9 +4,9 @@ import { API_URL } from '../config/constants';
 import socketService from '../services/socketService';
 import '../styles/SellerStatus.css';
 
-const SellerStatus = ({ sellerId, showLastSeen = true, className = '' }) => {
+const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStatus = null }) => {
   const [status, setStatus] = useState({
-    isOnline: false,
+    isOnline: forceStatus !== null ? forceStatus : false,
     lastSeen: null,
     lastSeenFormatted: null
   });
@@ -16,43 +16,84 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '' }) => {
   const socketRegisteredRef = useRef(false);
   const retryCountRef = useRef(0);
   const MAX_RETRIES = 3;
+  const fetchTimeoutRef = useRef(null);
+
+  // Handle status updates from socket
+  const handleStatusUpdate = (data) => {
+    if (data && data.userId === sellerId) {
+      console.log(`Received status update for user ${sellerId}:`, data.isOnline ? 'Online' : 'Offline');
+      setStatus(prev => ({
+        ...prev,
+        isOnline: data.isOnline,
+        lastSeen: data.lastSeen,
+        lastSeenFormatted: data.lastSeenFormatted || prev.lastSeenFormatted
+      }));
+      // Reset loading and error states since we have data
+      setLoading(false);
+      setError(null);
+    }
+  };
+
+  // Force immediate status check
+  const checkStatus = () => {
+    if (!sellerId) return;
+    
+    // Clear any pending fetch timeout
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+    
+    // Set a timeout to fetch after a small delay (to avoid hammering the server)
+    fetchTimeoutRef.current = setTimeout(() => {
+      fetchStatus();
+    }, 300);
+  };
+
+  // Function to fetch status
+  const fetchStatus = async () => {
+    if (!sellerId) return;
+    
+    try {
+      setLoading(true);
+      
+      const response = await axios.get(`${API_URL}/user/status/${sellerId}`, {
+        withCredentials: true,
+        timeout: 3000 // Shorter timeout for faster feedback
+      });
+      
+      if (response.data) {
+        setStatus(response.data);
+        retryCountRef.current = 0; // Reset retry counter on success
+      }
+      
+      setError(null);
+    } catch (error) {
+      console.error('Error fetching seller status:', error);
+      retryCountRef.current++;
+      
+      if (retryCountRef.current <= MAX_RETRIES) {
+        console.log(`Retrying seller status fetch (${retryCountRef.current}/${MAX_RETRIES})`);
+        // Don't set the error state here, just retry silently
+      } else {
+        setError('Failed to load status');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
+    // Use forced status if provided (for immediate feedback)
+    if (forceStatus !== null) {
+      setStatus(prev => ({ ...prev, isOnline: forceStatus }));
+      setLoading(false);
+    }
+    
     if (!sellerId) {
       setLoading(false);
       setError('No seller ID provided');
       return;
     }
-
-    // Function to fetch status
-    const fetchStatus = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await axios.get(`${API_URL}/user/status/${sellerId}`, {
-          withCredentials: true,
-          timeout: 5000 // Add timeout to prevent long-hanging requests
-        });
-        
-        if (response.data) {
-          setStatus(response.data);
-          retryCountRef.current = 0; // Reset retry counter on success
-        }
-      } catch (error) {
-        console.error('Error fetching seller status:', error);
-        retryCountRef.current++;
-        
-        if (retryCountRef.current <= MAX_RETRIES) {
-          console.log(`Retrying seller status fetch (${retryCountRef.current}/${MAX_RETRIES})`);
-          // Don't set the error state here, just retry silently
-        } else {
-          setError('Failed to load status');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
 
     // Initial fetch
     fetchStatus();
@@ -60,27 +101,14 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '' }) => {
     // Set up regular polling as a fallback if socket fails
     statusTimeoutRef.current = setInterval(() => {
       fetchStatus();
-    }, 60000); // Poll every minute as a fallback
-
-    // Subscribe to user status via socket
-    socketService.subscribeToUserStatus(sellerId);
-
-    // Set up socket listener for real-time updates
-    const handleStatusUpdate = (data) => {
-      if (data && data.userId === sellerId) {
-        console.log(`Received status update for user ${sellerId}:`, data.isOnline ? 'Online' : 'Offline');
-        setStatus(prev => ({
-          ...prev,
-          isOnline: data.isOnline,
-          lastSeen: data.lastSeen,
-          lastSeenFormatted: data.lastSeenFormatted || prev.lastSeenFormatted
-        }));
-      }
-    };
+    }, 30000); // Poll every 30 seconds as a fallback
 
     // Register the event listener
     socketService.on('userStatusUpdate', handleStatusUpdate);
     socketRegisteredRef.current = true;
+    
+    // Subscribe to user status via socket
+    socketService.subscribeToUserStatus(sellerId);
     
     // Force an immediate connection attempt if needed
     if (!socketService.isConnected()) {
@@ -93,16 +121,27 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '' }) => {
         clearInterval(statusTimeoutRef.current);
       }
       
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+      
       if (socketRegisteredRef.current) {
         socketService.off('userStatusUpdate', handleStatusUpdate);
         socketRegisteredRef.current = false;
       }
     };
-  }, [sellerId]);
+  }, [sellerId, forceStatus]);
 
-  // Simple loading state with spinner
-  if (loading) {
-    return <div className={`seller-status-loading ${className}`}>Loading status</div>;
+  // Simple loading state with spinner - show very briefly
+  if (loading && !status.isOnline) {
+    return (
+      <div className={`seller-status-loading ${className}`}>
+        <div className="status-indicator offline" />
+        <div className="status-text">
+          <span className="offline-text">Checking...</span>
+        </div>
+      </div>
+    );
   }
   
   // Error state - but still show something useful
@@ -111,7 +150,7 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '' }) => {
       <div className={`seller-status-container ${className}`}>
         <div className="status-indicator offline" />
         <div className="status-text">
-          <span className="offline-text">Status unavailable</span>
+          <span className="offline-text">Offline</span>
         </div>
       </div>
     );

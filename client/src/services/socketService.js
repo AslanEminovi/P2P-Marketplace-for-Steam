@@ -20,7 +20,7 @@ class SocketService {
     this.connectionCheckTimer = null;
     this.isBrowserTabActive = true;
     this.heartbeatInterval = null;
-    this.heartbeatDelay = 30000; // 30 seconds
+    this.heartbeatDelay = 15000; // 15 seconds (reduced from 30)
   }
 
   init() {
@@ -225,6 +225,14 @@ class SocketService {
       clearInterval(this.connectionCheckTimer);
       this.connectionCheckTimer = null;
     }
+
+    // Clean up resubscription intervals
+    Object.keys(this).forEach((key) => {
+      if (key.startsWith("resubscribe_") && this[key]) {
+        clearInterval(this[key]);
+        delete this[key];
+      }
+    });
   }
 
   reconnect() {
@@ -379,6 +387,17 @@ class SocketService {
 
       if (callbacks.length === 0) {
         this.events.delete(event);
+
+        // If unsubscribing from userStatusUpdate, clear any resubscription intervals
+        if (event === "userStatusUpdate") {
+          // Clean up all resubscription intervals
+          Object.keys(this).forEach((key) => {
+            if (key.startsWith("resubscribe_") && this[key]) {
+              clearInterval(this[key]);
+              delete this[key];
+            }
+          });
+        }
       }
     }
 
@@ -412,7 +431,7 @@ class SocketService {
     return this.connected && this.socket && this.socket.connected;
   }
 
-  // Add new method to subscribe to user statuses
+  // Subscribe to all stored user statuses
   subscribeToUserStatuses() {
     if (!this.isConnected()) return;
 
@@ -440,7 +459,7 @@ class SocketService {
     }
   }
 
-  // Add method to track user status subscriptions
+  // Enhanced subscription method for user status
   subscribeToUserStatus(userId) {
     if (!userId) return;
 
@@ -459,9 +478,47 @@ class SocketService {
         );
       }
 
+      // Always try to reconnect if not connected
+      if (!this.isConnected()) {
+        console.log(
+          `[SocketService] Not connected, trying to reconnect to subscribe to user ${userId}`
+        );
+        this.reconnect();
+
+        // Schedule a retry after connection attempt
+        setTimeout(() => {
+          if (this.isConnected()) {
+            console.log(
+              `[SocketService] Reconnected, now subscribing to user ${userId}`
+            );
+            this.emit("subscribeToUserStatus", { userId });
+          } else {
+            console.warn(
+              `[SocketService] Failed to reconnect for user ${userId} status subscription`
+            );
+          }
+        }, 1000);
+
+        return;
+      }
+
       // Send subscription message if connected
-      if (this.isConnected()) {
-        this.emit("subscribeToUserStatus", { userId });
+      console.log(
+        `[SocketService] Subscribing to status updates for user ${userId}`
+      );
+      this.emit("subscribeToUserStatus", { userId });
+
+      // Setup periodic resubscription to ensure we keep getting updates
+      const resubscribeKey = `resubscribe_${userId}`;
+      if (!this[resubscribeKey]) {
+        this[resubscribeKey] = setInterval(() => {
+          if (this.isConnected()) {
+            console.log(
+              `[SocketService] Periodic resubscription to user ${userId}`
+            );
+            this.emit("subscribeToUserStatus", { userId });
+          }
+        }, 60000); // Resubscribe every minute
       }
     } catch (error) {
       console.error("[SocketService] Error subscribing to user status:", error);
