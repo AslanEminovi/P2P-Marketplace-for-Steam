@@ -5,6 +5,7 @@
 
 const redisConfig = require("../config/redis");
 const { pubClient } = redisConfig;
+const jwt = require("jsonwebtoken");
 
 let io = null;
 let activeSockets = new Map(); // Map of userId -> socket.id
@@ -66,6 +67,20 @@ const init = (ioInstance) => {
       // Update user activity timestamp
       activeUsers.set(userId, Date.now());
 
+      // Update user status
+      connectedUsers.set(userId, {
+        socketId: socket.id,
+        lastSeen: new Date(),
+        isOnline: true,
+      });
+
+      // Broadcast user status update
+      io.emit("userStatusUpdate", {
+        userId,
+        isOnline: true,
+        lastSeen: new Date(),
+      });
+
       // Store user status in Redis if enabled
       if (isRedisEnabled && pubClient) {
         try {
@@ -99,19 +114,6 @@ const init = (ioInstance) => {
       emitUserActivity({
         action: "join",
         user: socket.username || "A user",
-      });
-
-      // Update user status
-      connectedUsers.set(userId, {
-        socketId: socket.id,
-        lastSeen: new Date(),
-      });
-
-      // Broadcast user status update
-      io.emit("userStatusUpdate", {
-        userId,
-        isOnline: true,
-        lastSeen: new Date(),
       });
 
       // Log connection
@@ -172,6 +174,9 @@ const init = (ioInstance) => {
     // Handle disconnection
     socket.on("disconnect", () => {
       if (userId) {
+        // Remove from marketplace tracking
+        usersOnMarketplace.delete(userId);
+
         // Only remove socket if it's still the current one for this user
         if (activeSockets.get(userId) === socket.id) {
           activeSockets.delete(userId);
@@ -230,9 +235,6 @@ const init = (ioInstance) => {
             }
           }, 5000); // 5 second grace period for reconnection
         }
-
-        // Remove from marketplace tracking
-        usersOnMarketplace.delete(userId);
       } else {
         anonymousSockets.delete(socket.id);
       }
@@ -268,6 +270,62 @@ const init = (ioInstance) => {
     }
     broadcastStats();
   }, USER_ACTIVITY_TIMEOUT);
+
+  // Socket middleware for authentication
+  io.use(async (socket, next) => {
+    try {
+      const token =
+        socket.handshake.auth.token ||
+        socket.handshake.headers.authorization?.split(" ")[1];
+
+      if (!token) {
+        // Allow anonymous connections but mark them as such
+        socket.userId = null;
+        socket.username = null;
+        socket.isAuthenticated = false;
+        return next();
+      }
+
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // Find user
+      const user = await User.findById(decoded.id);
+      if (!user) {
+        return next(new Error("User not found"));
+      }
+
+      // Attach user data to socket
+      socket.userId = user._id.toString();
+      socket.username = user.username || user.steamName || "User";
+      socket.isAuthenticated = true;
+
+      // Update user's connection status
+      activeSockets.set(socket.userId, socket.id);
+      connectedUsers.set(socket.userId, {
+        socketId: socket.id,
+        lastSeen: new Date(),
+        isOnline: true,
+      });
+
+      console.log(`User ${socket.userId} connected with socket ${socket.id}`);
+
+      // Immediately broadcast the online status
+      io.emit("userStatusUpdate", {
+        userId: socket.userId,
+        isOnline: true,
+        lastSeen: new Date(),
+      });
+
+      next();
+    } catch (err) {
+      // If token verification fails, allow as anonymous
+      socket.userId = null;
+      socket.username = null;
+      socket.isAuthenticated = false;
+      next();
+    }
+  });
 };
 
 /**
@@ -821,6 +879,21 @@ const sendNotification = (userId, notification) => {
     timestamp: new Date().toISOString(),
   };
 
+  // Store the notification in the database even if socket delivery fails
+  try {
+    // Add to user's notifications array in database
+    const User = require("../models/User");
+    User.findByIdAndUpdate(
+      userId,
+      { $push: { notifications: enrichedNotification } },
+      { new: true }
+    ).catch((err) =>
+      console.error("Failed to save notification to database:", err)
+    );
+  } catch (dbError) {
+    console.error("Error saving notification to database:", dbError);
+  }
+
   // Use Redis for cross-server notifications if enabled
   if (isRedisEnabled && pubClient) {
     // Publish notification to Redis channel
@@ -843,62 +916,70 @@ const sendNotification = (userId, notification) => {
 
       if (socket) {
         socket.emit("notification", enrichedNotification);
+        return true; // Successfully sent notification
       }
     }
 
-    return;
+    // Notification was published to Redis, but user might not be connected
+    console.log(
+      `User ${userId} socket not found, notification stored for later delivery`
+    );
+    return false;
   }
 
-  // If Redis is not enabled, use the original implementation with retries
+  // If Redis is not enabled, use direct delivery with minimal retries
   if (!io) {
     console.warn("Socket.io not initialized when trying to send notification");
-    return;
+    return false;
   }
 
-  // Add retry logic for notifications
-  const maxRetries = 3;
-  let retryCount = 0;
+  // Simplified retry logic - only try once per socket
+  try {
+    // Find all sockets for this user
+    const userSockets = Array.from(io.sockets.sockets.values()).filter(
+      (socket) => socket.userId === userId
+    );
 
-  const sendNotification = async (retryDelay = 1000) => {
-    try {
-      // Find all sockets for this user
-      const userSockets = Array.from(io.sockets.sockets.values()).filter(
-        (socket) => socket.userId === userId
+    if (userSockets.length > 0) {
+      // Send to all user's sockets
+      userSockets.forEach((socket) => {
+        socket.emit("notification", enrichedNotification);
+      });
+      return true; // Successfully sent notification
+    } else {
+      console.log(
+        `No active sockets found for user ${userId}, notification stored for later delivery`
       );
-
-      if (userSockets.length > 0) {
-        // Send to all user's sockets
-        userSockets.forEach((socket) => {
-          socket.emit("notification", enrichedNotification);
-        });
-      } else {
-        throw new Error("No active sockets found for user");
-      }
-    } catch (err) {
-      console.error("Error sending notification:", err);
-
-      // Retry logic
-      if (retryCount < maxRetries) {
-        retryCount++;
-        console.log(
-          `Retrying notification (attempt ${retryCount}/${maxRetries})`
-        );
-        setTimeout(() => sendNotification(retryDelay * 2), retryDelay);
-      } else {
-        console.error("Failed to send notification after max retries");
-      }
+      return false;
     }
-  };
-
-  // Start sending the notification
-  sendNotification();
+  } catch (err) {
+    console.error("Error sending notification:", err);
+    return false;
+  }
 };
 
 // Get user status - now with Redis
 const getUserStatus = async (userId) => {
   if (!userId) return { isOnline: false, lastSeen: null };
 
-  // If Redis is enabled, check there first
+  // Check local memory first for performance
+  const userData = connectedUsers.get(userId);
+  if (userData) {
+    return {
+      isOnline: true,
+      lastSeen: userData.lastSeen || new Date(),
+    };
+  }
+
+  // Check if user has any active sockets
+  if (activeSockets.has(userId)) {
+    return {
+      isOnline: true,
+      lastSeen: new Date(),
+    };
+  }
+
+  // If Redis is enabled, check there
   if (isRedisEnabled && pubClient) {
     try {
       const userStatus = await redisConfig.getHashCache(
@@ -916,15 +997,13 @@ const getUserStatus = async (userId) => {
         `Error getting user status from Redis for ${userId}:`,
         error
       );
-      // Fall back to local memory
     }
   }
 
-  // Fall back to local memory
-  const userData = connectedUsers.get(userId);
+  // If we get here, user is not online
   return {
-    isOnline: !!userData,
-    lastSeen: userData?.lastSeen || null,
+    isOnline: false,
+    lastSeen: null,
   };
 };
 
