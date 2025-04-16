@@ -833,9 +833,24 @@ const getUserStatus = async (userId) => {
       );
 
       if (userStatus) {
+        // Consider a user online if their status is explicitly set to true
+        // or if the status was updated in the last 5 minutes (300000ms)
+        const lastSeenDate = userStatus.lastSeen
+          ? new Date(userStatus.lastSeen)
+          : null;
+        const now = new Date();
+        const isRecentlyActive = lastSeenDate && now - lastSeenDate < 300000;
+
+        console.log(`[socketService] User ${userId} status from Redis:`, {
+          storedStatus: userStatus.isOnline,
+          lastSeen: lastSeenDate,
+          isRecentlyActive,
+          timeSinceLastSeen: lastSeenDate ? now - lastSeenDate : "N/A",
+        });
+
         return {
-          isOnline: userStatus.isOnline === true,
-          lastSeen: userStatus.lastSeen ? new Date(userStatus.lastSeen) : null,
+          isOnline: userStatus.isOnline === true || isRecentlyActive,
+          lastSeen: lastSeenDate,
         };
       }
     } catch (error) {
@@ -849,9 +864,18 @@ const getUserStatus = async (userId) => {
 
   // Fall back to local memory
   const userData = connectedUsers.get(userId);
+  const isOnline = !!userData;
+  const lastSeen = userData?.lastSeen || null;
+
+  console.log(`[socketService] User ${userId} status from local memory:`, {
+    isOnline,
+    lastSeen,
+    activeSocketCount: activeSockets.has(userId) ? 1 : 0,
+  });
+
   return {
-    isOnline: !!userData,
-    lastSeen: userData?.lastSeen || null,
+    isOnline,
+    lastSeen,
   };
 };
 

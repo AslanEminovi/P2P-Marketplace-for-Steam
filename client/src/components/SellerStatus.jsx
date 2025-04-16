@@ -24,12 +24,12 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
     // Create a stable reference to the handler function
     handleStatusUpdateRef.current = (data) => {
       if (data && data.userId === sellerId) {
-        console.log(`Received status update for user ${sellerId}:`, data.isOnline ? 'Online' : 'Offline');
+        console.log(`Received status update for user ${sellerId}:`, data.isOnline ? 'Online' : 'Offline', 'Last seen:', data.lastSeen);
         setStatus(prev => ({
           ...prev,
           isOnline: data.isOnline,
           lastSeen: data.lastSeen,
-          lastSeenFormatted: data.lastSeenFormatted || prev.lastSeenFormatted
+          lastSeenFormatted: data.lastSeenFormatted || formatLastSeen(data.lastSeen)
         }));
         // Reset loading and error states since we have data
         setLoading(false);
@@ -37,6 +37,41 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
       }
     };
   }, [sellerId]);
+
+  // Format last seen time
+  const formatLastSeen = (lastSeenDate) => {
+    if (!lastSeenDate) return null;
+    
+    const now = new Date();
+    const lastSeen = new Date(lastSeenDate);
+    const diffMs = now - lastSeen;
+    
+    // If less than a minute
+    if (diffMs < 60 * 1000) {
+      return 'just now';
+    }
+    
+    // If less than an hour
+    if (diffMs < 60 * 60 * 1000) {
+      const minutes = Math.floor(diffMs / (60 * 1000));
+      return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+    }
+    
+    // If less than a day
+    if (diffMs < 24 * 60 * 60 * 1000) {
+      const hours = Math.floor(diffMs / (60 * 60 * 1000));
+      return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    }
+    
+    // If less than a week
+    if (diffMs < 7 * 24 * 60 * 60 * 1000) {
+      const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+      return `${days} day${days !== 1 ? 's' : ''} ago`;
+    }
+    
+    // More than a week
+    return lastSeen.toLocaleDateString();
+  };
 
   // Force immediate status check
   const checkStatus = () => {
@@ -66,7 +101,16 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
       });
       
       if (response.data) {
-        setStatus(response.data);
+        console.log(`Fetched status for user ${sellerId}:`, response.data);
+        // Use local formatting if the server didn't provide formatted time
+        const lastSeenFormatted = response.data.lastSeenFormatted || 
+                                  (response.data.lastSeen ? formatLastSeen(response.data.lastSeen) : null);
+        
+        setStatus({
+          isOnline: response.data.isOnline,
+          lastSeen: response.data.lastSeen,
+          lastSeenFormatted: lastSeenFormatted
+        });
         retryCountRef.current = 0; // Reset retry counter on success
       }
       
@@ -110,7 +154,7 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
       if (document.visibilityState === 'visible') {
         fetchStatus();
       }
-    }, 30000); // Poll every 30 seconds as a fallback when tab is visible
+    }, 15000); // Poll every 15 seconds as a fallback when tab is visible (reduced from 30)
 
     // Register the event listener
     socketService.on('userStatusUpdate', data => {
@@ -195,7 +239,7 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
           <span className="offline-text">
             Offline
             {showLastSeen && status.lastSeenFormatted && (
-              <span className="last-seen-text"> • {status.lastSeenFormatted}</span>
+              <span className="last-seen-text"> • Last active {status.lastSeenFormatted}</span>
             )}
           </span>
         )}

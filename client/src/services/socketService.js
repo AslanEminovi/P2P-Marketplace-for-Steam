@@ -535,8 +535,26 @@ class SocketService {
       if (this.isConnected() && this.isBrowserTabActive) {
         console.log("[SocketService] Sending heartbeat");
         this.socket.emit("heartbeat");
+
+        // Also manually notify server about user activity
+        this.socket.emit("user_active");
+
+        // For debugging purposes, log the current socket ID
+        console.log("[SocketService] Current socket ID:", this.socket.id);
       }
     }, this.heartbeatDelay);
+  }
+
+  // Manually trigger a heartbeat
+  sendHeartbeatNow() {
+    if (this.isConnected()) {
+      console.log("[SocketService] Sending manual heartbeat");
+      this.socket.emit("heartbeat");
+      this.socket.emit("user_active");
+    } else {
+      console.log("[SocketService] Cannot send heartbeat - not connected");
+      this.reconnect();
+    }
   }
 
   stopHeartbeat() {

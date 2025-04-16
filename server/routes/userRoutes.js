@@ -95,29 +95,47 @@ router.get("/status/:userId", async (req, res) => {
   try {
     // Get user status from socketService
     const status = await socketService.getUserStatus(userId);
+    console.log(`[userRoutes] Retrieved status for user ${userId}:`, status);
 
-    // Format last seen time
+    // Format last seen time with more detail
     let lastSeenFormatted = null;
     if (status.lastSeen) {
       const now = new Date();
       const lastSeen = new Date(status.lastSeen);
       const diffMs = now - lastSeen;
 
-      // If less than a day, show hours/minutes
-      if (diffMs < 24 * 60 * 60 * 1000) {
-        const hours = Math.floor(diffMs / (1000 * 60 * 60));
-        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-        if (hours > 0) {
-          lastSeenFormatted = `${hours}h ago`;
-        } else if (minutes > 0) {
-          lastSeenFormatted = `${minutes}m ago`;
+      // If less than a minute
+      if (diffMs < 60 * 1000) {
+        lastSeenFormatted = "just now";
+      }
+      // If less than an hour
+      else if (diffMs < 60 * 60 * 1000) {
+        const minutes = Math.floor(diffMs / (60 * 1000));
+        lastSeenFormatted = `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+      }
+      // If less than a day
+      else if (diffMs < 24 * 60 * 60 * 1000) {
+        const hours = Math.floor(diffMs / (60 * 60 * 1000));
+        const minutes = Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000));
+        if (minutes > 0) {
+          lastSeenFormatted = `${hours}h ${minutes}m ago`;
         } else {
-          lastSeenFormatted = "Just now";
+          lastSeenFormatted = `${hours} hour${hours !== 1 ? "s" : ""} ago`;
         }
-      } else {
-        // Simple date format for older times
-        lastSeenFormatted = lastSeen.toLocaleDateString();
+      }
+      // If less than a week
+      else if (diffMs < 7 * 24 * 60 * 60 * 1000) {
+        const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+        lastSeenFormatted = `${days} day${days !== 1 ? "s" : ""} ago`;
+      }
+      // More than a week - show date and time
+      else {
+        lastSeenFormatted = lastSeen.toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
       }
     }
 
