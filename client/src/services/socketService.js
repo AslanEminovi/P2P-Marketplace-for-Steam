@@ -106,38 +106,10 @@ class SocketService {
     // Setup connection health monitoring
     this.startConnectionHealthMonitoring();
 
-    // After socket connection is established
-    this.socket.on("connect", () => {
-      // ... existing code ...
+    // Connect to the socket server
+    this.connect();
 
-      // Set up event listeners for page visibility and browser closing
-      this.setupEventListeners();
-    });
-
-    // Handle server pings - used to measure latency and connection health
-    this.socket.on("ping", (data) => {
-      const serverTime = data.timestamp;
-      const latency = Date.now() - serverTime;
-
-      // Record last received heartbeat time
-      this.lastHeartbeatTime = Date.now();
-
-      // Respond with pong and latency info
-      this.socket.emit("pong", {
-        serverTime,
-        clientTime: Date.now(),
-        latency,
-        connectionId: this.connectionId,
-        page: this.currentPage,
-      });
-
-      // Update connection health based on latency
-      this.connectionHealth = Math.max(0, Math.min(100, 100 - latency / 10));
-      console.log(
-        `[SocketService] Ping response: ${latency}ms, health: ${this.connectionHealth}`
-      );
-    });
-
+    // Return the instance for chaining
     return this;
   }
 
@@ -464,6 +436,30 @@ class SocketService {
 
         // Set up event listeners for page visibility and browser closing
         this.setupEventListeners();
+      });
+
+      // Handle server pings - used to measure latency and connection health
+      this.socket.on("ping", (data) => {
+        const serverTime = data.timestamp;
+        const latency = Date.now() - serverTime;
+
+        // Record last received heartbeat time
+        this.lastHeartbeatTime = Date.now();
+
+        // Respond with pong and latency info
+        this.socket.emit("pong", {
+          serverTime,
+          clientTime: Date.now(),
+          latency,
+          connectionId: this.connectionId,
+          page: this.currentPage,
+        });
+
+        // Update connection health based on latency
+        this.connectionHealth = Math.max(0, Math.min(100, 100 - latency / 10));
+        console.log(
+          `[SocketService] Ping response: ${latency}ms, health: ${this.connectionHealth}`
+        );
       });
 
       this.socket.on("connect_error", (error) => {
@@ -1215,123 +1211,7 @@ socketService.init();
 // Export the singleton
 export default socketService;
 
-// Add handlers for user status updates and browser close events
-
-// Configure beforeunload event to notify server when browser is closing
-window.addEventListener("beforeunload", (event) => {
-  if (socketService.socket && socketService.socket.connected) {
-    // Create a timestamp to track when the close occurred
-    const closeTimestamp = Date.now();
-
-    // Store this in localStorage for potential recovery
-    try {
-      localStorage.setItem(
-        "browser_closing_timestamp",
-        closeTimestamp.toString()
-      );
-    } catch (err) {
-      console.error("[socketService] Error storing close timestamp:", err);
-    }
-
-    // Send browser closing event to server with reason
-    console.log("[socketService] Browser/tab closing, sending closing event");
-    socketService.socket.emit("browser_closing", {
-      timestamp: closeTimestamp,
-      reason: "beforeunload",
-      connectionId: socketService.connectionId || null,
-      page: socketService.currentPage,
-    });
-
-    // Explicitly mark as disconnected to prevent auto-reconnect
-    localStorage.setItem(
-      CONNECTION_STATE_KEY,
-      JSON.stringify({
-        connected: false,
-        timestamp: closeTimestamp,
-        reason: "browser_closing",
-      })
-    );
-
-    // Try to clean up the socket
-    try {
-      socketService.socket.disconnect();
-    } catch (err) {
-      console.error("[socketService] Error during disconnect on close:", err);
-    }
-  }
-});
-
-// Handle close events using the page visibility API as a fallback
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") {
-    // Update tab hidden status
-    console.log("[socketService] Tab hidden");
-
-    if (socketService.socket && socketService.socket.connected) {
-      // Send tab hidden event to help server distinguish between tab switches and closures
-      socketService.socket.emit("tab_hidden", {
-        timestamp: Date.now(),
-        connectionId: socketService.connectionId || null,
-        page: socketService.currentPage,
-      });
-
-      // Also update active status
-      socketService.socket.emit("user_active", {
-        timestamp: Date.now(),
-        isTabHidden: true,
-        page: socketService.currentPage,
-      });
-    }
-  } else if (document.visibilityState === "visible") {
-    console.log("[socketService] Tab visible again");
-
-    // Check if we need to reconnect
-    if (!socketService.isConnected()) {
-      console.log(
-        "[socketService] Socket disconnected while tab was hidden, reconnecting"
-      );
-      socketService.reconnect();
-    } else if (socketService.socket && socketService.socket.connected) {
-      // Send tab visible event
-      socketService.socket.emit("user_active", {
-        timestamp: Date.now(),
-        isTabHidden: false,
-        page: socketService.currentPage,
-      });
-
-      // If we're in the marketplace, request updated stats
-      if (
-        socketService.currentPage === "marketplace" ||
-        socketService.currentPage === "listing"
-      ) {
-        console.log(
-          "[socketService] In marketplace page, requesting stats update"
-        );
-        socketService.socket.emit("request_stats_update");
-      }
-    }
-  }
-});
-
-// Handle pings from server
-if (socketService.socket) {
-  socketService.socket.on("ping", (data) => {
-    // Record the timestamp of when we received this ping
-    const receivedTimestamp = Date.now();
-
-    // Record heartbeat time for connection health monitoring
-    socketService.lastHeartbeatTime = receivedTimestamp;
-
-    // Respond with a pong including original timestamp if provided
-    // and our received timestamp for latency calculation
-    socketService.socket.emit("pong", {
-      originalTimestamp: data && data.timestamp ? data.timestamp : null,
-      receivedTimestamp,
-      respondedTimestamp: Date.now(),
-      connectionId: socketService.connectionId,
-    });
-  });
-}
+// Additional helper methods for socket service
 
 /**
  * Request status updates for a specific user
