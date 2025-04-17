@@ -24,7 +24,7 @@ class UserStatusManager {
     // Constants
     this.CLEANUP_INTERVAL_MS = 15000; // 15 seconds
     this.DB_SYNC_INTERVAL_MS = 30000; // 30 seconds
-    this.INACTIVE_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours (effectively 'never timeout')
+    this.INACTIVE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes (changed from 24 hours)
 
     // Set a far future date for lastActive times
     this.FUTURE_DATE = new Date("2050-01-01T00:00:00.000Z");
@@ -184,7 +184,7 @@ class UserStatusManager {
         console.log(`[UserStatusManager] First connection for user ${userId}`);
         this.onlineUsers.set(userId, {
           socketIds: new Set([socket.id]),
-          lastActive: this.FUTURE_DATE,
+          lastActive: new Date(),
         });
         console.log(
           `[UserStatusManager] Added user ${userId} to onlineUsers map, total count: ${this.onlineUsers.size}`
@@ -207,7 +207,7 @@ class UserStatusManager {
           `[UserStatusManager] Additional connection for user ${userId}, existing connections: ${userInfo.socketIds.size}`
         );
         userInfo.socketIds.add(socket.id);
-        userInfo.lastActive = this.FUTURE_DATE;
+        userInfo.lastActive = new Date();
         this.onlineUsers.set(userId, userInfo);
       }
 
@@ -339,9 +339,9 @@ class UserStatusManager {
       return;
     }
 
-    // Update last active time to far future
+    // Update last active time to current time instead of future date
     const userInfo = this.onlineUsers.get(userId);
-    userInfo.lastActive = this.FUTURE_DATE;
+    userInfo.lastActive = new Date();
     this.onlineUsers.set(userId, userInfo);
   }
 
@@ -352,11 +352,20 @@ class UserStatusManager {
     try {
       const now = new Date();
       const usersToRemove = [];
+      const fiveMinutesAgo = new Date(now.getTime() - this.INACTIVE_TIMEOUT_MS);
 
       // Check each user
       for (const [userId, userInfo] of this.onlineUsers.entries()) {
+        // Check if user has been inactive for 5 minutes
+        if (userInfo.lastActive < fiveMinutesAgo) {
+          console.log(
+            `[UserStatusManager] User ${userId} inactive for more than 5 minutes, marking offline`
+          );
+          usersToRemove.push(userId);
+          continue;
+        }
+
         // ONLY check if user has any active sockets
-        // NO inactivity checks, NO lastActive time checks
         if (userInfo.socketIds.size === 0) {
           console.log(
             `[UserStatusManager] User ${userId} has no active sockets, marking offline`
@@ -385,7 +394,7 @@ class UserStatusManager {
         }
       }
 
-      // Remove users who have no active sockets
+      // Remove users who have no active sockets or have been inactive
       for (const userId of usersToRemove) {
         this.onlineUsers.delete(userId);
 
@@ -491,7 +500,7 @@ class UserStatusManager {
             // if they don't reconnect, but this helps avoid flickering
             this.onlineUsers.set(userId, {
               socketIds: new Set(), // Empty set - no active sockets yet
-              lastActive: lastActive,
+              lastActive: lastActive || new Date(),
               isRecovered: true, // Flag to indicate this is a recovered user
             });
 
@@ -597,7 +606,7 @@ class UserStatusManager {
       // Update database
       await User.findByIdAndUpdate(userId, {
         isOnline: isOnline,
-        lastActive: isOnline ? this.FUTURE_DATE : new Date(),
+        lastActive: new Date(),
       });
 
       console.log(
@@ -620,8 +629,8 @@ class UserStatusManager {
    * @returns {Date} - A valid date (current time if the input was in the future)
    */
   validateDate(date) {
-    // Always return the future date to prevent timeout
-    return this.FUTURE_DATE;
+    // Return the current date
+    return new Date();
   }
 
   /**
