@@ -20,7 +20,7 @@ class SocketService {
     this.connectionCheckTimer = null;
     this.isBrowserTabActive = true;
     this.heartbeatInterval = null;
-    this.heartbeatDelay = 60000; // Increasing from 15 seconds to 60 seconds (1 minute)
+    this.heartbeatDelay = 15000; // Changed to 15 seconds for more frequent updates
     this.currentPage = "other"; // Default to 'other' instead of marketplace
     this.lastStatsUpdate = 0; // Track when we last updated stats
     this.visibilityTimeout = null;
@@ -125,6 +125,11 @@ class SocketService {
     }, this.forceReconnectInterval);
   }
 
+  /**
+   * Connect to the socket server
+   * @param {string} token Auth token (optional)
+   * @returns {Socket} The socket instance
+   */
   connect(token = null) {
     const now = Date.now();
     // Prevent rapid connection attempts (throttle to once per second)
@@ -201,8 +206,8 @@ class SocketService {
         reconnection: true,
         reconnectionAttempts: 10,
         reconnectionDelay: 1000,
-        reconnectionDelayMax: 10000,
-        timeout: 20000,
+        reconnectionDelayMax: 5000, // Reduced from 10000
+        timeout: 10000, // Reduced from 20000
         autoConnect: true,
         forceNew: true, // Force a new connection
       });
@@ -226,7 +231,7 @@ class SocketService {
         // Notify the server about our user status subscription needs
         this.subscribeToUserStatuses();
 
-        // Request fresh stats update
+        // Request fresh stats update immediately
         this.requestStatsUpdate();
 
         // Send current page information
@@ -234,6 +239,29 @@ class SocketService {
 
         // Start sending heartbeats to maintain the connection
         this.startHeartbeat();
+
+        // Send an immediate heartbeat
+        this.sendHeartbeatNow();
+      });
+
+      // Add a reconnect success handler
+      this.socket.on("reconnect", (attemptNumber) => {
+        console.log(
+          `[SocketService] Successfully reconnected after ${attemptNumber} attempts`
+        );
+        this.connected = true;
+
+        // Re-establish all subscriptions
+        this.subscribeToUserStatuses();
+
+        // Request fresh data
+        this.requestStatsUpdate();
+
+        // Start heartbeat
+        this.startHeartbeat();
+
+        // Send immediate heartbeat
+        this.sendHeartbeatNow();
       });
 
       this.socket.on("connect_error", (error) => {
@@ -249,37 +277,27 @@ class SocketService {
         );
         this.connected = false;
 
-        if (this.disconnectedCallback) {
-          this.disconnectedCallback();
-        }
+        // Stop heartbeat
+        this.stopHeartbeat();
 
-        // Handle disconnect reason
+        // If this is an unexpected disconnect, try to reconnect
         if (reason === "io server disconnect" || reason === "transport close") {
-          // Server disconnected the client, need to reconnect manually
-          this.scheduleReconnect();
+          // The server closed the connection, so we need to manually reconnect
+          console.log(
+            "[SocketService] Server-initiated disconnect, reconnecting manually"
+          );
+          this.reconnect();
         }
-      });
 
-      this.socket.on("error", (error) => {
-        console.error("[SocketService] Socket error:", error);
-        this.connected = false;
-      });
-
-      this.socket.on("reconnect_attempt", (attemptNumber) => {
-        console.log(`[SocketService] Reconnection attempt #${attemptNumber}`);
-      });
-
-      this.socket.on("reconnect_failed", () => {
-        console.error("[SocketService] Failed to reconnect after max attempts");
-        this.handleConnectionFailure();
+        if (this.disconnectedCallback) {
+          this.disconnectedCallback(reason);
+        }
       });
 
       return this.socket;
     } catch (error) {
-      console.error("[SocketService] Error during socket creation:", error);
-      this.connected = false;
-      this.socket = null;
-      this.scheduleReconnect();
+      console.error("[SocketService] Error during socket connection:", error);
+      this.handleConnectionFailure();
       return null;
     }
   }
@@ -519,98 +537,111 @@ class SocketService {
     return this.connected && this.socket && this.socket.connected;
   }
 
-  // Subscribe to all stored user statuses
+  /**
+   * Subscribe to user status updates for users we're interested in
+   */
   subscribeToUserStatuses() {
-    if (!this.isConnected()) return;
-
-    try {
-      // Get subscribed user IDs from local storage if any
-      const subscribedUsers = JSON.parse(
-        localStorage.getItem("subscribed_user_statuses") || "[]"
+    if (!this.isConnected()) {
+      console.log(
+        "[SocketService] Cannot subscribe to user statuses - not connected"
       );
+      return;
+    }
 
-      if (subscribedUsers.length > 0) {
+    // If we have specific users in localStorage, subscribe to them
+    try {
+      const watchingUserIds = localStorage.getItem("watching_user_ids");
+      if (watchingUserIds) {
+        const userIds = JSON.parse(watchingUserIds);
         console.log(
-          `[SocketService] Resubscribing to ${subscribedUsers.length} user statuses`
+          `[SocketService] Subscribing to ${userIds.length} user statuses`
         );
-
-        // Re-subscribe to each user status
-        subscribedUsers.forEach((userId) => {
-          this.emit("subscribeToUserStatus", { userId });
+        userIds.forEach((userId) => {
+          this.subscribeToUserStatus(userId);
         });
+      }
+
+      // Additionally, if the user is authenticated, always check their own status and connections
+      const authToken = localStorage.getItem("auth_token");
+      if (authToken) {
+        try {
+          // Get user ID from token (if available)
+          const tokenParts = authToken.split(".");
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            if (payload && payload.userId) {
+              console.log(
+                `[SocketService] Automatically subscribing to own user status: ${payload.userId}`
+              );
+              this.subscribeToUserStatus(payload.userId);
+
+              // Request an immediate stats update to refresh user counts
+              this.requestStatsUpdate();
+            }
+          }
+        } catch (tokenErr) {
+          console.error("[SocketService] Error parsing auth token:", tokenErr);
+        }
       }
     } catch (error) {
       console.error(
-        "[SocketService] Error resubscribing to user statuses:",
+        "[SocketService] Error subscribing to user statuses:",
         error
       );
     }
   }
 
-  // Enhanced subscription method for user status
+  /**
+   * Subscribe to status updates for a specific user
+   * @param {string} userId User ID to subscribe to
+   * @returns {boolean} Success status
+   */
   subscribeToUserStatus(userId) {
-    if (!userId) return;
-
-    try {
-      // Get current subscriptions
-      const subscribedUsers = JSON.parse(
-        localStorage.getItem("subscribed_user_statuses") || "[]"
+    if (!userId) {
+      console.error(
+        "[SocketService] Cannot subscribe to null/undefined userId"
       );
+      return false;
+    }
 
-      // Add if not already there
-      if (!subscribedUsers.includes(userId)) {
-        subscribedUsers.push(userId);
-        localStorage.setItem(
-          "subscribed_user_statuses",
-          JSON.stringify(subscribedUsers)
-        );
-      }
-
-      // Always try to reconnect if not connected
-      if (!this.isConnected()) {
-        console.log(
-          `[SocketService] Not connected, trying to reconnect to subscribe to user ${userId}`
-        );
-        this.reconnect();
-
-        // Schedule a retry after connection attempt
-        setTimeout(() => {
-          if (this.isConnected()) {
-            console.log(
-              `[SocketService] Reconnected, now subscribing to user ${userId}`
-            );
-            this.emit("subscribeToUserStatus", { userId });
-          } else {
-            console.warn(
-              `[SocketService] Failed to reconnect for user ${userId} status subscription`
-            );
-          }
-        }, 1000);
-
-        return;
-      }
-
-      // Send subscription message if connected
+    if (!this.isConnected()) {
       console.log(
-        `[SocketService] Subscribing to status updates for user ${userId}`
+        `[SocketService] Cannot subscribe to user ${userId} - not connected`
       );
-      this.emit("subscribeToUserStatus", { userId });
+      return false;
+    }
 
-      // Setup periodic resubscription to ensure we keep getting updates
-      const resubscribeKey = `resubscribe_${userId}`;
-      if (!this[resubscribeKey]) {
-        this[resubscribeKey] = setInterval(() => {
-          if (this.isConnected()) {
-            console.log(
-              `[SocketService] Periodic resubscription to user ${userId}`
-            );
-            this.emit("subscribeToUserStatus", { userId });
-          }
-        }, 60000); // Resubscribe every minute
+    console.log(
+      `[SocketService] Subscribing to status updates for user ${userId}`
+    );
+
+    // Send the watch request to the server
+    this.socket.emit("watch_user_status", userId);
+
+    // Also request immediate status update
+    this.socket.emit("request_user_status", userId);
+
+    // Store this subscription in localStorage for reconnection
+    try {
+      const watchingUserIds = JSON.parse(
+        localStorage.getItem("watching_user_ids") || "[]"
+      );
+
+      if (!watchingUserIds.includes(userId)) {
+        watchingUserIds.push(userId);
+        localStorage.setItem(
+          "watching_user_ids",
+          JSON.stringify(watchingUserIds)
+        );
+        console.log(
+          `[SocketService] Added user ${userId} to watched users list`
+        );
       }
     } catch (error) {
-      console.error("[SocketService] Error subscribing to user status:", error);
+      console.error("[SocketService] Error storing user subscription:", error);
     }
+
+    return true;
   }
 
   startHeartbeat() {
@@ -631,6 +662,12 @@ class SocketService {
         // Always send user_active to maintain connection and update last activity time
         this.socket.emit("user_active");
 
+        // Request updated stats every 3rd heartbeat
+        if (Math.random() < 0.33) {
+          // ~33% chance each heartbeat
+          this.requestStatsUpdate();
+        }
+
         // Only resend page info if tab is active to avoid polluting logs
         if (this.isBrowserTabActive) {
           this.emit("page_view", { page: this.currentPage });
@@ -644,7 +681,7 @@ class SocketService {
         );
         this.reconnect();
       }
-    }, 25000); // 25 seconds regardless of tab state - consistent heartbeat interval
+    }, 15000); // Every 15 seconds regardless of tab state - more frequent heartbeat interval
   }
 
   // Manually trigger a heartbeat

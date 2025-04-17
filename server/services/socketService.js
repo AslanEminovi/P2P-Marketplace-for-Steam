@@ -719,7 +719,10 @@ const setupPresenceApi = (app) => {
 };
 
 /**
- * Broadcast online status changes to interested clients
+ * Broadcast user status change to connected clients
+ * @param {string} userId - User ID
+ * @param {boolean} isOnline - Whether user is online
+ * @param {string} lastSeenFormatted - Formatted last seen time
  */
 const broadcastUserStatusChange = async (
   userId,
@@ -728,23 +731,42 @@ const broadcastUserStatusChange = async (
 ) => {
   if (!io) return;
 
-  try {
-    // Broadcast to all sockets watching this user
-    const allSockets = Array.from(io.sockets.sockets.values());
-    for (const socket of allSockets) {
-      if (socket.watchingUsers && socket.watchingUsers.has(userId)) {
-        socket.emit("user_status_update", {
-          userId,
-          isOnline,
-          lastSeenFormatted,
-        });
-      }
+  console.log(
+    `[socketService] Broadcasting status change for user ${userId}: ${
+      isOnline ? "online" : "offline"
+    }, ${lastSeenFormatted}`
+  );
+
+  // Create status update object
+  const statusUpdate = {
+    userId,
+    isOnline,
+    lastSeenFormatted,
+    timestamp: new Date().toISOString(),
+  };
+
+  // Immediately broadcast to ALL connected clients for real-time updates
+  io.emit("user_status_update", statusUpdate);
+
+  // Also publish to Redis for cross-server communication
+  if (pubClient) {
+    try {
+      pubClient.publish(
+        REDIS_CHANNEL_USER_STATUS,
+        JSON.stringify(statusUpdate)
+      );
+    } catch (error) {
+      console.error("[socketService] Error publishing to Redis:", error);
     }
-  } catch (error) {
-    console.error(
-      `[socketService] Error broadcasting status change for ${userId}:`,
-      error
-    );
+  }
+
+  // If this is a status change to offline, also trigger a stats update
+  if (!isOnline) {
+    try {
+      await broadcastStats();
+    } catch (error) {
+      console.error("[socketService] Error broadcasting stats:", error);
+    }
   }
 };
 
@@ -752,7 +774,7 @@ const broadcastUserStatusChange = async (
  * Start periodic status broadcasts to watching clients
  */
 const startPeriodicStatusBroadcasts = () => {
-  // Every 30 seconds, broadcast all watched statuses
+  // Every 15 seconds, broadcast all watched statuses (reduced from 30 seconds)
   setInterval(async () => {
     if (!io) return;
 
@@ -791,7 +813,7 @@ const startPeriodicStatusBroadcasts = () => {
         error
       );
     }
-  }, 30000); // Every 30 seconds
+  }, 15000); // Every 15 seconds (reduced from 30 seconds)
 };
 
 module.exports = {
