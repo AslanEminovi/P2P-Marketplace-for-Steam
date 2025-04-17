@@ -23,6 +23,7 @@ class SocketService {
     this.heartbeatDelay = 60000; // Increasing from 15 seconds to 60 seconds (1 minute)
     this.currentPage = "other"; // Default to 'other' instead of marketplace
     this.lastStatsUpdate = 0; // Track when we last updated stats
+    this.visibilityTimeout = null;
   }
 
   init() {
@@ -56,16 +57,35 @@ class SocketService {
       console.log("[SocketService] Tab became visible, checking connection");
       this.isBrowserTabActive = true;
 
-      // When tab becomes visible, check if we need to reconnect
-      if (!this.isConnected()) {
-        this.reconnect();
-      } else {
-        // If connected, request fresh stats
+      // When tab becomes visible, always notify server about user activity
+      if (this.isConnected()) {
+        console.log(
+          "[SocketService] Sending active status after tab visibility change"
+        );
+        this.socket.emit("user_active");
+
+        // Request fresh stats
         this.requestStatsUpdate();
+      } else {
+        // Try to reconnect if not connected
+        this.reconnect();
       }
     } else {
-      console.log("[SocketService] Tab became hidden");
+      console.log(
+        "[SocketService] Tab became hidden, but still maintaining connection"
+      );
+
+      // We're setting this to false for internal tracking
       this.isBrowserTabActive = false;
+
+      // But we still want to maintain the connection with a final activity ping
+      // This ensures the server knows the tab is still open, just not visible
+      if (this.isConnected()) {
+        console.log(
+          "[SocketService] Sending final activity ping before background"
+        );
+        this.socket.emit("user_active");
+      }
     }
   }
 
@@ -596,23 +616,32 @@ class SocketService {
     // Clear any existing heartbeat interval
     this.stopHeartbeat();
 
-    // Set up new heartbeat interval
-    this.heartbeatInterval = setInterval(() => {
-      // Only send heartbeat if socket is connected and tab is active
-      if (this.isConnected() && this.isBrowserTabActive) {
-        console.log("[SocketService] Sending heartbeat");
-        this.socket.emit("heartbeat");
+    // Set up new heartbeat interval - use a shorter interval when tab is active
+    this.heartbeatInterval = setInterval(
+      () => {
+        if (this.isConnected()) {
+          // Always send heartbeat if connected, even if tab is not active
+          // This maintains the user's online status as long as the tab is open
+          const isActive = this.isBrowserTabActive;
+          console.log(
+            `[SocketService] Sending heartbeat (tab active: ${isActive})`
+          );
+          this.socket.emit("heartbeat");
 
-        // Also manually notify server about user activity
-        this.socket.emit("user_active");
+          // Only send user_active if the tab is actually visible
+          if (this.isBrowserTabActive) {
+            this.socket.emit("user_active");
 
-        // Resend current page info in case it was missed
-        this.emit("page_view", { page: this.currentPage });
+            // Resend current page info if tab is active
+            this.emit("page_view", { page: this.currentPage });
+          }
 
-        // For debugging purposes, log the current socket ID
-        console.log("[SocketService] Current socket ID:", this.socket.id);
-      }
-    }, this.heartbeatDelay);
+          // For debugging purposes, log the current socket ID
+          console.log("[SocketService] Current socket ID:", this.socket.id);
+        }
+      },
+      this.isBrowserTabActive ? 30000 : 60000
+    ); // 30s when active, 60s when inactive
   }
 
   // Manually trigger a heartbeat
@@ -665,23 +694,79 @@ export default socketService;
 
 // Add handlers for user status updates and browser close events
 
-// Configure beforeunload event to notify server when browser is closing
-window.addEventListener("beforeunload", () => {
-  if (socketService.socket && socketService.socket.connected) {
-    // Send browser closing event to server
-    socketService.socket.emit("browser_closing");
+// Configure both beforeunload and unload events for maximum reliability
+// These events can be unreliable, so we implement multiple approaches
+window.addEventListener("beforeunload", (event) => {
+  if (socketService.isConnected()) {
+    console.log(
+      "[SocketService] Browser tab/window closing detected (beforeunload)"
+    );
+    // Try to send a synchronous message - this is more reliable for tab closure detection
+    socketService.socket.emit("browser_closing", {
+      reason: "beforeunload",
+      timestamp: Date.now(),
+    });
+
+    // Try to ensure the request has time to reach the server
+    // This is a trick to slightly delay tab close
+    const start = Date.now();
+    while (Date.now() - start < 50) {
+      // Small delay to allow the message to be sent
+    }
+  }
+});
+
+// Also listen for the unload event as a backup
+window.addEventListener("unload", (event) => {
+  if (socketService.isConnected()) {
+    console.log("[SocketService] Browser tab/window closing detected (unload)");
+    socketService.socket.emit("browser_closing", {
+      reason: "unload",
+      timestamp: Date.now(),
+    });
   }
 });
 
 // Handle close events using the page visibility API as a fallback
 document.addEventListener("visibilitychange", () => {
-  if (
-    document.visibilityState === "hidden" &&
-    socketService.socket &&
-    socketService.socket.connected
-  ) {
-    // User is navigating away or switching tabs, send a ping
-    socketService.socket.emit("user_active");
+  if (document.visibilityState === "hidden") {
+    console.log(
+      "[SocketService] Tab visibility hidden - user may be switching tabs"
+    );
+
+    // Send a user activity ping to maintain connection
+    if (socketService.isConnected()) {
+      socketService.socket.emit("user_active");
+    }
+
+    // Set a timeout to detect if this is likely a tab close vs tab switch
+    // If the visibility doesn't return to "visible" within a short time, it might be a closure
+    if (!socketService.visibilityTimeout) {
+      socketService.visibilityTimeout = setTimeout(() => {
+        // If tab is still hidden after timeout, it might be closed
+        if (
+          document.visibilityState === "hidden" &&
+          socketService.isConnected()
+        ) {
+          console.log(
+            "[SocketService] Tab still hidden after timeout - might be closed"
+          );
+          // But we don't disconnect - we keep the connection and let the server-side timeout handle it
+        }
+        socketService.visibilityTimeout = null;
+      }, 15000); // 15 seconds
+    }
+  } else if (document.visibilityState === "visible") {
+    // Tab is visible again, clear any timeout
+    if (socketService.visibilityTimeout) {
+      clearTimeout(socketService.visibilityTimeout);
+      socketService.visibilityTimeout = null;
+    }
+
+    // Send heartbeat to confirm activity
+    if (socketService.isConnected()) {
+      socketService.sendHeartbeatNow();
+    }
   }
 });
 

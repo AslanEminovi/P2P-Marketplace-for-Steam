@@ -268,13 +268,13 @@ class UserStatusManager {
     );
 
     if (userInfo.socketIds.size === 0) {
-      // User has no more active connections
+      // User has no more active connections - immediately mark them offline
       console.log(
-        `[UserStatusManager] User ${userId} has no more connections, marking as offline`
+        `[UserStatusManager] User ${userId} has no more connections, marking as offline immediately`
       );
       this.onlineUsers.delete(userId);
 
-      // Update database
+      // Update database right away
       this.updateUserStatus(userId, false).catch((err) => {
         console.error(
           `[UserStatusManager] Error updating database for user ${userId}:`,
@@ -282,11 +282,52 @@ class UserStatusManager {
         );
       });
 
-      // Notify about status change
+      // Notify about status change immediately
       this.notifyStatusChange(userId, false);
     } else {
-      // Update the user info
-      this.onlineUsers.set(userId, userInfo);
+      // The user still has some sockets connected
+      // Verify those sockets are actually still connected and not zombie connections
+      let activeSocketsCount = 0;
+
+      for (const remainingSocketId of userInfo.socketIds) {
+        const socket = io?.sockets?.sockets?.get(remainingSocketId);
+        if (socket && socket.connected) {
+          activeSocketsCount++;
+        } else {
+          // This is a zombie socket, remove it
+          console.log(
+            `[UserStatusManager] Removing zombie socket ${remainingSocketId} for user ${userId}`
+          );
+          userInfo.socketIds.delete(remainingSocketId);
+        }
+      }
+
+      // After cleanup, check if the user still has active sockets
+      if (userInfo.socketIds.size === 0) {
+        // All remaining sockets were zombies, mark user as offline
+        console.log(
+          `[UserStatusManager] User ${userId} has only zombie connections, marking as offline`
+        );
+        this.onlineUsers.delete(userId);
+
+        // Update database
+        this.updateUserStatus(userId, false).catch((err) => {
+          console.error(
+            `[UserStatusManager] Error updating database for user ${userId}:`,
+            err
+          );
+        });
+
+        // Notify about status change
+        this.notifyStatusChange(userId, false);
+      } else {
+        // User still has active connections
+        console.log(
+          `[UserStatusManager] User ${userId} still has ${userInfo.socketIds.size} active connections after zombie cleanup`
+        );
+        // Update the user info
+        this.onlineUsers.set(userId, userInfo);
+      }
     }
   }
 
@@ -375,57 +416,63 @@ class UserStatusManager {
           continue;
         }
 
-        // Check inactivity time - use a shorter window for initial detection
-        const inactiveTime = now - userInfo.lastActive;
+        // Check if all sockets are physically disconnected
+        let allSocketsDisconnected = true;
 
-        // If inactive for even a short time, check if their sockets are still alive
+        // Check each socket associated with this user
+        for (const socketId of userInfo.socketIds) {
+          // If we can't get the socket object or it's disconnected, consider it dead
+          const socket = io?.sockets?.sockets?.get(socketId);
+          if (socket && socket.connected) {
+            allSocketsDisconnected = false;
+
+            // If we find even one active socket, ping it to verify it's still alive
+            try {
+              socket.emit("ping", { timestamp: Date.now() });
+            } catch (socketError) {
+              console.warn(
+                `[UserStatusManager] Error pinging socket ${socketId}:`,
+                socketError
+              );
+            }
+
+            break; // One active socket is enough to keep the user online
+          }
+        }
+
+        // If all sockets are disconnected, mark user as offline
+        if (allSocketsDisconnected) {
+          console.log(
+            `[UserStatusManager] All sockets for user ${userId} are physically disconnected, marking offline`
+          );
+          usersToRemove.push(userId);
+        }
+
+        // Update last active time but don't mark user offline for inactivity
+        // We're just tracking inactivity but keeping the user online as long as they have active sockets
+        const inactiveTime = now - userInfo.lastActive;
         if (inactiveTime > 30 * 1000) {
           // 30 seconds
-          let allSocketsDisconnected = true;
+          console.log(
+            `[UserStatusManager] User ${userId} has been inactive for ${Math.round(
+              inactiveTime / 1000
+            )} seconds but has active sockets, keeping online`
+          );
 
-          // Check each socket associated with this user
-          for (const socketId of userInfo.socketIds) {
-            // If we can't get the socket object or it's disconnected, consider it dead
-            const socket = io?.sockets?.sockets?.get(socketId);
-            if (socket && socket.connected) {
-              allSocketsDisconnected = false;
-
-              // If we find even one active socket, ping it to verify it's still alive
-              try {
-                socket.emit("ping", { timestamp: Date.now() });
-              } catch (socketError) {
-                console.warn(
-                  `[UserStatusManager] Error pinging socket ${socketId}:`,
-                  socketError
-                );
-              }
-
-              break; // One active socket is enough to keep the user online
+          // Update DB with the current lastActive time to maintain accurate records
+          // but don't change the isOnline status
+          this.updateLastActiveInDatabase(userId, userInfo.lastActive).catch(
+            (err) => {
+              console.error(
+                `[UserStatusManager] Error updating lastActive for inactive user ${userId}:`,
+                err
+              );
             }
-          }
-
-          // If all sockets are disconnected or can't be found, mark user as offline
-          if (allSocketsDisconnected) {
-            console.log(
-              `[UserStatusManager] All sockets for user ${userId} appear disconnected, marking offline`
-            );
-            usersToRemove.push(userId);
-            continue;
-          }
-
-          // If user is inactive for too long (even if sockets appear connected), still mark as offline
-          if (inactiveTime > this.INACTIVE_TIMEOUT_MS) {
-            console.log(
-              `[UserStatusManager] User ${userId} inactive for ${Math.round(
-                inactiveTime / 60000
-              )} minutes, marking offline despite connected sockets`
-            );
-            usersToRemove.push(userId);
-          }
+          );
         }
       }
 
-      // Remove inactive users
+      // Remove users who have all sockets disconnected
       for (const userId of usersToRemove) {
         this.onlineUsers.delete(userId);
 
@@ -436,12 +483,39 @@ class UserStatusManager {
             err
           );
         });
+
+        // Notify about status change
+        this.notifyStatusChange(userId, false);
       }
     } catch (error) {
       console.error(
         "[UserStatusManager] Error in cleanupInactiveSessions:",
         error
       );
+    }
+  }
+
+  /**
+   * Update only the lastActive time in database without changing online status
+   * @param {string} userId - The user ID
+   * @param {Date} lastActive - The last active time
+   */
+  async updateLastActiveInDatabase(userId, lastActive) {
+    try {
+      // Update only lastActive in database, don't change isOnline status
+      await User.findByIdAndUpdate(userId, {
+        lastActive: this.validateDate(lastActive || new Date()),
+      });
+
+      console.log(
+        `[UserStatusManager] Updated lastActive in database for user ${userId} without changing online status`
+      );
+    } catch (error) {
+      console.error(
+        `[UserStatusManager] Error updating lastActive for user ${userId} in database:`,
+        error
+      );
+      throw error;
     }
   }
 
