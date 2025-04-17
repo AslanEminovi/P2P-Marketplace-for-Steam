@@ -51,93 +51,126 @@ const init = async (ioInstance) => {
 
     // Set up socket connection handler
     io.on("connection", (socket) => {
-      console.log(`[socketService] New socket connection: ${socket.id}`);
+      try {
+        console.log(`[socketService] New socket connection: ${socket.id}`);
 
-      // Let the UserStatusManager handle the connection
-      userStatusManager.handleConnection(socket);
+        // Process the socket connection through UserStatusManager
+        userStatusManager.handleSocketConnection(socket);
 
-      // Handle stats update requests
-      socket.on("request_stats_update", async () => {
-        console.log(
-          `[socketService] Stats update requested by socket ${socket.id}`
-        );
-        try {
-          const stats = await getLatestStats();
-          socket.emit("stats_update", stats);
-        } catch (error) {
-          console.error("[socketService] Error sending stats update:", error);
-        }
-      });
+        // Set up connection health monitoring
+        let pingInterval = setInterval(() => {
+          // Record ping start time
+          const startTime = Date.now();
 
-      // Handle status requests
-      socket.on("request_user_status", async (userId) => {
-        if (!userId) return;
-        try {
-          const status = await userStatusManager.getUserStatus(userId);
-          socket.emit("user_status_update", {
-            userId,
-            isOnline: status.isOnline,
-            lastSeenFormatted: status.lastSeenFormatted,
+          // Emit ping event to client
+          socket.emit("ping", { timestamp: startTime }, (response) => {
+            // Calculate round-trip time
+            const latency = Date.now() - startTime;
+
+            // Store latency in socket metadata
+            if (socket.metadata) {
+              socket.metadata.latency = latency;
+              socket.metadata.lastPingResponse = Date.now();
+            }
+
+            // Log latency for monitoring (only if unusually high)
+            if (latency > 500) {
+              console.log(
+                `[Socket] High latency detected for ${socket.id}: ${latency}ms`
+              );
+            }
           });
-        } catch (error) {
-          console.error(
-            `[socketService] Error getting status for ${userId}:`,
-            error
+        }, 30000); // Send ping every 30 seconds
+
+        // Clean up interval on disconnect
+        socket.on("disconnect", () => {
+          clearInterval(pingInterval);
+        });
+
+        // Handle client pong response
+        socket.on("pong", (data) => {
+          if (socket.metadata) {
+            socket.metadata.lastPongTime = Date.now();
+          }
+        });
+
+        // Handle stats update requests
+        socket.on("request_stats_update", async () => {
+          console.log(
+            `[socketService] Stats update requested by socket ${socket.id}`
           );
-          socket.emit("user_status_update", {
-            userId,
-            isOnline: false,
-            lastSeenFormatted: "Recently",
-          });
-        }
-      });
+          try {
+            const stats = await getLatestStats();
+            socket.emit("stats_update", stats);
+          } catch (error) {
+            console.error("[socketService] Error sending stats update:", error);
+          }
+        });
 
-      // Handle user watching another user
-      socket.on("watch_user_status", (userId) => {
-        if (!userId) return;
-
-        // Store that this socket is watching this userId
-        if (!socket.watchingUsers) {
-          socket.watchingUsers = new Set();
-        }
-
-        socket.watchingUsers.add(userId);
-        console.log(
-          `[socketService] Socket ${socket.id} is now watching user ${userId}`
-        );
-
-        // Immediately send current status
-        getUserStatus(userId)
-          .then((status) => {
+        // Handle status requests
+        socket.on("request_user_status", async (userId) => {
+          if (!userId) return;
+          try {
+            const status = await userStatusManager.getUserStatus(userId);
             socket.emit("user_status_update", {
               userId,
               isOnline: status.isOnline,
               lastSeenFormatted: status.lastSeenFormatted,
             });
-          })
-          .catch(console.error);
-      });
+          } catch (error) {
+            console.error(
+              `[socketService] Error getting status for ${userId}:`,
+              error
+            );
+            socket.emit("user_status_update", {
+              userId,
+              isOnline: false,
+              lastSeenFormatted: "Recently",
+            });
+          }
+        });
 
-      // Handle ping response (used to check if socket is still alive)
-      socket.on("pong", (data) => {
-        // Update last active time for this user
-        if (socket.userId) {
-          userStatusManager.updateLastActive(socket.userId);
-        }
-      });
+        // Handle user watching another user
+        socket.on("watch_user_status", (userId) => {
+          if (!userId) return;
 
-      // Handle beforeunload event from client
-      socket.on("browser_closing", () => {
-        console.log(
-          `[socketService] Browser closing event from socket ${socket.id}`
-        );
-        // Immediately disconnect this socket
-        try {
-          socket.disconnect(true);
-        } catch (error) {
-          console.error(`[socketService] Error disconnecting socket:`, error);
-        }
-      });
+          // Store that this socket is watching this userId
+          if (!socket.watchingUsers) {
+            socket.watchingUsers = new Set();
+          }
+
+          socket.watchingUsers.add(userId);
+          console.log(
+            `[socketService] Socket ${socket.id} is now watching user ${userId}`
+          );
+
+          // Immediately send current status
+          getUserStatus(userId)
+            .then((status) => {
+              socket.emit("user_status_update", {
+                userId,
+                isOnline: status.isOnline,
+                lastSeenFormatted: status.lastSeenFormatted,
+              });
+            })
+            .catch(console.error);
+        });
+
+        // Handle beforeunload event from client
+        socket.on("browser_closing", () => {
+          console.log(
+            `[socketService] Browser closing event from socket ${socket.id}`
+          );
+          // Immediately disconnect this socket
+          try {
+            socket.disconnect(true);
+          } catch (error) {
+            console.error(`[socketService] Error disconnecting socket:`, error);
+          }
+        });
+      } catch (error) {
+        console.error("[socketService] Error in connection handler:", error);
+      }
     });
 
     // Start periodic stats broadcasting

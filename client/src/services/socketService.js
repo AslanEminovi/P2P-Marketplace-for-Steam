@@ -1,5 +1,15 @@
 import io from "socket.io-client";
 import { API_URL } from "../config/constants";
+import { getToken } from "./authService";
+import config from "../config";
+import { toast } from "react-toastify";
+
+// Track global connection state across tabs
+const CONNECTION_STATE_KEY = "socket_connection_state";
+const LAST_DISCONNECT_KEY = "socket_last_disconnect";
+const CONNECTION_ID_KEY = "socket_connection_id";
+const CURRENT_PAGE_KEY = "socket_current_page";
+const HEARTBEAT_INTERVAL = 30000; // 30 seconds
 
 class SocketService {
   constructor() {
@@ -9,20 +19,58 @@ class SocketService {
     this.events = new Map();
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
-    this.reconnectDelay = 2000;
+    this.reconnectDelay = 3000;
     this.reconnectTimer = null;
     this.connectedCallback = null;
     this.disconnectedCallback = null;
     this.lastConnectionAttempt = 0;
     this.lastForcedRefresh = null;
-    this.forceReconnectInterval = 30000; // 30 seconds
+    this.forceReconnectInterval = 20000; // Reduced from 30 seconds to 20 seconds
     this.lastSuccessfulConnection = null;
     this.connectionCheckTimer = null;
     this.isBrowserTabActive = true;
     this.heartbeatInterval = null;
-    this.heartbeatDelay = 60000; // Increasing from 15 seconds to 60 seconds (1 minute)
-    this.currentPage = "other"; // Default to 'other' instead of marketplace
+    this.heartbeatDelay = 15000; // Reduced from 60 seconds to 15 seconds
+    this.currentPage = "unknown";
     this.visibilityHandler = null; // For handling visibility changes
+    this.pingInterval = null; // For checking connection health
+    this.connectionHealth = 100; // Connection health score (0-100)
+    this.explicitlyDisconnected = false; // Flag for intentional disconnects
+    this.lastHeartbeatTime = null;
+    this.connectionId = null;
+    this.isReconnecting = false;
+    this.heartbeatTimer = null;
+
+    // Listen for storage events to coordinate across tabs
+    this.setupCrossTabSync();
+
+    // Store the connection ID to help with identifying the same tab across reloads
+    localStorage.setItem(CONNECTION_ID_KEY, this.connectionId);
+  }
+
+  // Set up storage event listener for cross-tab coordination
+  setupCrossTabSync() {
+    if (typeof window === "undefined") return;
+
+    window.addEventListener("storage", (event) => {
+      if (event.key === CONNECTION_STATE_KEY) {
+        const newState = JSON.parse(event.newValue || '{"connected":false}');
+
+        // If another tab connected but this one isn't, try to connect
+        if (newState.connected && !this.connected) {
+          console.log(
+            "[SocketService] Another tab connected, reconnecting in this tab"
+          );
+          this.reconnect();
+        }
+      } else if (event.key === CURRENT_PAGE_KEY) {
+        // Update current page
+        this.currentPage = event.newValue || "";
+        console.log(
+          `[SocketService] Current page updated from another tab: ${this.currentPage}`
+        );
+      }
+    });
   }
 
   init() {
@@ -36,13 +84,79 @@ class SocketService {
       );
     }
 
+    // Setup beforeunload handler to ensure proper disconnects
+    if (typeof window !== "undefined") {
+      window.addEventListener(
+        "beforeunload",
+        this.handleBeforeUnload.bind(this)
+      );
+    }
+
     // Start periodic connection checking
     this.startConnectionCheck();
 
     // Start the reliable heartbeat system
     this.setupReliableHeartbeat();
 
+    // Setup connection health monitoring
+    this.startConnectionHealthMonitoring();
+
+    // After socket connection is established
+    this.socket.on("connect", () => {
+      // ... existing code ...
+
+      // Set up event listeners for page visibility and browser closing
+      this.setupEventListeners();
+    });
+
+    // Handle server pings - used to measure latency and connection health
+    this.socket.on("ping", (data) => {
+      const serverTime = data.timestamp;
+      const latency = Date.now() - serverTime;
+
+      // Record last received heartbeat time
+      this.lastHeartbeatTime = Date.now();
+
+      // Respond with pong and latency info
+      this.socket.emit("pong", {
+        serverTime,
+        clientTime: Date.now(),
+        latency,
+        connectionId: this.connectionId,
+        page: this.currentPage,
+      });
+
+      // Update connection health based on latency
+      this.connectionHealth = Math.max(0, Math.min(100, 100 - latency / 10));
+      console.log(
+        `[SocketService] Ping response: ${latency}ms, health: ${this.connectionHealth}`
+      );
+    });
+
     return this;
+  }
+
+  // Handle beforeunload to ensure proper disconnect
+  handleBeforeUnload() {
+    console.log("[SocketService] Page unloading, sending disconnect signal");
+
+    try {
+      // Store disconnect timestamp
+      localStorage.setItem(LAST_DISCONNECT_KEY, Date.now().toString());
+
+      if (this.socket && this.socket.connected) {
+        // Send a browser_closing event to immediately mark user offline
+        this.socket.emit("browser_closing", {
+          timestamp: Date.now(),
+          reason: "tab_close",
+        });
+
+        // Force disconnect to ensure server registers it immediately
+        this.socket.disconnect();
+      }
+    } catch (err) {
+      console.error("[SocketService] Error during beforeunload:", err);
+    }
   }
 
   handleVisibilityChange() {
@@ -50,13 +164,113 @@ class SocketService {
       console.log("[SocketService] Tab became visible, checking connection");
       this.isBrowserTabActive = true;
 
-      // When tab becomes visible, check if we need to reconnect
-      if (!this.isConnected()) {
-        this.reconnect();
-      }
+      // When tab becomes visible, check connection status
+      this.checkConnectionStatus();
     } else {
       console.log("[SocketService] Tab became hidden");
       this.isBrowserTabActive = false;
+
+      // Send notice that tab is hidden but still active
+      if (this.socket && this.socket.connected) {
+        this.socket.emit("tab_hidden", { timestamp: Date.now() });
+      }
+    }
+  }
+
+  // More aggressive connection checking
+  checkConnectionStatus() {
+    if (!this.isConnected()) {
+      console.log("[SocketService] Not connected, reconnecting");
+      this.reconnect();
+    } else {
+      // Even if connected, verify with a ping
+      this.sendPing();
+
+      // If in marketplace, force an immediate status update
+      if (
+        this.currentPage === "marketplace" ||
+        this.currentPage === "listing"
+      ) {
+        console.log(
+          "[SocketService] In marketplace, requesting immediate status updates"
+        );
+        this.emit("request_stats_update");
+
+        // Also notify that we're active
+        this.emit("user_active", {
+          page: this.currentPage,
+          timestamp: Date.now(),
+        });
+      }
+    }
+  }
+
+  // Start monitoring connection health
+  startConnectionHealthMonitoring() {
+    // Clear existing interval
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+    }
+
+    // Start new ping interval (every 10 seconds)
+    this.pingInterval = setInterval(() => {
+      if (this.isConnected()) {
+        this.sendPing();
+      } else if (this.isBrowserTabActive) {
+        // Aggressively reconnect if tab is active but socket disconnected
+        this.reconnect();
+      }
+    }, 10000);
+  }
+
+  // Send ping to check connection
+  sendPing() {
+    if (!this.socket || !this.socket.connected) return;
+
+    const pingStart = Date.now();
+    let pongReceived = false;
+
+    try {
+      // Send ping with timestamp
+      this.socket.emit("ping", { timestamp: pingStart }, () => {
+        // This callback executes when server responds (acknowledgement)
+        const latency = Date.now() - pingStart;
+        pongReceived = true;
+
+        // Update connection health based on latency
+        if (latency < 100) {
+          this.connectionHealth = 100; // Excellent
+        } else if (latency < 300) {
+          this.connectionHealth = 90; // Good
+        } else if (latency < 1000) {
+          this.connectionHealth = 70; // OK
+        } else {
+          this.connectionHealth = 50; // Poor
+        }
+
+        console.log(
+          `[SocketService] Ping latency: ${latency}ms, health: ${this.connectionHealth}`
+        );
+      });
+
+      // If no pong received within 5 seconds, consider connection unhealthy
+      setTimeout(() => {
+        if (!pongReceived) {
+          console.log(
+            "[SocketService] No pong received, connection may be dead"
+          );
+          this.connectionHealth -= 20; // Reduce health score
+
+          if (this.connectionHealth < 30) {
+            console.log(
+              "[SocketService] Connection health critical, forcing reconnect"
+            );
+            this.reconnect();
+          }
+        }
+      }, 5000);
+    } catch (err) {
+      console.error("[SocketService] Error sending ping:", err);
     }
   }
 
@@ -97,6 +311,7 @@ class SocketService {
     }
 
     this.lastConnectionAttempt = now;
+    this.explicitlyDisconnected = false;
 
     console.log(
       "[SocketService] Attempting to connect to socket server:",
@@ -121,7 +336,15 @@ class SocketService {
       console.log(
         "[SocketService] Socket exists but not connected, disconnecting first"
       );
-      this.disconnect();
+      try {
+        this.socket.disconnect();
+      } catch (err) {
+        console.error(
+          "[SocketService] Error disconnecting existing socket:",
+          err
+        );
+      }
+      this.socket = null;
     }
 
     // Get token from localStorage if not provided
@@ -161,8 +384,8 @@ class SocketService {
         reconnection: true,
         reconnectionAttempts: 10,
         reconnectionDelay: 1000,
-        reconnectionDelayMax: 10000,
-        timeout: 20000,
+        reconnectionDelayMax: 5000,
+        timeout: 10000,
         autoConnect: true,
         forceNew: true, // Force a new connection
       });
@@ -172,6 +395,21 @@ class SocketService {
         console.log("[SocketService] Connected to socket server!");
         this.connected = true;
         this.reconnectAttempts = 0;
+        this.connectionHealth = 100; // Reset health score on successful connection
+
+        // Save connection state to localStorage for cross-tab coordination
+        try {
+          localStorage.setItem(
+            CONNECTION_STATE_KEY,
+            JSON.stringify({
+              connected: true,
+              timestamp: Date.now(),
+              socketId: this.socket.id,
+            })
+          );
+        } catch (err) {
+          console.error("[SocketService] Error saving connection state:", err);
+        }
 
         if (this.connectedCallback) {
           this.connectedCallback();
@@ -191,6 +429,36 @@ class SocketService {
 
         // Start sending heartbeats to maintain the connection
         this.startHeartbeat();
+
+        // Generate or retrieve connection ID for cross-tab identification
+        try {
+          this.connectionId =
+            localStorage.getItem(CONNECTION_ID_KEY) ||
+            `${Math.random().toString(36).substring(2, 10)}-${Date.now()}`;
+          localStorage.setItem(CONNECTION_ID_KEY, this.connectionId);
+        } catch (err) {
+          console.error("[SocketService] Error with connection ID:", err);
+          this.connectionId = `${Math.random()
+            .toString(36)
+            .substring(2, 10)}-${Date.now()}`;
+        }
+
+        // Update connection state
+        try {
+          localStorage.setItem(
+            CONNECTION_STATE_KEY,
+            JSON.stringify({
+              connected: true,
+              timestamp: Date.now(),
+              id: this.connectionId,
+            })
+          );
+        } catch (err) {
+          console.error("[SocketService] Error storing connection state:", err);
+        }
+
+        // Set up event listeners for page visibility and browser closing
+        this.setupEventListeners();
       });
 
       this.socket.on("connect_error", (error) => {
@@ -206,6 +474,23 @@ class SocketService {
         );
         this.connected = false;
 
+        // Update localStorage state
+        try {
+          localStorage.setItem(
+            CONNECTION_STATE_KEY,
+            JSON.stringify({
+              connected: false,
+              timestamp: Date.now(),
+              reason,
+            })
+          );
+        } catch (err) {
+          console.error(
+            "[SocketService] Error saving disconnection state:",
+            err
+          );
+        }
+
         if (this.disconnectedCallback) {
           this.disconnectedCallback();
         }
@@ -213,7 +498,9 @@ class SocketService {
         // Handle disconnect reason
         if (reason === "io server disconnect" || reason === "transport close") {
           // Server disconnected the client, need to reconnect manually
-          this.scheduleReconnect();
+          if (!this.explicitlyDisconnected) {
+            this.scheduleReconnect();
+          }
         }
       });
 
@@ -231,6 +518,12 @@ class SocketService {
         this.handleConnectionFailure();
       });
 
+      // Setup pong handler for connection health
+      this.socket.on("pong", (data) => {
+        // Server sent a pong directly, update health
+        this.connectionHealth = Math.min(this.connectionHealth + 10, 100);
+      });
+
       return this.socket;
     } catch (error) {
       console.error("[SocketService] Error during socket creation:", error);
@@ -242,6 +535,9 @@ class SocketService {
   }
 
   disconnect() {
+    // Mark as explicitly disconnected to prevent auto-reconnect
+    this.explicitlyDisconnected = true;
+
     if (this.socket) {
       console.log("[SocketService] Disconnecting socket");
 
@@ -249,6 +545,17 @@ class SocketService {
       this.stopHeartbeat();
 
       try {
+        // Save disconnect timestamp
+        localStorage.setItem(LAST_DISCONNECT_KEY, Date.now().toString());
+
+        // Notify server we're intentionally disconnecting
+        if (this.socket.connected) {
+          this.socket.emit("client_disconnect", {
+            reason: "explicit_disconnect",
+            timestamp: Date.now(),
+          });
+        }
+
         this.socket.disconnect();
       } catch (err) {
         console.error("[SocketService] Error during disconnect:", err);
@@ -267,6 +574,11 @@ class SocketService {
       this.connectionCheckTimer = null;
     }
 
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
+
     // Clean up resubscription intervals
     Object.keys(this).forEach((key) => {
       if (key.startsWith("resubscribe_") && this[key]) {
@@ -274,6 +586,20 @@ class SocketService {
         delete this[key];
       }
     });
+
+    // Update localStorage status
+    try {
+      localStorage.setItem(
+        CONNECTION_STATE_KEY,
+        JSON.stringify({
+          connected: false,
+          timestamp: Date.now(),
+          reason: "explicit_disconnect",
+        })
+      );
+    } catch (err) {
+      console.error("[SocketService] Error saving disconnect state:", err);
+    }
   }
 
   reconnect() {
@@ -307,6 +633,7 @@ class SocketService {
 
     // Reset connection state
     this.connected = false;
+    this.explicitlyDisconnected = false;
 
     // Clear any existing reconnect timer
     if (this.reconnectTimer) {
@@ -335,8 +662,16 @@ class SocketService {
       return;
     }
 
-    // Calculate delay with exponential backoff up to 30 seconds
-    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+    // Don't reconnect if explicitly disconnected
+    if (this.explicitlyDisconnected) {
+      console.log(
+        "[SocketService] Not reconnecting because socket was explicitly disconnected"
+      );
+      return;
+    }
+
+    // Calculate delay with exponential backoff up to 20 seconds (reduced from 30)
+    const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), 20000);
     this.reconnectAttempts++;
 
     console.log(
@@ -353,16 +688,144 @@ class SocketService {
   handleConnectionFailure() {
     console.log("[SocketService] Handling connection failure");
     this.connected = false;
+    this.connectionHealth -= 15; // Reduce health on connection failure
 
     // If we've exceeded max attempts, notify the user
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error(
         "[SocketService] Max reconnection attempts reached, giving up"
       );
+
+      // After a 10 second pause, try again (don't give up completely)
+      setTimeout(() => {
+        console.log("[SocketService] Retrying connection after timeout");
+        this.reconnectAttempts = 0;
+        this.reconnect();
+      }, 10000);
+
       return;
     }
 
     this.scheduleReconnect();
+  }
+
+  // Set current page and handle marketplace special case
+  setCurrentPage(page) {
+    console.log(`[SocketService] Setting current page: ${page}`);
+    this.currentPage = page;
+
+    try {
+      localStorage.setItem(CURRENT_PAGE_KEY, page);
+    } catch (err) {
+      console.error("[SocketService] Error storing current page:", err);
+    }
+
+    // If socket exists and is connected, notify the server about page change
+    if (this.socket && this.socket.connected) {
+      this.socket.emit("page_changed", {
+        page,
+        timestamp: Date.now(),
+        connectionId: this.connectionId,
+      });
+
+      // If entering marketplace or listing, request stats update
+      if (page === "marketplace" || page === "listings") {
+        console.log(
+          "[SocketService] Entering marketplace page, requesting stats update"
+        );
+        this.socket.emit("request_stats_update");
+      }
+    }
+  }
+
+  // Enhanced setupReliableHeartbeat
+  setupReliableHeartbeat() {
+    console.log("[SocketService] Setting up reliable heartbeat system");
+
+    // Clear any existing heartbeat
+    this.stopHeartbeat();
+
+    // Shorter interval for more reliable presence (15 seconds)
+    this.heartbeatInterval = setInterval(() => {
+      // Skip if explicitly disconnected
+      if (this.explicitlyDisconnected) return;
+
+      // Send heartbeat regardless of tab visibility
+      if (this.isConnected()) {
+        console.log("[SocketService] Sending automatic heartbeat");
+        this.socket.emit("heartbeat", { timestamp: Date.now() });
+        this.socket.emit("user_active", {
+          timestamp: Date.now(),
+          page: this.currentPage,
+          tabActive: this.isBrowserTabActive,
+        });
+      } else if (this.isBrowserTabActive) {
+        // Only attempt reconnect if tab is active
+        console.log(
+          "[SocketService] Socket disconnected, attempting reconnect for heartbeat"
+        );
+        this.reconnect();
+      }
+    }, 15000); // Every 15 seconds
+
+    // Handle page visibility changes specifically for heartbeat
+    const heartbeatVisibilityHandler = () => {
+      if (document.visibilityState === "visible") {
+        // Tab just became visible, send immediate heartbeat
+        if (this.isConnected()) {
+          console.log(
+            "[SocketService] Tab visible, sending immediate heartbeat"
+          );
+          this.socket.emit("heartbeat", { timestamp: Date.now() });
+          this.socket.emit("user_active", { timestamp: Date.now() });
+        } else {
+          // Try to reconnect if not connected
+          console.log(
+            "[SocketService] Tab visible but disconnected, reconnecting"
+          );
+          this.reconnect();
+        }
+      } else {
+        // Tab hidden, send one last heartbeat to ensure we're still considered online
+        if (this.isConnected()) {
+          console.log("[SocketService] Tab hidden, sending final heartbeat");
+          this.socket.emit("heartbeat", { timestamp: Date.now() });
+          this.socket.emit("user_active", {
+            timestamp: Date.now(),
+            isTabHidden: true,
+          });
+        }
+      }
+    };
+
+    // Register visibility handler
+    if (this.visibilityHandler) {
+      document.removeEventListener("visibilitychange", this.visibilityHandler);
+    }
+    this.visibilityHandler = heartbeatVisibilityHandler;
+    document.addEventListener("visibilitychange", this.visibilityHandler);
+
+    // Ensure heartbeat is immediately started
+    if (this.isConnected()) {
+      this.socket.emit("heartbeat", { timestamp: Date.now() });
+      this.socket.emit("user_active", { timestamp: Date.now() });
+    }
+
+    return this;
+  }
+
+  stopHeartbeat() {
+    console.log("[SocketService] Stopping heartbeat system");
+
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+
+    if (this.visibilityHandler) {
+      document.removeEventListener("visibilitychange", this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
   }
 
   onConnected(callback) {
@@ -607,119 +1070,134 @@ class SocketService {
     }
   }
 
-  stopHeartbeat() {
-    console.log("[SocketService] Stopping heartbeat system");
+  setupEventListeners() {
+    // Clean up any existing handlers first
+    this.removeEventListeners();
 
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
-    }
+    // Handle page visibility changes
+    this.visibilityHandler = () => {
+      const isVisible = document.visibilityState === "visible";
+      console.log(
+        `[SocketService] Visibility changed: ${
+          isVisible ? "visible" : "hidden"
+        }`
+      );
 
+      if (isVisible) {
+        // Tab became visible again
+        console.log("[SocketService] Tab visible, checking connection");
+
+        // If socket exists but is disconnected, try to reconnect
+        if (
+          this.socket &&
+          !this.socket.connected &&
+          !this.explicitlyDisconnected
+        ) {
+          console.log(
+            "[SocketService] Socket disconnected while tab was hidden, reconnecting"
+          );
+          this.reconnect();
+        }
+
+        // If we're on the marketplace page, request stats update
+        if (
+          this.currentPage === "marketplace" ||
+          this.currentPage === "listings"
+        ) {
+          console.log(
+            "[SocketService] Tab visible on marketplace, requesting stats update"
+          );
+          if (this.socket && this.socket.connected) {
+            this.socket.emit("request_stats_update");
+          }
+        }
+
+        // Emit tab visible event
+        if (this.socket && this.socket.connected) {
+          this.socket.emit("tab_visible", {
+            timestamp: Date.now(),
+            connectionId: this.connectionId,
+            page: this.currentPage,
+          });
+        }
+      } else {
+        // Tab was hidden
+        console.log("[SocketService] Tab hidden");
+
+        // Emit tab hidden event
+        if (this.socket && this.socket.connected) {
+          this.socket.emit("tab_hidden", {
+            timestamp: Date.now(),
+            connectionId: this.connectionId,
+            page: this.currentPage,
+          });
+        }
+      }
+    };
+
+    // Set up visibility listener
+    document.addEventListener("visibilitychange", this.visibilityHandler);
+
+    // Handle browser/tab closing
+    window.addEventListener("beforeunload", (event) => {
+      console.log("[SocketService] Browser closing");
+
+      // Store close timestamp for potential recovery on refresh
+      try {
+        localStorage.setItem("browser_close_timestamp", Date.now().toString());
+      } catch (err) {
+        console.error(
+          "[SocketService] Error storing browser close timestamp:",
+          err
+        );
+      }
+
+      // Notify server about browser closing
+      if (this.socket && this.socket.connected) {
+        // Send the event synchronously before page unload
+        this.socket.emit("browser_closing", {
+          timestamp: Date.now(),
+          connectionId: this.connectionId,
+          page: this.currentPage,
+        });
+      }
+    });
+  }
+
+  removeEventListeners() {
+    // Remove visibility handler if it exists
     if (this.visibilityHandler) {
       document.removeEventListener("visibilitychange", this.visibilityHandler);
       this.visibilityHandler = null;
     }
   }
 
-  // Method to update the current page and notify the server
-  setCurrentPage(page) {
-    if (page !== this.currentPage) {
-      console.log(`[SocketService] User navigated to page: ${page}`);
-      this.currentPage = page;
+  // Add cleanup method for proper teardown
+  cleanup() {
+    console.log("[SocketService] Cleaning up socket service");
 
-      // Notify server if connected
-      if (this.isConnected()) {
-        this.emit("page_view", { page });
-      }
-    }
-    return this;
-  }
+    // Stop heartbeat
+    this.stopHeartbeat();
 
-  // Method to get the current page
-  getCurrentPage() {
-    return this.currentPage;
-  }
+    // Remove event listeners
+    this.removeEventListeners();
 
-  /**
-   * Set up a reliable heartbeat system to ensure the user stays online
-   * even when the tab is inactive
-   */
-  setupReliableHeartbeat() {
-    console.log("[SocketService] Setting up reliable heartbeat system");
-
-    // Clear any existing heartbeat
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
+    // Clear reconnect timer
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
     }
 
-    // Shorter interval for more reliable presence (15 seconds)
-    this.heartbeatInterval = setInterval(() => {
-      // Send heartbeat regardless of tab visibility
-      if (this.isConnected()) {
-        console.log("[SocketService] Sending automatic heartbeat");
-        this.socket.emit("heartbeat", { timestamp: Date.now() });
-        this.socket.emit("user_active", { timestamp: Date.now() });
-      } else {
-        console.log(
-          "[SocketService] Socket disconnected, attempting reconnect for heartbeat"
-        );
-        this.reconnect();
-
-        // Try to send heartbeat after reconnection attempt
-        setTimeout(() => {
-          if (this.isConnected()) {
-            this.socket.emit("heartbeat", { timestamp: Date.now() });
-            this.socket.emit("user_active", { timestamp: Date.now() });
-          }
-        }, 1000);
-      }
-    }, 15000); // Every 15 seconds
-
-    // Handle page visibility changes specifically for heartbeat
-    const heartbeatVisibilityHandler = () => {
-      if (document.visibilityState === "visible") {
-        // Tab just became visible, send immediate heartbeat
-        if (this.isConnected()) {
-          console.log(
-            "[SocketService] Tab visible, sending immediate heartbeat"
-          );
-          this.socket.emit("heartbeat", { timestamp: Date.now() });
-          this.socket.emit("user_active", { timestamp: Date.now() });
-        } else {
-          // Try to reconnect if not connected
-          console.log(
-            "[SocketService] Tab visible but disconnected, reconnecting"
-          );
-          this.reconnect();
-        }
-      } else {
-        // Tab hidden, send one last heartbeat to ensure we're still considered online
-        if (this.isConnected()) {
-          console.log("[SocketService] Tab hidden, sending final heartbeat");
-          this.socket.emit("heartbeat", { timestamp: Date.now() });
-          this.socket.emit("user_active", {
-            timestamp: Date.now(),
-            isTabHidden: true,
-          });
-        }
-      }
-    };
-
-    // Register visibility handler
-    if (this.visibilityHandler) {
-      document.removeEventListener("visibilitychange", this.visibilityHandler);
-    }
-    this.visibilityHandler = heartbeatVisibilityHandler;
-    document.addEventListener("visibilitychange", this.visibilityHandler);
-
-    // Ensure heartbeat is immediately started
-    if (this.isConnected()) {
-      this.socket.emit("heartbeat", { timestamp: Date.now() });
-      this.socket.emit("user_active", { timestamp: Date.now() });
+    // Disconnect socket if connected
+    if (this.socket && this.socket.connected) {
+      this.explicitlyDisconnected = true;
+      this.socket.disconnect();
     }
 
-    return this;
+    // Reset properties
+    this.socket = null;
+    this.events.clear();
+    this.initialized = false;
   }
 }
 
@@ -735,30 +1213,118 @@ export default socketService;
 // Add handlers for user status updates and browser close events
 
 // Configure beforeunload event to notify server when browser is closing
-window.addEventListener("beforeunload", () => {
+window.addEventListener("beforeunload", (event) => {
   if (socketService.socket && socketService.socket.connected) {
-    // Send browser closing event to server
-    socketService.socket.emit("browser_closing");
+    // Create a timestamp to track when the close occurred
+    const closeTimestamp = Date.now();
+
+    // Store this in localStorage for potential recovery
+    try {
+      localStorage.setItem(
+        "browser_closing_timestamp",
+        closeTimestamp.toString()
+      );
+    } catch (err) {
+      console.error("[socketService] Error storing close timestamp:", err);
+    }
+
+    // Send browser closing event to server with reason
+    console.log("[socketService] Browser/tab closing, sending closing event");
+    socketService.socket.emit("browser_closing", {
+      timestamp: closeTimestamp,
+      reason: "beforeunload",
+      connectionId: socketService.connectionId || null,
+      page: socketService.currentPage,
+    });
+
+    // Explicitly mark as disconnected to prevent auto-reconnect
+    localStorage.setItem(
+      CONNECTION_STATE_KEY,
+      JSON.stringify({
+        connected: false,
+        timestamp: closeTimestamp,
+        reason: "browser_closing",
+      })
+    );
+
+    // Try to clean up the socket
+    try {
+      socketService.socket.disconnect();
+    } catch (err) {
+      console.error("[socketService] Error during disconnect on close:", err);
+    }
   }
 });
 
 // Handle close events using the page visibility API as a fallback
 document.addEventListener("visibilitychange", () => {
-  if (
-    document.visibilityState === "hidden" &&
-    socketService.socket &&
-    socketService.socket.connected
-  ) {
-    // User is navigating away or switching tabs, send a ping
-    socketService.socket.emit("user_active");
+  if (document.visibilityState === "hidden") {
+    // Update tab hidden status
+    console.log("[socketService] Tab hidden");
+
+    if (socketService.socket && socketService.socket.connected) {
+      // Send tab hidden event to help server distinguish between tab switches and closures
+      socketService.socket.emit("tab_hidden", {
+        timestamp: Date.now(),
+        connectionId: socketService.connectionId || null,
+        page: socketService.currentPage,
+      });
+
+      // Also update active status
+      socketService.socket.emit("user_active", {
+        timestamp: Date.now(),
+        isTabHidden: true,
+        page: socketService.currentPage,
+      });
+    }
+  } else if (document.visibilityState === "visible") {
+    console.log("[socketService] Tab visible again");
+
+    // Check if we need to reconnect
+    if (!socketService.isConnected()) {
+      console.log(
+        "[socketService] Socket disconnected while tab was hidden, reconnecting"
+      );
+      socketService.reconnect();
+    } else if (socketService.socket && socketService.socket.connected) {
+      // Send tab visible event
+      socketService.socket.emit("user_active", {
+        timestamp: Date.now(),
+        isTabHidden: false,
+        page: socketService.currentPage,
+      });
+
+      // If we're in the marketplace, request updated stats
+      if (
+        socketService.currentPage === "marketplace" ||
+        socketService.currentPage === "listing"
+      ) {
+        console.log(
+          "[socketService] In marketplace page, requesting stats update"
+        );
+        socketService.socket.emit("request_stats_update");
+      }
+    }
   }
 });
 
 // Handle pings from server
 if (socketService.socket) {
   socketService.socket.on("ping", (data) => {
-    // Respond with a pong to keep the connection alive
-    socketService.socket.emit("pong", { timestamp: Date.now() });
+    // Record the timestamp of when we received this ping
+    const receivedTimestamp = Date.now();
+
+    // Record heartbeat time for connection health monitoring
+    socketService.lastHeartbeatTime = receivedTimestamp;
+
+    // Respond with a pong including original timestamp if provided
+    // and our received timestamp for latency calculation
+    socketService.socket.emit("pong", {
+      originalTimestamp: data && data.timestamp ? data.timestamp : null,
+      receivedTimestamp,
+      respondedTimestamp: Date.now(),
+      connectionId: socketService.connectionId,
+    });
   });
 }
 
