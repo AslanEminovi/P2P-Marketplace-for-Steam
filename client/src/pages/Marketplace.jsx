@@ -127,6 +127,60 @@ function Marketplace({ user }) {
     { id: 'popular', label: 'Most Popular' }
   ];
 
+  // Function to update market stats with validation
+  const updateMarketStats = useCallback((newStats) => {
+    // Ensure lastValidStatsRef.current is initialized
+    if (!lastValidStatsRef.current) {
+      lastValidStatsRef.current = {
+        totalItems: 0,
+        totalSales: 0,
+        activeListings: 0,
+        onlineUsers: 0
+      };
+    }
+    
+    // Normalize input stats structure if from server
+    const normalizedStats = {};
+    
+    // Handle different possible structures from server or direct object
+    if (typeof newStats === 'object' && newStats !== null) {
+      normalizedStats.totalItems = typeof newStats.activeListings === 'number' ? newStats.activeListings : 0;
+      normalizedStats.totalSales = (typeof newStats.completedTrades === 'number' ? newStats.completedTrades : 
+                                   (typeof newStats.totalSales === 'number' ? newStats.totalSales : 0));
+      normalizedStats.activeListings = typeof newStats.activeListings === 'number' ? newStats.activeListings : 0;
+      normalizedStats.onlineUsers = typeof newStats.onlineUsers === 'object' && newStats.onlineUsers !== null
+                                    ? (typeof newStats.onlineUsers.total === 'number' ? newStats.onlineUsers.total : 0)
+                                    : (typeof newStats.activeUsers === 'number' ? newStats.activeUsers 
+                                      : (typeof newStats.onlineUsers === 'number' ? newStats.onlineUsers : 0));
+    }
+    
+    // Validate stats and use last valid values for any missing/invalid properties
+    const validatedStats = {
+      totalItems: normalizedStats.totalItems >= 0 ? normalizedStats.totalItems : (lastValidStatsRef.current?.totalItems || 0),
+      totalSales: normalizedStats.totalSales >= 0 ? normalizedStats.totalSales : (lastValidStatsRef.current?.totalSales || 0),
+      activeListings: normalizedStats.activeListings >= 0 ? normalizedStats.activeListings : (lastValidStatsRef.current?.activeListings || 0),
+      onlineUsers: normalizedStats.onlineUsers >= 0 ? normalizedStats.onlineUsers : (lastValidStatsRef.current?.onlineUsers || 0),
+    };
+    
+    console.log('Updating market stats with validated data:', validatedStats);
+    
+    // Update ref with valid stats
+    lastValidStatsRef.current = validatedStats;
+    
+    // Update state
+    setMarketStats(validatedStats);
+    
+    // Cache in localStorage
+    try {
+      localStorage.setItem('marketStats', JSON.stringify(validatedStats));
+      localStorage.setItem('marketStatsTimestamp', Date.now().toString());
+    } catch (e) {
+      console.error('Error caching stats:', e);
+    }
+    
+    return validatedStats;
+  }, []);
+
   // Fetch items with filters
   const fetchItems = useCallback(async () => {
     try {
@@ -267,23 +321,90 @@ function Marketplace({ user }) {
     );
   }, []);
 
-  // Function to handle stats updates from socket
-  const handleStatsUpdate = useCallback((updatedStats) => {
-    console.log('Received market stats update:', updatedStats);
+  // Set up socket connection for marketplace stats with fallback
+  useEffect(() => {
+    // Set current page for socket service
+    socketService.setCurrentPage('marketplace');
     
-    // Ensure we don't try to destructure null or undefined
-    if (updatedStats && typeof updatedStats === 'object' && isValidStats(updatedStats)) {
-      console.log('Updating stats from socket');
-      setMarketStats(updatedStats);
-      lastValidStatsRef.current = updatedStats;
+    // Function to handle connection status
+    const handleConnectionStatus = (isConnected) => {
+      if (isConnected) {
+        console.log('Socket connected, requesting stats');
+        // Request stats only if connected
+        socketService.requestStats();
+      } else {
+        console.log('Socket disconnected, using HTTP fallback for stats');
+        // If socket disconnected, fetch stats via HTTP
+        fetchMarketStats();
+      }
+    };
+
+    // Function to handle market stats from socket
+    const handleMarketStats = (statsData) => {
+      console.log('Received market_stats event data:', statsData);
       
-      // Update cache with latest stats
-      localStorage.setItem('marketStats', JSON.stringify(updatedStats));
-      localStorage.setItem('marketStatsTimestamp', Date.now().toString());
+      if (!statsData || typeof statsData !== 'object') {
+        console.warn('Invalid data received in market_stats event:', statsData);
+        return;
+      }
+      
+      try {
+        // Map server stats structure to client structure
+        const newStats = {
+          totalItems: typeof statsData.activeListings === 'number' ? statsData.activeListings : 0,
+          totalSales: typeof statsData.completedTrades === 'number' ? statsData.completedTrades : 0,
+          activeListings: typeof statsData.activeListings === 'number' ? statsData.activeListings : 0,
+          // Handle onlineUsers which can be either a number or an object with total property
+          onlineUsers: typeof statsData.onlineUsers === 'object' && statsData.onlineUsers !== null
+            ? (typeof statsData.onlineUsers.total === 'number' ? statsData.onlineUsers.total : 0)
+            : (typeof statsData.activeUsers === 'number' ? statsData.activeUsers : 0)
+        };
+        
+        console.log('Mapped market_stats for client:', newStats);
+        
+        if (isValidStats(newStats)) {
+          console.log('Updating market stats from socket');
+          setMarketStats(newStats);
+          lastValidStatsRef.current = newStats;
+          localStorage.setItem('marketStats', JSON.stringify(newStats));
+          localStorage.setItem('marketStatsTimestamp', Date.now().toString());
+        }
+      } catch (error) {
+        console.error('Error processing market_stats event:', error);
+      }
+    };
+    
+    // Register connection status handlers
+    socketService.onConnected(() => handleConnectionStatus(true));
+    socketService.onDisconnected(() => handleConnectionStatus(false));
+    
+    // Connect socket if not already connected
+    if (!socketService.isConnected()) {
+      console.log('Connecting socket from Marketplace component');
+      socketService.connect(auth?.token || null);
     } else {
-      console.warn('Received invalid stats from socket:', updatedStats);
+      // Already connected, request stats
+      socketService.requestStats();
     }
-  }, [isValidStats]);
+    
+    // Set up listener for marketplace stats
+    socketService.onMarketStats(handleMarketStats);
+    
+    // Fetch stats on mount regardless of socket state
+    fetchMarketStats();
+    
+    // Fetch initial items
+    fetchItems();
+    
+    // Clean up on unmount
+    return () => {
+      console.log('Cleaning up Marketplace component');
+      socketService.offMarketStats();
+      socketService.onConnected(null); // Remove the callback
+      socketService.onDisconnected(null); // Remove the callback
+      socketService.setCurrentPage(null);
+    };
+  }, [fetchMarketStats, isValidStats, auth, fetchItems]);
 
   // Fetch user profile
   const fetchUserProfile = useCallback(async () => {
@@ -319,51 +440,6 @@ function Marketplace({ user }) {
     }
   }, [user]);
 
-  // Add a useEffect to handle socket stats updates, modified to use caching
-  useEffect(() => {
-    // Socket handler for stats updates
-    const handleStatsUpdate = (statsData) => {
-      console.log('Received stats update from socket:', statsData);
-      
-      if (!statsData) return;
-      
-      // Create new stats object, using existing values as fallback
-      // Ensure we're not trying to destructure null or undefined
-      const newStats = {
-        totalItems: typeof statsData === 'object' && statsData !== null ? (statsData.activeListings || 0) : 0,
-        totalSales: typeof statsData === 'object' && statsData !== null ? (statsData.totalSales || 0) : 0,
-        activeListings: typeof statsData === 'object' && statsData !== null ? (statsData.activeListings || 0) : 0,
-        onlineUsers: typeof statsData === 'object' && statsData !== null ? (statsData.onlineUsers || 0) : 0
-      };
-      
-      // Only update if we have meaningful data
-      if (newStats.activeListings > 0 || newStats.totalItems > 0) {
-        setMarketStats(newStats);
-        lastValidStatsRef.current = newStats;
-        localStorage.setItem('cachedMarketStats', JSON.stringify(newStats));
-      }
-    };
-    
-    // Register socket handler
-    socketService.on('stats_update', handleStatsUpdate);
-    
-    // Request stats update when component mounts
-    if (socketService.isConnected()) {
-      socketService.requestStats();
-    } else {
-      socketService.reconnect();
-      setTimeout(() => {
-        if (socketService.isConnected()) {
-          socketService.requestStats();
-        }
-      }, 500);
-    }
-    
-    return () => {
-      socketService.off('stats_update', handleStatsUpdate);
-    };
-  }, []);  // Remove marketStats from dependency array to avoid infinite loop
-
   // Check if token is about to expire and refresh it
   useEffect(() => {
     if (!auth || !auth.token) return;
@@ -397,92 +473,6 @@ function Marketplace({ user }) {
     
     return () => clearInterval(interval);
   }, [auth]);
-
-  // Set up socket connection for marketplace stats with fallback
-  useEffect(() => {
-    // Set current page for socket service
-    socketService.setCurrentPage('marketplace');
-    
-    // Function to handle connection status
-    const handleConnectionStatus = (isConnected) => {
-      if (isConnected) {
-        console.log('Socket connected, requesting stats');
-        // Request stats only if connected
-        socketService.requestStats();
-      } else {
-        console.log('Socket disconnected, using HTTP fallback for stats');
-        // If socket disconnected, fetch stats via HTTP
-        fetchMarketStats();
-      }
-    };
-    
-    // Register connection status handlers
-    socketService.onConnected(() => handleConnectionStatus(true));
-    socketService.onDisconnected(() => handleConnectionStatus(false));
-    
-    // Connect socket if not already connected
-    if (!socketService.isConnected()) {
-      console.log('Connecting socket from Marketplace component');
-      socketService.connect(auth?.token || null);
-    } else {
-      // Already connected, request stats
-      socketService.requestStats();
-    }
-    
-    // Set up listener for marketplace stats
-    socketService.onMarketStats(handleStatsUpdate);
-    
-    // Fetch stats on mount regardless of socket state
-    fetchMarketStats();
-    
-    // Fetch initial items
-    fetchItems();
-    
-    // Clean up on unmount
-    return () => {
-      console.log('Cleaning up Marketplace component');
-      socketService.offMarketStats();
-      socketService.onConnected(null); // Remove the callback
-      socketService.onDisconnected(null); // Remove the callback
-      socketService.setCurrentPage(null);
-    };
-  }, [fetchMarketStats, handleStatsUpdate, auth, fetchItems]);
-
-  // Function to update market stats with validation
-  const updateMarketStats = useCallback((newStats) => {
-    // Ensure lastValidStatsRef.current is initialized
-    if (!lastValidStatsRef.current) {
-      lastValidStatsRef.current = {
-        totalItems: 0,
-        totalSales: 0,
-        activeListings: 0,
-        onlineUsers: 0
-      };
-    }
-    
-    // Validate stats and use last valid values for any missing/invalid properties
-    const validatedStats = {
-      totalItems: newStats && newStats.activeListings >= 0 ? newStats.activeListings : (lastValidStatsRef.current?.activeListings || 0),
-      totalSales: newStats && newStats.totalSales >= 0 ? newStats.totalSales : (lastValidStatsRef.current?.totalSales || 0),
-      activeListings: newStats && newStats.activeListings >= 0 ? newStats.activeListings : (lastValidStatsRef.current?.activeListings || 0),
-      onlineUsers: newStats && newStats.onlineUsers >= 0 ? newStats.onlineUsers : (lastValidStatsRef.current?.onlineUsers || 0),
-    };
-    
-    // Update ref with valid stats
-    lastValidStatsRef.current = validatedStats;
-    
-    // Update state
-    setMarketStats(validatedStats);
-    
-    // Cache in localStorage
-    try {
-      localStorage.setItem('cachedMarketStats', JSON.stringify(validatedStats));
-    } catch (e) {
-      console.error('Error caching stats:', e);
-    }
-    
-    return validatedStats;
-  }, []);
 
   // Handle connection status with minimal side-effects
   useEffect(() => {
