@@ -1,6 +1,7 @@
 import io from "socket.io-client";
 import { API_URL } from "../config/constants";
-import { getToken } from "./authService";
+// Remove import from non-existent authService
+// import { getToken } from "./authService";
 import config from "../config";
 import { toast } from "react-toastify";
 
@@ -10,6 +11,9 @@ const LAST_DISCONNECT_KEY = "socket_last_disconnect";
 const CONNECTION_ID_KEY = "socket_connection_id";
 const CURRENT_PAGE_KEY = "socket_current_page";
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+
+// Helper function to get the auth token
+const getToken = () => localStorage.getItem("auth_token");
 
 class SocketService {
   constructor() {
