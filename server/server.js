@@ -498,13 +498,15 @@ const io = new Server(server, {
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
   },
-  // Add adapter configuration only if Redis is available
-  ...(redisAdapter ? { adapter: redisAdapter } : {}),
-  // Add additional settings to improve stability
+  transports: ["websocket", "polling"],
   pingTimeout: 60000,
   pingInterval: 25000,
-  transports: ["websocket", "polling"],
+  cookie: false,
 });
+
+// Set the io instance in our io.js module
+const ioModule = require("./services/io");
+ioModule.setIo(io);
 
 // Socket middleware for authentication
 io.use(async (socket, next) => {
