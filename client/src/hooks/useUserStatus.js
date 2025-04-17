@@ -89,6 +89,44 @@ const useUserStatus = (userId, initialStatus = null) => {
     }, 300);
   };
 
+  // Handle user status update event from socket
+  const handleUserStatusUpdate = (data) => {
+    if (!data || data.userId !== userId) return;
+
+    debug("Received real-time status update through socket", data);
+
+    // Update status with the real-time data
+    setStatus({
+      isOnline: data.isOnline,
+      lastSeen: data.lastSeen || new Date(),
+      lastSeenFormatted:
+        data.lastSeenFormatted || formatLastSeen(data.lastSeen || new Date()),
+      source: "socket",
+    });
+
+    setLoading(false);
+    setError(null);
+
+    // Cache the updated status
+    try {
+      const statusCache = JSON.parse(
+        localStorage.getItem("user_status_cache") || "{}"
+      );
+      statusCache[userId] = {
+        isOnline: data.isOnline,
+        lastSeen: data.lastSeen || new Date(),
+        lastSeenFormatted:
+          data.lastSeenFormatted || formatLastSeen(data.lastSeen || new Date()),
+        timestamp: Date.now(),
+        source: "socket",
+      };
+      localStorage.setItem("user_status_cache", JSON.stringify(statusCache));
+      debug("Cached user status from socket in localStorage");
+    } catch (err) {
+      console.error("Error caching user status from socket:", err);
+    }
+  };
+
   // Fetch status from server
   const fetchStatus = async () => {
     if (!userId) return;
@@ -184,7 +222,7 @@ const useUserStatus = (userId, initialStatus = null) => {
       });
 
       if (response.data) {
-        debug(`Socket-based status response:`, response.data);
+        debug("Got status from socket endpoint:", response.data);
 
         setStatus({
           isOnline: response.data.isOnline,
@@ -192,80 +230,83 @@ const useUserStatus = (userId, initialStatus = null) => {
           lastSeenFormatted:
             response.data.lastSeenFormatted ||
             formatLastSeen(response.data.lastSeen),
-          source: "socket",
+          source: "api",
         });
 
         setLoading(false);
         setError(null);
         retryCountRef.current = 0;
+      } else {
+        throw new Error("Empty response from server");
       }
     } catch (err) {
-      debug("Error fetching status:", err);
       console.error("Error fetching user status:", err);
 
-      if (retryCountRef.current < MAX_RETRIES) {
-        // Exponential backoff for retries
-        const delay = Math.pow(2, retryCountRef.current) * 1000;
-        debug(
-          `Retrying after ${delay}ms (attempt ${
-            retryCountRef.current + 1
-          }/${MAX_RETRIES})`
-        );
+      // Increment retry count
+      retryCountRef.current++;
 
-        retryCountRef.current++;
-        statusTimeoutRef.current = setTimeout(fetchStatus, delay);
-      } else {
-        setError(err);
-        setLoading(false);
-      }
-    }
-  };
+      // Set error after max retries
+      if (retryCountRef.current >= MAX_RETRIES) {
+        setError(err.message || "Failed to get user status");
 
-  // Handle socket status updates
-  useEffect(() => {
-    // Create stable reference to the handler function
-    handleStatusUpdateRef.current = (data) => {
-      if (data && data.userId === userId) {
-        debug(`Received socket status update:`, data);
-
-        // Use the server-provided formatted time or our local formatting
-        const formattedTime =
-          data.lastSeenFormatted || formatLastSeen(data.lastSeen);
-
-        setStatus((prev) => ({
-          ...prev,
-          isOnline: data.isOnline,
-          lastSeen: data.lastSeen,
-          lastSeenFormatted: formattedTime,
-          source: "socket-update",
-        }));
-
-        // Reset loading and error states since we have data
-        setLoading(false);
-        setError(null);
-
-        // Update cache
+        // Use cached status if available after all retries fail
         try {
           const statusCache = JSON.parse(
             localStorage.getItem("user_status_cache") || "{}"
           );
-          statusCache[userId] = {
-            isOnline: data.isOnline,
-            lastSeen: data.lastSeen,
-            lastSeenFormatted: formattedTime,
-            timestamp: Date.now(),
-            source: "socket-update",
-          };
-          localStorage.setItem(
-            "user_status_cache",
-            JSON.stringify(statusCache)
-          );
-        } catch (err) {
-          console.error("Error updating status cache:", err);
+          const cachedStatus = statusCache[userId];
+
+          if (cachedStatus) {
+            debug("Using cached status after fetch failure:", cachedStatus);
+            setStatus({
+              isOnline: cachedStatus.isOnline,
+              lastSeen: cachedStatus.lastSeen,
+              lastSeenFormatted: cachedStatus.lastSeenFormatted,
+              source: "cache",
+            });
+          }
+        } catch (cacheErr) {
+          debug("Error reading from cache:", cacheErr);
         }
+      } else {
+        // Retry after a delay (with backoff)
+        const delay = Math.min(1000 * Math.pow(2, retryCountRef.current), 5000);
+        debug(`Will retry in ${delay}ms (attempt ${retryCountRef.current})`);
+
+        fetchTimeoutRef.current = setTimeout(fetchStatus, delay);
       }
-    };
-  }, [userId]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Detect socket connection changes
+  const isConnected = () => {
+    return (
+      socketService && socketService.isConnected && socketService.isConnected()
+    );
+  };
+
+  // Subscribe to user status via socket
+  const subscribeToUserStatus = () => {
+    if (!userId) return;
+
+    if (isConnected()) {
+      debug("Subscribing to real-time status updates via socket");
+
+      // Use socketService directly
+      socketService.watchUserStatus(userId);
+
+      debug("Registered socket event handler");
+    } else {
+      debug("Socket not connected, will try to subscribe later");
+
+      // Try to reconnect the socket if not connected
+      if (socketService) {
+        socketService.reconnect();
+      }
+    }
+  };
 
   // Initialize status tracking
   useEffect(() => {
@@ -294,28 +335,45 @@ const useUserStatus = (userId, initialStatus = null) => {
       debug("Error reading from cache:", err);
     }
 
+    // Store the handler in ref so it's accessible to cleanup and other functions
+    handleStatusUpdateRef.current = handleUserStatusUpdate;
+
     // Register socket event handler
     if (!socketRegisteredRef.current) {
-      debug("Registering socket event handlers");
+      debug("Setting up socket event listeners");
 
       // Listen for user status updates
-      socketService.on("userStatusUpdate", (data) => {
-        if (handleStatusUpdateRef.current) {
-          handleStatusUpdateRef.current(data);
-        }
+      socketService.on("user_status_update", handleStatusUpdateRef.current);
+
+      // Also listen for general socket connection events to resubscribe when needed
+      socketService.onConnected(() => {
+        debug("Socket reconnected, resubscribing to status updates");
+        subscribeToUserStatus();
+        fetchStatus(); // Also fetch fresh status
       });
 
       socketRegisteredRef.current = true;
     }
 
-    // Subscribe to status updates for this user
-    socketService.subscribeToUserStatus(userId);
+    // Initial subscription to status updates
+    subscribeToUserStatus();
 
     // Fetch initial status from server
     fetchStatus();
 
-    // Set up periodic status checks
-    statusTimeoutRef.current = setInterval(fetchStatus, 60000); // Check every minute
+    // Set up periodic status checks (less frequent - every 60 seconds)
+    statusTimeoutRef.current = setInterval(fetchStatus, 60000);
+
+    // Set up visibility change listener to update status when tab becomes active
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        debug("Tab became visible, checking latest status");
+        fetchStatus();
+        subscribeToUserStatus(); // Resubscribe to status updates
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // Clean up on unmount
     return () => {
@@ -330,20 +388,22 @@ const useUserStatus = (userId, initialStatus = null) => {
       }
 
       if (socketRegisteredRef.current) {
-        socketService.off("userStatusUpdate");
+        socketService.off("user_status_update", handleStatusUpdateRef.current);
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange
+        );
         socketRegisteredRef.current = false;
       }
     };
   }, [userId]);
 
-  // Return status and related functions
   return {
     status,
     loading,
     error,
-    checkStatus, // Function to manually trigger a status check
-    formatLastSeen, // Helper function to format timestamps
-    isConnected: socketService.isConnected(), // Socket connection status
+    checkStatus,
+    isConnected: isConnected(),
   };
 };
 

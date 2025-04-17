@@ -5,8 +5,8 @@ import socketService from '../services/socketService';
 import useUserStatus from '../hooks/useUserStatus';
 import '../styles/SellerStatus.css';
 
-// Add a global debugging flag - DEBUG mode
-const DEBUG_MODE = true;
+// Set DEBUG_MODE to false to disable the debug panel
+const DEBUG_MODE = false;
 
 const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStatus = null }) => {
   const { status, loading, error, checkStatus, isConnected } = useUserStatus(sellerId, forceStatus);

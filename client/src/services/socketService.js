@@ -671,13 +671,54 @@ if (socketService.socket) {
  * Request status updates for a specific user
  * @param {string} userId - The user ID to watch
  */
-const watchUserStatus = (userId) => {
-  if (!socketService.socket || !socketService.socket.connected) {
-    console.error("Socket not connected, cannot watch user status");
+socketService.watchUserStatus = (userId) => {
+  if (!userId) {
+    console.error(
+      "[socketService] Cannot watch user status: userId is required"
+    );
     return false;
   }
 
+  // Attempt to reconnect if not connected
+  if (!socketService.isConnected()) {
+    console.log(
+      `[socketService] Socket not connected, attempting to reconnect for watching ${userId}`
+    );
+    socketService.reconnect();
+
+    // Schedule a retry after the reconnection attempt
+    setTimeout(() => {
+      if (socketService.isConnected()) {
+        console.log(
+          `[socketService] Successfully reconnected, now watching user ${userId}`
+        );
+        socketService.socket.emit("watch_user_status", userId);
+      } else {
+        console.warn(
+          `[socketService] Failed to reconnect for watching user ${userId}`
+        );
+      }
+    }, 1000);
+
+    return false;
+  }
+
+  console.log(`[socketService] Watching status updates for user ${userId}`);
   socketService.socket.emit("watch_user_status", userId);
+
+  // Add to tracked users in local storage
+  try {
+    const watchedUsers = JSON.parse(
+      localStorage.getItem("watched_users") || "[]"
+    );
+    if (!watchedUsers.includes(userId)) {
+      watchedUsers.push(userId);
+      localStorage.setItem("watched_users", JSON.stringify(watchedUsers));
+    }
+  } catch (error) {
+    console.error("[socketService] Error tracking watched user:", error);
+  }
+
   return true;
 };
 
@@ -685,12 +726,25 @@ const watchUserStatus = (userId) => {
  * Request a one-time status update for a user
  * @param {string} userId - The user ID to get status for
  */
-const requestUserStatus = (userId) => {
-  if (!socketService.socket || !socketService.socket.connected) {
-    console.error("Socket not connected, cannot request user status");
+socketService.requestUserStatus = (userId) => {
+  if (!userId) {
+    console.error(
+      "[socketService] Cannot request user status: userId is required"
+    );
     return false;
   }
 
+  if (!socketService.isConnected()) {
+    console.warn(
+      `[socketService] Socket not connected, cannot request status for user ${userId}`
+    );
+    socketService.reconnect();
+    return false;
+  }
+
+  console.log(
+    `[socketService] Requesting one-time status update for user ${userId}`
+  );
   socketService.socket.emit("request_user_status", userId);
   return true;
 };
@@ -699,17 +753,61 @@ const requestUserStatus = (userId) => {
  * Add a listener for user status updates
  * @param {Function} callback - Function to call when a status update is received
  */
-const onUserStatusUpdate = (callback) => {
-  if (!socketService.socket) {
-    console.error("Socket not initialized, cannot listen for status updates");
+socketService.onUserStatusUpdate = (callback) => {
+  if (!callback || typeof callback !== "function") {
+    console.error("[socketService] Invalid callback for user status updates");
     return false;
   }
 
-  socketService.socket.on("user_status_update", callback);
+  // Add this listener to the socket
+  socketService.on("user_status_update", callback);
+
+  // If socket is connected, resubscribe to all watched users to ensure updates
+  if (socketService.isConnected()) {
+    try {
+      const watchedUsers = JSON.parse(
+        localStorage.getItem("watched_users") || "[]"
+      );
+      watchedUsers.forEach((userId) => {
+        socketService.socket.emit("watch_user_status", userId);
+      });
+    } catch (error) {
+      console.error(
+        "[socketService] Error resubscribing to watched users:",
+        error
+      );
+    }
+  }
+
   return true;
 };
 
-// Extend the singleton with additional methods
-socketService.watchUserStatus = watchUserStatus;
-socketService.requestUserStatus = requestUserStatus;
-socketService.onUserStatusUpdate = onUserStatusUpdate;
+// Add a method to handle socket reconnections specifically for status tracking
+socketService.reconnectStatusTracking = () => {
+  if (!socketService.isConnected()) {
+    socketService.reconnect();
+  }
+
+  // Resubscribe to all tracked users
+  setTimeout(() => {
+    if (socketService.isConnected()) {
+      try {
+        const watchedUsers = JSON.parse(
+          localStorage.getItem("watched_users") || "[]"
+        );
+        console.log(
+          `[socketService] Resubscribing to ${watchedUsers.length} watched users after reconnect`
+        );
+
+        watchedUsers.forEach((userId) => {
+          socketService.socket.emit("watch_user_status", userId);
+        });
+      } catch (error) {
+        console.error(
+          "[socketService] Error resubscribing to watched users:",
+          error
+        );
+      }
+    }
+  }, 1000);
+};
