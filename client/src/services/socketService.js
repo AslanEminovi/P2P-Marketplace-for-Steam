@@ -85,6 +85,7 @@ class SocketService {
           "[SocketService] Sending final activity ping before background"
         );
         this.socket.emit("user_active");
+        // We still want to maintain the heartbeat - don't stop it
       }
     }
   }
@@ -616,32 +617,34 @@ class SocketService {
     // Clear any existing heartbeat interval
     this.stopHeartbeat();
 
-    // Set up new heartbeat interval - use a shorter interval when tab is active
-    this.heartbeatInterval = setInterval(
-      () => {
-        if (this.isConnected()) {
-          // Always send heartbeat if connected, even if tab is not active
-          // This maintains the user's online status as long as the tab is open
-          const isActive = this.isBrowserTabActive;
-          console.log(
-            `[SocketService] Sending heartbeat (tab active: ${isActive})`
-          );
-          this.socket.emit("heartbeat");
+    // Set up new heartbeat interval
+    this.heartbeatInterval = setInterval(() => {
+      if (this.isConnected()) {
+        // Always send heartbeat if connected, regardless of tab activity
+        // This maintains the user's online status as long as the tab is open
+        const isActive = this.isBrowserTabActive;
+        console.log(
+          `[SocketService] Sending heartbeat (tab active: ${isActive})`
+        );
+        this.socket.emit("heartbeat");
 
-          // Only send user_active if the tab is actually visible
-          if (this.isBrowserTabActive) {
-            this.socket.emit("user_active");
+        // Always send user_active to maintain connection and update last activity time
+        this.socket.emit("user_active");
 
-            // Resend current page info if tab is active
-            this.emit("page_view", { page: this.currentPage });
-          }
-
-          // For debugging purposes, log the current socket ID
-          console.log("[SocketService] Current socket ID:", this.socket.id);
+        // Only resend page info if tab is active to avoid polluting logs
+        if (this.isBrowserTabActive) {
+          this.emit("page_view", { page: this.currentPage });
         }
-      },
-      this.isBrowserTabActive ? 30000 : 60000
-    ); // 30s when active, 60s when inactive
+
+        // For debugging purposes, log the current socket ID
+        console.log("[SocketService] Current socket ID:", this.socket.id);
+      } else {
+        console.log(
+          "[SocketService] Socket disconnected, attempting to reconnect"
+        );
+        this.reconnect();
+      }
+    }, 25000); // 25 seconds regardless of tab state - consistent heartbeat interval
   }
 
   // Manually trigger a heartbeat
@@ -701,17 +704,39 @@ window.addEventListener("beforeunload", (event) => {
     console.log(
       "[SocketService] Browser tab/window closing detected (beforeunload)"
     );
-    // Try to send a synchronous message - this is more reliable for tab closure detection
-    socketService.socket.emit("browser_closing", {
-      reason: "beforeunload",
-      timestamp: Date.now(),
-    });
 
-    // Try to ensure the request has time to reach the server
-    // This is a trick to slightly delay tab close
-    const start = Date.now();
-    while (Date.now() - start < 50) {
-      // Small delay to allow the message to be sent
+    try {
+      // Try to send a synchronous message - this is more reliable for tab closure detection
+      const closeNotification = {
+        reason: "beforeunload",
+        timestamp: Date.now(),
+        socketId: socketService.socket.id,
+      };
+
+      // Use synchronous XHR as a backup - Socket.io might not have time to send
+      // This is more reliable than socket when tab is closing
+      if (navigator.sendBeacon) {
+        const beaconUrl = `${API_URL}/api/user/closing`;
+        const blob = new Blob([JSON.stringify(closeNotification)], {
+          type: "application/json",
+        });
+        navigator.sendBeacon(beaconUrl, blob);
+        console.log("[SocketService] Sent closing beacon");
+      }
+
+      // Also try via socket.io
+      socketService.socket.emit("browser_closing", closeNotification);
+
+      // Small delay to allow message to be sent
+      const start = Date.now();
+      while (Date.now() - start < 50) {
+        // Small delay loop
+      }
+    } catch (error) {
+      console.error(
+        "[SocketService] Error during tab close notification:",
+        error
+      );
     }
   }
 });
@@ -720,10 +745,28 @@ window.addEventListener("beforeunload", (event) => {
 window.addEventListener("unload", (event) => {
   if (socketService.isConnected()) {
     console.log("[SocketService] Browser tab/window closing detected (unload)");
-    socketService.socket.emit("browser_closing", {
-      reason: "unload",
-      timestamp: Date.now(),
-    });
+
+    try {
+      const closeNotification = {
+        reason: "unload",
+        timestamp: Date.now(),
+        socketId: socketService.socket.id,
+      };
+
+      // Use beacon API for more reliable delivery during page unload
+      if (navigator.sendBeacon) {
+        const beaconUrl = `${API_URL}/api/user/closing`;
+        const blob = new Blob([JSON.stringify(closeNotification)], {
+          type: "application/json",
+        });
+        navigator.sendBeacon(beaconUrl, blob);
+      }
+
+      // Try socket.io as well, but it's less reliable during unload
+      socketService.socket.emit("browser_closing", closeNotification);
+    } catch (error) {
+      // Can't do much with errors during unload
+    }
   }
 });
 

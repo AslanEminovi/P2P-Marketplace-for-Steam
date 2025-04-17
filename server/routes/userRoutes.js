@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/userController");
 const requireAuth = require("../middleware/requireAuth");
+const io = require("../services/io");
 
 // All user routes require authentication
 router.use(requireAuth);
@@ -250,6 +251,63 @@ router.get("/debug-status", async (req, res) => {
       message: error.message,
       stack: process.env.NODE_ENV !== "production" ? error.stack : undefined,
     });
+  }
+});
+
+// Add a route to handle browser closing events via Beacon API
+router.post("/api/user/closing", async (req, res) => {
+  try {
+    const closeData = req.body;
+    console.log(
+      "[userRoutes] Received browser closing notification:",
+      closeData
+    );
+
+    // Find the socket ID in the request
+    const socketId = closeData.socketId;
+
+    if (socketId) {
+      // Check if we have a socket server and this socket exists
+      if (io?.sockets?.sockets) {
+        const socket = io.sockets.sockets.get(socketId);
+
+        if (socket) {
+          console.log(
+            `[userRoutes] Found socket ${socketId} from closing notification, processing disconnect`
+          );
+
+          // If socket exists, get the userId from the socket if it has one
+          const userId = socket.userId;
+
+          if (userId) {
+            // Use the UserStatusManager to handle this like a socket disconnect
+            const userStatusManager = require("../services/UserStatusManager");
+            userStatusManager.handleDisconnect(userId, socketId);
+            console.log(
+              `[userRoutes] Processed closing notification for user ${userId}, socket ${socketId}`
+            );
+          } else {
+            console.log(
+              `[userRoutes] Socket ${socketId} has no userId, treating as anonymous disconnect`
+            );
+          }
+        } else {
+          console.log(
+            `[userRoutes] Socket ${socketId} not found, might already be disconnected`
+          );
+        }
+      }
+    }
+
+    // Always return 200 OK immediately for beacon requests
+    res.status(200).send();
+  } catch (error) {
+    console.error(
+      "[userRoutes] Error processing browser closing notification:",
+      error
+    );
+    // Still return 200 OK for beacon API - client won't see the response anyway
+    res.status(200).send();
   }
 });
 

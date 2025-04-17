@@ -407,7 +407,7 @@ class UserStatusManager {
           continue;
         }
 
-        // For normal users, check if they have any active sockets
+        // For normal users, the ONLY criteria is whether they have active sockets
         if (userInfo.socketIds.size === 0) {
           console.log(
             `[UserStatusManager] User ${userId} has no active sockets, marking offline`
@@ -416,17 +416,18 @@ class UserStatusManager {
           continue;
         }
 
-        // Check if all sockets are physically disconnected
-        let allSocketsDisconnected = true;
+        // Find and remove any disconnected sockets (zombie connections)
+        let activeSocketsCount = 0;
+        let zombieSocketsCount = 0;
 
         // Check each socket associated with this user
         for (const socketId of userInfo.socketIds) {
           // If we can't get the socket object or it's disconnected, consider it dead
           const socket = io?.sockets?.sockets?.get(socketId);
           if (socket && socket.connected) {
-            allSocketsDisconnected = false;
+            activeSocketsCount++;
 
-            // If we find even one active socket, ping it to verify it's still alive
+            // Ping the socket to ensure it's responsive
             try {
               socket.emit("ping", { timestamp: Date.now() });
             } catch (socketError) {
@@ -434,45 +435,44 @@ class UserStatusManager {
                 `[UserStatusManager] Error pinging socket ${socketId}:`,
                 socketError
               );
+              // Even if ping fails, we'll give it the benefit of the doubt
             }
-
-            break; // One active socket is enough to keep the user online
+          } else {
+            // This is a zombie socket, need to remove it
+            userInfo.socketIds.delete(socketId);
+            zombieSocketsCount++;
           }
         }
 
-        // If all sockets are disconnected, mark user as offline
-        if (allSocketsDisconnected) {
+        // Log zombie socket cleanup
+        if (zombieSocketsCount > 0) {
           console.log(
-            `[UserStatusManager] All sockets for user ${userId} are physically disconnected, marking offline`
+            `[UserStatusManager] Cleaned up ${zombieSocketsCount} zombie sockets for user ${userId}, ${userInfo.socketIds.size} active sockets remain`
           );
-          usersToRemove.push(userId);
         }
 
-        // Update last active time but don't mark user offline for inactivity
-        // We're just tracking inactivity but keeping the user online as long as they have active sockets
-        const inactiveTime = now - userInfo.lastActive;
-        if (inactiveTime > 30 * 1000) {
-          // 30 seconds
+        // If after removing zombies there are no sockets left, mark user offline
+        if (userInfo.socketIds.size === 0) {
           console.log(
-            `[UserStatusManager] User ${userId} has been inactive for ${Math.round(
-              inactiveTime / 1000
-            )} seconds but has active sockets, keeping online`
+            `[UserStatusManager] User ${userId} has no active sockets after zombie cleanup, marking offline`
           );
-
-          // Update DB with the current lastActive time to maintain accurate records
-          // but don't change the isOnline status
-          this.updateLastActiveInDatabase(userId, userInfo.lastActive).catch(
-            (err) => {
-              console.error(
-                `[UserStatusManager] Error updating lastActive for inactive user ${userId}:`,
-                err
-              );
-            }
-          );
+          usersToRemove.push(userId);
+        } else {
+          // User has active sockets - they're online regardless of activity time
+          // We'll just track the last active time for display purposes
+          const inactiveTime = now - userInfo.lastActive;
+          if (inactiveTime > 60 * 60 * 1000) {
+            // 1 hour for logging purposes only
+            console.log(
+              `[UserStatusManager] User ${userId} has been inactive for ${Math.round(
+                inactiveTime / 60000
+              )} minutes but has active connections, keeping online`
+            );
+          }
         }
       }
 
-      // Remove users who have all sockets disconnected
+      // Remove users who have no active sockets
       for (const userId of usersToRemove) {
         this.onlineUsers.delete(userId);
 
