@@ -4,7 +4,7 @@
  */
 
 const jwt = require("jsonwebtoken");
-const redis = require("../config/redis");
+const redisModule = require("../config/redis");
 const User = require("../models/User");
 
 // Make these variables not constants so we can reassign them
@@ -32,8 +32,8 @@ const REDIS_CHANNEL_USER_STATUS = "user_status";
 const REDIS_CHANNEL_MARKET_UPDATE = "market_update";
 const REDIS_CHANNEL_TRADE_UPDATE = "trade_update";
 
-// Check if Redis is enabled - always use if REDIS_URL is available
-let isRedisEnabled = !!process.env.REDIS_URL;
+// Check if Redis is enabled - use the flag from the redis module
+let isRedisEnabled = redisModule.USE_REDIS;
 
 /**
  * Format last seen time for user-friendly display
@@ -87,22 +87,18 @@ const init = async (ioInstance) => {
   }
   console.log("Initializing socket service with Socket.io");
 
-  // Initialize Redis if URL is available (direct check)
-  isRedisEnabled = !!process.env.REDIS_URL;
+  // Get Redis flag from module
+  isRedisEnabled = redisModule.USE_REDIS;
+  console.log(
+    `[socketService] Redis is ${
+      isRedisEnabled ? "enabled" : "disabled"
+    } (USE_REDIS=${redisModule.USE_REDIS})`
+  );
 
   if (isRedisEnabled) {
     try {
-      // Display masked Redis URL for debugging without exposing credentials
-      const redisUrlForDisplay = process.env.REDIS_URL.includes("@")
-        ? "redis://" + process.env.REDIS_URL.split("@").pop()
-        : "redis://[masked]";
-
-      console.log(
-        `[socketService] Redis URL detected (${redisUrlForDisplay}), initializing Redis`
-      );
-
-      const redisModule = require("../config/redis");
-      const redisClients = redisModule.initRedis();
+      // Get clients from the redis module
+      const redisClients = redisModule.getClients();
 
       // Verify clients are created
       if (!redisClients.pubClient || !redisClients.subClient) {
@@ -113,25 +109,41 @@ const init = async (ioInstance) => {
       pubClient = redisClients.pubClient;
       subClient = redisClients.subClient;
 
-      // Test Redis connection with ping-pong
-      const pingResult = await pubClient.ping();
-      if (pingResult !== "PONG") {
-        throw new Error("Redis ping failed: " + pingResult);
-      }
-      console.log(`[socketService] Redis ping successful: ${pingResult}`);
-
-      // Publish test message to verify Redis is working
-      await pubClient.set(
-        "socket:test",
-        "Connection test at " + new Date().toISOString()
-      );
-      console.log("[socketService] Redis test write successful");
-
-      // Subscribe to Redis channels
-      initRedisSubscriptions();
       console.log(
-        "[socketService] Redis subscriptions initialized successfully"
+        `[socketService] Redis clients obtained, status: pub=${
+          pubClient?.status || "null"
+        }, sub=${subClient?.status || "null"}`
       );
+
+      // Test Redis connection with ping-pong
+      try {
+        const pingResult = await pubClient.ping();
+        if (pingResult !== "PONG") {
+          throw new Error("Redis ping failed: " + pingResult);
+        }
+        console.log(`[socketService] Redis ping successful: ${pingResult}`);
+
+        // Publish test message to verify Redis is working
+        await pubClient.set(
+          "socket:test",
+          "Connection test at " + new Date().toISOString(),
+          "EX",
+          60
+        );
+        console.log("[socketService] Redis test write successful");
+
+        // Subscribe to Redis channels
+        initRedisSubscriptions();
+        console.log(
+          "[socketService] Redis subscriptions initialized successfully"
+        );
+      } catch (testError) {
+        console.error(
+          "[socketService] Redis connection test failed:",
+          testError
+        );
+        throw testError;
+      }
     } catch (error) {
       console.error(
         "[socketService] Failed to initialize Redis for socket service:",
@@ -146,7 +158,7 @@ const init = async (ioInstance) => {
     }
   } else {
     console.log(
-      "[socketService] No REDIS_URL detected, using local tracking only"
+      "[socketService] Redis is disabled by configuration, using local tracking only"
     );
   }
 
@@ -331,7 +343,7 @@ const getLatestStats = async () => {
         );
         console.log(`[socketService] Redis test result: ${testResult}`);
 
-        const cachedStats = await redis.getCache("site:stats");
+        const cachedStats = await redisModule.getCache("site:stats");
 
         // If stats are recent (< 60 seconds old), use them
         if (
@@ -402,7 +414,7 @@ const getLatestStats = async () => {
         authenticatedActiveUsers = 0;
         for (const key of keys) {
           try {
-            const userStatus = await redis.getHashCache(
+            const userStatus = await redisModule.getHashCache(
               key.replace("cs2market:", "")
             );
             if (userStatus && userStatus.isOnline === true) {
@@ -486,7 +498,7 @@ const getLatestStats = async () => {
     if (isRedisEnabled && pubClient) {
       try {
         console.log("[socketService] Caching stats in Redis");
-        await redis.setCache("site:stats", stats, 30); // 30 seconds expiry
+        await redisModule.setCache("site:stats", stats, 30); // 30 seconds expiry
       } catch (cacheError) {
         console.error(
           "[socketService] Error caching stats in Redis:",
@@ -698,7 +710,7 @@ const getConnectedClientsCount = async () => {
       let onlineCount = 0;
 
       for (const key of keys) {
-        const userStatus = await redis.getHashCache(
+        const userStatus = await redisModule.getHashCache(
           key.replace("cs2market:", "")
         );
         if (userStatus && userStatus.isOnline === true) {
@@ -815,12 +827,16 @@ const sendNotification = (userId, notification) => {
 
 // Get user status - now with Redis
 const getUserStatus = async (userId) => {
-  if (!userId)
+  if (!userId) {
     return {
       isOnline: false,
       lastSeen: new Date(),
       lastSeenFormatted: "Unknown",
+      source: "default",
     };
+  }
+
+  console.log(`[socketService] Getting status for user ${userId}`);
 
   // First check if user has an active socket connection - most reliable
   const hasActiveSocket = activeSockets.has(userId);
@@ -831,17 +847,19 @@ const getUserStatus = async (userId) => {
       isOnline: true,
       lastSeen: lastSeen,
       lastSeenFormatted: formatLastSeen(lastSeen),
+      source: "socket",
     };
   }
 
   // Then check local tracking in memory
   if (activeUsers.has(userId)) {
-    const lastSeen = activeUsers.get(userId).lastSeen || new Date();
+    const lastSeen = activeUsers.get(userId)?.lastSeen || new Date();
     console.log(`[socketService] User ${userId} found in local tracking`);
     return {
       isOnline: true,
       lastSeen: lastSeen,
       lastSeenFormatted: formatLastSeen(lastSeen),
+      source: "memory",
     };
   }
 
@@ -854,17 +872,20 @@ const getUserStatus = async (userId) => {
         `user:${userId}:lastActive`
       );
 
+      console.log(
+        `[socketService] Redis status for ${userId}: status=${status}, lastActive=${lastActive}`
+      );
+
       if (status) {
         const lastSeen = lastActive
           ? new Date(parseInt(lastActive))
           : new Date();
-        console.log(
-          `[socketService] Redis status for user ${userId}: ${status}`
-        );
+
         return {
           isOnline: status === "online",
           lastSeen: lastSeen,
           lastSeenFormatted: formatLastSeen(lastSeen),
+          source: "redis",
         };
       }
     } catch (error) {
@@ -879,15 +900,25 @@ const getUserStatus = async (userId) => {
   try {
     const User = require("../models/User");
     const user = await User.findById(userId);
-    if (user && user.lastActive) {
-      const lastSeen = new Date(user.lastActive);
-      console.log(
-        `[socketService] Database status for user ${userId}: lastActive=${lastSeen}`
-      );
+
+    console.log(
+      `[socketService] Database user for ${userId}:`,
+      user
+        ? {
+            lastActive: user.lastActive,
+            isOnline: user.isOnline,
+          }
+        : "not found"
+    );
+
+    if (user) {
+      // If user exists in database, always return a valid status
+      const lastSeen = user.lastActive ? new Date(user.lastActive) : new Date();
       return {
         isOnline: false,
         lastSeen: lastSeen,
         lastSeenFormatted: formatLastSeen(lastSeen),
+        source: "database",
       };
     }
   } catch (error) {
@@ -898,10 +929,12 @@ const getUserStatus = async (userId) => {
   }
 
   // Default to offline with a timestamp rather than null
+  const now = new Date();
   return {
     isOnline: false,
-    lastSeen: new Date(),
+    lastSeen: now,
     lastSeenFormatted: "Recently",
+    source: "default",
   };
 };
 
@@ -949,7 +982,7 @@ const isUserConnected = (userId) => {
   }
 
   // If Redis is enabled, check there
-  if (isRedisEnabled && redis && redis.getHashCache) {
+  if (isRedisEnabled && redisModule && redisModule.getHashCache) {
     try {
       // This is async, but we need a sync check, so just log that we should check Redis
       console.log(

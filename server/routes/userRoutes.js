@@ -220,14 +220,32 @@ router.get("/direct-status/:userId", async (req, res) => {
   try {
     console.log(`[userRoutes] GET /direct-status/${userId} request received`);
 
+    // Add no-cache headers
+    res.set({
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      Pragma: "no-cache",
+    });
+
     // Get user data directly from the database
     const User = require("../models/User");
     const user = await User.findById(userId)
       .select("lastActive isOnline")
       .lean();
 
+    const now = new Date();
+    // Default values in case user is not found
+    let responseData = {
+      userId,
+      isOnline: false,
+      lastSeen: now,
+      lastSeenFormatted: "Recently",
+      timestamp: now,
+      source: "database",
+    };
+
     if (!user) {
-      return res.status(404).json({ error: "User not found" });
+      console.log(`[userRoutes] User ${userId} not found in database`);
+      return res.json(responseData);
     }
 
     console.log(`[userRoutes] Database status for ${userId}:`, {
@@ -236,16 +254,15 @@ router.get("/direct-status/:userId", async (req, res) => {
     });
 
     // Calculate online status based on last active time (consider online if active in last 10 minutes)
-    const now = new Date();
-    const lastActive = user.lastActive ? new Date(user.lastActive) : null;
+    const lastActive = user.lastActive ? new Date(user.lastActive) : now;
     const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
 
     // User is online if database says they're online OR they were active in the last 10 minutes
     const isOnline =
-      user.isOnline || (lastActive && lastActive > tenMinutesAgo);
+      user.isOnline === true || (lastActive && lastActive > tenMinutesAgo);
 
     // Format last seen time
-    let lastSeenFormatted = null;
+    let lastSeenFormatted = "Recently";
     if (lastActive) {
       const diffMs = now - lastActive;
 
@@ -284,13 +301,7 @@ router.get("/direct-status/:userId", async (req, res) => {
       }
     }
 
-    // Set cache-control headers (but don't use Expires header)
-    res.set({
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-      Pragma: "no-cache",
-    });
-
-    const responseData = {
+    responseData = {
       userId,
       isOnline,
       lastSeen: lastActive,
@@ -303,13 +314,21 @@ router.get("/direct-status/:userId", async (req, res) => {
       `[userRoutes] Sending direct-status response for ${userId}:`,
       responseData
     );
-    res.json(responseData);
+    return res.json(responseData);
   } catch (err) {
     console.error(
       `[userRoutes] Error getting direct status for ${userId}:`,
       err
     );
-    res.status(500).json({ error: "Error retrieving user status" });
+    // Send a default response even on error
+    return res.json({
+      userId,
+      isOnline: false,
+      lastSeen: new Date(),
+      lastSeenFormatted: "Recently",
+      timestamp: new Date(),
+      source: "error",
+    });
   }
 });
 

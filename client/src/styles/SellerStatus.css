@@ -5,14 +5,17 @@
   margin-top: 4px;
   max-width: 100%;
   overflow: hidden;
+  position: relative;
 }
 
 .status-indicator {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
   border: 1px solid rgba(0, 0, 0, 0.2);
+  position: relative;
+  transition: all 0.3s ease;
 }
 
 .status-indicator.online {
@@ -34,11 +37,25 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: all 0.2s ease;
 }
 
 .online-text {
   color: #4ade80;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.online-text::before {
+  content: "";
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: #4ade80;
+  margin-right: 4px;
+  animation: blink 2s infinite;
 }
 
 .offline-text {
@@ -53,10 +70,103 @@
   color: #64748b;
   font-size: 0.75rem;
   font-weight: 400;
-  margin-left: 2px;
+  margin-left: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  opacity: 0.8;
+}
+
+/* Modern UI status badge for debug view */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  gap: 4px;
+  margin-top: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.status-badge.online {
+  background-color: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.status-badge.offline {
+  background-color: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.debug-panel {
+  background: rgba(17, 24, 39, 0.95);
+  border: 1px solid rgba(75, 85, 99, 0.4);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 10px 0;
+  font-family: 'Roboto Mono', monospace;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.debug-info {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+}
+
+.debug-info div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.debug-label {
+  color: #d1d5db;
+  font-weight: 500;
+}
+
+.debug-value {
+  color: #9ca3af;
+}
+
+.debug-value.positive {
+  color: #4ade80;
+}
+
+.debug-value.negative {
+  color: #ef4444;
+}
+
+.refresh-button {
+  margin-top: 8px;
+  padding: 4px 8px;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.refresh-button:hover {
+  background-color: #2563eb;
+}
+
+.refresh-button:active {
+  transform: scale(0.98);
 }
 
 .seller-status-loading {
@@ -70,8 +180,8 @@
 .seller-status-loading::before {
   content: "";
   display: block;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   border: 2px solid rgba(100, 116, 139, 0.2);
   border-top-color: #64748b;
@@ -120,6 +230,16 @@
   }
   100% {
     box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+  }
+}
+
+/* Add a blink animation for the online text indicator */
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
   }
 }
 
