@@ -336,13 +336,35 @@ class UserStatusManager {
    */
   updateLastActive(userId) {
     if (!this.onlineUsers.has(userId)) {
+      console.log(
+        `[UserStatusManager] Cannot update lastActive for unknown user ${userId}`
+      );
       return;
     }
 
-    // Update last active time to current time instead of future date
+    // Update last active time to current time
     const userInfo = this.onlineUsers.get(userId);
-    userInfo.lastActive = new Date();
-    this.onlineUsers.set(userId, userInfo);
+    const now = new Date();
+    console.log(
+      `[UserStatusManager] Updating last active time for user ${userId} to ${now.toISOString()}`
+    );
+    userInfo.lastActive = now;
+
+    // Make sure this user is marked as online in the database too
+    if (!userInfo.isConfirmedOnline) {
+      userInfo.isConfirmedOnline = true;
+      this.onlineUsers.set(userId, userInfo);
+
+      // Also update database if needed
+      this.updateUserStatus(userId, true).catch((err) => {
+        console.error(
+          `[UserStatusManager] Error updating user ${userId} status in database:`,
+          err
+        );
+      });
+    } else {
+      this.onlineUsers.set(userId, userInfo);
+    }
   }
 
   /**
@@ -354,12 +376,36 @@ class UserStatusManager {
       const usersToRemove = [];
       const fiveMinutesAgo = new Date(now.getTime() - this.INACTIVE_TIMEOUT_MS);
 
+      console.log(
+        `[UserStatusManager] Running cleanup, checking for users inactive since ${fiveMinutesAgo.toISOString()}`
+      );
+      console.log(
+        `[UserStatusManager] Currently tracking ${this.onlineUsers.size} online users`
+      );
+
       // Check each user
       for (const [userId, userInfo] of this.onlineUsers.entries()) {
-        // Check if user has been inactive for 5 minutes
+        // Skip cleanup if debugging this user
+        if (userInfo.debug) {
+          console.log(
+            `[UserStatusManager] Skipping cleanup for debug user ${userId}`
+          );
+          continue;
+        }
+
+        // Log current user info for debugging
+        console.log(
+          `[UserStatusManager] Checking user ${userId}: lastActive=${userInfo.lastActive.toISOString()}, socketCount=${
+            userInfo.socketIds.size
+          }`
+        );
+
+        // Check if user has been inactive for the timeout period
         if (userInfo.lastActive < fiveMinutesAgo) {
           console.log(
-            `[UserStatusManager] User ${userId} inactive for more than 5 minutes, marking offline`
+            `[UserStatusManager] User ${userId} inactive for more than ${
+              this.INACTIVE_TIMEOUT_MS / 60000
+            } minutes (since ${userInfo.lastActive.toISOString()}), marking offline`
           );
           usersToRemove.push(userId);
           continue;
@@ -374,15 +420,46 @@ class UserStatusManager {
           continue;
         }
 
+        // Get reference to io instance
+        if (!io && global.io) {
+          io = global.io;
+          console.log("[UserStatusManager] Retrieved io from global scope");
+        }
+
         // Remove any disconnected/zombie sockets
+        let disconnectedSockets = 0;
         for (const socketId of [...userInfo.socketIds]) {
-          const socket = io?.sockets?.sockets?.get(socketId);
-          if (!socket || !socket.connected) {
-            userInfo.socketIds.delete(socketId);
-            console.log(
-              `[UserStatusManager] Removed disconnected socket ${socketId} for user ${userId}`
-            );
+          // Only remove socket if we can verify it's disconnected
+          if (io?.sockets?.sockets) {
+            const socket = io.sockets.sockets.get(socketId);
+            if (!socket || !socket.connected) {
+              userInfo.socketIds.delete(socketId);
+              disconnectedSockets++;
+              console.log(
+                `[UserStatusManager] Removed disconnected socket ${socketId} for user ${userId}`
+              );
+            } else {
+              console.log(
+                `[UserStatusManager] Socket ${socketId} for user ${userId} is still connected`
+              );
+
+              // Ping the socket to ensure it's really alive
+              try {
+                socket.emit("ping", { timestamp: Date.now() });
+              } catch (err) {
+                console.error(
+                  `[UserStatusManager] Error pinging socket ${socketId}:`,
+                  err
+                );
+              }
+            }
           }
+        }
+
+        if (disconnectedSockets > 0) {
+          console.log(
+            `[UserStatusManager] Removed ${disconnectedSockets} disconnected sockets for user ${userId}`
+          );
         }
 
         // After removing zombies, check if any sockets remain
@@ -391,11 +468,18 @@ class UserStatusManager {
             `[UserStatusManager] User ${userId} has no active sockets after cleanup, marking offline`
           );
           usersToRemove.push(userId);
+        } else {
+          console.log(
+            `[UserStatusManager] User ${userId} still has ${userInfo.socketIds.size} active connections`
+          );
         }
       }
 
       // Remove users who have no active sockets or have been inactive
       for (const userId of usersToRemove) {
+        console.log(
+          `[UserStatusManager] Removing user ${userId} during cleanup`
+        );
         this.onlineUsers.delete(userId);
 
         // Update database
@@ -409,6 +493,11 @@ class UserStatusManager {
         // Notify about status change
         this.notifyStatusChange(userId, false);
       }
+
+      // Log summary
+      console.log(
+        `[UserStatusManager] Cleanup complete. Removed ${usersToRemove.length} users. ${this.onlineUsers.size} users still online.`
+      );
     } catch (error) {
       console.error(
         "[UserStatusManager] Error in cleanupInactiveSessions:",

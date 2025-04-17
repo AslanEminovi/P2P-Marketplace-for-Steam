@@ -508,6 +508,9 @@ const io = new Server(server, {
 const ioModule = require("./services/io");
 ioModule.setIo(io);
 
+// Make io globally available for other modules (like UserStatusManager)
+global.io = io;
+
 // Socket middleware for authentication
 io.use(async (socket, next) => {
   try {
@@ -557,6 +560,14 @@ io.use(async (socket, next) => {
       // Ensure User model is properly loaded
       if (!User || typeof User.findById !== "function") {
         console.error("[socketAuth] User model not properly loaded");
+        console.error("[socketAuth] User model availability check:", !!User);
+        if (User) {
+          console.error("[socketAuth] User model methods:", Object.keys(User));
+          console.error(
+            "[socketAuth] findById availability:",
+            typeof User.findById
+          );
+        }
         socket.userId = null;
         socket.isAuthenticated = false;
         return next(new Error("Database configuration error"));

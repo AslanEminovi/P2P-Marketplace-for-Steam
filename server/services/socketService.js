@@ -122,7 +122,42 @@ const init = async (ioInstance) => {
       socket.on("pong", (data) => {
         // Update last active time for this user
         if (socket.userId) {
+          console.log(
+            `[socketService] Received pong from socket ${socket.id} for user ${socket.userId}`
+          );
           userStatusManager.updateLastActive(socket.userId);
+        } else {
+          console.log(
+            `[socketService] Received pong from anonymous socket ${socket.id}`
+          );
+        }
+      });
+
+      // Handle direct heartbeat from client
+      socket.on("heartbeat", () => {
+        if (socket.userId) {
+          console.log(
+            `[socketService] Received heartbeat from socket ${socket.id} for user ${socket.userId}`
+          );
+          userStatusManager.updateLastActive(socket.userId);
+        } else {
+          console.log(
+            `[socketService] Received heartbeat from anonymous socket ${socket.id}`
+          );
+        }
+      });
+
+      // Handle user activity notification
+      socket.on("user_active", () => {
+        if (socket.userId) {
+          console.log(
+            `[socketService] User ${socket.userId} reported activity via socket ${socket.id}`
+          );
+          userStatusManager.updateLastActive(socket.userId);
+        } else {
+          console.log(
+            `[socketService] Anonymous socket ${socket.id} reported activity`
+          );
         }
       });
 
@@ -137,6 +172,23 @@ const init = async (ioInstance) => {
         } catch (error) {
           console.error(`[socketService] Error disconnecting socket:`, error);
         }
+      });
+
+      // Periodically ping the socket to check connection
+      const pingInterval = setInterval(() => {
+        if (socket.connected) {
+          socket.emit("ping", { timestamp: Date.now() });
+        } else {
+          clearInterval(pingInterval);
+        }
+      }, 25000); // Every 25 seconds
+
+      // Clean up interval on disconnect
+      socket.on("disconnect", () => {
+        clearInterval(pingInterval);
+        console.log(
+          `[socketService] Socket ${socket.id} disconnected, cleared ping interval`
+        );
       });
     });
 
