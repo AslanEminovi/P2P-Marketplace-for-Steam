@@ -72,6 +72,9 @@ const init = async (ioInstance) => {
     // Start periodic stats broadcasting
     startPeriodicStatsBroadcast();
 
+    // Start periodic health checks
+    startPeriodicHealthChecks();
+
     console.log("[socketService] Socket service initialized successfully");
   } catch (error) {
     console.error("[socketService] Error initializing socket service:", error);
@@ -521,6 +524,70 @@ const startPeriodicStatsBroadcast = () => {
       console.error("[socketService] Error in periodic stats broadcast:", err);
     });
   }, STATS_UPDATE_INTERVAL); // Every 10 seconds
+};
+
+/**
+ * Run periodic health checks on UserStatusManager
+ */
+const startPeriodicHealthChecks = () => {
+  // Run a health check every 5 minutes
+  setInterval(() => {
+    try {
+      console.log("[socketService] Running UserStatusManager health check");
+
+      // Check if UserStatusManager is properly initialized
+      if (!userStatusManager.isInitialized) {
+        console.warn(
+          "[socketService] UserStatusManager not initialized, initializing now"
+        );
+        userStatusManager.init();
+      }
+
+      // Check if maps exist
+      if (
+        !userStatusManager.onlineUsers ||
+        !userStatusManager.anonymousSockets
+      ) {
+        console.warn(
+          "[socketService] UserStatusManager maps missing, reinitializing"
+        );
+        userStatusManager.init();
+      }
+
+      // Check socket connection counts
+      const authenticatedCount = userStatusManager.onlineUsers
+        ? userStatusManager.onlineUsers.size
+        : 0;
+      const anonymousCount = userStatusManager.anonymousSockets
+        ? userStatusManager.anonymousSockets.size
+        : 0;
+
+      console.log("[socketService] Health check results:", {
+        userStatusInitialized: userStatusManager.isInitialized,
+        authenticatedUsers: authenticatedCount,
+        anonymousSockets: anonymousCount,
+        ioConnectedSockets: io ? io.sockets.sockets.size : 0,
+      });
+
+      // Force a sync with database if we have socket connections but no tracked users
+      if (
+        io &&
+        io.sockets.sockets.size > 0 &&
+        authenticatedCount === 0 &&
+        anonymousCount === 0
+      ) {
+        console.warn(
+          "[socketService] Potential issue detected: Socket connections exist but no users tracked"
+        );
+        userStatusManager.syncWithDatabase().catch(console.error);
+      }
+    } catch (error) {
+      console.error(
+        "[socketService] Error in UserStatusManager health check:",
+        error
+      );
+    }
+  }, 5 * 60 * 1000); // Every 5 minutes
 };
 
 /**

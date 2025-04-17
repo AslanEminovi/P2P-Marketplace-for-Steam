@@ -35,6 +35,17 @@ class UserStatusManager {
 
     console.log("[UserStatusManager] Initializing");
 
+    // Initialize maps if they don't exist
+    if (!this.onlineUsers) {
+      console.log("[UserStatusManager] Creating onlineUsers map");
+      this.onlineUsers = new Map();
+    }
+
+    if (!this.anonymousSockets) {
+      console.log("[UserStatusManager] Creating anonymousSockets set");
+      this.anonymousSockets = new Set();
+    }
+
     // Immediately log connections on startup for debugging
     this.logConnections();
 
@@ -72,6 +83,28 @@ class UserStatusManager {
    */
   handleConnection(socket) {
     try {
+      if (!socket) {
+        console.error(
+          "[UserStatusManager] Cannot handle null/undefined socket"
+        );
+        return;
+      }
+
+      // Make sure our tracking structures exist
+      if (!this.onlineUsers) {
+        console.warn(
+          "[UserStatusManager] onlineUsers map was null, recreating"
+        );
+        this.onlineUsers = new Map();
+      }
+
+      if (!this.anonymousSockets) {
+        console.warn(
+          "[UserStatusManager] anonymousSockets set was null, recreating"
+        );
+        this.anonymousSockets = new Set();
+      }
+
       const userId = socket.userId;
       const isAuthenticated = socket.isAuthenticated === true;
 
@@ -112,12 +145,15 @@ class UserStatusManager {
         }
 
         this.anonymousSockets.add(socket.id);
+        console.log(
+          `[UserStatusManager] Added socket ${socket.id} to anonymous sockets, total count: ${this.anonymousSockets.size}`
+        );
 
         // Handle disconnect
         socket.on("disconnect", () => {
           this.anonymousSockets.delete(socket.id);
           console.log(
-            `[UserStatusManager] Anonymous socket disconnected: ${socket.id}`
+            `[UserStatusManager] Anonymous socket disconnected: ${socket.id}, remaining: ${this.anonymousSockets.size}`
           );
         });
 
@@ -132,6 +168,9 @@ class UserStatusManager {
           socketIds: new Set([socket.id]),
           lastActive: this.validateDate(new Date()),
         });
+        console.log(
+          `[UserStatusManager] Added user ${userId} to onlineUsers map, total count: ${this.onlineUsers.size}`
+        );
 
         // Update database immediately
         this.updateUserStatus(userId, true).catch((err) => {
@@ -256,6 +295,32 @@ class UserStatusManager {
 
     // Check each user
     for (const [userId, userInfo] of this.onlineUsers.entries()) {
+      // Special handling for recovered users with no active sockets
+      if (userInfo.isRecovered && userInfo.socketIds.size === 0) {
+        // Check if they've reconnected within the recovery window (2 minutes)
+        const recoveryWindow = 2 * 60 * 1000; // 2 minutes
+        const inactiveTime = now - userInfo.lastActive;
+
+        if (inactiveTime > recoveryWindow) {
+          console.log(
+            `[UserStatusManager] Recovered user ${userId} did not reconnect within recovery window, removing`
+          );
+          usersToRemove.push(userId);
+        }
+        // Otherwise give them more time to reconnect
+        continue;
+      }
+
+      // For normal users, check if they have any active sockets
+      if (userInfo.socketIds.size === 0) {
+        console.log(
+          `[UserStatusManager] User ${userId} has no active sockets, marking offline`
+        );
+        usersToRemove.push(userId);
+        continue;
+      }
+
+      // Check inactivity time
       const inactiveTime = now - userInfo.lastActive;
 
       // If inactive for too long, mark for removal
@@ -290,6 +355,21 @@ class UserStatusManager {
     try {
       console.log("[UserStatusManager] Starting database synchronization");
 
+      // Make sure our tracking maps exist
+      if (!this.onlineUsers) {
+        console.warn(
+          "[UserStatusManager] onlineUsers map was null during sync, recreating"
+        );
+        this.onlineUsers = new Map();
+      }
+
+      if (!this.anonymousSockets) {
+        console.warn(
+          "[UserStatusManager] anonymousSockets set was null during sync, recreating"
+        );
+        this.anonymousSockets = new Set();
+      }
+
       // 1. Get all users marked as online in the database
       const onlineUsersInDB = await User.find({ isOnline: true })
         .select("_id lastActive")
@@ -298,6 +378,49 @@ class UserStatusManager {
       console.log(
         `[UserStatusManager] Found ${onlineUsersInDB.length} users marked online in database`
       );
+
+      // Special handling for recovery: if our memory tracking is empty but DB has online users
+      // this could be a server restart or a failed initialization
+      if (this.onlineUsers.size === 0 && onlineUsersInDB.length > 0) {
+        console.log(
+          "[UserStatusManager] RECOVERY: Memory tracking is empty but DB has online users"
+        );
+
+        // For users that were active very recently (last 2 minutes),
+        // we'll assume they're still online but we lost track during a restart
+        const twoMinutesAgo = new Date(new Date().getTime() - 2 * 60 * 1000);
+        let recoveredUsers = 0;
+
+        for (const userDoc of onlineUsersInDB) {
+          const userId = userDoc._id.toString();
+          const lastActive = userDoc.lastActive
+            ? new Date(userDoc.lastActive)
+            : null;
+
+          // Only recover very recent users to avoid false positives
+          if (lastActive && lastActive > twoMinutesAgo) {
+            console.log(
+              `[UserStatusManager] RECOVERY: Reinstating user ${userId} who was active at ${lastActive}`
+            );
+
+            // Create a placeholder entry - this user will be marked offline at next cleanup
+            // if they don't reconnect, but this helps avoid flickering
+            this.onlineUsers.set(userId, {
+              socketIds: new Set(), // Empty set - no active sockets yet
+              lastActive: lastActive,
+              isRecovered: true, // Flag to indicate this is a recovered user
+            });
+
+            recoveredUsers++;
+          }
+        }
+
+        if (recoveredUsers > 0) {
+          console.log(
+            `[UserStatusManager] RECOVERY: Reinstated ${recoveredUsers} recently active users`
+          );
+        }
+      }
 
       // 2. Check if they're actually online according to our tracking
       const now = new Date();
@@ -573,6 +696,10 @@ class UserStatusManager {
       // Check if maps are initialized
       if (!this.onlineUsers || !this.anonymousSockets) {
         console.error("[UserStatusManager] Maps not initialized properly");
+        if (!this.isInitialized) {
+          console.log("[UserStatusManager] Re-initializing manager");
+          this.init();
+        }
         return {
           authenticated: 0,
           anonymous: 0,
@@ -593,6 +720,38 @@ class UserStatusManager {
       // We exclude anonymous users because they could be duplicate tabs
       // and there's no reliable way to deduplicate them without cookies
       const totalCount = authenticatedCount;
+
+      // If everything is zero, log more detailed debug info
+      if (authenticatedCount === 0 && anonymousCount === 0) {
+        console.warn(
+          "[UserStatusManager] All user counts are zero! Dumping debug info:"
+        );
+        console.warn(`  - isInitialized: ${this.isInitialized}`);
+        console.warn(
+          `  - onlineUsers set: ${this.onlineUsers ? "exists" : "null"}`
+        );
+        console.warn(
+          `  - anonymousSockets set: ${
+            this.anonymousSockets ? "exists" : "null"
+          }`
+        );
+
+        if (this.onlineUsers) {
+          console.warn(
+            `  - onlineUsers keys: ${Array.from(this.onlineUsers.keys()).join(
+              ", "
+            )}`
+          );
+        }
+
+        // Force a sync with database to recover any missing users
+        this.syncWithDatabase().catch((err) => {
+          console.error(
+            "[UserStatusManager] Error syncing with database during recovery:",
+            err
+          );
+        });
+      }
 
       // Log counts for debugging
       console.log("[UserStatusManager] Current user counts:", {
