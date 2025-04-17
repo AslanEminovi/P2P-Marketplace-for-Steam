@@ -4,6 +4,9 @@
  */
 const User = require("../models/User");
 
+// Global io instance
+io = null;
+
 class UserStatusManager {
   constructor() {
     // Maps to track user status
@@ -22,6 +25,15 @@ class UserStatusManager {
     this.CLEANUP_INTERVAL_MS = 15000; // 15 seconds
     this.DB_SYNC_INTERVAL_MS = 30000; // 30 seconds
     this.INACTIVE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+  }
+
+  /**
+   * Set the Socket.io instance
+   * @param {SocketIO.Server} ioInstance - The Socket.io instance
+   */
+  setIoInstance(ioInstance) {
+    this.io = ioInstance;
+    console.log("[UserStatusManager] Socket.io instance set");
   }
 
   /**
@@ -160,8 +172,11 @@ class UserStatusManager {
         return;
       }
 
+      // Check if this is the first connection for this user
+      const wasOffline = !this.onlineUsers.has(userId);
+
       // Authenticated user
-      if (!this.onlineUsers.has(userId)) {
+      if (wasOffline) {
         // First socket for this user
         console.log(`[UserStatusManager] First connection for user ${userId}`);
         this.onlineUsers.set(userId, {
@@ -179,6 +194,9 @@ class UserStatusManager {
             err
           );
         });
+
+        // Notify about status change - user is now online
+        this.notifyStatusChange(userId, true);
       } else {
         // Add to existing user's socket set
         const userInfo = this.onlineUsers.get(userId);
@@ -263,9 +281,45 @@ class UserStatusManager {
           err
         );
       });
+
+      // Notify about status change
+      this.notifyStatusChange(userId, false);
     } else {
       // Update the user info
       this.onlineUsers.set(userId, userInfo);
+    }
+  }
+
+  /**
+   * Notify about user status change
+   * @param {string} userId - The user ID
+   * @param {boolean} isOnline - Whether the user is online
+   */
+  notifyStatusChange(userId, isOnline) {
+    try {
+      // Get formatted last seen time
+      const lastSeen = isOnline
+        ? new Date()
+        : this.onlineUsers.get(userId)?.lastActive || new Date();
+
+      const lastSeenFormatted = this.formatLastSeen(lastSeen);
+
+      // If we have a socket.io instance, broadcast directly
+      if (this.io) {
+        const socketService = require("./socketService");
+        if (typeof socketService.broadcastUserStatusChange === "function") {
+          socketService.broadcastUserStatusChange(
+            userId,
+            isOnline,
+            lastSeenFormatted
+          );
+        }
+      }
+    } catch (error) {
+      console.error(
+        `[UserStatusManager] Error notifying status change for ${userId}:`,
+        error
+      );
     }
   }
 
@@ -290,61 +344,104 @@ class UserStatusManager {
    * Clean up inactive sessions
    */
   cleanupInactiveSessions() {
-    const now = new Date();
-    const usersToRemove = [];
+    try {
+      const now = new Date();
+      const usersToRemove = [];
 
-    // Check each user
-    for (const [userId, userInfo] of this.onlineUsers.entries()) {
-      // Special handling for recovered users with no active sockets
-      if (userInfo.isRecovered && userInfo.socketIds.size === 0) {
-        // Check if they've reconnected within the recovery window (2 minutes)
-        const recoveryWindow = 2 * 60 * 1000; // 2 minutes
-        const inactiveTime = now - userInfo.lastActive;
+      // Check each user
+      for (const [userId, userInfo] of this.onlineUsers.entries()) {
+        // Special handling for recovered users with no active sockets
+        if (userInfo.isRecovered && userInfo.socketIds.size === 0) {
+          // Check if they've reconnected within the recovery window (2 minutes)
+          const recoveryWindow = 2 * 60 * 1000; // 2 minutes
+          const inactiveTime = now - userInfo.lastActive;
 
-        if (inactiveTime > recoveryWindow) {
+          if (inactiveTime > recoveryWindow) {
+            console.log(
+              `[UserStatusManager] Recovered user ${userId} did not reconnect within recovery window, removing`
+            );
+            usersToRemove.push(userId);
+          }
+          // Otherwise give them more time to reconnect
+          continue;
+        }
+
+        // For normal users, check if they have any active sockets
+        if (userInfo.socketIds.size === 0) {
           console.log(
-            `[UserStatusManager] Recovered user ${userId} did not reconnect within recovery window, removing`
+            `[UserStatusManager] User ${userId} has no active sockets, marking offline`
           );
           usersToRemove.push(userId);
+          continue;
         }
-        // Otherwise give them more time to reconnect
-        continue;
+
+        // Check inactivity time - use a shorter window for initial detection
+        const inactiveTime = now - userInfo.lastActive;
+
+        // If inactive for even a short time, check if their sockets are still alive
+        if (inactiveTime > 30 * 1000) {
+          // 30 seconds
+          let allSocketsDisconnected = true;
+
+          // Check each socket associated with this user
+          for (const socketId of userInfo.socketIds) {
+            // If we can't get the socket object or it's disconnected, consider it dead
+            const socket = io?.sockets?.sockets?.get(socketId);
+            if (socket && socket.connected) {
+              allSocketsDisconnected = false;
+
+              // If we find even one active socket, ping it to verify it's still alive
+              try {
+                socket.emit("ping", { timestamp: Date.now() });
+              } catch (socketError) {
+                console.warn(
+                  `[UserStatusManager] Error pinging socket ${socketId}:`,
+                  socketError
+                );
+              }
+
+              break; // One active socket is enough to keep the user online
+            }
+          }
+
+          // If all sockets are disconnected or can't be found, mark user as offline
+          if (allSocketsDisconnected) {
+            console.log(
+              `[UserStatusManager] All sockets for user ${userId} appear disconnected, marking offline`
+            );
+            usersToRemove.push(userId);
+            continue;
+          }
+
+          // If user is inactive for too long (even if sockets appear connected), still mark as offline
+          if (inactiveTime > this.INACTIVE_TIMEOUT_MS) {
+            console.log(
+              `[UserStatusManager] User ${userId} inactive for ${Math.round(
+                inactiveTime / 60000
+              )} minutes, marking offline despite connected sockets`
+            );
+            usersToRemove.push(userId);
+          }
+        }
       }
 
-      // For normal users, check if they have any active sockets
-      if (userInfo.socketIds.size === 0) {
-        console.log(
-          `[UserStatusManager] User ${userId} has no active sockets, marking offline`
-        );
-        usersToRemove.push(userId);
-        continue;
+      // Remove inactive users
+      for (const userId of usersToRemove) {
+        this.onlineUsers.delete(userId);
+
+        // Update database
+        this.updateUserStatus(userId, false).catch((err) => {
+          console.error(
+            `[UserStatusManager] Error updating database for user ${userId}:`,
+            err
+          );
+        });
       }
-
-      // Check inactivity time
-      const inactiveTime = now - userInfo.lastActive;
-
-      // If inactive for too long, mark for removal
-      if (inactiveTime > this.INACTIVE_TIMEOUT_MS) {
-        console.log(
-          `[UserStatusManager] User ${userId} inactive for ${Math.round(
-            inactiveTime / 60000
-          )} minutes, marking offline`
-        );
-        usersToRemove.push(userId);
-      }
-    }
-
-    // Remove inactive users
-    for (const userId of usersToRemove) {
-      this.onlineUsers.delete(userId);
-
-      // Update database
-      this.updateUserStatus(userId, false).catch((err) => {
-        console.error(
-          `[UserStatusManager] Error updating database for user ${userId}:`,
-          err
-        );
-      });
+    } catch (error) {
+      console.error(
+        "[UserStatusManager] Error in cleanupInactiveSessions:",
+        error
+      );
     }
   }
 

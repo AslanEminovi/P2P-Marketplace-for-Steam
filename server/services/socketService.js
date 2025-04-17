@@ -45,8 +45,9 @@ const init = async (ioInstance) => {
 
     console.log("[socketService] Initializing socket service with Socket.io");
 
-    // Initialize our UserStatusManager
+    // Initialize our UserStatusManager and pass the io instance
     userStatusManager.init();
+    userStatusManager.setIoInstance(io);
 
     // Set up socket connection handler
     io.on("connection", (socket) => {
@@ -67,6 +68,76 @@ const init = async (ioInstance) => {
           console.error("[socketService] Error sending stats update:", error);
         }
       });
+
+      // Handle status requests
+      socket.on("request_user_status", async (userId) => {
+        if (!userId) return;
+        try {
+          const status = await userStatusManager.getUserStatus(userId);
+          socket.emit("user_status_update", {
+            userId,
+            isOnline: status.isOnline,
+            lastSeenFormatted: status.lastSeenFormatted,
+          });
+        } catch (error) {
+          console.error(
+            `[socketService] Error getting status for ${userId}:`,
+            error
+          );
+          socket.emit("user_status_update", {
+            userId,
+            isOnline: false,
+            lastSeenFormatted: "Recently",
+          });
+        }
+      });
+
+      // Handle user watching another user
+      socket.on("watch_user_status", (userId) => {
+        if (!userId) return;
+
+        // Store that this socket is watching this userId
+        if (!socket.watchingUsers) {
+          socket.watchingUsers = new Set();
+        }
+
+        socket.watchingUsers.add(userId);
+        console.log(
+          `[socketService] Socket ${socket.id} is now watching user ${userId}`
+        );
+
+        // Immediately send current status
+        getUserStatus(userId)
+          .then((status) => {
+            socket.emit("user_status_update", {
+              userId,
+              isOnline: status.isOnline,
+              lastSeenFormatted: status.lastSeenFormatted,
+            });
+          })
+          .catch(console.error);
+      });
+
+      // Handle ping response (used to check if socket is still alive)
+      socket.on("pong", (data) => {
+        // Update last active time for this user
+        if (socket.userId) {
+          userStatusManager.updateLastActive(socket.userId);
+        }
+      });
+
+      // Handle beforeunload event from client
+      socket.on("browser_closing", () => {
+        console.log(
+          `[socketService] Browser closing event from socket ${socket.id}`
+        );
+        // Immediately disconnect this socket
+        try {
+          socket.disconnect(true);
+        } catch (error) {
+          console.error(`[socketService] Error disconnecting socket:`, error);
+        }
+      });
     });
 
     // Start periodic stats broadcasting
@@ -74,6 +145,9 @@ const init = async (ioInstance) => {
 
     // Start periodic health checks
     startPeriodicHealthChecks();
+
+    // Start periodic status broadcasts
+    startPeriodicStatusBroadcasts();
 
     console.log("[socketService] Socket service initialized successfully");
   } catch (error) {
@@ -633,6 +707,82 @@ const setupPresenceApi = (app) => {
   });
 };
 
+/**
+ * Broadcast online status changes to interested clients
+ */
+const broadcastUserStatusChange = async (
+  userId,
+  isOnline,
+  lastSeenFormatted
+) => {
+  if (!io) return;
+
+  try {
+    // Broadcast to all sockets watching this user
+    const allSockets = Array.from(io.sockets.sockets.values());
+    for (const socket of allSockets) {
+      if (socket.watchingUsers && socket.watchingUsers.has(userId)) {
+        socket.emit("user_status_update", {
+          userId,
+          isOnline,
+          lastSeenFormatted,
+        });
+      }
+    }
+  } catch (error) {
+    console.error(
+      `[socketService] Error broadcasting status change for ${userId}:`,
+      error
+    );
+  }
+};
+
+/**
+ * Start periodic status broadcasts to watching clients
+ */
+const startPeriodicStatusBroadcasts = () => {
+  // Every 30 seconds, broadcast all watched statuses
+  setInterval(async () => {
+    if (!io) return;
+
+    try {
+      // Find all distinct userIds being watched by any socket
+      const watchedUsers = new Set();
+      const allSockets = Array.from(io.sockets.sockets.values());
+
+      for (const socket of allSockets) {
+        if (socket.watchingUsers) {
+          for (const userId of socket.watchingUsers) {
+            watchedUsers.add(userId);
+          }
+        }
+      }
+
+      // For each watched user, get current status and broadcast to interested sockets
+      for (const userId of watchedUsers) {
+        try {
+          const status = await getUserStatus(userId);
+          broadcastUserStatusChange(
+            userId,
+            status.isOnline,
+            status.lastSeenFormatted
+          );
+        } catch (error) {
+          console.error(
+            `[socketService] Error getting status for watched user ${userId}:`,
+            error
+          );
+        }
+      }
+    } catch (error) {
+      console.error(
+        `[socketService] Error in periodic status broadcast:`,
+        error
+      );
+    }
+  }, 30000); // Every 30 seconds
+};
+
 module.exports = {
   init,
   broadcastStats,
@@ -644,4 +794,5 @@ module.exports = {
   emitMarketActivity,
   emitUserActivity,
   sendNotification,
+  broadcastUserStatusChange,
 };

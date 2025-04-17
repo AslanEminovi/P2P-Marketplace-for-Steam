@@ -122,9 +122,6 @@ router.get("/status/:userId", async (req, res) => {
 
     // Get user status directly from UserStatusManager
     const status = await userStatusManager.getUserStatus(userId);
-    console.log(`[userRoutes] Retrieved status for user ${userId}:`, status);
-
-    // No need to double-check active connections since UserStatusManager is the single source of truth
 
     // Set no-cache headers
     res.set({
@@ -133,19 +130,12 @@ router.get("/status/:userId", async (req, res) => {
       Expires: "0",
     });
 
+    // Simplified response with only essential information
     const responseData = {
-      userId,
       isOnline: status.isOnline,
-      lastSeen: status.lastSeen,
       lastSeenFormatted: status.lastSeenFormatted,
-      timestamp: new Date(),
-      source: status.source,
     };
 
-    console.log(
-      `[userRoutes] Sending status response for ${userId}:`,
-      responseData
-    );
     res.json(responseData);
   } catch (err) {
     console.error(`[userRoutes] Error getting user status for ${userId}:`, err);
@@ -170,29 +160,17 @@ router.get("/direct-status/:userId", async (req, res) => {
       Pragma: "no-cache",
     });
 
-    // Check if the user is authenticated (only for logged-in users trying to check themselves)
-    const isAuthenticated = req.isAuthenticated() && req.user;
-    const isSelf = isAuthenticated && req.user._id.toString() === userId;
-
     // Use our new UserStatusManager
     const userStatusManager = require("../services/UserStatusManager");
     const status = await userStatusManager.getUserStatus(userId);
 
-    // Create response
+    // Simplified response with only essential information
     const responseData = {
-      userId,
       isOnline: status.isOnline,
-      lastSeen: status.lastSeen,
       lastSeenFormatted: status.lastSeenFormatted,
-      timestamp: new Date(),
-      source: status.source,
     };
 
-    console.log(
-      `[userRoutes] Sending direct-status response for ${userId}:`,
-      responseData
-    );
-    return res.json(responseData);
+    res.json(responseData);
   } catch (err) {
     console.error(
       `[userRoutes] Error getting direct status for ${userId}:`,
@@ -200,12 +178,8 @@ router.get("/direct-status/:userId", async (req, res) => {
     );
     // Send a default response even on error
     return res.json({
-      userId,
       isOnline: false,
-      lastSeen: new Date(),
       lastSeenFormatted: "Recently",
-      timestamp: new Date(),
-      source: "error",
     });
   }
 });
