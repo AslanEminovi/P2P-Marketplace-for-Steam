@@ -499,7 +499,8 @@ io.use(async (socket, next) => {
   try {
     const token =
       socket.handshake.auth.token ||
-      socket.handshake.headers.authorization?.split(" ")[1];
+      socket.handshake.headers.authorization?.split(" ")[1] ||
+      socket.handshake.query.token; // Also check in query parameters
 
     if (!token) {
       // Allow anonymous connections but mark them as such

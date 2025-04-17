@@ -132,7 +132,7 @@ class SocketService {
     // Initialize socket connection with auth token
     try {
       this.socket = io(API_URL, {
-        query: token ? { token } : {},
+        auth: token ? { token } : {},
         transports: ["websocket", "polling"],
         reconnection: true,
         reconnectionAttempts: 10,
