@@ -23,6 +23,10 @@ const OFFLINE_GRACE_PERIOD_MS = 10000; // 10 seconds grace period before marking
 // Track connected users
 const connectedUsers = new Map();
 
+// New tracking for multiple sockets per user (for multi-tab support)
+let connectedUserSockets = new Map(); // Map of userId -> Set of socket.ids
+let userHeartbeatIntervals = new Map(); // Map of userId -> interval ID
+
 // Track which users are on the marketplace page
 const usersOnMarketplace = new Set();
 
@@ -291,6 +295,29 @@ const handleTradeUpdateMessage = (data) => {
   }
 };
 
+// Function to get the count of unique authenticated and anonymous users
+const getUniqueUserCounts = () => {
+  // Unique authenticated users is the size of the connected users map
+  const authenticatedCount = connectedUserSockets
+    ? connectedUserSockets.size
+    : 0;
+
+  // Anonymous users are still counted by socket since they don't have userId
+  const anonymousCount = anonymousSockets.size;
+
+  console.log("[socketService] Current user counts:", {
+    authenticated: authenticatedCount,
+    anonymous: anonymousCount,
+    total: authenticatedCount + anonymousCount,
+  });
+
+  return {
+    authenticated: authenticatedCount,
+    anonymous: anonymousCount,
+    total: authenticatedCount + anonymousCount,
+  };
+};
+
 /**
  * Get the latest statistics - now with Redis caching
  */
@@ -323,11 +350,11 @@ const getLatestStats = async () => {
 
         const cachedStats = await redisModule.getCache("site:stats");
 
-        // If stats are recent (< 60 seconds old), use them
+        // If stats are recent (< 30 seconds old), use them
         if (
           cachedStats &&
           cachedStats.timestamp &&
-          Date.now() - new Date(cachedStats.timestamp).getTime() < 60000
+          Date.now() - new Date(cachedStats.timestamp).getTime() < 30000
         ) {
           console.log("[socketService] Using cached stats from Redis:", {
             activeListings: cachedStats.activeListings,
@@ -374,7 +401,7 @@ const getLatestStats = async () => {
       completedTrades,
     });
 
-    // Get connected users from Redis if enabled
+    // Get connected users from the new tracking method or Redis if enabled
     let totalActiveUsers = 0;
     let authenticatedActiveUsers = 0;
     let anonymousActiveUsers = 0;
@@ -419,26 +446,18 @@ const getLatestStats = async () => {
           "[socketService] Error getting user stats from Redis:",
           error.message
         );
-        // Fall back to local tracking
-        authenticatedActiveUsers = activeUsers.size;
-        anonymousActiveUsers = anonymousSockets.size;
-        totalActiveUsers = authenticatedActiveUsers + anonymousActiveUsers;
-        console.log("[socketService] Falling back to local user counts:", {
-          authenticated: authenticatedActiveUsers,
-          anonymous: anonymousActiveUsers,
-          total: totalActiveUsers,
-        });
+        // Fall back to local tracking using the new method
+        const counts = getUniqueUserCounts();
+        authenticatedActiveUsers = counts.authenticated;
+        anonymousActiveUsers = counts.anonymous;
+        totalActiveUsers = counts.total;
       }
     } else {
-      // Use local tracking if Redis is not enabled
-      authenticatedActiveUsers = activeUsers.size;
-      anonymousActiveUsers = anonymousSockets.size;
-      totalActiveUsers = authenticatedActiveUsers + anonymousActiveUsers;
-      console.log("[socketService] Using local user counts (Redis disabled):", {
-        authenticated: authenticatedActiveUsers,
-        anonymous: anonymousActiveUsers,
-        total: totalActiveUsers,
-      });
+      // Use local tracking with the new method
+      const counts = getUniqueUserCounts();
+      authenticatedActiveUsers = counts.authenticated;
+      anonymousActiveUsers = counts.anonymous;
+      totalActiveUsers = counts.total;
     }
 
     // If totalActiveUsers is 0 but we had a previous valid count, use that instead
@@ -453,10 +472,8 @@ const getLatestStats = async () => {
         lastStatsUpdate.onlineUsers.total
       );
       totalActiveUsers = lastStatsUpdate.onlineUsers.total;
-      authenticatedActiveUsers =
-        lastStatsUpdate.onlineUsers.authenticated || activeUsers.size;
-      anonymousActiveUsers =
-        lastStatsUpdate.onlineUsers.anonymous || anonymousSockets.size;
+      authenticatedActiveUsers = lastStatsUpdate.onlineUsers.authenticated || 0;
+      anonymousActiveUsers = lastStatsUpdate.onlineUsers.anonymous || 0;
     }
 
     const stats = {
@@ -700,12 +717,15 @@ const getConnectedClientsCount = async () => {
       return onlineCount + anonymousSockets.size;
     } catch (error) {
       console.error("Error getting connected client count from Redis:", error);
-      // Fall back to local tracking
-      return activeSockets.size + anonymousSockets.size;
+      // Fall back to local tracking with unique user counting
+      const counts = getUniqueUserCounts();
+      return counts.total;
     }
   }
 
-  return activeSockets.size + anonymousSockets.size;
+  // Use local tracking with unique user counting
+  const counts = getUniqueUserCounts();
+  return counts.total;
 };
 
 /**
@@ -1124,15 +1144,45 @@ const handleSocketConnection = (socket) => {
     `[socketService] New socket connection: ${socket.id} for user: ${userId}`
   );
 
-  // Track user's socket
+  // Store all sockets for each user in a map of arrays instead of just the latest one
+  // This properly tracks multiple tabs/devices per user
+  if (!connectedUserSockets) {
+    connectedUserSockets = new Map(); // Initialize if needed
+  }
+
+  if (!connectedUserSockets.has(userId)) {
+    connectedUserSockets.set(userId, new Set());
+  }
+
+  // Add this socket to the user's socket set
+  connectedUserSockets.get(userId).add(socket.id);
+
+  // Still maintain backward compatibility with activeSockets
   activeSockets.set(userId, socket.id);
   activeUsers.set(userId, { lastSeen: new Date() });
 
-  // Mark user as online in Redis
+  // Mark user as online in Redis and database
   markUserOnline(userId);
 
-  // Set up a periodic ping to refresh online status
-  const pingInterval = setInterval(() => markUserOnline(userId), 30000);
+  // Log the number of active connections for this user
+  const connectionCount = connectedUserSockets.get(userId).size;
+  console.log(
+    `[socketService] User ${userId} now has ${connectionCount} active connections`
+  );
+
+  // Set up a periodic ping to refresh online status - only one per user, not per socket
+  let pingInterval;
+  if (connectionCount === 1) {
+    pingInterval = setInterval(() => markUserOnline(userId), 30000);
+    // Store the interval ID with the user
+    if (!userHeartbeatIntervals) {
+      userHeartbeatIntervals = new Map();
+    }
+    userHeartbeatIntervals.set(userId, pingInterval);
+  } else {
+    // Reuse existing interval
+    pingInterval = userHeartbeatIntervals.get(userId);
+  }
 
   // Add heartbeat handler - this is critical for maintaining online status
   socket.on("heartbeat", () => {
@@ -1150,47 +1200,67 @@ const handleSocketConnection = (socket) => {
 
   // Set up event listeners for this socket
   socket.on("disconnect", async () => {
-    clearInterval(pingInterval);
+    console.log(
+      `[socketService] Socket ${socket.id} disconnected for user ${userId}`
+    );
 
-    // Only mark as offline if this was their last socket
-    let hasOtherSockets = false;
-    for (const [id, socketId] of activeSockets.entries()) {
-      if (
-        id === userId &&
-        socketId !== socket.id &&
-        io.sockets.sockets.has(socketId)
-      ) {
-        hasOtherSockets = true;
-        break;
+    // Remove this socket from the user's socket set
+    if (connectedUserSockets.has(userId)) {
+      connectedUserSockets.get(userId).delete(socket.id);
+
+      // Check if this was the last socket for this user
+      const remainingSockets = connectedUserSockets.get(userId).size;
+      console.log(
+        `[socketService] User ${userId} has ${remainingSockets} remaining connections`
+      );
+
+      if (remainingSockets === 0) {
+        // This was their last connection, clean up
+        connectedUserSockets.delete(userId);
+
+        // Clear the ping interval if this was the last connection
+        if (userHeartbeatIntervals && userHeartbeatIntervals.has(userId)) {
+          clearInterval(userHeartbeatIntervals.get(userId));
+          userHeartbeatIntervals.delete(userId);
+        }
+
+        // Check if there's a grace period configuration for brief disconnects
+        if (OFFLINE_GRACE_PERIOD_MS > 0) {
+          console.log(
+            `[socketService] Starting offline grace period for user ${userId}`
+          );
+
+          // Wait for grace period before marking offline
+          setTimeout(async () => {
+            // Check if user reconnected during grace period
+            if (
+              !connectedUserSockets.has(userId) ||
+              connectedUserSockets.get(userId).size === 0
+            ) {
+              await markUserOffline(userId);
+            }
+          }, OFFLINE_GRACE_PERIOD_MS);
+        } else {
+          // No grace period, mark offline immediately
+          await markUserOffline(userId);
+        }
       }
     }
 
-    if (!hasOtherSockets) {
-      // Check if there's a grace period configuration for brief disconnects
-      if (OFFLINE_GRACE_PERIOD_MS > 0) {
-        console.log(
-          `[socketService] Starting offline grace period for user ${userId}`
-        );
-
-        // Wait for grace period before marking offline
-        setTimeout(async () => {
-          // Check if user reconnected during grace period
-          if (!activeSockets.has(userId)) {
-            await markUserOffline(userId);
-          }
-        }, OFFLINE_GRACE_PERIOD_MS);
-      } else {
-        // No grace period, mark offline immediately
-        await markUserOffline(userId);
-      }
-    }
-
-    // Remove this specific socket from tracking
+    // Remove this specific socket from tracking if it's the current active one
     if (activeSockets.get(userId) === socket.id) {
-      activeSockets.delete(userId);
+      // If user has other sockets, update the activeSockets reference to another one
+      if (
+        connectedUserSockets.has(userId) &&
+        connectedUserSockets.get(userId).size > 0
+      ) {
+        // Get the first available socket
+        const anotherSocketId = Array.from(connectedUserSockets.get(userId))[0];
+        activeSockets.set(userId, anotherSocketId);
+      } else {
+        activeSockets.delete(userId);
+      }
     }
-
-    console.log(`[socketService] User ${userId} socket disconnected`);
   });
 
   // ... existing user socket event handlers ...
@@ -1248,6 +1318,7 @@ const setupPresenceApi = (app) => {
  */
 const startConnectionCleanup = () => {
   const CLEANUP_INTERVAL = 60000; // Run cleanup every minute
+  const FORCE_OFFLINE_AFTER = 20 * 60 * 1000; // 20 minutes of inactivity
 
   console.log("[socketService] Starting connection cleanup interval");
 
@@ -1255,44 +1326,101 @@ const startConnectionCleanup = () => {
     console.log("[socketService] Running connection cleanup...");
 
     try {
-      // 1. Check all tracked active sockets
+      // 1. Clean up stale socket references
+      for (const [userId, socketSet] of connectedUserSockets.entries()) {
+        const validSockets = new Set();
+
+        // Check each socket for validity
+        for (const socketId of socketSet) {
+          const socket = io?.sockets?.sockets?.get(socketId);
+          if (socket) {
+            validSockets.add(socketId);
+          }
+        }
+
+        // Update with only valid sockets
+        if (validSockets.size === 0) {
+          // No valid sockets, remove user from tracking
+          connectedUserSockets.delete(userId);
+          // Mark user as offline in database
+          await markUserOffline(userId);
+
+          // Clear any heartbeat intervals
+          if (userHeartbeatIntervals.has(userId)) {
+            clearInterval(userHeartbeatIntervals.get(userId));
+            userHeartbeatIntervals.delete(userId);
+          }
+        } else if (validSockets.size !== socketSet.size) {
+          // Some sockets were invalid, update the set
+          connectedUserSockets.set(userId, validSockets);
+          console.log(
+            `[socketService] Cleaned up stale sockets for user ${userId}, now has ${validSockets.size} active connections`
+          );
+        }
+      }
+
+      // 2. Check the legacy activeSockets map for stale entries
       for (const [userId, socketId] of activeSockets.entries()) {
-        // Verify socket still exists and is connected
         const socket = io?.sockets?.sockets?.get(socketId);
         if (!socket) {
           console.log(
-            `[socketService] Found stale socket for user ${userId}, cleaning up`
-          );
-          activeSockets.delete(userId);
-
-          // Only mark offline if user doesn't have another socket
-          const hasOtherSocket = Array.from(io.sockets.sockets.values()).some(
-            (s) => s.userId === userId
+            `[socketService] Found stale socket in activeSockets for user ${userId}`
           );
 
-          if (!hasOtherSocket) {
+          // Check if user has other valid sockets
+          if (
+            connectedUserSockets.has(userId) &&
+            connectedUserSockets.get(userId).size > 0
+          ) {
+            // Update activeSockets with another valid socket
+            const anotherSocketId = Array.from(
+              connectedUserSockets.get(userId)
+            )[0];
+            activeSockets.set(userId, anotherSocketId);
+          } else {
+            // No valid sockets, remove from tracking
+            activeSockets.delete(userId);
             await markUserOffline(userId);
           }
         }
       }
 
-      // 2. Check database for users marked online but with no active socket
+      // 3. Check database for users marked online but with no active socket
       const User = require("../models/User");
       const onlineUsers = await User.find({ isOnline: true });
 
       for (const user of onlineUsers) {
         const userId = user._id.toString();
-        const hasActiveSocket = activeSockets.has(userId);
+        const lastActiveTime = user.lastActive
+          ? new Date(user.lastActive).getTime()
+          : 0;
+        const inactiveTime = Date.now() - lastActiveTime;
 
-        if (!hasActiveSocket) {
-          // Double-check if user is actually connected via socket ID
-          const hasSocket = Array.from(io.sockets.sockets.values()).some(
+        // If user has been inactive for too long, mark them offline
+        if (inactiveTime > FORCE_OFFLINE_AFTER) {
+          console.log(
+            `[socketService] User ${userId} inactive for ${Math.round(
+              inactiveTime / 60000
+            )} minutes, marking offline`
+          );
+          await markUserOffline(userId);
+          continue;
+        }
+
+        // Check if user actually has valid sockets
+        const hasConnections =
+          connectedUserSockets.has(userId) &&
+          connectedUserSockets.get(userId).size > 0;
+
+        if (!hasConnections) {
+          // Double-check if user has ANY socket connections by checking all sockets
+          const hasAnySocket = Array.from(io.sockets.sockets.values()).some(
             (s) => s.userId === userId
           );
 
-          if (!hasSocket) {
+          if (!hasAnySocket) {
             console.log(
-              `[socketService] User ${userId} marked online in DB but has no socket, fixing...`
+              `[socketService] User ${userId} marked online in DB but has no socket connections, fixing...`
             );
             await markUserOffline(userId);
           }
@@ -1318,5 +1446,6 @@ module.exports = {
   getLatestStats,
   formatLastSeen,
   isUserConnected,
-  setupPresenceApi, // Export the new API setup function
+  setupPresenceApi,
+  getUniqueUserCounts,
 };
