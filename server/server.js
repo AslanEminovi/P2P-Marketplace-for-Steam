@@ -436,20 +436,28 @@ const server = http.createServer(app);
 
 // Initialize Redis connections if enabled
 let redisAdapter = null;
-// Always try to use Redis if REDIS_URL is provided
 if (process.env.REDIS_URL) {
   try {
-    console.log("Redis URL detected, attempting to initialize Redis adapter");
+    // Log Redis initialization
+    console.log("Redis URL detected, initializing adapter");
     process.env.USE_REDIS = "true"; // Force enable Redis
+
+    // Initialize Redis clients
     const { pubClient, subClient } = redisConfig.initRedis();
-    redisAdapter = createAdapter(pubClient, subClient);
-    console.log("Redis adapter for Socket.IO initialized successfully");
+
+    if (pubClient) {
+      console.log("Redis pub client ready");
+      redisAdapter = createAdapter(pubClient, subClient);
+      console.log("Redis adapter initialized successfully");
+    } else {
+      console.warn("Redis client initialization failed");
+    }
   } catch (error) {
     console.error("Failed to initialize Redis adapter:", error);
     console.warn("Falling back to in-memory adapter");
   }
 } else {
-  console.warn("No REDIS_URL provided, using in-memory Socket.IO adapter");
+  console.warn("No REDIS_URL provided, using in-memory adapter");
 }
 
 // Set up Socket.io with CORS and connection settings
@@ -572,12 +580,6 @@ server.listen(PORT, () => {
   console.log(
     `Cookie sameSite: ${process.env.NODE_ENV === "production" ? "none" : "lax"}`
   );
-
-  if (isProduction) {
-    console.log(
-      `Serving static files from: ${path.join(__dirname, "../client/build")}`
-    );
-  }
 });
 
 // Handle server error events (e.g., port in use)
@@ -607,13 +609,3 @@ process.on("SIGTERM", () => {
     });
   });
 });
-
-// Log CORS settings
-console.log("Environment:", isProduction ? "production" : "development");
-console.log("CLIENT_URL:", config.CLIENT_URL);
-console.log("CORS origin:", config.CLIENT_URL);
-console.log("Cookie secure:", process.env.NODE_ENV === "production");
-console.log(
-  "Cookie sameSite:",
-  process.env.NODE_ENV === "production" ? "none" : "lax"
-);

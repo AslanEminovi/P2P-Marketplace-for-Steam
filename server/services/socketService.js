@@ -117,15 +117,15 @@ const init = (ioInstance) => {
 };
 
 /**
- * Set up Redis subscriptions for cross-server communication
+ * Initialize Redis subscriptions for cross-server communication
  */
-const setupRedisSubscriptions = () => {
-  if (!redis.subClient) {
+const initRedisSubscriptions = () => {
+  if (!subClient) {
     console.error("Redis subscriber client not available for subscriptions");
     return;
   }
 
-  const subClient = redis.subClient;
+  console.log("[socketService] Setting up Redis subscriptions");
 
   // Subscribe to channels
   subClient.subscribe(REDIS_CHANNEL_NOTIFICATIONS);
@@ -137,6 +137,7 @@ const setupRedisSubscriptions = () => {
   subClient.on("message", (channel, message) => {
     try {
       const data = JSON.parse(message);
+      console.log(`[socketService] Redis message on channel ${channel}:`, data);
 
       switch (channel) {
         case REDIS_CHANNEL_NOTIFICATIONS:
@@ -162,7 +163,9 @@ const setupRedisSubscriptions = () => {
     }
   });
 
-  console.log("Redis subscriptions initialized for cross-server communication");
+  console.log(
+    "[socketService] Redis subscriptions initialized for cross-server communication"
+  );
 };
 
 /**
@@ -749,13 +752,20 @@ const sendNotification = (userId, notification) => {
 
 // Get user status - now with Redis
 const getUserStatus = async (userId) => {
-  if (!userId) return { isOnline: false, lastSeen: null };
+  if (!userId)
+    return {
+      isOnline: false,
+      lastSeen: new Date(),
+      lastSeenFormatted: "Unknown",
+    };
 
   // First check local tracking for performance
   if (activeUsers.has(userId)) {
+    const lastSeen = activeUsers.get(userId).lastSeen || new Date();
     return {
       isOnline: true,
-      lastSeen: activeUsers.get(userId).lastSeen || new Date(),
+      lastSeen: lastSeen,
+      lastSeenFormatted: formatLastSeen(lastSeen),
     };
   }
 
@@ -768,9 +778,13 @@ const getUserStatus = async (userId) => {
       );
 
       if (status) {
+        const lastSeen = lastActive
+          ? new Date(parseInt(lastActive))
+          : new Date();
         return {
           isOnline: status === "online",
-          lastSeen: lastActive ? new Date(parseInt(lastActive)) : null,
+          lastSeen: lastSeen,
+          lastSeenFormatted: formatLastSeen(lastSeen),
         };
       }
     } catch (error) {
@@ -781,8 +795,31 @@ const getUserStatus = async (userId) => {
     }
   }
 
-  // Default to offline
-  return { isOnline: false, lastSeen: null };
+  // Check database as fallback
+  try {
+    const User = require("../models/User");
+    const user = await User.findById(userId);
+    if (user && user.lastActive) {
+      const lastSeen = new Date(user.lastActive);
+      return {
+        isOnline: false,
+        lastSeen: lastSeen,
+        lastSeenFormatted: formatLastSeen(lastSeen),
+      };
+    }
+  } catch (error) {
+    console.error(
+      `[socketService] Error getting user status from database:`,
+      error
+    );
+  }
+
+  // Default to offline with a timestamp rather than null
+  return {
+    isOnline: false,
+    lastSeen: new Date(),
+    lastSeenFormatted: "Recently",
+  };
 };
 
 /**
@@ -1011,14 +1048,47 @@ const handleSocketConnection = (socket) => {
 // Add a new REST API endpoint for presence
 const setupPresenceApi = (app) => {
   app.get("/api/presence/:id", async (req, res) => {
-    const id = req.params.id;
-    const status = await getUserStatus(id);
+    try {
+      const id = req.params.id;
 
-    res.json({
-      userId: id,
-      status: status.isOnline ? "online" : "offline",
-      lastActive: status.lastSeen ? status.lastSeen.getTime() : null,
-    });
+      if (!id) {
+        return res.status(400).json({
+          error: "User ID is required",
+          status: "offline",
+          lastActive: Date.now(),
+        });
+      }
+
+      console.log(`[socketService] Presence API request for user ${id}`);
+
+      // Get user status
+      const status = await getUserStatus(id);
+
+      console.log(`[socketService] Status for user ${id}:`, status);
+
+      // Always return a valid response with defaults if needed
+      res.json({
+        userId: id,
+        status: status.isOnline ? "online" : "offline",
+        lastActive: status.lastSeen ? status.lastSeen.getTime() : Date.now(),
+        lastSeenFormatted:
+          status.lastSeenFormatted || formatLastSeen(status.lastSeen),
+        timestamp: new Date(),
+        // Include debug info
+        debug: {
+          redisEnabled: isRedisEnabled,
+          inLocalTracking: activeUsers.has(id),
+          inSocketMap: activeSockets.has(id),
+        },
+      });
+    } catch (error) {
+      console.error(`[socketService] Error in presence API:`, error);
+      res.status(500).json({
+        error: "Server error",
+        status: "unknown",
+        lastActive: Date.now(),
+      });
+    }
   });
 };
 

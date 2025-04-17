@@ -59,13 +59,35 @@ export function usePresence(myUserId) {
 
     try {
       const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
+      console.log(
+        `[Presence] Fetching status for user ${targetId} from ${API_URL}/api/presence/${targetId}`
+      );
+
       const res = await fetch(`${API_URL}/api/presence/${targetId}`);
 
       if (!res.ok) {
-        throw new Error("Failed to fetch user presence");
+        throw new Error(`Failed to fetch user presence: ${res.status}`);
       }
 
       const data = await res.json();
+      console.log(`[Presence] Got status for user ${targetId}:`, data);
+
+      // Save to localStorage as a backup (with 5-minute expiration)
+      try {
+        localStorage.setItem(
+          `user_presence:${targetId}`,
+          JSON.stringify({
+            ...data,
+            localTimestamp: Date.now(),
+            expiresAt: Date.now() + 5 * 60 * 1000,
+          })
+        );
+      } catch (storageError) {
+        console.error(
+          "Failed to store presence in localStorage:",
+          storageError
+        );
+      }
 
       // Update local state with the fetched data
       setPresence((prev) => ({
@@ -76,7 +98,31 @@ export function usePresence(myUserId) {
       return data;
     } catch (error) {
       console.error("Error fetching user presence:", error);
-      return { userId: targetId, status: "offline", lastActive: null };
+
+      // Try to get from localStorage as fallback
+      try {
+        const cached = localStorage.getItem(`user_presence:${targetId}`);
+        if (cached) {
+          const parsedCache = JSON.parse(cached);
+          // Check if cache is still valid
+          if (parsedCache.expiresAt > Date.now()) {
+            console.log(
+              `[Presence] Using cached status for user ${targetId}:`,
+              parsedCache
+            );
+            return parsedCache;
+          }
+        }
+      } catch (cacheError) {
+        console.error("Error reading presence from cache:", cacheError);
+      }
+
+      return {
+        userId: targetId,
+        status: "offline",
+        lastActive: Date.now(),
+        lastSeenFormatted: "Unknown",
+      };
     }
   };
 
@@ -86,27 +132,58 @@ export function usePresence(myUserId) {
 /**
  * Component for displaying user online status
  */
-export const UserStatusBadge = ({ userId, showOffline = true }) => {
+export const UserStatusBadge = ({
+  userId,
+  showOffline = true,
+  showLastSeen = false,
+}) => {
   const { authUser } = useAuth();
   const currentUserId = authUser?._id;
   const { presence, fetchPresence } = usePresence(currentUserId);
+  const [statusData, setStatusData] = useState(null);
 
-  // Get status from state or fetch it
+  // Get status from state
   const status = presence[userId];
 
   useEffect(() => {
-    if (userId && !status) {
-      fetchPresence(userId);
+    async function getFullStatus() {
+      if (userId && (!status || showLastSeen)) {
+        const data = await fetchPresence(userId);
+        setStatusData(data);
+      }
     }
-  }, [userId, status]);
+
+    getFullStatus();
+  }, [userId, status, showLastSeen]);
 
   if (!userId) return null;
   if (!showOffline && (!status || status === "offline")) return null;
 
+  // For simple online/offline indicator without last seen info
+  if (!showLastSeen) {
+    return (
+      <span
+        className={status === "online" ? "text-green-600" : "text-gray-400"}
+      >
+        {status === "online" ? "● Online" : "○ Offline"}
+      </span>
+    );
+  }
+
+  // For detailed status with last seen
   return (
-    <span className={status === "online" ? "text-green-600" : "text-gray-400"}>
-      {status === "online" ? "● Online" : "○ Offline"}
-    </span>
+    <div className="flex flex-col gap-1">
+      <span
+        className={status === "online" ? "text-green-600" : "text-gray-400"}
+      >
+        {status === "online" ? "● Online" : "○ Offline"}
+      </span>
+      {status !== "online" && statusData && statusData.lastSeenFormatted && (
+        <span className="text-xs text-gray-500">
+          Last seen: {statusData.lastSeenFormatted}
+        </span>
+      )}
+    </div>
   );
 };
 
