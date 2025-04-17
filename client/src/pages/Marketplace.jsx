@@ -271,7 +271,8 @@ function Marketplace({ user }) {
   const handleStatsUpdate = useCallback((updatedStats) => {
     console.log('Received market stats update:', updatedStats);
     
-    if (isValidStats(updatedStats)) {
+    // Ensure we don't try to destructure null or undefined
+    if (updatedStats && typeof updatedStats === 'object' && isValidStats(updatedStats)) {
       console.log('Updating stats from socket');
       setMarketStats(updatedStats);
       lastValidStatsRef.current = updatedStats;
@@ -327,11 +328,12 @@ function Marketplace({ user }) {
       if (!statsData) return;
       
       // Create new stats object, using existing values as fallback
+      // Ensure we're not trying to destructure null or undefined
       const newStats = {
-        totalItems: statsData.activeListings ?? marketStats.activeListings,
-        totalSales: statsData.totalSales ?? marketStats.totalSales,
-        activeListings: statsData.activeListings ?? marketStats.activeListings,
-        onlineUsers: statsData.onlineUsers ?? marketStats.onlineUsers,
+        totalItems: typeof statsData === 'object' && statsData !== null ? (statsData.activeListings || 0) : 0,
+        totalSales: typeof statsData === 'object' && statsData !== null ? (statsData.totalSales || 0) : 0,
+        activeListings: typeof statsData === 'object' && statsData !== null ? (statsData.activeListings || 0) : 0,
+        onlineUsers: typeof statsData === 'object' && statsData !== null ? (statsData.onlineUsers || 0) : 0
       };
       
       // Only update if we have meaningful data
@@ -360,7 +362,7 @@ function Marketplace({ user }) {
     return () => {
       socketService.off('stats_update', handleStatsUpdate);
     };
-  }, [marketStats]);
+  }, []);  // Remove marketStats from dependency array to avoid infinite loop
 
   // Check if token is about to expire and refresh it
   useEffect(() => {
