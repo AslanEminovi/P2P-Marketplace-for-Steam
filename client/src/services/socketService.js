@@ -22,6 +22,7 @@ class SocketService {
     this.heartbeatInterval = null;
     this.heartbeatDelay = 60000; // Increasing from 15 seconds to 60 seconds (1 minute)
     this.currentPage = "other"; // Default to 'other' instead of marketplace
+    this.visibilityHandler = null; // For handling visibility changes
   }
 
   init() {
@@ -37,6 +38,9 @@ class SocketService {
 
     // Start periodic connection checking
     this.startConnectionCheck();
+
+    // Start the reliable heartbeat system
+    this.setupReliableHeartbeat();
 
     return this;
   }
@@ -240,6 +244,10 @@ class SocketService {
   disconnect() {
     if (this.socket) {
       console.log("[SocketService] Disconnecting socket");
+
+      // Stop the heartbeat system first
+      this.stopHeartbeat();
+
       try {
         this.socket.disconnect();
       } catch (err) {
@@ -253,8 +261,6 @@ class SocketService {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-
-    this.stopHeartbeat();
 
     if (this.connectionCheckTimer) {
       clearInterval(this.connectionCheckTimer);
@@ -602,9 +608,16 @@ class SocketService {
   }
 
   stopHeartbeat() {
+    console.log("[SocketService] Stopping heartbeat system");
+
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
+    }
+
+    if (this.visibilityHandler) {
+      document.removeEventListener("visibilitychange", this.visibilityHandler);
+      this.visibilityHandler = null;
     }
   }
 
@@ -625,6 +638,88 @@ class SocketService {
   // Method to get the current page
   getCurrentPage() {
     return this.currentPage;
+  }
+
+  /**
+   * Set up a reliable heartbeat system to ensure the user stays online
+   * even when the tab is inactive
+   */
+  setupReliableHeartbeat() {
+    console.log("[SocketService] Setting up reliable heartbeat system");
+
+    // Clear any existing heartbeat
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+
+    // Shorter interval for more reliable presence (15 seconds)
+    this.heartbeatInterval = setInterval(() => {
+      // Send heartbeat regardless of tab visibility
+      if (this.isConnected()) {
+        console.log("[SocketService] Sending automatic heartbeat");
+        this.socket.emit("heartbeat", { timestamp: Date.now() });
+        this.socket.emit("user_active", { timestamp: Date.now() });
+      } else {
+        console.log(
+          "[SocketService] Socket disconnected, attempting reconnect for heartbeat"
+        );
+        this.reconnect();
+
+        // Try to send heartbeat after reconnection attempt
+        setTimeout(() => {
+          if (this.isConnected()) {
+            this.socket.emit("heartbeat", { timestamp: Date.now() });
+            this.socket.emit("user_active", { timestamp: Date.now() });
+          }
+        }, 1000);
+      }
+    }, 15000); // Every 15 seconds
+
+    // Handle page visibility changes specifically for heartbeat
+    const heartbeatVisibilityHandler = () => {
+      if (document.visibilityState === "visible") {
+        // Tab just became visible, send immediate heartbeat
+        if (this.isConnected()) {
+          console.log(
+            "[SocketService] Tab visible, sending immediate heartbeat"
+          );
+          this.socket.emit("heartbeat", { timestamp: Date.now() });
+          this.socket.emit("user_active", { timestamp: Date.now() });
+        } else {
+          // Try to reconnect if not connected
+          console.log(
+            "[SocketService] Tab visible but disconnected, reconnecting"
+          );
+          this.reconnect();
+        }
+      } else {
+        // Tab hidden, send one last heartbeat to ensure we're still considered online
+        if (this.isConnected()) {
+          console.log("[SocketService] Tab hidden, sending final heartbeat");
+          this.socket.emit("heartbeat", { timestamp: Date.now() });
+          this.socket.emit("user_active", {
+            timestamp: Date.now(),
+            isTabHidden: true,
+          });
+        }
+      }
+    };
+
+    // Register visibility handler
+    if (this.visibilityHandler) {
+      document.removeEventListener("visibilitychange", this.visibilityHandler);
+    }
+    this.visibilityHandler = heartbeatVisibilityHandler;
+    document.addEventListener("visibilitychange", this.visibilityHandler);
+
+    // Ensure heartbeat is immediately started
+    if (this.isConnected()) {
+      this.socket.emit("heartbeat", { timestamp: Date.now() });
+      this.socket.emit("user_active", { timestamp: Date.now() });
+    }
+
+    return this;
   }
 }
 

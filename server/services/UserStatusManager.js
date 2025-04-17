@@ -21,10 +21,11 @@ class UserStatusManager {
     this.isInitialized = false;
     this.debugMode = process.env.NODE_ENV !== "production";
 
-    // Constants
-    this.CLEANUP_INTERVAL_MS = 15000; // 15 seconds
-    this.DB_SYNC_INTERVAL_MS = 30000; // 30 seconds
-    this.INACTIVE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+    // Constants - UPDATED for more forgiving timeouts
+    this.CLEANUP_INTERVAL_MS = 30000; // 30 seconds (was 15 seconds)
+    this.DB_SYNC_INTERVAL_MS = 60000; // 60 seconds (was 30 seconds)
+    this.INACTIVE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes (was 5 minutes)
+    this.SOCKET_DISCONNECT_GRACE_PERIOD = 5 * 60 * 1000; // 5 minute grace period for socket disconnects
   }
 
   /**
@@ -268,22 +269,16 @@ class UserStatusManager {
     );
 
     if (userInfo.socketIds.size === 0) {
-      // User has no more active connections
+      // User has no more active connections, but DON'T mark as offline immediately
+      // Just update the lastActive time and let the cleanup process handle it
       console.log(
-        `[UserStatusManager] User ${userId} has no more connections, marking as offline`
+        `[UserStatusManager] User ${userId} has no more connections, but keeping online during grace period`
       );
-      this.onlineUsers.delete(userId);
+      userInfo.lastActive = this.validateDate(new Date());
+      this.onlineUsers.set(userId, userInfo);
 
-      // Update database
-      this.updateUserStatus(userId, false).catch((err) => {
-        console.error(
-          `[UserStatusManager] Error updating database for user ${userId}:`,
-          err
-        );
-      });
-
-      // Notify about status change
-      this.notifyStatusChange(userId, false);
+      // We don't update the database or notify about status change immediately
+      // This gives the user time to reconnect without showing as offline
     } else {
       // Update the user info
       this.onlineUsers.set(userId, userInfo);
@@ -352,8 +347,8 @@ class UserStatusManager {
       for (const [userId, userInfo] of this.onlineUsers.entries()) {
         // Special handling for recovered users with no active sockets
         if (userInfo.isRecovered && userInfo.socketIds.size === 0) {
-          // Check if they've reconnected within the recovery window (2 minutes)
-          const recoveryWindow = 2 * 60 * 1000; // 2 minutes
+          // Check if they've reconnected within the recovery window (5 minutes - increased from 2 minutes)
+          const recoveryWindow = 5 * 60 * 1000; // 5 minutes
           const inactiveTime = now - userInfo.lastActive;
 
           if (inactiveTime > recoveryWindow) {
@@ -368,19 +363,31 @@ class UserStatusManager {
 
         // For normal users, check if they have any active sockets
         if (userInfo.socketIds.size === 0) {
-          console.log(
-            `[UserStatusManager] User ${userId} has no active sockets, marking offline`
-          );
-          usersToRemove.push(userId);
+          // Instead of immediately marking offline, check if they were active recently
+          const disconnectTime = now - userInfo.lastActive;
+
+          if (disconnectTime > this.SOCKET_DISCONNECT_GRACE_PERIOD) {
+            console.log(
+              `[UserStatusManager] User ${userId} has no active sockets for ${Math.round(
+                disconnectTime / 60000
+              )} minutes, marking offline`
+            );
+            usersToRemove.push(userId);
+          } else {
+            console.log(
+              `[UserStatusManager] User ${userId} has no active sockets but was active ${Math.round(
+                disconnectTime / 60000
+              )} minutes ago, keeping online during grace period`
+            );
+          }
           continue;
         }
 
-        // Check inactivity time - use a shorter window for initial detection
+        // Check inactivity time - use a much longer window now (15 minutes instead of 30 seconds)
         const inactiveTime = now - userInfo.lastActive;
 
-        // If inactive for even a short time, check if their sockets are still alive
-        if (inactiveTime > 30 * 1000) {
-          // 30 seconds
+        // Only check if sockets are alive after significant inactivity (2 minutes)
+        if (inactiveTime > 2 * 60 * 1000) {
           let allSocketsDisconnected = true;
 
           // Check each socket associated with this user
@@ -404,16 +411,28 @@ class UserStatusManager {
             }
           }
 
-          // If all sockets are disconnected or can't be found, mark user as offline
+          // If all sockets are disconnected or can't be found, give them a grace period
           if (allSocketsDisconnected) {
-            console.log(
-              `[UserStatusManager] All sockets for user ${userId} appear disconnected, marking offline`
-            );
-            usersToRemove.push(userId);
+            // Allow 5 minutes after last activity before marking offline
+            if (inactiveTime > this.SOCKET_DISCONNECT_GRACE_PERIOD) {
+              console.log(
+                `[UserStatusManager] All sockets for user ${userId} appear disconnected for ${Math.round(
+                  inactiveTime / 60000
+                )} minutes, marking offline`
+              );
+              usersToRemove.push(userId);
+            } else {
+              console.log(
+                `[UserStatusManager] All sockets for user ${userId} appear disconnected but still in grace period (${Math.round(
+                  inactiveTime / 60000
+                )} minutes), keeping online`
+              );
+            }
             continue;
           }
 
-          // If user is inactive for too long (even if sockets appear connected), still mark as offline
+          // If user is inactive for too long (even if sockets appear connected), mark as offline
+          // This is now a much longer window (15 minutes)
           if (inactiveTime > this.INACTIVE_TIMEOUT_MS) {
             console.log(
               `[UserStatusManager] User ${userId} inactive for ${Math.round(
@@ -607,6 +626,17 @@ class UserStatusManager {
    */
   async updateUserStatus(userId, isOnline) {
     try {
+      // Add a log message about the user's transition
+      if (isOnline) {
+        console.log(
+          `[UserStatusManager] Marking user ${userId} as ONLINE in database`
+        );
+      } else {
+        console.log(
+          `[UserStatusManager] Marking user ${userId} as OFFLINE in database`
+        );
+      }
+
       // Update database
       await User.findByIdAndUpdate(userId, {
         isOnline: isOnline,

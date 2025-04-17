@@ -25,6 +25,8 @@ const useUserStatus = (userId, initialStatus = null) => {
   const retryCountRef = useRef(0);
   const fetchTimeoutRef = useRef(null);
   const handleStatusUpdateRef = useRef(null);
+  // Track page load/refresh events - moved to top level of hook
+  const isPageLoadRef = useRef(true);
 
   // Constants
   const MAX_RETRIES = 3;
@@ -314,14 +316,15 @@ const useUserStatus = (userId, initialStatus = null) => {
 
     debug("Initializing status tracking");
 
-    // Track page load/refresh events
-    const isPageLoad = useRef(true);
-
     // For page reloads, immediately try to reconnect socket
-    if (isPageLoad.current) {
+    if (isPageLoadRef.current) {
       debug("Page just loaded, attempting immediate socket reconnection");
       socketService.reconnect();
-      isPageLoad.current = false;
+      // Ensure the socket service is actively maintaining the connection
+      if (socketService.setupReliableHeartbeat) {
+        socketService.setupReliableHeartbeat();
+      }
+      isPageLoadRef.current = false;
     }
 
     // Check if we have cached status first
@@ -331,13 +334,11 @@ const useUserStatus = (userId, initialStatus = null) => {
       );
       const cachedStatus = statusCache[userId];
 
-      // Use cached status if recent (within 5 minutes instead of 2 minutes)
-      // This helps prevent flickering offline/online during page refreshes
+      // Use cached status if recent (within 5 minutes)
       if (cachedStatus && Date.now() - cachedStatus.timestamp < 5 * 60 * 1000) {
         debug("Using cached status:", cachedStatus);
 
         // If within the last 3 minutes, trust the online status more
-        // This helps prevent briefly showing users as offline during page refresh
         if (
           cachedStatus.isOnline &&
           Date.now() - cachedStatus.timestamp < 3 * 60 * 1000
@@ -382,6 +383,9 @@ const useUserStatus = (userId, initialStatus = null) => {
         debug("Socket reconnected, resubscribing to status updates");
         subscribeToUserStatus();
 
+        // Ensure heartbeat is active after reconnection
+        socketService.setupReliableHeartbeat();
+
         // Small delay to allow server to process connection
         setTimeout(() => {
           fetchStatus(); // Get fresh status after reconnection
@@ -400,21 +404,9 @@ const useUserStatus = (userId, initialStatus = null) => {
       fetchStatus();
     }, 300);
 
-    // Set up periodic status checks (less frequent - every 2 minutes instead of every 60 seconds)
-    // This reduces the chance of flickering status
-    statusTimeoutRef.current = setInterval(fetchStatus, 120000);
-
-    // Set up heartbeat to let server know we're still active even if we're not doing anything
-    const heartbeatInterval = setInterval(() => {
-      if (isConnected()) {
-        debug("Sending heartbeat to maintain connection");
-        socketService.emit("heartbeat", {});
-        socketService.emit("user_active", {});
-      } else {
-        debug("Not connected, attempting reconnect for heartbeat");
-        socketService.reconnect();
-      }
-    }, 30000); // Every 30 seconds
+    // Set up periodic status checks, but less frequent now that we have reliable heartbeats
+    // Only check every 3 minutes since the heartbeat system will keep users online
+    statusTimeoutRef.current = setInterval(fetchStatus, 3 * 60 * 1000);
 
     // Set up visibility change listener to update status when tab becomes active
     const handleVisibilityChange = () => {
@@ -424,6 +416,8 @@ const useUserStatus = (userId, initialStatus = null) => {
         // Prioritize socket reconnection
         if (!isConnected()) {
           socketService.reconnect();
+          // Restart the heartbeat system
+          socketService.setupReliableHeartbeat();
         }
 
         // Wait a moment for connection to establish
@@ -431,21 +425,8 @@ const useUserStatus = (userId, initialStatus = null) => {
           fetchStatus();
           subscribeToUserStatus(); // Resubscribe to status updates
         }, 300);
-
-        // Send extra heartbeat on tab visibility change
-        if (isConnected()) {
-          socketService.emit("heartbeat", {});
-          socketService.emit("user_active", {});
-        } else {
-          // Small delay to allow reconnection to complete
-          setTimeout(() => {
-            if (isConnected()) {
-              socketService.emit("heartbeat", {});
-              socketService.emit("user_active", {});
-            }
-          }, 1000);
-        }
       }
+      // No else clause - we want to stay online even when tab is not visible
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -456,7 +437,7 @@ const useUserStatus = (userId, initialStatus = null) => {
 
       // Try to notify server about tab closing
       if (isConnected()) {
-        socketService.emit("browser_closing", {});
+        socketService.socket.emit("browser_closing", {});
       }
 
       // For refresh, cache the current status with recent timestamp
@@ -485,10 +466,6 @@ const useUserStatus = (userId, initialStatus = null) => {
 
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
-      }
-
-      if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
       }
 
       if (socketRegisteredRef.current) {
