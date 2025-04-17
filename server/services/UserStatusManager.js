@@ -21,12 +21,10 @@ class UserStatusManager {
     this.isInitialized = false;
     this.debugMode = process.env.NODE_ENV !== "production";
 
-    // Constants - UPDATED for more forgiving timeouts
-    this.CLEANUP_INTERVAL_MS = 20000; // 20 seconds (was 30 seconds)
-    this.DB_SYNC_INTERVAL_MS = 60000; // 60 seconds (unchanged)
-    this.INACTIVE_TIMEOUT_MS = 20 * 60 * 1000; // 20 minutes (was 15 minutes)
-    this.SOCKET_DISCONNECT_GRACE_PERIOD = 8 * 60 * 1000; // 8 minute grace period (was 5 minutes)
-    this.HEARTBEAT_TIMEOUT = 60 * 1000; // Consider heartbeat missing after 1 minute
+    // Constants
+    this.CLEANUP_INTERVAL_MS = 15000; // 15 seconds
+    this.DB_SYNC_INTERVAL_MS = 30000; // 30 seconds
+    this.INACTIVE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
   }
 
   /**
@@ -89,16 +87,6 @@ class UserStatusManager {
     this.isInitialized = true;
 
     console.log("[UserStatusManager] Initialization complete");
-  }
-
-  /**
-   * Handle a socket connection - Called by socketService
-   * This is the entry point used by the socketService
-   * @param {Object} socket - The socket.io socket
-   */
-  handleSocketConnection(socket) {
-    // Delegate to the handleConnection method
-    return this.handleConnection(socket);
   }
 
   /**
@@ -174,10 +162,10 @@ class UserStatusManager {
         );
 
         // Handle disconnect
-        socket.on("disconnect", (reason) => {
+        socket.on("disconnect", () => {
           this.anonymousSockets.delete(socket.id);
           console.log(
-            `[UserStatusManager] Anonymous socket disconnected: ${socket.id}, reason: ${reason}, remaining: ${this.anonymousSockets.size}`
+            `[UserStatusManager] Anonymous socket disconnected: ${socket.id}, remaining: ${this.anonymousSockets.size}`
           );
         });
 
@@ -194,10 +182,6 @@ class UserStatusManager {
         this.onlineUsers.set(userId, {
           socketIds: new Set([socket.id]),
           lastActive: this.validateDate(new Date()),
-          lastHeartbeat: this.validateDate(new Date()),
-          connectedSince: this.validateDate(new Date()),
-          disconnections: [],
-          closedSockets: new Set(),
         });
         console.log(
           `[UserStatusManager] Added user ${userId} to onlineUsers map, total count: ${this.onlineUsers.size}`
@@ -221,16 +205,6 @@ class UserStatusManager {
         );
         userInfo.socketIds.add(socket.id);
         userInfo.lastActive = this.validateDate(new Date());
-        userInfo.lastHeartbeat = this.validateDate(new Date());
-
-        // If socket was previously closed but reconnected, remove from closedSockets
-        if (userInfo.closedSockets && userInfo.closedSockets.has(socket.id)) {
-          userInfo.closedSockets.delete(socket.id);
-          console.log(
-            `[UserStatusManager] Reconnected previously closed socket ${socket.id} for user ${userId}`
-          );
-        }
-
         this.onlineUsers.set(userId, userInfo);
       }
 
@@ -241,127 +215,19 @@ class UserStatusManager {
         }, total connections: ${this.onlineUsers.get(userId).socketIds.size}`
       );
 
-      // Enhanced disconnect handler with reason
-      socket.on("disconnect", (reason) => {
-        console.log(
-          `[UserStatusManager] Socket ${socket.id} disconnected for user ${userId}, reason: ${reason}`
-        );
-        this.handleDisconnect(userId, socket.id, reason);
-      });
-
-      // Handle explicit browser closing event
-      socket.on("browser_closing", (data) => {
-        console.log(
-          `[UserStatusManager] Browser closing event received for user ${userId}, socket ${socket.id}`
-        );
-        // Track this socket as explicitly closed
-        const userInfo = this.onlineUsers.get(userId);
-        if (userInfo) {
-          if (!userInfo.closedSockets) userInfo.closedSockets = new Set();
-          userInfo.closedSockets.add(socket.id);
-
-          // Add closure info to disconnections array
-          if (!userInfo.disconnections) userInfo.disconnections = [];
-          userInfo.disconnections.push({
-            time: new Date(),
-            reason: "browser_closing",
-            socketId: socket.id,
-          });
-
-          this.onlineUsers.set(userId, userInfo);
-        }
-      });
-
-      // Handle explicit tab hidden notification
-      socket.on("tab_hidden", () => {
-        console.log(
-          `[UserStatusManager] Tab hidden event received for user ${userId}, socket ${socket.id}`
-        );
-        this.updateLastActive(userId);
+      // Handle disconnect
+      socket.on("disconnect", () => {
+        this.handleDisconnect(userId, socket.id);
       });
 
       // Handle heartbeat to update last active time
-      socket.on("heartbeat", (data) => {
-        const userInfo = this.onlineUsers.get(userId);
-        if (userInfo) {
-          userInfo.lastHeartbeat = this.validateDate(new Date());
-          this.onlineUsers.set(userId, userInfo);
-        }
+      socket.on("heartbeat", () => {
         this.updateLastActive(userId);
       });
 
       // Handle user activity
-      socket.on("user_active", (data) => {
-        const userInfo = this.onlineUsers.get(userId);
-        if (userInfo) {
-          // Record page info if provided
-          if (data && data.page) {
-            userInfo.currentPage = data.page;
-          }
-
-          // Record tab status if provided
-          if (data && data.tabActive !== undefined) {
-            userInfo.tabActive = data.tabActive;
-          }
-
-          this.onlineUsers.set(userId, userInfo);
-        }
+      socket.on("user_active", () => {
         this.updateLastActive(userId);
-      });
-
-      // Handle pings to verify connection
-      socket.on("ping", (data, callback) => {
-        // If callback exists, it's a latency test - call it to measure round trip time
-        if (typeof callback === "function") {
-          try {
-            callback();
-          } catch (err) {
-            console.error(
-              `[UserStatusManager] Error calling ping callback for user ${userId}:`,
-              err
-            );
-          }
-        }
-
-        // Always update last active time
-        this.updateLastActive(userId);
-
-        // Send a pong response
-        try {
-          socket.emit("pong", { timestamp: Date.now() });
-        } catch (err) {
-          console.error(
-            `[UserStatusManager] Error sending pong to user ${userId}:`,
-            err
-          );
-        }
-      });
-
-      // Register event handlers for tab visibility and browser closing events
-      socket.on("tab_visible", (data) =>
-        this.handleVisibilityChange(socket, data, "tab_visible")
-      );
-      socket.on("tab_hidden", (data) =>
-        this.handleVisibilityChange(socket, data, "tab_hidden")
-      );
-      socket.on("browser_closing", (data) =>
-        this.handleBrowserClosing(socket, data)
-      );
-      socket.on("page_changed", (data) => {
-        if (socket.metadata) {
-          socket.metadata.currentPage = data.page;
-          socket.metadata.lastActive = Date.now();
-        }
-
-        // If the user is authenticated, update their page in the onlineUsers map
-        if (socket.userId) {
-          const userInfo = this.onlineUsers.get(socket.userId);
-          if (userInfo) {
-            userInfo.currentPage = data.page;
-            userInfo.lastActive = Date.now();
-            this.onlineUsers.set(socket.userId, userInfo);
-          }
-        }
       });
 
       // After successful connection, log current stats
@@ -384,9 +250,8 @@ class UserStatusManager {
    * Handle socket disconnect
    * @param {string} userId - The user ID
    * @param {string} socketId - The socket ID
-   * @param {string} reason - Disconnect reason
    */
-  handleDisconnect(userId, socketId, reason = "unknown") {
+  handleDisconnect(userId, socketId) {
     if (!this.onlineUsers.has(userId)) {
       console.log(
         `[UserStatusManager] User ${userId} not found during disconnect`
@@ -396,54 +261,29 @@ class UserStatusManager {
 
     const userInfo = this.onlineUsers.get(userId);
 
-    // Track this disconnection
-    if (!userInfo.disconnections) userInfo.disconnections = [];
-    userInfo.disconnections.push({
-      time: new Date(),
-      reason,
-      socketId,
-    });
-
-    // Track as closed socket
-    if (!userInfo.closedSockets) userInfo.closedSockets = new Set();
-    userInfo.closedSockets.add(socketId);
-
-    // Remove this socket from active sockets
+    // Remove this socket
     userInfo.socketIds.delete(socketId);
     console.log(
-      `[UserStatusManager] Socket ${socketId} disconnected from user ${userId}, reason: ${reason}, remaining connections: ${userInfo.socketIds.size}`
+      `[UserStatusManager] Socket ${socketId} disconnected from user ${userId}, remaining connections: ${userInfo.socketIds.size}`
     );
 
     if (userInfo.socketIds.size === 0) {
-      // User has no more active connections, but DON'T mark as offline immediately
-      // Just update the lastActive time and let the cleanup process handle it
+      // User has no more active connections
       console.log(
-        `[UserStatusManager] User ${userId} has no more connections, but keeping online during grace period`
+        `[UserStatusManager] User ${userId} has no more connections, marking as offline`
       );
-      userInfo.lastActive = this.validateDate(new Date());
+      this.onlineUsers.delete(userId);
 
-      // If this was a transport error or ping timeout, it might be a network hiccup
-      if (reason === "transport error" || reason === "ping timeout") {
-        userInfo.lastDisconnectReason = reason;
-        console.log(
-          `[UserStatusManager] Disconnect appears to be due to network issues: ${reason}`
+      // Update database
+      this.updateUserStatus(userId, false).catch((err) => {
+        console.error(
+          `[UserStatusManager] Error updating database for user ${userId}:`,
+          err
         );
-      }
-      // If this was a client disconnect, or transport close, might be intentional
-      else if (
-        reason === "client namespace disconnect" ||
-        reason === "transport close"
-      ) {
-        userInfo.lastDisconnectReason = reason;
-        console.log(
-          `[UserStatusManager] Disconnect appears to be intentional: ${reason}`
-        );
-      }
+      });
 
-      this.onlineUsers.set(userId, userInfo);
-
-      // We don't update the database or notify about status change immediately
-      // This gives the user time to reconnect without showing as offline
+      // Notify about status change
+      this.notifyStatusChange(userId, false);
     } else {
       // Update the user info
       this.onlineUsers.set(userId, userInfo);
@@ -512,8 +352,8 @@ class UserStatusManager {
       for (const [userId, userInfo] of this.onlineUsers.entries()) {
         // Special handling for recovered users with no active sockets
         if (userInfo.isRecovered && userInfo.socketIds.size === 0) {
-          // Check if they've reconnected within the recovery window (5 minutes - increased from 2 minutes)
-          const recoveryWindow = 5 * 60 * 1000; // 5 minutes
+          // Check if they've reconnected within the recovery window (2 minutes)
+          const recoveryWindow = 2 * 60 * 1000; // 2 minutes
           const inactiveTime = now - userInfo.lastActive;
 
           if (inactiveTime > recoveryWindow) {
@@ -528,69 +368,25 @@ class UserStatusManager {
 
         // For normal users, check if they have any active sockets
         if (userInfo.socketIds.size === 0) {
-          // Instead of immediately marking offline, check if they were active recently
-          const disconnectTime = now - userInfo.lastActive;
-
-          // Look at disconnection history - if we have explicit browser closing events
-          // we can be more aggressive about marking them offline
-          let hasExplicitClose = false;
-          if (userInfo.disconnections && userInfo.disconnections.length > 0) {
-            // Check last 5 disconnections
-            const recentDisconnections = userInfo.disconnections.slice(-5);
-            for (const disconnection of recentDisconnections) {
-              if (
-                disconnection.reason === "browser_closing" ||
-                disconnection.reason === "client namespace disconnect"
-              ) {
-                hasExplicitClose = true;
-                break;
-              }
-            }
-          }
-
-          if (hasExplicitClose) {
-            // User explicitly closed the browser - we can mark offline sooner
-            console.log(
-              `[UserStatusManager] User ${userId} has explicit close events, marking offline`
-            );
-            usersToRemove.push(userId);
-          } else if (disconnectTime > this.SOCKET_DISCONNECT_GRACE_PERIOD) {
-            console.log(
-              `[UserStatusManager] User ${userId} has no active sockets for ${Math.round(
-                disconnectTime / 60000
-              )} minutes, marking offline`
-            );
-            usersToRemove.push(userId);
-          } else {
-            console.log(
-              `[UserStatusManager] User ${userId} has no active sockets but was active ${Math.round(
-                disconnectTime / 60000
-              )} minutes ago, keeping online during grace period`
-            );
-          }
+          console.log(
+            `[UserStatusManager] User ${userId} has no active sockets, marking offline`
+          );
+          usersToRemove.push(userId);
           continue;
         }
 
-        // Check inactivity time - use a longer window (increased to 20 minutes)
+        // Check inactivity time - use a shorter window for initial detection
         const inactiveTime = now - userInfo.lastActive;
-        const heartbeatTime =
-          now - (userInfo.lastHeartbeat || userInfo.lastActive);
 
-        // If we haven't received a heartbeat in a while, the connection might be dead
-        if (heartbeatTime > this.HEARTBEAT_TIMEOUT) {
-          console.log(
-            `[UserStatusManager] User ${userId} hasn't sent a heartbeat in ${Math.round(
-              heartbeatTime / 60000
-            )} minutes`
-          );
-
-          // Only do socket checking if heartbeats are missing
+        // If inactive for even a short time, check if their sockets are still alive
+        if (inactiveTime > 30 * 1000) {
+          // 30 seconds
           let allSocketsDisconnected = true;
 
           // Check each socket associated with this user
           for (const socketId of userInfo.socketIds) {
             // If we can't get the socket object or it's disconnected, consider it dead
-            const socket = this.io?.sockets?.sockets?.get(socketId);
+            const socket = io?.sockets?.sockets?.get(socketId);
             if (socket && socket.connected) {
               allSocketsDisconnected = false;
 
@@ -603,29 +399,29 @@ class UserStatusManager {
                   socketError
                 );
               }
+
               break; // One active socket is enough to keep the user online
             }
           }
 
-          // If all sockets are disconnected but still in our tracking, clean them up
+          // If all sockets are disconnected or can't be found, mark user as offline
           if (allSocketsDisconnected) {
             console.log(
-              `[UserStatusManager] All sockets for user ${userId} appear disconnected, cleaning up`
+              `[UserStatusManager] All sockets for user ${userId} appear disconnected, marking offline`
             );
-            userInfo.socketIds.clear(); // Clear socket IDs that are no longer connected
-            userInfo.lastActive = this.validateDate(new Date()); // Update last active time for grace period
-            this.onlineUsers.set(userId, userInfo);
+            usersToRemove.push(userId);
+            continue;
           }
-        }
 
-        // If user is inactive for too long (even if sockets appear connected), mark as offline
-        if (inactiveTime > this.INACTIVE_TIMEOUT_MS) {
-          console.log(
-            `[UserStatusManager] User ${userId} inactive for ${Math.round(
-              inactiveTime / 60000
-            )} minutes, marking offline despite connected sockets`
-          );
-          usersToRemove.push(userId);
+          // If user is inactive for too long (even if sockets appear connected), still mark as offline
+          if (inactiveTime > this.INACTIVE_TIMEOUT_MS) {
+            console.log(
+              `[UserStatusManager] User ${userId} inactive for ${Math.round(
+                inactiveTime / 60000
+              )} minutes, marking offline despite connected sockets`
+            );
+            usersToRemove.push(userId);
+          }
         }
       }
 
@@ -640,9 +436,6 @@ class UserStatusManager {
             err
           );
         });
-
-        // Notify about status change
-        this.notifyStatusChange(userId, false);
       }
     } catch (error) {
       console.error(
@@ -814,17 +607,6 @@ class UserStatusManager {
    */
   async updateUserStatus(userId, isOnline) {
     try {
-      // Add a log message about the user's transition
-      if (isOnline) {
-        console.log(
-          `[UserStatusManager] Marking user ${userId} as ONLINE in database`
-        );
-      } else {
-        console.log(
-          `[UserStatusManager] Marking user ${userId} as OFFLINE in database`
-        );
-      }
-
       // Update database
       await User.findByIdAndUpdate(userId, {
         isOnline: isOnline,
@@ -1008,22 +790,11 @@ class UserStatusManager {
    */
   getUserCounts() {
     try {
-      console.log("[UserStatusManager] Getting user counts...");
-
       // Check if maps are initialized
       if (!this.onlineUsers || !this.anonymousSockets) {
         console.error("[UserStatusManager] Maps not initialized properly");
-        console.error(
-          `onlineUsers: ${this.onlineUsers ? "defined" : "undefined"}`
-        );
-        console.error(
-          `anonymousSockets: ${this.anonymousSockets ? "defined" : "undefined"}`
-        );
-
         if (!this.isInitialized) {
-          console.log(
-            "[UserStatusManager] Manager not initialized, initializing now"
-          );
+          console.log("[UserStatusManager] Re-initializing manager");
           this.init();
         }
         return {
@@ -1046,14 +817,6 @@ class UserStatusManager {
       // We exclude anonymous users because they could be duplicate tabs
       // and there's no reliable way to deduplicate them without cookies
       const totalCount = authenticatedCount;
-
-      // Always log the counts for diagnostics
-      console.log("[UserStatusManager] Current user counts:", {
-        authenticated: authenticatedCount,
-        anonymous: anonymousCount,
-        total: totalCount,
-        note: "Total only includes authenticated users",
-      });
 
       // If everything is zero, log more detailed debug info
       if (authenticatedCount === 0 && anonymousCount === 0) {
@@ -1078,26 +841,22 @@ class UserStatusManager {
           );
         }
 
-        // Check if we have any data in the database
-        User.countDocuments({ isOnline: true })
-          .then((count) => {
-            console.log(
-              `[UserStatusManager] Users marked online in database: ${count}`
-            );
-            if (count > 0 && authenticatedCount === 0) {
-              console.log(
-                "[UserStatusManager] Database shows online users but memory has none - syncing"
-              );
-              this.syncWithDatabase();
-            }
-          })
-          .catch((err) => {
-            console.error(
-              "[UserStatusManager] Error checking online users in database:",
-              err
-            );
-          });
+        // Force a sync with database to recover any missing users
+        this.syncWithDatabase().catch((err) => {
+          console.error(
+            "[UserStatusManager] Error syncing with database during recovery:",
+            err
+          );
+        });
       }
+
+      // Log counts for debugging
+      console.log("[UserStatusManager] Current user counts:", {
+        authenticated: authenticatedCount,
+        anonymous: anonymousCount,
+        total: totalCount,
+        note: "Total only includes authenticated users",
+      });
 
       // Return counts
       return {
@@ -1217,99 +976,6 @@ class UserStatusManager {
       );
       console.error(
         `[UserStatusManager] This indicates a bug in the tracking system that needs to be fixed.`
-      );
-    }
-  }
-
-  /**
-   * Handle page visibility changes (tab hidden/visible)
-   * @param {Object} socket - Socket.io socket instance
-   * @param {Object} data - Event data containing timestamp and page info
-   * @param {String} eventType - Either 'tab_hidden' or 'tab_visible'
-   */
-  handleVisibilityChange(socket, data, eventType) {
-    try {
-      const userId = socket.userId;
-      const timestamp = data.timestamp || Date.now();
-      const page = data.page || "unknown";
-      const connectionId = data.connectionId;
-      const isVisible = eventType === "tab_visible";
-
-      console.log(
-        `[UserStatusManager] User ${userId || "anonymous"} tab ${
-          isVisible ? "visible" : "hidden"
-        } on page ${page}`
-      );
-
-      // Update socket metadata
-      socket.metadata = {
-        ...socket.metadata,
-        lastActive: timestamp,
-        currentPage: page,
-        tabVisible: isVisible,
-        connectionId,
-      };
-
-      if (userId) {
-        const userInfo = this.onlineUsers.get(userId);
-        if (userInfo) {
-          // Update visibility status in the user info
-          userInfo.tabVisible = isVisible;
-          userInfo.lastActive = timestamp;
-          userInfo.currentPage = page;
-
-          // If tab becomes visible and user was marked as away, mark them as active again
-          if (isVisible && userInfo.status === "away") {
-            userInfo.status = "active";
-
-            // Notify other clients about the status change
-            this.notifyUserStatusChange(userId, {
-              isOnline: true,
-              status: "active",
-              lastSeen: timestamp,
-            });
-          }
-
-          this.onlineUsers.set(userId, userInfo);
-        }
-      }
-    } catch (error) {
-      console.error(
-        "[UserStatusManager] Error handling visibility change:",
-        error
-      );
-    }
-  }
-
-  /**
-   * Handle browser closing event
-   * @param {Object} socket - Socket.io socket instance
-   * @param {Object} data - Event data containing timestamp and page info
-   */
-  handleBrowserClosing(socket, data) {
-    try {
-      const userId = socket.userId;
-      const timestamp = data.timestamp || Date.now();
-
-      console.log(
-        `[UserStatusManager] Browser closing event from user ${
-          userId || "anonymous"
-        }`
-      );
-
-      // Mark this socket as closing
-      socket.metadata = {
-        ...socket.metadata,
-        closing: true,
-        lastActive: timestamp,
-      };
-
-      // We'll let the disconnect handler take care of the rest
-      // No need to remove the socket yet as it will disconnect shortly
-    } catch (error) {
-      console.error(
-        "[UserStatusManager] Error handling browser closing:",
-        error
       );
     }
   }
