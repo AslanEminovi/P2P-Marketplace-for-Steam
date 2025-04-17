@@ -634,6 +634,39 @@ const socketService = new SocketService();
 // Initialize at import time
 socketService.init();
 
+// Add stats requesting function - call this whenever we need fresh stats
+socketService.requestStats = () => {
+  if (socketService.isConnected()) {
+    console.log("[socketService] Requesting immediate stats update");
+    socketService.socket.emit("request_stats_update");
+  } else {
+    console.log("[socketService] Socket not connected, reconnecting for stats");
+    // Try to reconnect and then request stats
+    socketService.reconnect();
+    setTimeout(() => {
+      if (socketService.isConnected()) {
+        socketService.socket.emit("request_stats_update");
+      }
+    }, 500);
+  }
+};
+
+// Enhance socket connection handling to request stats immediately
+socketService.onConnected((connected) => {
+  if (connected) {
+    console.log("[socketService] Connected, requesting immediate stats update");
+    socketService.requestStats();
+  }
+});
+
+// Add visibility change handler to refresh stats when tab becomes visible
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    console.log("[socketService] Page became visible, refreshing stats");
+    socketService.requestStats();
+  }
+});
+
 // Export the singleton
 export default socketService;
 
