@@ -9,7 +9,7 @@ import '../styles/MarketplaceCustom.css';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import jwtDecode from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode';
 
 // Component imports
 import OfferModal from '../components/OfferModal';
