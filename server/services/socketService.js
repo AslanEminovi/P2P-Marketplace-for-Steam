@@ -6,6 +6,7 @@
 const jwt = require("jsonwebtoken");
 const redisModule = require("../config/redis");
 const User = require("../models/User");
+const userStatusManager = require("./UserStatusManager");
 
 // Initialize Redis clients - Set these as global variables
 let pubClient = null;
@@ -14,22 +15,8 @@ let subClient = null;
 // Initialize Socket.io instance
 let io = null;
 
-// User tracking maps and sets
-let activeSockets = new Map(); // Map of userId -> socket.id
-let anonymousSockets = new Set(); // Set to track anonymous connections
-let connectedUsers = new Map(); // Map of userId -> { lastSeen: Date }
-let connectedUserSockets = new Map(); // Map of userId -> Set of socket.ids
-let userHeartbeatIntervals = new Map(); // Map of userId -> interval ID
-let lastStatsUpdate = null;
-let activeUsers = new Map(); // Map to track user activity timestamps (legacy)
-
 // Constants
 const STATS_UPDATE_INTERVAL = 10000; // 10 seconds
-const USER_ACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
-const OFFLINE_GRACE_PERIOD_MS = 10000; // 10 seconds grace period before marking a user offline
-
-// Set of users viewing the marketplace page
-const usersOnMarketplace = new Set();
 
 // Redis channels
 const REDIS_CHANNEL_NOTIFICATIONS = "notifications";
@@ -40,45 +27,6 @@ const REDIS_CHANNEL_TRADE_UPDATE = "trade_update";
 // Check if Redis is enabled
 let isRedisEnabled =
   !!process.env.REDIS_URL && process.env.USE_REDIS !== "false";
-
-/**
- * Format last seen time for user-friendly display
- * @param {Date} lastSeenDate - The last seen date
- * @returns {string} Formatted string (e.g., "2 minutes ago")
- */
-const formatLastSeen = (lastSeenDate) => {
-  if (!lastSeenDate) return null;
-
-  const now = new Date();
-  const lastSeen = new Date(lastSeenDate);
-  const diffMs = now - lastSeen;
-
-  // If less than a minute
-  if (diffMs < 60 * 1000) {
-    return "just now";
-  }
-
-  // If less than an hour
-  if (diffMs < 60 * 60 * 1000) {
-    const minutes = Math.floor(diffMs / (60 * 1000));
-    return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
-  }
-
-  // If less than a day
-  if (diffMs < 24 * 60 * 60 * 1000) {
-    const hours = Math.floor(diffMs / (60 * 60 * 1000));
-    return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
-  }
-
-  // If less than a week
-  if (diffMs < 7 * 24 * 60 * 60 * 1000) {
-    const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-    return `${days} day${days !== 1 ? "s" : ""} ago`;
-  }
-
-  // More than a week
-  return lastSeen.toLocaleDateString();
-};
 
 /**
  * Initialize the socket service with the given io instance
@@ -98,7 +46,6 @@ const init = async (ioInstance) => {
     console.log("[socketService] Initializing socket service with Socket.io");
 
     // Initialize our UserStatusManager
-    const userStatusManager = require("./UserStatusManager");
     userStatusManager.init();
 
     // Set up socket connection handler
@@ -190,14 +137,13 @@ const initRedisSubscriptions = () => {
 const handleNotificationMessage = (data) => {
   if (!io || !data.userId) return;
 
-  // If this server has the socket connection for the user, send the notification
-  if (activeSockets.has(data.userId)) {
-    const socketId = activeSockets.get(data.userId);
-    const socket = io.sockets.sockets.get(socketId);
+  // Find sockets for this user
+  const socketsForUser = Array.from(io.sockets.sockets.values()).filter(
+    (socket) => socket.userId === data.userId
+  );
 
-    if (socket) {
-      socket.emit("notification", data.notification);
-    }
+  for (const socket of socketsForUser) {
+    socket.emit("notification", data.notification);
   }
 };
 
@@ -207,16 +153,6 @@ const handleNotificationMessage = (data) => {
  */
 const handleUserStatusMessage = (data) => {
   if (!io || !data.userId) return;
-
-  // Update our local tracking map
-  if (data.isOnline) {
-    // We don't store the actual socket here since it might be on another server
-    connectedUsers.set(data.userId, {
-      lastSeen: new Date(data.lastSeen),
-    });
-  } else {
-    connectedUsers.delete(data.userId);
-  }
 
   // Broadcast the status update to connected clients on this server
   io.emit("userStatusUpdate", {
@@ -234,7 +170,6 @@ const handleMarketUpdateMessage = (data) => {
   if (!io) return;
 
   // Always broadcast market updates to all clients for reliability
-  // Previous page-specific filtering was too restrictive
   io.emit("market_update", data);
 
   // Update market activity feed if applicable
@@ -258,11 +193,12 @@ const handleTradeUpdateMessage = (data) => {
   if (!io) return;
 
   // If target user is connected to this server, send direct message
-  if (data.targetUserId && activeSockets.has(data.targetUserId)) {
-    const socketId = activeSockets.get(data.targetUserId);
-    const socket = io.sockets.sockets.get(socketId);
+  if (data.targetUserId) {
+    const socketsForUser = Array.from(io.sockets.sockets.values()).filter(
+      (socket) => socket.userId === data.targetUserId
+    );
 
-    if (socket) {
+    for (const socket of socketsForUser) {
       socket.emit("trade_update", data);
     }
   }
@@ -270,53 +206,6 @@ const handleTradeUpdateMessage = (data) => {
   // If we should broadcast this update (e.g., for market items being reserved)
   if (data.broadcast) {
     io.emit("trade_update", data);
-  }
-};
-
-/**
- * Function to get the count of unique authenticated and anonymous users
- * @returns {Object} Counts of authenticated and anonymous users
- */
-const getUniqueUserCounts = () => {
-  try {
-    // Authenticated users: count unique userIds from connectedUserSockets
-    // This is more accurate than using activeSockets since it tracks multiple connections per user
-    const authenticatedCount = connectedUserSockets
-      ? connectedUserSockets.size
-      : 0;
-
-    // Anonymous users: count unique socket IDs in the anonymousSockets set
-    const anonymousCount = anonymousSockets ? anonymousSockets.size : 0;
-
-    // Validate the count numbers
-    const validatedAuthCount = Number.isInteger(authenticatedCount)
-      ? authenticatedCount
-      : 0;
-    const validatedAnonCount = Number.isInteger(anonymousCount)
-      ? anonymousCount
-      : 0;
-    const totalCount = validatedAuthCount + validatedAnonCount;
-
-    console.log("[socketService] Current user counts:", {
-      authenticated: validatedAuthCount,
-      anonymous: validatedAnonCount,
-      total: totalCount,
-    });
-
-    // Return the count object
-    return {
-      authenticated: validatedAuthCount,
-      anonymous: validatedAnonCount,
-      total: totalCount,
-    };
-  } catch (error) {
-    // If there's any error in counting, return safe defaults
-    console.error("[socketService] Error counting users:", error);
-    return {
-      authenticated: 0,
-      anonymous: 0,
-      total: 0,
-    };
   }
 };
 
@@ -329,7 +218,6 @@ const getLatestStats = async () => {
     console.log("[socketService] Fetching latest stats");
 
     // Get user counts from UserStatusManager
-    const userStatusManager = require("./UserStatusManager");
     const userCounts = userStatusManager.getUserCounts();
 
     // Fetch stats from database
@@ -370,7 +258,6 @@ const getLatestStats = async () => {
     console.error("[socketService] Error getting latest stats:", error);
 
     // Return default stats on error
-    const userStatusManager = require("./UserStatusManager");
     const userCounts = userStatusManager.getUserCounts();
 
     return {
@@ -427,77 +314,46 @@ const sendMarketUpdate = (update, userId = null) => {
     timestamp: new Date().toISOString(),
   };
 
-  // Add retry logic for important updates
-  const maxRetries = 3;
-  let retryCount = 0;
+  try {
+    if (userId) {
+      // Send to specific user
+      const socketsForUser = Array.from(io.sockets.sockets.values()).filter(
+        (socket) => socket.userId === userId
+      );
 
-  const sendUpdate = async (retryDelay = 1000) => {
-    try {
-      if (userId) {
-        // Send to specific user
-        const userSocket = Array.from(io.sockets.sockets.values()).find(
-          (socket) => socket.userId === userId
+      for (const socket of socketsForUser) {
+        socket.emit("market_update", enrichedUpdate);
+      }
+    } else {
+      // Always broadcast to everyone - selective broadcasting was causing missed updates
+      if (isRedisEnabled && pubClient) {
+        pubClient.publish(
+          REDIS_CHANNEL_MARKET_UPDATE,
+          JSON.stringify(enrichedUpdate)
         );
-
-        if (userSocket) {
-          userSocket.emit("market_update", enrichedUpdate);
-        } else {
-          throw new Error("User socket not found");
-        }
       } else {
-        // Always broadcast to everyone - selective broadcasting was causing missed updates
-        if (isRedisEnabled && pubClient) {
-          await pubClient.publish(
-            REDIS_CHANNEL_MARKET_UPDATE,
-            JSON.stringify(enrichedUpdate)
-          );
-        } else {
-          // Broadcast to all clients on this server
-          io.emit("market_update", enrichedUpdate);
-        }
-      }
-
-      // Also emit market activity for certain update types
-      if (
-        [
-          "new_listing",
-          "item_unavailable",
-          "item_sold",
-          "listing_cancelled",
-        ].includes(update.type)
-      ) {
-        emitMarketActivity(enrichedUpdate);
-      }
-
-      // Broadcast updated stats after market changes
-      broadcastStats().catch(console.error);
-    } catch (err) {
-      console.error("Error sending market update:", err);
-
-      // Retry logic for important updates
-      if (
-        [
-          "new_listing",
-          "item_unavailable",
-          "item_sold",
-          "listing_cancelled",
-        ].includes(update.type)
-      ) {
-        if (retryCount < maxRetries) {
-          retryCount++;
-          console.log(
-            `Retrying market update (attempt ${retryCount}/${maxRetries})`
-          );
-          setTimeout(() => sendUpdate(retryDelay * 2), retryDelay);
-        } else {
-          console.error("Failed to send market update after max retries");
-        }
+        // Broadcast to all clients on this server
+        io.emit("market_update", enrichedUpdate);
       }
     }
-  };
 
-  // Start sending the update
-  sendUpdate();
+    // Also emit market activity for certain update types
+    if (
+      [
+        "new_listing",
+        "item_unavailable",
+        "item_sold",
+        "listing_cancelled",
+      ].includes(update.type)
+    ) {
+      emitMarketActivity(enrichedUpdate);
+    }
+
+    // Broadcast updated stats after market changes
+    broadcastStats().catch(console.error);
+  } catch (err) {
+    console.error("Error sending market update:", err);
+  }
 };
 
 /**
@@ -547,43 +403,6 @@ const emitUserActivity = (activity) => {
 };
 
 /**
- * Get the total count of connected clients (both authenticated and anonymous)
- * @returns {number} The number of connected clients
- */
-const getConnectedClientsCount = async () => {
-  if (!io) return 0;
-
-  if (isRedisEnabled && pubClient) {
-    try {
-      // Get authenticated users from Redis
-      const keys = await pubClient.keys("cs2market:user:*:status");
-      let onlineCount = 0;
-
-      for (const key of keys) {
-        const userStatus = await redisModule.getHashCache(
-          key.replace("cs2market:", "")
-        );
-        if (userStatus && userStatus.isOnline === true) {
-          onlineCount++;
-        }
-      }
-
-      // Anonymous users are tracked locally only
-      return onlineCount + anonymousSockets.size;
-    } catch (error) {
-      console.error("Error getting connected client count from Redis:", error);
-      // Fall back to local tracking with unique user counting
-      const counts = getUniqueUserCounts();
-      return counts.total;
-    }
-  }
-
-  // Use local tracking with unique user counting
-  const counts = getUniqueUserCounts();
-  return counts.total;
-};
-
-/**
  * Send a notification to a specific user
  * @param {string} userId - The user ID to send the notification to
  * @param {Object} notification - The notification object
@@ -628,54 +447,35 @@ const sendNotification = (userId, notification) => {
       .catch((err) =>
         console.error("Error publishing notification to Redis:", err)
       );
-
-    // We still need to try sending it directly if the user is connected to this server
-    if (activeSockets.has(userId)) {
-      const socketId = activeSockets.get(userId);
-      const socket = io.sockets.sockets.get(socketId);
-
-      if (socket) {
-        socket.emit("notification", enrichedNotification);
-        return true; // Successfully sent notification
-      }
-    }
-
-    // Notification was published to Redis, but user might not be connected
-    console.log(
-      `User ${userId} socket not found, notification stored for later delivery`
-    );
-    return false;
   }
 
-  // If Redis is not enabled, use direct delivery with minimal retries
-  if (!io) {
-    console.warn("Socket.io not initialized when trying to send notification");
-    return false;
-  }
-
-  // Simplified retry logic - only try once per socket
-  try {
-    // Find all sockets for this user
-    const userSockets = Array.from(io.sockets.sockets.values()).filter(
-      (socket) => socket.userId === userId
-    );
-
-    if (userSockets.length > 0) {
-      // Send to all user's sockets
-      userSockets.forEach((socket) => {
-        socket.emit("notification", enrichedNotification);
-      });
-      return true; // Successfully sent notification
-    } else {
-      console.log(
-        `No active sockets found for user ${userId}, notification stored for later delivery`
+  // Send directly to any sockets for this user on this server
+  if (io) {
+    try {
+      // Find all sockets for this user
+      const userSockets = Array.from(io.sockets.sockets.values()).filter(
+        (socket) => socket.userId === userId
       );
+
+      if (userSockets.length > 0) {
+        // Send to all user's sockets
+        userSockets.forEach((socket) => {
+          socket.emit("notification", enrichedNotification);
+        });
+        return true; // Successfully sent notification
+      } else {
+        console.log(
+          `No active sockets found for user ${userId}, notification stored for later delivery`
+        );
+        return false;
+      }
+    } catch (err) {
+      console.error("Error sending notification:", err);
       return false;
     }
-  } catch (err) {
-    console.error("Error sending notification:", err);
-    return false;
   }
+
+  return false;
 };
 
 /**
@@ -693,7 +493,6 @@ const getUserStatus = async (userId) => {
     };
   }
 
-  const userStatusManager = require("./UserStatusManager");
   return await userStatusManager.getUserStatus(userId);
 };
 
@@ -704,316 +503,7 @@ const getUserStatus = async (userId) => {
  */
 const isUserConnected = (userId) => {
   if (!userId) return false;
-
-  const userStatusManager = require("./UserStatusManager");
   return userStatusManager.isUserOnline(userId);
-};
-
-/**
- * Mark a user as online in Redis, database, and local tracking
- * @param {string} userId - The user ID to mark online
- */
-async function markUserOnline(userId) {
-  if (!userId) {
-    console.log("[socketService] Can't mark null userId as online");
-    return;
-  }
-
-  console.log(`[socketService] Marking user ${userId} as online`);
-
-  try {
-    // Update the database first (most important)
-    try {
-      const User = require("../models/User");
-      const updateResult = await User.findByIdAndUpdate(
-        userId,
-        {
-          isOnline: true,
-          lastActive: new Date(),
-        },
-        { new: true } // Return the updated document
-      );
-
-      if (updateResult) {
-        console.log(`[socketService] User ${userId} marked online in database`);
-      } else {
-        console.warn(
-          `[socketService] User ${userId} not found in database when marking online`
-        );
-      }
-    } catch (dbError) {
-      console.error(
-        `[socketService] Error updating user online status in database:`,
-        dbError
-      );
-    }
-
-    // Update Redis if available
-    if (isRedisEnabled && pubClient && pubClient.status === "ready") {
-      try {
-        const pipeline = pubClient.pipeline();
-        // Set user as online with 120-second TTL (increased from 70s)
-        pipeline.set(`user:${userId}:status`, "online", "EX", 120);
-        pipeline.set(`user:${userId}:lastActive`, Date.now(), "EX", 120);
-        await pipeline.exec();
-        console.log(
-          `[socketService] User ${userId} marked online in Redis with 120s TTL`
-        );
-      } catch (redisError) {
-        console.error(
-          `[socketService] Redis error marking user ${userId} online:`,
-          redisError
-        );
-      }
-    } else {
-      console.log(
-        `[socketService] Redis not available, skipping online status update in Redis`
-      );
-    }
-
-    // Update local tracking regardless
-    // Local tracking is our source of truth when Redis fails
-    connectedUsers.set(userId, { lastSeen: new Date() });
-    activeUsers.set(userId, { lastSeen: new Date() }); // Legacy support
-
-    // Broadcast the status update to all clients
-    if (io) {
-      io.emit("userStatusUpdate", {
-        userId,
-        isOnline: true,
-        lastSeen: new Date(),
-      });
-    }
-  } catch (error) {
-    console.error(
-      `[socketService] Error marking user ${userId} online:`,
-      error
-    );
-  }
-}
-
-/**
- * Mark a user as offline in Redis, database, and local tracking
- * @param {string} userId - The user ID to mark offline
- */
-async function markUserOffline(userId) {
-  if (!userId) {
-    console.log("[socketService] Can't mark null userId as offline");
-    return;
-  }
-
-  console.log(`[socketService] Marking user ${userId} as offline`);
-
-  try {
-    // Update database first (most important)
-    try {
-      const User = require("../models/User");
-      const updateResult = await User.findByIdAndUpdate(
-        userId,
-        {
-          isOnline: false,
-          lastActive: new Date(),
-        },
-        { new: true } // Return the updated document
-      );
-
-      if (updateResult) {
-        console.log(
-          `[socketService] User ${userId} marked offline in database`
-        );
-      } else {
-        console.warn(
-          `[socketService] User ${userId} not found in database when marking offline`
-        );
-      }
-    } catch (dbError) {
-      console.error(
-        `[socketService] Error updating user offline status in database:`,
-        dbError
-      );
-    }
-
-    // Update Redis if available
-    if (isRedisEnabled && pubClient && pubClient.status === "ready") {
-      try {
-        const pipeline = pubClient.pipeline();
-        // Set user as offline with 1-hour TTL for last seen info preservation
-        pipeline.set(`user:${userId}:status`, "offline", "EX", 3600);
-        pipeline.set(`user:${userId}:lastActive`, Date.now(), "EX", 3600);
-        await pipeline.exec();
-        console.log(
-          `[socketService] User ${userId} marked offline in Redis with 1h history`
-        );
-      } catch (redisError) {
-        console.error(
-          `[socketService] Redis error marking user ${userId} offline:`,
-          redisError
-        );
-      }
-    } else {
-      console.log(
-        `[socketService] Redis not available, skipping offline status update in Redis`
-      );
-    }
-
-    // Update local tracking
-    connectedUsers.delete(userId);
-    activeUsers.delete(userId);
-
-    // Clean up any remaining socket connections for this user
-    if (connectedUserSockets.has(userId)) {
-      connectedUserSockets.delete(userId);
-    }
-
-    // Clean up any heartbeat intervals
-    if (userHeartbeatIntervals.has(userId)) {
-      clearInterval(userHeartbeatIntervals.get(userId));
-      userHeartbeatIntervals.delete(userId);
-    }
-
-    // Broadcast the status update to all clients
-    if (io) {
-      io.emit("userStatusUpdate", {
-        userId,
-        isOnline: false,
-        lastSeen: new Date(),
-      });
-    }
-  } catch (error) {
-    console.error(
-      `[socketService] Error marking user ${userId} offline:`,
-      error
-    );
-  }
-}
-
-/**
- * Periodically clean up stale connections and ensure user status is accurate
- */
-const startConnectionCleanup = () => {
-  const CLEANUP_INTERVAL = 15000; // Run cleanup every 15 seconds (was 60 seconds)
-  const FORCE_OFFLINE_AFTER = 5 * 60 * 1000; // 5 minutes of inactivity (was 20 minutes)
-
-  console.log("[socketService] Starting connection cleanup interval");
-
-  setInterval(async () => {
-    console.log("[socketService] Running connection cleanup...");
-
-    try {
-      // 1. Clean up stale socket references
-      for (const [userId, socketSet] of connectedUserSockets.entries()) {
-        const validSockets = new Set();
-
-        // Check each socket for validity
-        for (const socketId of socketSet) {
-          const socket = io?.sockets?.sockets?.get(socketId);
-          if (socket && socket.connected) {
-            validSockets.add(socketId);
-          }
-        }
-
-        // Update with only valid sockets
-        if (validSockets.size === 0) {
-          // No valid sockets, remove user from tracking
-          connectedUserSockets.delete(userId);
-          // Mark user as offline in database
-          await markUserOffline(userId);
-
-          // Clear any heartbeat intervals
-          if (userHeartbeatIntervals.has(userId)) {
-            clearInterval(userHeartbeatIntervals.get(userId));
-            userHeartbeatIntervals.delete(userId);
-          }
-        } else if (validSockets.size !== socketSet.size) {
-          // Some sockets were invalid, update the set
-          connectedUserSockets.set(userId, validSockets);
-          console.log(
-            `[socketService] Cleaned up stale sockets for user ${userId}, now has ${validSockets.size} active connections`
-          );
-        }
-      }
-
-      // 2. Check the legacy activeSockets map for stale entries
-      for (const [userId, socketId] of activeSockets.entries()) {
-        const socket = io?.sockets?.sockets?.get(socketId);
-        if (!socket || !socket.connected) {
-          console.log(
-            `[socketService] Found stale socket in activeSockets for user ${userId}`
-          );
-
-          // Check if user has other valid sockets
-          if (
-            connectedUserSockets.has(userId) &&
-            connectedUserSockets.get(userId).size > 0
-          ) {
-            // Update activeSockets with another valid socket
-            const anotherSocketId = Array.from(
-              connectedUserSockets.get(userId)
-            )[0];
-            activeSockets.set(userId, anotherSocketId);
-          } else {
-            // No valid sockets, remove from tracking
-            activeSockets.delete(userId);
-            await markUserOffline(userId);
-          }
-        }
-      }
-
-      // 3. Check database for users marked online but with no active socket
-      const User = require("../models/User");
-      const onlineUsers = await User.find({ isOnline: true });
-
-      let updatedAnyUser = false;
-      for (const user of onlineUsers) {
-        const userId = user._id.toString();
-        const lastActiveTime = user.lastActive
-          ? new Date(user.lastActive).getTime()
-          : 0;
-        const inactiveTime = Date.now() - lastActiveTime;
-
-        // If user has been inactive for too long, mark them offline
-        if (inactiveTime > FORCE_OFFLINE_AFTER) {
-          console.log(
-            `[socketService] User ${userId} inactive for ${Math.round(
-              inactiveTime / 60000
-            )} minutes, marking offline`
-          );
-          await markUserOffline(userId);
-          updatedAnyUser = true;
-          continue;
-        }
-
-        // Check if user actually has valid sockets
-        const hasConnections =
-          connectedUserSockets.has(userId) &&
-          connectedUserSockets.get(userId).size > 0;
-
-        if (!hasConnections) {
-          // Double-check if user has ANY socket connections by checking all sockets
-          const hasAnySocket = Array.from(io.sockets.sockets.values()).some(
-            (s) => s.userId === userId
-          );
-
-          if (!hasAnySocket) {
-            console.log(
-              `[socketService] User ${userId} marked online in DB but has no socket connections, fixing...`
-            );
-            await markUserOffline(userId);
-            updatedAnyUser = true;
-          }
-        }
-      }
-
-      // If we updated any user's status, broadcast fresh stats to everyone
-      if (updatedAnyUser) {
-        await broadcastStats();
-      }
-
-      console.log(`[socketService] Connection cleanup complete`);
-    } catch (error) {
-      console.error(`[socketService] Error in connection cleanup:`, error);
-    }
-  }, CLEANUP_INTERVAL);
 };
 
 /**
@@ -1030,7 +520,7 @@ const startPeriodicStatsBroadcast = () => {
     broadcastStats().catch((err) => {
       console.error("[socketService] Error in periodic stats broadcast:", err);
     });
-  }, 10000); // Every 10 seconds
+  }, STATS_UPDATE_INTERVAL); // Every 10 seconds
 };
 
 /**
@@ -1052,8 +542,8 @@ const setupPresenceApi = (app) => {
 
       console.log(`[socketService] Presence API request for user ${id}`);
 
-      // Get user status
-      const status = await getUserStatus(id);
+      // Get user status from UserStatusManager
+      const status = await userStatusManager.getUserStatus(id);
 
       console.log(`[socketService] Status for user ${id}:`, status);
 
@@ -1083,4 +573,8 @@ module.exports = {
   isUserConnected,
   setupPresenceApi,
   getLatestStats,
+  sendMarketUpdate,
+  emitMarketActivity,
+  emitUserActivity,
+  sendNotification,
 };

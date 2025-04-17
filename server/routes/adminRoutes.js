@@ -8,6 +8,7 @@ const adminController = require("../controllers/adminController");
 const auth = require("../middleware/auth");
 const User = require("../models/User");
 const { getUserStatus } = require("../services/socketService");
+const UserStatusManager = require("../services/UserStatusManager");
 
 // Define a route handler for admin check
 // This should be before any auth middleware
@@ -458,6 +459,7 @@ router.get("/statistics", async (req, res) => {
     const User = mongoose.model("User");
     const Item = mongoose.model("Item");
     const Trade = mongoose.model("Trade");
+    const userStatusManager = require("../services/UserStatusManager");
 
     const usersCount = await User.countDocuments();
     const itemsCount = await Item.countDocuments({ isListed: true });
@@ -466,12 +468,9 @@ router.get("/statistics", async (req, res) => {
       status: "completed",
     });
 
-    // Get counts of active users (logged in within the last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const activeUsersCount = await User.countDocuments({
-      lastLogin: { $gte: thirtyDaysAgo },
-    });
+    // Get online user counts directly from UserStatusManager
+    const userCounts = userStatusManager.getUserCounts();
+    const activeUsersCount = userCounts.authenticated;
 
     // Get counts of new users and items in the last 24 hours
     const twentyFourHoursAgo = new Date();

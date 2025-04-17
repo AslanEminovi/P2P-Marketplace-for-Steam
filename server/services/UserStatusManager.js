@@ -390,18 +390,36 @@ class UserStatusManager {
    * @returns {Object} User counts
    */
   getUserCounts() {
-    // Count unique authenticated users
-    const authenticatedCount = this.onlineUsers.size;
+    try {
+      // Count unique authenticated users
+      const authenticatedCount = this.onlineUsers ? this.onlineUsers.size : 0;
 
-    // Count anonymous users
-    const anonymousCount = this.anonymousSockets.size;
+      // Count anonymous users
+      const anonymousCount = this.anonymousSockets
+        ? this.anonymousSockets.size
+        : 0;
 
-    // Return counts
-    return {
-      authenticated: authenticatedCount,
-      anonymous: anonymousCount,
-      total: authenticatedCount + anonymousCount,
-    };
+      // Log counts for debugging
+      console.log("[UserStatusManager] Current user counts:", {
+        authenticated: authenticatedCount,
+        anonymous: anonymousCount,
+        total: authenticatedCount + anonymousCount,
+      });
+
+      // Return counts
+      return {
+        authenticated: authenticatedCount,
+        anonymous: anonymousCount,
+        total: authenticatedCount + anonymousCount,
+      };
+    } catch (error) {
+      console.error("[UserStatusManager] Error getting user counts:", error);
+      return {
+        authenticated: 0,
+        anonymous: 0,
+        total: 0,
+      };
+    }
   }
 
   /**

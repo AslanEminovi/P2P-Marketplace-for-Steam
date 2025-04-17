@@ -322,17 +322,22 @@ app.get("/stats", async (req, res) => {
     const Item = mongoose.model("Item");
     const User = mongoose.model("User");
     const Trade = mongoose.model("Trade");
+    const userStatusManager = require("./services/UserStatusManager");
 
     // Get counts of active listings, users, and completed trades
     const activeListings = await Item.countDocuments({ isListed: true });
-    const activeUsers = await User.countDocuments({
+    const registeredUsers = await User.countDocuments({
       lastActive: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
     });
     const completedTrades = await Trade.countDocuments({ status: "completed" });
 
+    // Get online user counts from UserStatusManager
+    const userCounts = userStatusManager.getUserCounts();
+
     res.json({
       activeListings,
-      activeUsers,
+      activeUsers: userCounts.total,
+      registeredUsers,
       completedTrades,
       timestamp: new Date(),
     });
@@ -412,16 +417,21 @@ const updateSiteStats = async () => {
     const Item = mongoose.model("Item");
     const User = mongoose.model("User");
     const Trade = mongoose.model("Trade");
+    const userStatusManager = require("./services/UserStatusManager");
 
     const activeListings = await Item.countDocuments({ isListed: true });
-    const activeUsers = await User.countDocuments({
+    const registeredUsers = await User.countDocuments({
       lastActive: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
     });
     const completedTrades = await Trade.countDocuments({ status: "completed" });
 
+    // Get online user counts from UserStatusManager
+    const userCounts = userStatusManager.getUserCounts();
+
     return {
       activeListings,
-      activeUsers,
+      activeUsers: userCounts.total,
+      registeredUsers,
       completedTrades,
       timestamp: new Date(),
     };
@@ -538,12 +548,8 @@ io.use(async (socket, next) => {
       return next(new Error("User not found"));
     }
 
-    // Set online status in database immediately
-    user.isOnline = true;
-    user.lastActive = new Date();
-    await user.save();
-
-    // Attach user data to socket
+    // Don't update the database here - UserStatusManager will handle that
+    // Just attach user data to the socket
     socket.userId = user._id.toString();
     socket.username = user.username || user.steamName || "User";
     socket.isAuthenticated = true;

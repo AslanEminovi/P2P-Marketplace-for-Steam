@@ -31,17 +31,31 @@ router.get("/stats", async (req, res) => {
 
     console.log("Fetching fresh marketplace stats");
 
-    // Use the same function that the socket service uses to ensure consistency
-    const socketService = require("../services/socketService");
-    const stats = await socketService.getLatestStats();
+    // Use UserStatusManager directly for user counts
+    const userStatusManager = require("../services/UserStatusManager");
+    const userCounts = userStatusManager.getUserCounts();
+
+    // Fetch stats from database
+    const Item = require("../models/Item");
+    const User = require("../models/User");
+    const Trade = require("../models/Trade");
+
+    const [activeListings, registeredUsers, completedTrades] =
+      await Promise.all([
+        Item.countDocuments({ isListed: true }),
+        User.countDocuments({
+          lastActive: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        }),
+        Trade.countDocuments({ status: "completed" }),
+      ]);
 
     // Format for the HTTP response
     const formattedStats = {
-      activeListings: stats.activeListings,
-      activeUsers: stats.activeUsers || stats.onlineUsers?.total || 0,
-      registeredUsers: stats.registeredUsers,
-      completedTrades: stats.completedTrades,
-      timestamp: stats.timestamp || new Date(),
+      activeListings,
+      activeUsers: userCounts.total,
+      registeredUsers,
+      completedTrades,
+      timestamp: new Date(),
     };
 
     // Update cache

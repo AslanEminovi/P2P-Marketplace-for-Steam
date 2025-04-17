@@ -111,7 +111,7 @@ router.get("/redis-status", async (req, res) => {
 // Get user online status
 router.get("/status/:userId", async (req, res) => {
   const { userId } = req.params;
-  const socketService = require("../services/socketService");
+  const userStatusManager = require("../services/UserStatusManager");
 
   if (!userId) {
     return res.status(400).json({ error: "User ID is required" });
@@ -120,70 +120,13 @@ router.get("/status/:userId", async (req, res) => {
   try {
     console.log(`[userRoutes] GET /status/${userId} request received`);
 
-    // Get user status from socketService
-    const status = await socketService.getUserStatus(userId);
+    // Get user status directly from UserStatusManager
+    const status = await userStatusManager.getUserStatus(userId);
     console.log(`[userRoutes] Retrieved status for user ${userId}:`, status);
 
-    // Double-check active connections
-    const isSocketConnected = socketService.isUserConnected(userId);
-    console.log(
-      `[userRoutes] Socket connection check for ${userId}: ${
-        isSocketConnected ? "CONNECTED" : "NOT CONNECTED"
-      }`
-    );
+    // No need to double-check active connections since UserStatusManager is the single source of truth
 
-    // If the status says offline but we detect an active socket, override
-    if (!status.isOnline && isSocketConnected) {
-      console.log(
-        `[userRoutes] Overriding status for ${userId} to ONLINE based on active socket`
-      );
-      status.isOnline = true;
-      status.lastSeen = new Date();
-    }
-
-    // Format last seen time with more detail
-    let lastSeenFormatted = null;
-    if (status.lastSeen) {
-      const now = new Date();
-      const lastSeen = new Date(status.lastSeen);
-      const diffMs = now - lastSeen;
-
-      // If less than a minute
-      if (diffMs < 60 * 1000) {
-        lastSeenFormatted = "just now";
-      }
-      // If less than an hour
-      else if (diffMs < 60 * 60 * 1000) {
-        const minutes = Math.floor(diffMs / (60 * 1000));
-        lastSeenFormatted = `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
-      }
-      // If less than a day
-      else if (diffMs < 24 * 60 * 60 * 1000) {
-        const hours = Math.floor(diffMs / (60 * 60 * 1000));
-        const minutes = Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000));
-        if (minutes > 0) {
-          lastSeenFormatted = `${hours}h ${minutes}m ago`;
-        } else {
-          lastSeenFormatted = `${hours} hour${hours !== 1 ? "s" : ""} ago`;
-        }
-      }
-      // If less than a week
-      else if (diffMs < 7 * 24 * 60 * 60 * 1000) {
-        const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-        lastSeenFormatted = `${days} day${days !== 1 ? "s" : ""} ago`;
-      }
-      // More than a week - show date and time
-      else {
-        lastSeenFormatted = lastSeen.toLocaleString("en-US", {
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-      }
-    }
-
-    // Send the response with cache control headers
+    // Set no-cache headers
     res.set({
       "Cache-Control": "no-cache, no-store, must-revalidate",
       Pragma: "no-cache",
@@ -194,8 +137,9 @@ router.get("/status/:userId", async (req, res) => {
       userId,
       isOnline: status.isOnline,
       lastSeen: status.lastSeen,
-      lastSeenFormatted,
+      lastSeenFormatted: status.lastSeenFormatted,
       timestamp: new Date(),
+      source: status.source,
     };
 
     console.log(
