@@ -71,111 +71,122 @@ class UserStatusManager {
    * @param {Object} socket - The socket.io socket
    */
   handleConnection(socket) {
-    const userId = socket.userId;
-    const isAuthenticated = socket.isAuthenticated === true;
+    try {
+      const userId = socket.userId;
+      const isAuthenticated = socket.isAuthenticated === true;
 
-    // Log detailed connection information
-    console.log(
-      `[UserStatusManager] New connection: Socket ${socket.id}, UserId: ${
-        userId || "anonymous"
-      }, Auth: ${isAuthenticated}`
-    );
-
-    // Check if token exists in socket.handshake
-    const tokenExists = !!(
-      socket.handshake?.auth?.token ||
-      socket.handshake?.headers?.authorization ||
-      socket.handshake?.query?.token
-    );
-
-    if (!tokenExists) {
+      // Log detailed connection information
       console.log(
-        `[UserStatusManager] No token in socket handshake for socket ${socket.id}`
+        `[UserStatusManager] New connection: Socket ${socket.id}, UserId: ${
+          userId || "anonymous"
+        }, Auth: ${isAuthenticated}`
       );
-    }
 
-    if (!userId || !isAuthenticated) {
-      // Anonymous user - log reason
-      if (!userId && !isAuthenticated) {
+      // Check if token exists in socket.handshake
+      const tokenExists = !!(
+        socket.handshake?.auth?.token ||
+        socket.handshake?.headers?.authorization ||
+        socket.handshake?.query?.token
+      );
+
+      if (!tokenExists) {
         console.log(
-          `[UserStatusManager] Socket ${socket.id} is anonymous: No userId and not authenticated`
-        );
-      } else if (!userId) {
-        console.log(
-          `[UserStatusManager] Socket ${socket.id} is anonymous: No userId even though authenticated=${isAuthenticated}`
-        );
-      } else {
-        console.log(
-          `[UserStatusManager] Socket ${socket.id} is anonymous: Has userId=${userId} but not authenticated`
+          `[UserStatusManager] No token in socket handshake for socket ${socket.id}`
         );
       }
 
-      this.anonymousSockets.add(socket.id);
+      if (!userId || !isAuthenticated) {
+        // Anonymous user - log reason
+        if (!userId && !isAuthenticated) {
+          console.log(
+            `[UserStatusManager] Socket ${socket.id} is anonymous: No userId and not authenticated`
+          );
+        } else if (!userId) {
+          console.log(
+            `[UserStatusManager] Socket ${socket.id} is anonymous: No userId even though authenticated=${isAuthenticated}`
+          );
+        } else {
+          console.log(
+            `[UserStatusManager] Socket ${socket.id} is anonymous: Has userId=${userId} but not authenticated`
+          );
+        }
+
+        this.anonymousSockets.add(socket.id);
+
+        // Handle disconnect
+        socket.on("disconnect", () => {
+          this.anonymousSockets.delete(socket.id);
+          console.log(
+            `[UserStatusManager] Anonymous socket disconnected: ${socket.id}`
+          );
+        });
+
+        return;
+      }
+
+      // Authenticated user
+      if (!this.onlineUsers.has(userId)) {
+        // First socket for this user
+        console.log(`[UserStatusManager] First connection for user ${userId}`);
+        this.onlineUsers.set(userId, {
+          socketIds: new Set([socket.id]),
+          lastActive: this.validateDate(new Date()),
+        });
+
+        // Update database immediately
+        this.updateUserStatus(userId, true).catch((err) => {
+          console.error(
+            `[UserStatusManager] Error updating database for user ${userId}:`,
+            err
+          );
+        });
+      } else {
+        // Add to existing user's socket set
+        const userInfo = this.onlineUsers.get(userId);
+        console.log(
+          `[UserStatusManager] Additional connection for user ${userId}, existing connections: ${userInfo.socketIds.size}`
+        );
+        userInfo.socketIds.add(socket.id);
+        userInfo.lastActive = this.validateDate(new Date());
+        this.onlineUsers.set(userId, userInfo);
+      }
+
+      // Log the connection
+      console.log(
+        `[UserStatusManager] User ${userId} connected with socket ${
+          socket.id
+        }, total connections: ${this.onlineUsers.get(userId).socketIds.size}`
+      );
 
       // Handle disconnect
       socket.on("disconnect", () => {
-        this.anonymousSockets.delete(socket.id);
-        console.log(
-          `[UserStatusManager] Anonymous socket disconnected: ${socket.id}`
-        );
+        this.handleDisconnect(userId, socket.id);
       });
 
-      return;
+      // Handle heartbeat to update last active time
+      socket.on("heartbeat", () => {
+        this.updateLastActive(userId);
+      });
+
+      // Handle user activity
+      socket.on("user_active", () => {
+        this.updateLastActive(userId);
+      });
+
+      // After successful connection, log current stats
+      setTimeout(() => {
+        this.logConnections();
+      }, 1000);
+    } catch (error) {
+      console.error(`[UserStatusManager] Error in handleConnection:`, error);
+      // Handle the socket safely even if the main flow errors out
+      if (socket && socket.id) {
+        this.anonymousSockets.add(socket.id);
+        socket.on("disconnect", () => {
+          this.anonymousSockets.delete(socket.id);
+        });
+      }
     }
-
-    // Authenticated user
-    if (!this.onlineUsers.has(userId)) {
-      // First socket for this user
-      console.log(`[UserStatusManager] First connection for user ${userId}`);
-      this.onlineUsers.set(userId, {
-        socketIds: new Set([socket.id]),
-        lastActive: this.validateDate(new Date()),
-      });
-
-      // Update database immediately
-      this.updateUserStatus(userId, true).catch((err) => {
-        console.error(
-          `[UserStatusManager] Error updating database for user ${userId}:`,
-          err
-        );
-      });
-    } else {
-      // Add to existing user's socket set
-      const userInfo = this.onlineUsers.get(userId);
-      console.log(
-        `[UserStatusManager] Additional connection for user ${userId}, existing connections: ${userInfo.socketIds.size}`
-      );
-      userInfo.socketIds.add(socket.id);
-      userInfo.lastActive = this.validateDate(new Date());
-      this.onlineUsers.set(userId, userInfo);
-    }
-
-    // Log the connection
-    console.log(
-      `[UserStatusManager] User ${userId} connected with socket ${
-        socket.id
-      }, total connections: ${this.onlineUsers.get(userId).socketIds.size}`
-    );
-
-    // Handle disconnect
-    socket.on("disconnect", () => {
-      this.handleDisconnect(userId, socket.id);
-    });
-
-    // Handle heartbeat to update last active time
-    socket.on("heartbeat", () => {
-      this.updateLastActive(userId);
-    });
-
-    // Handle user activity
-    socket.on("user_active", () => {
-      this.updateLastActive(userId);
-    });
-
-    // After successful connection, log current stats
-    setTimeout(() => {
-      this.logConnections();
-    }, 1000);
   }
 
   /**

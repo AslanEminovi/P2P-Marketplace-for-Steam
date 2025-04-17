@@ -13,6 +13,8 @@ const { createAdapter } = require("@socket.io/redis-adapter");
 const connectRedis = require("connect-redis");
 const { redisClient } = require("./config/redis");
 const Redis = require("ioredis");
+const User = require("./models/User"); // Explicitly import User model at top level
+const userStatusManager = require("./services/UserStatusManager"); // Explicitly import at top level
 
 // Import Redis configuration
 const redisConfig = require("./config/redis");
@@ -548,6 +550,14 @@ io.use(async (socket, next) => {
         socket.userId = null;
         socket.isAuthenticated = false;
         return next(new Error("Invalid user ID in token"));
+      }
+
+      // Ensure User model is properly loaded
+      if (!User || typeof User.findById !== "function") {
+        console.error("[socketAuth] User model not properly loaded");
+        socket.userId = null;
+        socket.isAuthenticated = false;
+        return next(new Error("Database configuration error"));
       }
 
       // Find user
