@@ -486,15 +486,53 @@ class UserStatusManager {
         .lean();
 
       if (user) {
-        // Use 10-minute rule - if user was active in the last 10 minutes, consider them online
-        const lastActive = user.lastActive ? new Date(user.lastActive) : now;
-        const tenMinutesAgo = new Date(now - 10 * 60 * 1000);
-        const isOnline = user.isOnline === true || lastActive > tenMinutesAgo;
+        // Use stricter rules for database status
+        // Only consider online if:
+        // 1. They were active in the last 3 minutes
+        // OR
+        // 2. isOnline is true AND they were active in the last 10 minutes
+        const lastActive = user.lastActive ? new Date(user.lastActive) : null;
 
-        status.isOnline = isOnline;
-        status.lastSeen = lastActive;
+        if (!lastActive) {
+          status.isOnline = false;
+        } else {
+          const threeMinutesAgo = new Date(now - 3 * 60 * 1000);
+          const tenMinutesAgo = new Date(now - 10 * 60 * 1000);
+
+          // Very recent activity always counts as online
+          if (lastActive > threeMinutesAgo) {
+            status.isOnline = true;
+          }
+          // Less recent activity requires the isOnline flag to be true
+          else if (user.isOnline === true && lastActive > tenMinutesAgo) {
+            status.isOnline = true;
+          } else {
+            status.isOnline = false;
+          }
+        }
+
+        status.lastSeen = lastActive || now;
         status.lastSeenFormatted = this.formatLastSeen(lastActive);
         status.source = "database";
+
+        // If it's been more than 30 minutes, force offline
+        const thirtyMinutesAgo = new Date(now - 30 * 60 * 1000);
+        if (lastActive && lastActive < thirtyMinutesAgo) {
+          status.isOnline = false;
+
+          // Update database to fix incorrect status
+          if (user.isOnline === true) {
+            console.log(
+              `[UserStatusManager] User ${userId} has stale online status in DB, fixing`
+            );
+            this.updateUserStatus(userId, false).catch((err) => {
+              console.error(
+                `[UserStatusManager] Error updating stale status for ${userId}:`,
+                err
+              );
+            });
+          }
+        }
       }
     } catch (error) {
       console.error(
@@ -562,10 +600,12 @@ class UserStatusManager {
       }
 
       // Count unique authenticated users
-      const authenticatedCount = this.onlineUsers.size;
+      const authenticatedCount = this.onlineUsers ? this.onlineUsers.size : 0;
 
       // Count anonymous users
-      const anonymousCount = this.anonymousSockets.size;
+      const anonymousCount = this.anonymousSockets
+        ? this.anonymousSockets.size
+        : 0;
 
       // Log counts for debugging
       console.log("[UserStatusManager] Current user counts:", {
