@@ -115,60 +115,38 @@ const init = async (ioInstance) => {
         }, sub=${subClient?.status || "null"}`
       );
 
-      // Test Redis connection with ping-pong
-      try {
-        const pingResult = await pubClient.ping();
-        if (pingResult !== "PONG") {
-          throw new Error("Redis ping failed: " + pingResult);
-        }
-        console.log(`[socketService] Redis ping successful: ${pingResult}`);
+      // Test Redis connectivity
+      console.log("[socketService] Testing Redis connection...");
+      const pingResult = await pubClient.ping();
+      console.log(`[socketService] Redis ping result: ${pingResult}`);
 
-        // Publish test message to verify Redis is working
-        await pubClient.set(
-          "socket:test",
-          "Connection test at " + new Date().toISOString(),
-          "EX",
-          60
-        );
-        console.log("[socketService] Redis test write successful");
+      // Publish a test message to confirm Redis is working
+      console.log("[socketService] Publishing Redis test message...");
+      const testResult = await pubClient.publish(
+        "test_channel",
+        JSON.stringify({ message: "Redis test", time: Date.now() })
+      );
+      console.log(`[socketService] Redis test publish result: ${testResult}`);
 
-        // Subscribe to Redis channels
-        initRedisSubscriptions();
-        console.log(
-          "[socketService] Redis subscriptions initialized successfully"
-        );
-      } catch (testError) {
-        console.error(
-          "[socketService] Redis connection test failed:",
-          testError
-        );
-        throw testError;
-      }
+      // Initialize Redis subscriptions
+      console.log("[socketService] Initializing Redis subscriptions...");
+      await initRedisSubscriptions();
     } catch (error) {
-      console.error(
-        "[socketService] Failed to initialize Redis for socket service:",
-        error
-      );
+      console.error("[socketService] Redis initialization error:", error);
+      console.warn("[socketService] Falling back to local tracking only");
       isRedisEnabled = false;
-      pubClient = null;
-      subClient = null;
-      console.warn(
-        "[socketService] Falling back to local socket tracking only"
-      );
     }
-  } else {
-    console.log(
-      "[socketService] Redis is disabled by configuration, using local tracking only"
-    );
   }
 
   // Set up socket connection handler
   io.on("connection", (socket) => {
-    // Use our enhanced socket connection handler
     handleSocketConnection(socket);
   });
 
-  console.log("Socket service initialized successfully");
+  // Start periodic clean-up of stale connections
+  startConnectionCleanup();
+
+  console.log("[socketService] Socket service initialized successfully");
 };
 
 /**
@@ -841,14 +819,27 @@ const getUserStatus = async (userId) => {
   // First check if user has an active socket connection - most reliable
   const hasActiveSocket = activeSockets.has(userId);
   if (hasActiveSocket) {
-    console.log(`[socketService] User ${userId} has active socket connection`);
-    const lastSeen = activeUsers.get(userId)?.lastSeen || new Date();
-    return {
-      isOnline: true,
-      lastSeen: lastSeen,
-      lastSeenFormatted: formatLastSeen(lastSeen),
-      source: "socket",
-    };
+    // Verify the socket is still valid
+    const socketId = activeSockets.get(userId);
+    const socket = io?.sockets?.sockets?.get(socketId);
+    if (socket) {
+      console.log(
+        `[socketService] User ${userId} has active socket connection`
+      );
+      const lastSeen = activeUsers.get(userId)?.lastSeen || new Date();
+      return {
+        isOnline: true,
+        lastSeen: lastSeen,
+        lastSeenFormatted: formatLastSeen(lastSeen),
+        source: "socket",
+      };
+    } else {
+      // Socket ID exists in map but not in actual sockets - remove it
+      console.log(
+        `[socketService] Removing stale socket entry for user ${userId}`
+      );
+      activeSockets.delete(userId);
+    }
   }
 
   // Then check local tracking in memory
@@ -912,10 +903,10 @@ const getUserStatus = async (userId) => {
     );
 
     if (user) {
-      // If user exists in database, always return a valid status
+      // If user exists in database, use their database status
       const lastSeen = user.lastActive ? new Date(user.lastActive) : new Date();
       return {
-        isOnline: false,
+        isOnline: user.isOnline === true, // Explicit check to ensure false when not true
         lastSeen: lastSeen,
         lastSeenFormatted: formatLastSeen(lastSeen),
         source: "database",
@@ -1028,6 +1019,21 @@ async function markUserOnline(userId) {
     // Update our local tracking regardless
     connectedUsers.set(userId, { lastSeen: new Date() });
 
+    // Update user status in database
+    try {
+      const User = require("../models/User");
+      await User.findByIdAndUpdate(userId, {
+        isOnline: true,
+        lastActive: new Date(),
+      });
+      console.log(`[socketService] User ${userId} marked online in database`);
+    } catch (dbError) {
+      console.error(
+        `[socketService] Error updating user online status in database:`,
+        dbError
+      );
+    }
+
     // Broadcast the status update to all clients
     io.emit("userStatusUpdate", {
       userId,
@@ -1062,6 +1068,21 @@ async function markUserOffline(userId) {
     // Update local tracking
     connectedUsers.delete(userId);
     activeUsers.delete(userId);
+
+    // Update user status in database
+    try {
+      const User = require("../models/User");
+      await User.findByIdAndUpdate(userId, {
+        isOnline: false,
+        lastActive: new Date(),
+      });
+      console.log(`[socketService] User ${userId} marked offline in database`);
+    } catch (dbError) {
+      console.error(
+        `[socketService] Error updating user offline status in database:`,
+        dbError
+      );
+    }
 
     // Broadcast the status update to all clients
     io.emit("userStatusUpdate", {
@@ -1220,6 +1241,69 @@ const setupPresenceApi = (app) => {
       });
     }
   });
+};
+
+/**
+ * Periodically clean up stale connections and ensure user status is accurate
+ */
+const startConnectionCleanup = () => {
+  const CLEANUP_INTERVAL = 60000; // Run cleanup every minute
+
+  console.log("[socketService] Starting connection cleanup interval");
+
+  setInterval(async () => {
+    console.log("[socketService] Running connection cleanup...");
+
+    try {
+      // 1. Check all tracked active sockets
+      for (const [userId, socketId] of activeSockets.entries()) {
+        // Verify socket still exists and is connected
+        const socket = io?.sockets?.sockets?.get(socketId);
+        if (!socket) {
+          console.log(
+            `[socketService] Found stale socket for user ${userId}, cleaning up`
+          );
+          activeSockets.delete(userId);
+
+          // Only mark offline if user doesn't have another socket
+          const hasOtherSocket = Array.from(io.sockets.sockets.values()).some(
+            (s) => s.userId === userId
+          );
+
+          if (!hasOtherSocket) {
+            await markUserOffline(userId);
+          }
+        }
+      }
+
+      // 2. Check database for users marked online but with no active socket
+      const User = require("../models/User");
+      const onlineUsers = await User.find({ isOnline: true });
+
+      for (const user of onlineUsers) {
+        const userId = user._id.toString();
+        const hasActiveSocket = activeSockets.has(userId);
+
+        if (!hasActiveSocket) {
+          // Double-check if user is actually connected via socket ID
+          const hasSocket = Array.from(io.sockets.sockets.values()).some(
+            (s) => s.userId === userId
+          );
+
+          if (!hasSocket) {
+            console.log(
+              `[socketService] User ${userId} marked online in DB but has no socket, fixing...`
+            );
+            await markUserOffline(userId);
+          }
+        }
+      }
+
+      console.log(`[socketService] Connection cleanup complete`);
+    } catch (error) {
+      console.error(`[socketService] Error in connection cleanup:`, error);
+    }
+  }, CLEANUP_INTERVAL);
 };
 
 module.exports = {
