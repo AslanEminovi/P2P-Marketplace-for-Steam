@@ -122,45 +122,6 @@ router.get("/stats", async (req, res) => {
   }
 });
 
-// Add a dedicated endpoint for marketplace stats
-router.get("/stats", async (req, res) => {
-  try {
-    console.log(
-      `[marketplaceRoutes] /stats endpoint requested by IP: ${req.ip}`
-    );
-
-    // Set cache headers - allow caching for 30 seconds
-    res.set({
-      "Cache-Control": "public, max-age=30",
-      Expires: new Date(Date.now() + 30 * 1000).toUTCString(),
-    });
-
-    // Get stats from socketService
-    const socketService = require("../services/socketService");
-    const stats = await socketService.getLatestStats();
-
-    // Return the stats
-    return res.json(stats);
-  } catch (error) {
-    console.error("[marketplaceRoutes] Error getting stats:", error);
-
-    // Return minimal stats on error
-    return res.json({
-      activeListings: 0,
-      activeUsers: 0,
-      registeredUsers: 0,
-      completedTrades: 0,
-      onlineUsers: {
-        total: 0,
-        authenticated: 0,
-        anonymous: 0,
-      },
-      timestamp: new Date(),
-      error: true,
-    });
-  }
-});
-
 // Protected routes (require auth)
 router.post("/list", requireAuth, marketplaceController.listItem);
 router.post("/buy/:itemId", requireAuth, marketplaceController.buyItem);

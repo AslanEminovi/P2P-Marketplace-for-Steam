@@ -110,7 +110,7 @@
   border-radius: 8px;
   padding: 12px;
   margin: 10px 0;
-  font-family: "Roboto Mono", monospace;
+  font-family: 'Roboto Mono', monospace;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
@@ -215,7 +215,7 @@
   .item-card-seller-status .status-text {
     max-width: 80px;
   }
-
+  
   .last-seen-text {
     font-size: 0.7rem;
   }
@@ -236,8 +236,7 @@
 
 /* Add a blink animation for the online text indicator */
 @keyframes blink {
-  0%,
-  100% {
+  0%, 100% {
     opacity: 1;
   }
   50% {
@@ -345,4 +344,4 @@
 
 .to-offline .online-text {
   animation: fade-out 0.3s ease-in-out forwards;
-}
+} 

@@ -12,25 +12,15 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
   const { status, loading, error, checkStatus, isConnected } = useUserStatus(sellerId, forceStatus);
   const [prevOnlineState, setPrevOnlineState] = useState(status.isOnline);
   const [statusTransition, setStatusTransition] = useState('');
-  const [displayStatus, setDisplayStatus] = useState(status);
-
-  // Update display status when actual status changes, but maintain during loading
-  useEffect(() => {
-    // Only update display if we have a non-loading status or initial load
-    if (!loading || !displayStatus.source) {
-      setDisplayStatus(status);
-    }
-  }, [status, loading]);
 
   // Handle status changes with animation
   useEffect(() => {
-    // Only animate when we have a confirmed status change (not during loading)
-    if (!loading && prevOnlineState !== displayStatus.isOnline) {
+    if (prevOnlineState !== status.isOnline) {
       // Trigger appropriate animation
-      setStatusTransition(displayStatus.isOnline ? 'to-online' : 'to-offline');
+      setStatusTransition(status.isOnline ? 'to-online' : 'to-offline');
       
       // Store new state
-      setPrevOnlineState(displayStatus.isOnline);
+      setPrevOnlineState(status.isOnline);
       
       // Reset transition class after animation completes
       const timer = setTimeout(() => {
@@ -39,7 +29,7 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
       
       return () => clearTimeout(timer);
     }
-  }, [displayStatus.isOnline, prevOnlineState, loading]);
+  }, [status.isOnline, prevOnlineState]);
 
   // Force reconnection when page becomes visible
   useEffect(() => {
@@ -51,7 +41,7 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
         }
         
         // Check status
-        setTimeout(checkStatus, 300);
+        setTimeout(checkStatus, 500);
       }
     };
     
@@ -61,47 +51,29 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [checkStatus, isConnected]);
-
-  // When initializing without a status, check local storage for cached status
-  useEffect(() => {
-    // If we don't have a status yet, try to get it from cache
-    if (!displayStatus.source) {
-      try {
-        const statusCache = JSON.parse(localStorage.getItem("user_status_cache") || "{}");
-        const cachedStatus = statusCache[sellerId];
-        
-        if (cachedStatus) {
-          setDisplayStatus(cachedStatus);
-          setPrevOnlineState(cachedStatus.isOnline);
-        }
-      } catch (err) {
-        console.error("Error reading cached status:", err);
-      }
-    }
-  }, [sellerId, displayStatus.source]);
   
   // Simple debug mode version when enabled
   if (DEBUG_MODE) {
     return (
       <div className="debug-panel">
         <div className={`seller-status-container ${className}`}>
-          <div className={`status-indicator ${displayStatus.isOnline ? 'online' : 'offline'}`} />
+          <div className={`status-indicator ${status.isOnline ? 'online' : 'offline'}`} />
           <div className="status-text">
-            {displayStatus.isOnline ? (
+            {status.isOnline ? (
               <span className="online-text">Online</span>
             ) : (
               <span className="offline-text">
                 Offline
-                {showLastSeen && displayStatus.lastSeenFormatted && (
-                  <span className="last-seen-text">• Last active {displayStatus.lastSeenFormatted}</span>
+                {showLastSeen && status.lastSeenFormatted && (
+                  <span className="last-seen-text">• Last active {status.lastSeenFormatted}</span>
                 )}
               </span>
             )}
           </div>
         </div>
         
-        <div className={`status-badge ${displayStatus.isOnline ? 'online' : 'offline'}`}>
-          {displayStatus.isOnline ? 'ONLINE' : 'OFFLINE'}
+        <div className={`status-badge ${status.isOnline ? 'online' : 'offline'}`}>
+          {status.isOnline ? 'ONLINE' : 'OFFLINE'}
         </div>
         
         <div className="debug-info">
@@ -111,8 +83,8 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
           </div>
           <div>
             <span className="debug-label">State:</span>
-            <span className={`debug-value ${displayStatus.isOnline ? 'positive' : 'negative'}`}>
-              {loading ? 'Loading' : error ? 'Error' : displayStatus.isOnline ? 'Online' : 'Offline'}
+            <span className={`debug-value ${status.isOnline ? 'positive' : 'negative'}`}>
+              {loading ? 'Loading' : error ? 'Error' : status.isOnline ? 'Online' : 'Offline'}
             </span>
           </div>
           <div>
@@ -123,7 +95,7 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
           </div>
           <div>
             <span className="debug-label">Source:</span>
-            <span className="debug-value">{displayStatus.source || 'unknown'}</span>
+            <span className="debug-value">{status.source || 'unknown'}</span>
           </div>
         </div>
         
@@ -152,19 +124,42 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
     );
   }
 
-  // Return the normal status indicator - never show "Checking..." text
+  // Simple loading state - show very briefly
+  if (loading && !status.isOnline) {
+    return (
+      <div className={`seller-status-loading ${className}`}>
+        <div className="status-indicator offline" />
+        <div className="status-text">
+          <span className="offline-text">Checking...</span>
+        </div>
+      </div>
+    );
+  }
+  
+  // Error state - but still show something useful
+  if (error) {
+    return (
+      <div className={`seller-status-container ${className}`}>
+        <div className="status-indicator offline" />
+        <div className="status-text">
+          <span className="offline-text">Offline</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`seller-status-container ${className} ${statusTransition}`}>
-      <div className={`status-indicator ${displayStatus.isOnline ? 'online' : 'offline'}`} />
+      <div className={`status-indicator ${status.isOnline ? 'online' : 'offline'}`} />
       
       <div className="status-text">
-        {displayStatus.isOnline ? (
+        {status.isOnline ? (
           <span className="online-text">Online</span>
         ) : (
           <span className="offline-text">
             Offline
-            {showLastSeen && displayStatus.lastSeenFormatted && (
-              <span className="last-seen-text">• Last active {displayStatus.lastSeenFormatted}</span>
+            {showLastSeen && status.lastSeenFormatted && (
+              <span className="last-seen-text">• Last active {status.lastSeenFormatted}</span>
             )}
           </span>
         )}

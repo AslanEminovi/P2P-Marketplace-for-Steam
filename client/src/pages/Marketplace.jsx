@@ -8,8 +8,6 @@ import '../styles/Marketplace.css';
 import '../styles/MarketplaceCustom.css';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
-import { jwtDecode } from 'jwt-decode';
 
 // Component imports
 import OfferModal from '../components/OfferModal';
@@ -54,57 +52,11 @@ function Marketplace({ user }) {
   const [activeFilters, setActiveFilters] = useState([]);
   const [sortOption, setSortOption] = useState('latest');
   const [currentPage, setCurrentPage] = useState(1);
-  
-  // State for marketplace statistics with default values
   const [marketStats, setMarketStats] = useState({
-    totalItems: 0,
-    totalSales: 0,
-    activeListings: 0,
-    onlineUsers: 0
+    totalListings: 0,
+    totalVolume: 0,
+    averagePrice: 0
   });
-  
-  // Ref to store the last valid stats to prevent flickering
-  const lastValidStatsRef = useRef({
-    totalItems: 0,
-    totalSales: 0,
-    activeListings: 0,
-    onlineUsers: 0
-  });
-
-  // State for error handling
-  const [hasError, setHasError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-
-  // Check if user is authenticated - get from Redux with safeguards
-  const auth = useSelector((state) => {
-    try {
-      return state?.auth || {};
-    } catch (error) {
-      handleError(error);
-      return {};
-    }
-  });
-  const dispatch = useDispatch();
-
-  // Load cached stats on component mount (single instance)
-  useEffect(() => {
-    try {
-      // Try to load cached stats from localStorage
-      const cachedStats = JSON.parse(localStorage.getItem('marketplace_stats'));
-      if (cachedStats && typeof cachedStats === 'object') {
-        console.log('Loading cached marketplace stats:', cachedStats);
-        setMarketStats(prev => ({
-          ...prev,
-          ...cachedStats
-        }));
-        // Store in ref for future use
-        lastValidStatsRef.current = cachedStats;
-      }
-    } catch (err) {
-      console.error('Error loading cached stats:', err);
-    }
-  }, []);
-
   const [showActivityFeed, setShowActivityFeed] = useState(true);
   const itemsPerPage = 12;
   const [showSellModal, setShowSellModal] = useState(false);
@@ -138,60 +90,6 @@ function Marketplace({ user }) {
     { id: 'popular', label: 'Most Popular' }
   ];
 
-  // Function to update market stats with validation
-  const updateMarketStats = useCallback((newStats) => {
-    // Ensure lastValidStatsRef.current is initialized
-    if (!lastValidStatsRef.current) {
-      lastValidStatsRef.current = {
-        totalItems: 0,
-        totalSales: 0,
-        activeListings: 0,
-        onlineUsers: 0
-      };
-    }
-    
-    // Normalize input stats structure if from server
-    const normalizedStats = {};
-    
-    // Handle different possible structures from server or direct object
-    if (typeof newStats === 'object' && newStats !== null) {
-      normalizedStats.totalItems = typeof newStats.activeListings === 'number' ? newStats.activeListings : 0;
-      normalizedStats.totalSales = (typeof newStats.completedTrades === 'number' ? newStats.completedTrades : 
-                                   (typeof newStats.totalSales === 'number' ? newStats.totalSales : 0));
-      normalizedStats.activeListings = typeof newStats.activeListings === 'number' ? newStats.activeListings : 0;
-      normalizedStats.onlineUsers = typeof newStats.onlineUsers === 'object' && newStats.onlineUsers !== null
-                                    ? (typeof newStats.onlineUsers.total === 'number' ? newStats.onlineUsers.total : 0)
-                                    : (typeof newStats.activeUsers === 'number' ? newStats.activeUsers 
-                                      : (typeof newStats.onlineUsers === 'number' ? newStats.onlineUsers : 0));
-    }
-    
-    // Validate stats and use last valid values for any missing/invalid properties
-    const validatedStats = {
-      totalItems: normalizedStats.totalItems >= 0 ? normalizedStats.totalItems : (lastValidStatsRef.current?.totalItems || 0),
-      totalSales: normalizedStats.totalSales >= 0 ? normalizedStats.totalSales : (lastValidStatsRef.current?.totalSales || 0),
-      activeListings: normalizedStats.activeListings >= 0 ? normalizedStats.activeListings : (lastValidStatsRef.current?.activeListings || 0),
-      onlineUsers: normalizedStats.onlineUsers >= 0 ? normalizedStats.onlineUsers : (lastValidStatsRef.current?.onlineUsers || 0),
-    };
-    
-    console.log('Updating market stats with validated data:', validatedStats);
-    
-    // Update ref with valid stats
-    lastValidStatsRef.current = validatedStats;
-    
-    // Update state
-    setMarketStats(validatedStats);
-    
-    // Cache in localStorage
-    try {
-      localStorage.setItem('marketStats', JSON.stringify(validatedStats));
-      localStorage.setItem('marketStatsTimestamp', Date.now().toString());
-    } catch (e) {
-      console.error('Error caching stats:', e);
-    }
-    
-    return validatedStats;
-  }, []);
-
   // Fetch items with filters
   const fetchItems = useCallback(async () => {
     try {
@@ -211,21 +109,10 @@ function Marketplace({ user }) {
         setItems(res.data.items);
         setFilteredItems(res.data.items);
         
-        // Cache the items for future use
-        try {
-          localStorage.setItem('cachedMarketplaceItems', JSON.stringify(res.data.items));
-          localStorage.setItem('cachedMarketplaceTimestamp', Date.now().toString());
-        } catch (cacheErr) {
-          console.error('Error caching items:', cacheErr);
-        }
-        
         // Update market stats if available
         if (res.data.stats) {
-          updateMarketStats(res.data.stats);
+          setMarketStats(res.data.stats);
         }
-        
-        // Store last successful fetch time
-        localStorage.setItem('lastMarketplaceFetch', Date.now().toString());
       } else {
         console.error('Invalid response format:', res.data);
         setItems([]);
@@ -233,189 +120,40 @@ function Marketplace({ user }) {
       }
     } catch (err) {
       console.error('Error fetching items:', err);
-      
-      // Use cached items if available
-      try {
-        const cachedItems = JSON.parse(localStorage.getItem('cachedMarketplaceItems'));
-        const cachedTimestamp = localStorage.getItem('cachedMarketplaceTimestamp');
-        
-        // Check if we have cached items and they're not too old (less than 5 minutes)
-        if (
-          cachedItems && 
-          Array.isArray(cachedItems) && 
-          cachedItems.length > 0 && 
-          cachedTimestamp && 
-          (Date.now() - Number(cachedTimestamp)) < 5 * 60 * 1000
-        ) {
-          console.log('Using cached marketplace items from', new Date(Number(cachedTimestamp)).toLocaleTimeString());
-          setItems(cachedItems);
-          setFilteredItems(cachedItems);
-        } else {
-          setItems([]);
-          setFilteredItems([]);
-        }
-      } catch (cacheErr) {
-        console.error('Error reading cached items:', cacheErr);
-        setItems([]);
-        setFilteredItems([]);
-      }
-      
+      setItems([]);
+      setFilteredItems([]);
       toast.error(t('errors.fetchItems'));
     } finally {
       setLoading(false);
     }
-  }, [currentPage, sortOption, searchQuery, activeFilters, t, updateMarketStats]);
+  }, [currentPage, sortOption, searchQuery, activeFilters, t]);
 
-  // Function to fetch market stats with caching
+  // Fetch market statistics
   const fetchMarketStats = useCallback(async () => {
     try {
-      // Check if we have cached stats in localStorage
-      const cachedStats = localStorage.getItem('marketStats');
-      const cachedTimestamp = localStorage.getItem('marketStatsTimestamp');
-      
-      // Use cached stats if they exist and are less than 5 minutes old
-      if (cachedStats && cachedTimestamp) {
-        const parsedStats = JSON.parse(cachedStats);
-        const timestamp = parseInt(cachedTimestamp, 10);
-        const now = Date.now();
-        
-        // If cache is less than 5 minutes old, use it immediately
-        if (now - timestamp < 5 * 60 * 1000 && isValidStats(parsedStats)) {
-          console.log('Using cached market stats');
-          setMarketStats(parsedStats);
-          lastValidStatsRef.current = parsedStats;
-        }
+      const res = await axios.get(`${API_URL}/marketplace/stats`);
+      if (res.data) {
+        // Ensure we include all stats even if some are missing
+        setMarketStats({
+          totalListings: res.data.totalListings || 0,
+          totalVolume: res.data.totalVolume || 0,
+          averagePrice: res.data.averagePrice || 0,
+          activeUsers: res.data.activeUsers || 0,
+          completedTrades: res.data.completedTrades || 0
+        });
       }
-      
-      // Fetch fresh stats from API regardless of cache
-      console.log('Fetching fresh market stats');
-      const response = await axios.get('/api/marketplace/stats');
-      const fetchedStats = response.data;
-      
-      // Validate stats before updating state
-      if (isValidStats(fetchedStats)) {
-        console.log('Valid stats received:', fetchedStats);
-        setMarketStats(fetchedStats);
-        lastValidStatsRef.current = fetchedStats;
-        
-        // Cache the stats with current timestamp
-        localStorage.setItem('marketStats', JSON.stringify(fetchedStats));
-        localStorage.setItem('marketStatsTimestamp', Date.now().toString());
-      } else {
-        console.warn('Received invalid stats from API:', fetchedStats);
-        
-        // Fall back to last valid stats if available
-        if (lastValidStatsRef.current) {
-          setMarketStats(lastValidStatsRef.current);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching market stats:', error);
-      
-      // Fall back to last valid stats if available
-      if (lastValidStatsRef.current) {
-        setMarketStats(lastValidStatsRef.current);
-      }
+    } catch (err) {
+      console.error('Error fetching market stats:', err);
+      // Set default values on error
+      setMarketStats({
+        totalListings: 0,
+        totalVolume: 0,
+        averagePrice: 0,
+        activeUsers: 0,
+        completedTrades: 0
+      });
     }
   }, []);
-
-  // Function to validate stats object
-  const isValidStats = useCallback((stats) => {
-    if (!stats || typeof stats !== 'object') return false;
-    
-    // Check that all required fields are non-negative numbers
-    const requiredFields = ['totalItems', 'totalSales', 'activeListings', 'onlineUsers'];
-    return requiredFields.every(field => 
-      typeof stats[field] === 'number' && 
-      !isNaN(stats[field]) && 
-      stats[field] >= 0
-    );
-  }, []);
-
-  // Set up socket connection for marketplace stats with fallback
-  useEffect(() => {
-    // Set current page for socket service
-    socketService.setCurrentPage('marketplace');
-    
-    // Function to handle connection status
-    const handleConnectionStatus = (isConnected) => {
-      if (isConnected) {
-        console.log('Socket connected, requesting stats');
-        // Request stats only if connected
-        socketService.requestStats();
-      } else {
-        console.log('Socket disconnected, using HTTP fallback for stats');
-        // If socket disconnected, fetch stats via HTTP
-        fetchMarketStats();
-      }
-    };
-
-    // Function to handle market stats from socket
-    const handleMarketStats = (statsData) => {
-      console.log('Received market_stats event data:', statsData);
-      
-      if (!statsData || typeof statsData !== 'object') {
-        console.warn('Invalid data received in market_stats event:', statsData);
-        return;
-      }
-      
-      try {
-        // Map server stats structure to client structure
-        const newStats = {
-          totalItems: typeof statsData.activeListings === 'number' ? statsData.activeListings : 0,
-          totalSales: typeof statsData.completedTrades === 'number' ? statsData.completedTrades : 0,
-          activeListings: typeof statsData.activeListings === 'number' ? statsData.activeListings : 0,
-          // Handle onlineUsers which can be either a number or an object with total property
-          onlineUsers: typeof statsData.onlineUsers === 'object' && statsData.onlineUsers !== null
-            ? (typeof statsData.onlineUsers.total === 'number' ? statsData.onlineUsers.total : 0)
-            : (typeof statsData.activeUsers === 'number' ? statsData.activeUsers : 0)
-        };
-        
-        console.log('Mapped market_stats for client:', newStats);
-        
-        if (isValidStats(newStats)) {
-          console.log('Updating market stats from socket');
-          setMarketStats(newStats);
-          lastValidStatsRef.current = newStats;
-          localStorage.setItem('marketStats', JSON.stringify(newStats));
-          localStorage.setItem('marketStatsTimestamp', Date.now().toString());
-        }
-      } catch (error) {
-        console.error('Error processing market_stats event:', error);
-      }
-    };
-    
-    // Register connection status handlers
-    socketService.onConnected(() => handleConnectionStatus(true));
-    socketService.onDisconnected(() => handleConnectionStatus(false));
-    
-    // Connect socket if not already connected
-    if (!socketService.isConnected()) {
-      console.log('Connecting socket from Marketplace component');
-      socketService.connect(auth?.token || null);
-    } else {
-      // Already connected, request stats
-      socketService.requestStats();
-    }
-    
-    // Set up listener for marketplace stats
-    socketService.onMarketStats(handleMarketStats);
-    
-    // Fetch stats on mount regardless of socket state
-    fetchMarketStats();
-    
-    // Fetch initial items
-    fetchItems();
-    
-    // Clean up on unmount
-    return () => {
-      console.log('Cleaning up Marketplace component');
-      socketService.offMarketStats();
-      socketService.onConnected(null); // Remove the callback
-      socketService.onDisconnected(null); // Remove the callback
-      socketService.setCurrentPage(null);
-    };
-  }, [fetchMarketStats, isValidStats, auth, fetchItems]);
 
   // Fetch user profile
   const fetchUserProfile = useCallback(async () => {
@@ -451,39 +189,188 @@ function Marketplace({ user }) {
     }
   }, [user]);
 
-  // Check if token is about to expire and refresh it
+  // Initial data load - ONLY fetch on mount
   useEffect(() => {
-    if (!auth || !auth.token) return;
+    console.log('Marketplace component mounted - initializing data');
     
-    const checkTokenExpiration = () => {
-      try {
-        const decoded = jwtDecode(auth.token);
-        const currentTime = Date.now() / 1000;
+    // Initial data fetch - ONLY ONCE AT MOUNT
+    fetchItems();
+    fetchMarketStats();
+
+    if (user) {
+      fetchUserProfile();
+      fetchUserListings();
+    }
+    
+    // Setup socket connection if not already connected
+    if (!socketService.isConnected()) {
+      console.log('Marketplace: Socket not connected, connecting...');
+      socketService.connect();
+    } else {
+      console.log('Marketplace: Socket already connected');
+    }
+    
+    // Set current page to marketplace
+    socketService.setCurrentPage('marketplace');
+    
+    // Return cleanup function
+    return () => {
+      // Set page to 'other' when leaving marketplace
+      socketService.setCurrentPage('other');
+      console.log('Marketplace component unmounting');
+    };
+  }, []); // Empty dependency array - run ONLY on mount
+
+  // REMOVE ALL AUTO-REFRESH LOGIC - only respond to specific events
+  useEffect(() => {
+    // Handler for ONLY new listings and sales - NO automatic refreshes
+    const handleMarketUpdate = async (update) => {
+      console.log('Market update received:', update);
+      
+      // Process all market updates regardless of targeting
+      // Remove the filtering based on targetPage as it's causing missed updates
+      
+      // Only handle specific item updates, NO general refreshes
+      if (update.type === 'new_listing' && update.item) {
+        console.log('New listing received:', update.item.marketHashName);
         
-        // If token expires in less than 5 minutes (300 seconds), notify user
-        if (decoded && decoded.exp && decoded.exp - currentTime < 300) {
-          console.log('Token expiring soon, should reconnect shortly');
-          toast.warning('Your session will expire soon', { duration: 5000 });
+        try {
+          // Fetch complete item details with owner information
+          const response = await axios.get(`${API_URL}/marketplace/item/${update.item._id}`, {
+            withCredentials: true
+          });
           
-          // Reconnect socket anyway to ensure it's using the latest token
-          setTimeout(() => {
-            socketService.disconnect();
-            socketService.connect(auth.token);
-          }, 1000);
+          const itemWithOwner = response.data;
+          
+          // Add the new item to the list without full refresh
+          setItems(prevItems => {
+            // Check if this item already exists to avoid duplicates
+            const itemExists = prevItems.some(item => item._id === itemWithOwner._id);
+            if (itemExists) {
+              console.log('Item already exists in list, skipping');
+              return prevItems;
+            }
+            console.log('Adding new item with complete owner info to list');
+            // Add at the beginning for "latest" sorting
+            return [itemWithOwner, ...prevItems];
+          });
+          
+          toast.success(`New item listed: ${itemWithOwner.marketHashName}`, {
+            duration: 3000
+          });
+        } catch (err) {
+          console.error('Error fetching complete item details:', err);
+          // Fallback to using the update data even without full owner info
+          setItems(prevItems => {
+            const itemExists = prevItems.some(item => item._id === update.item._id);
+            if (itemExists) return prevItems;
+            return [update.item, ...prevItems];
+          });
+          
+          toast.success(`New item listed: ${update.item.marketHashName}`, {
+            duration: 3000
+          });
         }
-      } catch (error) {
-        console.error('Error checking token expiration:', error);
+      }
+      
+      // Handle cancelled listings
+      if ((update.type === 'item_unavailable' || update.type === 'listing_cancelled') && update.itemId) {
+        console.log(`Item cancelled/removed: ${update.itemId} - ${update.marketHashName || 'Unknown item'}`);
+        
+        // Remove the item from the current list immediately for all users
+        setItems(prevItems => {
+          const newItems = prevItems.filter(item => item._id !== update.itemId);
+          // If items were removed, update filtered items too
+          if (newItems.length !== prevItems.length) {
+            console.log(`Removed cancelled item ${update.itemId} from display`);
+            
+            // Show toast ONLY if this user is the one who cancelled the item - check by userId
+            if (update.userId && user && update.userId === user._id) {
+              if (update.marketHashName) {
+                toast(`Your listing for ${update.marketHashName} was cancelled`, {
+                  duration: 3000
+                });
+              }
+            }
+            
+            // If this is the user who owns the listing, refresh their listings
+            if (user && update.userId === user._id) {
+              fetchUserListings();
+            }
+            
+            return newItems;
+          }
+          return prevItems;
+        });
+        
+        // Update market stats to reflect the change
+        fetchMarketStats();
+      }
+      
+      // Handle user count updates
+      if (update.type === 'user_count' && update.count !== undefined) {
+        console.log('User count update received:', update.count);
+        setMarketStats(prev => ({
+          ...prev,
+          activeUsers: update.count
+        }));
+      }
+      
+      // Only refresh stats occasionally for sold items without refreshing all items
+      if (update.type === 'item_sold') {
+        // Just update stats, not full item refresh
+        fetchMarketStats();
       }
     };
     
-    // Check token on mount
-    checkTokenExpiration();
+    // Handler for direct item cancellation events
+    const handleItemCancelled = (data) => {
+      console.log('Direct item cancellation received:', data);
+      if (data && data.itemId) {
+        // Remove the item from the list immediately
+        setItems(prevItems => {
+          const newItems = prevItems.filter(item => item._id !== data.itemId);
+          
+          // Only show notification if we actually removed something
+          if (newItems.length !== prevItems.length) {
+            console.log(`Removed cancelled item ${data.itemId} from display (direct event)`);
+            
+            // No user-specific notification here as we're handling a dedicated cancellation event
+            // that's meant to be seen by everyone
+            
+            // Update market stats to reflect the change
+            fetchMarketStats();
+            return newItems;
+          }
+          return prevItems;
+        });
+      }
+    };
     
-    // Set up interval to check token every minute
-    const interval = setInterval(checkTokenExpiration, 60000);
+    // Register socket event listeners
+    console.log('Registering market event handlers');
+    socketService.on('market_update', handleMarketUpdate);
+    socketService.on('item_cancelled', handleItemCancelled);
     
-    return () => clearInterval(interval);
-  }, [auth]);
+    // Register user count update handler
+    socketService.on('user_count', (data) => {
+      console.log('User count direct update:', data);
+      if (data && typeof data.count === 'number') {
+        setMarketStats(prev => ({
+          ...prev,
+          activeUsers: data.count
+        }));
+      }
+    });
+    
+    // Cleanup event listener
+    return () => {
+      console.log('Removing market event handlers');
+      socketService.off('market_update', handleMarketUpdate);
+      socketService.off('item_cancelled', handleItemCancelled);
+      socketService.off('user_count');
+    };
+  }, [user]); // Add user as dependency to properly handle user-specific messages
 
   // Handle connection status with minimal side-effects
   useEffect(() => {
@@ -506,60 +393,13 @@ function Marketplace({ user }) {
     };
   }, []); // Empty dependency array - only register once
 
-  // Handle manual refresh with retry mechanism
-  const handleManualRefresh = useCallback(() => {
+  // Add a manual refresh button instead of auto-refresh
+  const handleManualRefresh = () => {
     console.log('Manual refresh requested');
-    
-    // Track refresh attempt
-    const refreshAttempt = {
-      timestamp: Date.now(),
-      count: 1
-    };
-    
-    // Check if we've tried recently (within 5 seconds)
-    const lastRefresh = localStorage.getItem('lastManualRefresh');
-    if (lastRefresh) {
-      try {
-        const lastRefreshData = JSON.parse(lastRefresh);
-        const timeSinceLastRefresh = Date.now() - lastRefreshData.timestamp;
-        
-        // If last refresh was recent, increment the count
-        if (timeSinceLastRefresh < 5000) {
-          refreshAttempt.count = lastRefreshData.count + 1;
-        }
-      } catch (e) {
-        console.error('Error parsing last refresh data:', e);
-      }
-    }
-    
-    // Save this refresh attempt
-    localStorage.setItem('lastManualRefresh', JSON.stringify(refreshAttempt));
-    
-    // Track if we're refreshing
     setLoading(true);
-    
-    // If this is the third rapid attempt, try reconnecting the socket
-    if (refreshAttempt.count >= 3) {
-      console.log('Multiple refresh attempts detected, reconnecting socket');
-      socketService.disconnect();
-      setTimeout(() => {
-        socketService.connect(auth?.token || null);
-      }, 1000);
-    }
-    
-    // Always try to fetch items regardless of socket state
-    Promise.all([
-      fetchItems(),
-      fetchMarketStats()
-    ])
-      .catch(error => {
-        console.error('Error during manual refresh:', error);
-        toast.error(t('errors.refresh'));
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [fetchItems, fetchMarketStats, auth, t]);
+    fetchItems().then(() => setLoading(false));
+    fetchMarketStats();
+  };
 
   // Handle item click
   const handleItemClick = (item) => {
@@ -719,7 +559,7 @@ function Marketplace({ user }) {
             fontSize: '1.75rem',
             fontWeight: 'bold',
             color: 'var(--gaming-text-bright)'
-          }}>{marketStats.activeListings || 0}</p>
+          }}>{marketStats.totalListings || 0}</p>
         </div>
 
         <div style={{
@@ -954,202 +794,124 @@ function Marketplace({ user }) {
     );
   };
 
-  // Error boundary method
-  const handleError = (error) => {
-    console.error('Marketplace error caught:', error);
-    setErrorMessage(error.message || 'Unknown error occurred');
-    setHasError(true);
-    
-    // Try to report the error
-    try {
-      // Log to console with more details
-      console.error('Full error details:', error);
+  return (
+    <div className="marketplace-container">
+      <SocketConnectionIndicator />
       
-      // Optional: report to an error monitoring service if available
-    } catch (reportError) {
-      console.error('Error reporting failed:', reportError);
-    }
-    
-    return true; // Error was handled
-  };
+      {renderHeader()}
+      
+      <div className="filter-section">
+          {/* Remove the long refresh button */}
+          <div className="sort-container">
+          <select
+            className="sort-select"
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value)}
+            style={{
+              backgroundColor: 'rgba(31, 41, 61, 0.8)',
+              color: 'white',
+              border: '1px solid rgba(51, 115, 242, 0.3)',
+              borderRadius: '8px',
+              padding: '0.75rem 1rem',
+              width: '100%',
+              fontSize: '0.95rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              appearance: 'none', // Remove default arrow
+              WebkitAppearance: 'none', // For Safari
+              MozAppearance: 'none', // For Firefox
+              backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 1rem center',
+              backgroundSize: '1rem',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            {sortOptions.map((option) => (
+              <option 
+                key={option.id} 
+                value={option.id}
+            style={{ 
+                  backgroundColor: 'rgba(31, 41, 61, 1)',
+                  color: 'white', 
+                  padding: '0.5rem'
+                }}
+              >
+                {option.label}
+              </option>
+            ))}
+          </select>
+                    </div>
+                  </div>
+                  
+      {renderItems()}
+      {renderPagination()}
 
-  // If there's an error, render a simplified version to avoid blank screen
-  if (hasError) {
-    return (
-      <div className="marketplace-container">
-        <div className="marketplace-header">
-          <h1>CS2 Market</h1>
-          <p className="marketplace-subtitle">Buy and sell CS2 items securely with other players</p>
-          
-          <div style={{ 
-            padding: '2rem',
-            margin: '2rem 0',
-            background: 'rgba(220, 38, 38, 0.1)', 
-            borderRadius: '8px',
-            border: '1px solid rgba(220, 38, 38, 0.3)',
-            color: 'white',
-            textAlign: 'center'
-          }}>
-            <h2>Something went wrong</h2>
-            <p>We encountered an error while loading the marketplace. Please try refreshing the page.</p>
-            <p>Error details: {errorMessage}</p>
-            <button 
-              onClick={() => window.location.reload()}
-              style={{
-                marginTop: '1rem',
-                padding: '0.75rem 1.5rem',
-                background: 'rgba(220, 38, 38, 0.7)',
-                border: 'none',
-                borderRadius: '8px',
-                color: 'white',
-                fontWeight: 'bold',
-                cursor: 'pointer'
-              }}
-            >
-              Refresh Page
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+      <LiveActivityFeed
+        isOpen={showActivityFeed}
+        onToggle={() => setShowActivityFeed(!showActivityFeed)}
+      />
 
-  // Render regular UI if no errors
-  try {
-    return (
-      <div className="marketplace-container">
-        <SocketConnectionIndicator />
-        
-        {renderHeader()}
-        
-        <div className="filter-section">
-            <div className="sort-container">
-            <select
-              className="sort-select"
-              value={sortOption}
-              onChange={(e) => setSortOption(e.target.value)}
-              style={{
-                backgroundColor: 'rgba(31, 41, 61, 0.8)',
-                color: 'white',
-                border: '1px solid rgba(51, 115, 242, 0.3)',
-                borderRadius: '8px',
-                padding: '0.75rem 1rem',
-                width: '100%',
-                fontSize: '0.95rem',
-                fontWeight: '500',
-                cursor: 'pointer',
-                appearance: 'none',
-                WebkitAppearance: 'none',
-                MozAppearance: 'none',
-                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 1rem center',
-                backgroundSize: '1rem',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-              }}
-            >
-              {sortOptions.map((option) => (
-                <option 
-                  key={option.id} 
-                  value={option.id}
-                  style={{ 
-                    backgroundColor: 'rgba(31, 41, 61, 1)',
-                    color: 'white', 
-                    padding: '0.5rem'
-                  }}
-                >
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-                    
-        {renderItems()}
-        {renderPagination()}
+      <AnimatePresence>
+        {itemDetailsOpen && selectedItem && (
+          <ItemDetails
+            item={selectedItem}
+            isOpen={itemDetailsOpen}
+            onClose={() => setItemDetailsOpen(false)}
+            onAction={handleItemAction}
+          />
+        )}
+      </AnimatePresence>
 
-        <LiveActivityFeed
-          isOpen={showActivityFeed}
-          onToggle={() => setShowActivityFeed(!showActivityFeed)}
-        />
+      <AnimatePresence>
+        {tradePanelOpen && selectedItem && (
+          <TradePanel
+            isOpen={tradePanelOpen}
+            onClose={() => setTradePanelOpen(false)}
+            item={selectedItem}
+            action={tradeAction}
+            onComplete={(data) => {
+              // Handle trade completion
+              if (data && data.success) {
+                // Refresh items after successful trade
+                fetchItems();
+              }
+            }}
+          />
+        )}
+      </AnimatePresence>
 
-        <AnimatePresence>
-          {itemDetailsOpen && selectedItem && (
-            <ItemDetails
-              item={selectedItem}
-              isOpen={itemDetailsOpen}
-              onClose={() => setItemDetailsOpen(false)}
-              onAction={handleItemAction}
-            />
-          )}
-        </AnimatePresence>
+      <AnimatePresence>
+        {showTradeUrlPrompt && (
+          <TradeUrlPrompt
+            isOpen={showTradeUrlPrompt}
+            onClose={() => setShowTradeUrlPrompt(false)}
+            onSave={(url) => {
+              // Handle trade URL save
+              fetchUserProfile();
+            }}
+          />
+        )}
+      </AnimatePresence>
 
-        <AnimatePresence>
-          {tradePanelOpen && selectedItem && (
-            <TradePanel
-              isOpen={tradePanelOpen}
-              onClose={() => setTradePanelOpen(false)}
-              item={selectedItem}
-              action={tradeAction}
-              onComplete={(data) => {
-                // Handle trade completion
-                if (data && data.success) {
-                  // Refresh items after successful trade
-                  fetchItems();
-                }
-              }}
-            />
-          )}
-        </AnimatePresence>
+      <AnimatePresence>
+        {showSellModal && selectedItem && (
+          <SellModal
+            item={selectedItem}
+            onClose={() => setShowSellModal(false)}
+            onListingComplete={handleListingComplete}
+          />
+        )}
+      </AnimatePresence>
 
-        <AnimatePresence>
-          {showTradeUrlPrompt && (
-            <TradeUrlPrompt
-              isOpen={showTradeUrlPrompt}
-              onClose={() => setShowTradeUrlPrompt(false)}
-              onSave={(url) => {
-                // Handle trade URL save
-                fetchUserProfile();
-              }}
-            />
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {showSellModal && selectedItem && (
-            <SellModal
-              item={selectedItem}
-              onClose={() => setShowSellModal(false)}
-              onListingComplete={handleListingComplete}
-            />
-          )}
-        </AnimatePresence>
-
-        <UserListings 
-          show={showListingsPanel} 
-          onClose={() => setShowListingsPanel(false)} 
-        />
-        
-        {renderUserListingsButton()}
-      </div>
-    );
-  } catch (error) {
-    if (!hasError) {
-      handleError(error);
-      // Force re-render with error state
-      return null;
-    }
-    
-    // Fallback in case handleError doesn't trigger a re-render
-    return (
-      <div className="marketplace-container">
-        <div className="marketplace-header">
-          <h1>CS2 Market</h1>
-          <p>An unexpected error occurred while rendering. Please try again.</p>
-        </div>
-      </div>
-    );
-  }
+      <UserListings 
+        show={showListingsPanel} 
+        onClose={() => setShowListingsPanel(false)} 
+      />
+      
+      {renderUserListingsButton()}
+    </div>
+  );
 }
 
 export default Marketplace;
