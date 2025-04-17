@@ -7,6 +7,7 @@ import socketService from '../services/socketService';
 import './Home.css';
 // Import background image
 import backgroundImage from '../assets/background.jpg';
+import { FaSteam, FaSearch, FaBoxOpen } from 'react-icons/fa';
 
 // Login Modal Component
 const LoginModal = ({ isOpen, onClose }) => {
@@ -92,7 +93,7 @@ const energyOrbs = generateEnergyOrbs(15);
 const floatingHexagons = generateFloatingHexagons(12);
 
 // Hero Section Component
-const HeroSection = ({ user, stats, prevStats }) => {
+const HeroSection = ({ user, stats, statsLoaded }) => {
   const { t } = useTranslation();
   const [animatedStats, setAnimatedStats] = useState({
     items: { value: 0, updating: false },
@@ -108,6 +109,11 @@ const HeroSection = ({ user, stats, prevStats }) => {
 
   // Animate stats when they change
   useEffect(() => {
+    // Skip animation if stats aren't loaded yet
+    if (!statsLoaded) {
+      return;
+    }
+    
     // First update the values without animation
     if (Object.values(animatedStats).every(stat => stat.value === 0)) {
       setAnimatedStats({
@@ -149,7 +155,7 @@ const HeroSection = ({ user, stats, prevStats }) => {
         }));
       }, 1000);
     }
-  }, [stats]);
+  }, [stats, statsLoaded]);
 
   return (
     <section className="hero-section-container">
@@ -217,22 +223,37 @@ const HeroSection = ({ user, stats, prevStats }) => {
 
         <div className="hero-stats">
           <div className="hero-stat">
-            <div className={`hero-stat-value count-animation ${animatedStats.items.updating ? 'updating' : ''}`}>
-              {animatedStats.items.value}
+            <div className={`hero-stat-value count-animation ${!statsLoaded ? 'loading' : animatedStats.items.updating ? 'updating' : ''}`}>
+              {!statsLoaded ? 
+                <div className="stats-loading-indicator">
+                  <div className="stats-spinner"></div>
+                </div> : 
+                animatedStats.items.value
+              }
             </div>
             <div className="hero-stat-label">Active Listings</div>
           </div>
 
           <div className="hero-stat">
-            <div className={`hero-stat-value count-animation ${animatedStats.users.updating ? 'updating' : ''}`}>
-              {animatedStats.users.value}
+            <div className={`hero-stat-value count-animation ${!statsLoaded ? 'loading' : animatedStats.users.updating ? 'updating' : ''}`}>
+              {!statsLoaded ? 
+                <div className="stats-loading-indicator">
+                  <div className="stats-spinner"></div>
+                </div> : 
+                animatedStats.users.value
+              }
             </div>
             <div className="hero-stat-label">Active Users</div>
           </div>
 
           <div className="hero-stat">
-            <div className={`hero-stat-value count-animation ${animatedStats.trades.updating ? 'updating' : ''}`}>
-              {animatedStats.trades.value}
+            <div className={`hero-stat-value count-animation ${!statsLoaded ? 'loading' : animatedStats.trades.updating ? 'updating' : ''}`}>
+              {!statsLoaded ? 
+                <div className="stats-loading-indicator">
+                  <div className="stats-spinner"></div>
+                </div> : 
+                animatedStats.trades.value
+              }
             </div>
             <div className="hero-stat-label">Completed Trades</div>
           </div>
@@ -667,6 +688,9 @@ const Home = ({ user }) => {
     trades: 0
   });
   
+  // Track if we've received real stats yet
+  const [statsLoaded, setStatsLoaded] = useState(false);
+  
   // Cache last valid stats to prevent flickering to zero
   const lastValidStats = useRef(stats);
 
@@ -675,7 +699,7 @@ const Home = ({ user }) => {
     console.log("Received real-time stats update:", statsData);
     
     // Only update stats if we have valid data
-    if (statsData && (statsData.activeListings > 0 || statsData.activeUsers > 0 || statsData.completedTrades > 0)) {
+    if (statsData && (statsData.activeListings >= 0 || statsData.activeUsers >= 0 || statsData.completedTrades >= 0)) {
       const newStats = {
         items: statsData.activeListings || lastValidStats.current.items,
         users: statsData.activeUsers || lastValidStats.current.users,
@@ -687,10 +711,15 @@ const Home = ({ user }) => {
       
       // Update state with new stats
       setStats(newStats);
+      
+      // Mark stats as loaded
+      if (!statsLoaded) {
+        setStatsLoaded(true);
+      }
     } else {
       console.log("Received invalid or empty stats, using cached values");
     }
-  }, []);
+  }, [statsLoaded]);
 
   // Fetch data from API endpoints
   const fetchMarketplaceData = useCallback(async () => {
@@ -865,7 +894,7 @@ const Home = ({ user }) => {
       </div>
 
       {/* Hero Section */}
-      <HeroSection user={user} stats={stats} />
+      <HeroSection user={user} stats={stats} statsLoaded={statsLoaded} />
 
       {/* Search Section */}
       <SearchSection />

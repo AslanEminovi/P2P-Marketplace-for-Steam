@@ -1786,3 +1786,30 @@
     opacity: 1;
   }
 }
+
+/* Add styles for loading stats */
+.stats-loading-indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.stats-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(51, 115, 242, 0.3);
+  border-top-color: var(--gaming-accent-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.hero-stat-value.loading {
+  opacity: 0.7;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
