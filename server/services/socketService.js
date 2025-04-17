@@ -69,6 +69,22 @@ const init = async (ioInstance) => {
         }
       });
 
+      // Handle specific marketplace stats requests
+      socket.on("request_marketplace_stats", async () => {
+        console.log(
+          `[socketService] Marketplace stats requested by socket ${socket.id}`
+        );
+        try {
+          const stats = await getLatestStats();
+          socket.emit("market_stats", stats);
+        } catch (error) {
+          console.error(
+            "[socketService] Error sending marketplace stats:",
+            error
+          );
+        }
+      });
+
       // Handle status requests
       socket.on("request_user_status", async (userId) => {
         if (!userId) return;
