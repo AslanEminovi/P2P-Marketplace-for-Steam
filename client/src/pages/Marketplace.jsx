@@ -71,8 +71,19 @@ function Marketplace({ user }) {
     onlineUsers: 0
   });
 
-  // Check if user is authenticated - get from Redux
-  const auth = useSelector((state) => state.auth || {});
+  // State for error handling
+  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Check if user is authenticated - get from Redux with safeguards
+  const auth = useSelector((state) => {
+    try {
+      return state?.auth || {};
+    } catch (error) {
+      handleError(error);
+      return {};
+    }
+  });
   const dispatch = useDispatch();
 
   // Load cached stats on component mount (single instance)
@@ -943,124 +954,202 @@ function Marketplace({ user }) {
     );
   };
 
-  return (
-    <div className="marketplace-container">
-      <SocketConnectionIndicator />
+  // Error boundary method
+  const handleError = (error) => {
+    console.error('Marketplace error caught:', error);
+    setErrorMessage(error.message || 'Unknown error occurred');
+    setHasError(true);
+    
+    // Try to report the error
+    try {
+      // Log to console with more details
+      console.error('Full error details:', error);
       
-      {renderHeader()}
-      
-      <div className="filter-section">
-          {/* Remove the long refresh button */}
-          <div className="sort-container">
-          <select
-            className="sort-select"
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
-            style={{
-              backgroundColor: 'rgba(31, 41, 61, 0.8)',
-              color: 'white',
-              border: '1px solid rgba(51, 115, 242, 0.3)',
-              borderRadius: '8px',
-              padding: '0.75rem 1rem',
-              width: '100%',
-              fontSize: '0.95rem',
-              fontWeight: '500',
-              cursor: 'pointer',
-              appearance: 'none', // Remove default arrow
-              WebkitAppearance: 'none', // For Safari
-              MozAppearance: 'none', // For Firefox
-              backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right 1rem center',
-              backgroundSize: '1rem',
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-            }}
-          >
-            {sortOptions.map((option) => (
-              <option 
-                key={option.id} 
-                value={option.id}
-            style={{ 
-                  backgroundColor: 'rgba(31, 41, 61, 1)',
-                  color: 'white', 
-                  padding: '0.5rem'
-                }}
-              >
-                {option.label}
-              </option>
-            ))}
-          </select>
-                    </div>
-                  </div>
-                  
-      {renderItems()}
-      {renderPagination()}
+      // Optional: report to an error monitoring service if available
+    } catch (reportError) {
+      console.error('Error reporting failed:', reportError);
+    }
+    
+    return true; // Error was handled
+  };
 
-      <LiveActivityFeed
-        isOpen={showActivityFeed}
-        onToggle={() => setShowActivityFeed(!showActivityFeed)}
-      />
+  // If there's an error, render a simplified version to avoid blank screen
+  if (hasError) {
+    return (
+      <div className="marketplace-container">
+        <div className="marketplace-header">
+          <h1>CS2 Market</h1>
+          <p className="marketplace-subtitle">Buy and sell CS2 items securely with other players</p>
+          
+          <div style={{ 
+            padding: '2rem',
+            margin: '2rem 0',
+            background: 'rgba(220, 38, 38, 0.1)', 
+            borderRadius: '8px',
+            border: '1px solid rgba(220, 38, 38, 0.3)',
+            color: 'white',
+            textAlign: 'center'
+          }}>
+            <h2>Something went wrong</h2>
+            <p>We encountered an error while loading the marketplace. Please try refreshing the page.</p>
+            <p>Error details: {errorMessage}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              style={{
+                marginTop: '1rem',
+                padding: '0.75rem 1.5rem',
+                background: 'rgba(220, 38, 38, 0.7)',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-      <AnimatePresence>
-        {itemDetailsOpen && selectedItem && (
-          <ItemDetails
-            item={selectedItem}
-            isOpen={itemDetailsOpen}
-            onClose={() => setItemDetailsOpen(false)}
-            onAction={handleItemAction}
-          />
-        )}
-      </AnimatePresence>
+  // Render regular UI if no errors
+  try {
+    return (
+      <div className="marketplace-container">
+        <SocketConnectionIndicator />
+        
+        {renderHeader()}
+        
+        <div className="filter-section">
+            <div className="sort-container">
+            <select
+              className="sort-select"
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value)}
+              style={{
+                backgroundColor: 'rgba(31, 41, 61, 0.8)',
+                color: 'white',
+                border: '1px solid rgba(51, 115, 242, 0.3)',
+                borderRadius: '8px',
+                padding: '0.75rem 1rem',
+                width: '100%',
+                fontSize: '0.95rem',
+                fontWeight: '500',
+                cursor: 'pointer',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none',
+                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 1rem center',
+                backgroundSize: '1rem',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+              }}
+            >
+              {sortOptions.map((option) => (
+                <option 
+                  key={option.id} 
+                  value={option.id}
+                  style={{ 
+                    backgroundColor: 'rgba(31, 41, 61, 1)',
+                    color: 'white', 
+                    padding: '0.5rem'
+                  }}
+                >
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+                    
+        {renderItems()}
+        {renderPagination()}
 
-      <AnimatePresence>
-        {tradePanelOpen && selectedItem && (
-          <TradePanel
-            isOpen={tradePanelOpen}
-            onClose={() => setTradePanelOpen(false)}
-            item={selectedItem}
-            action={tradeAction}
-            onComplete={(data) => {
-              // Handle trade completion
-              if (data && data.success) {
-                // Refresh items after successful trade
-                fetchItems();
-              }
-            }}
-          />
-        )}
-      </AnimatePresence>
+        <LiveActivityFeed
+          isOpen={showActivityFeed}
+          onToggle={() => setShowActivityFeed(!showActivityFeed)}
+        />
 
-      <AnimatePresence>
-        {showTradeUrlPrompt && (
-          <TradeUrlPrompt
-            isOpen={showTradeUrlPrompt}
-            onClose={() => setShowTradeUrlPrompt(false)}
-            onSave={(url) => {
-              // Handle trade URL save
-              fetchUserProfile();
-            }}
-          />
-        )}
-      </AnimatePresence>
+        <AnimatePresence>
+          {itemDetailsOpen && selectedItem && (
+            <ItemDetails
+              item={selectedItem}
+              isOpen={itemDetailsOpen}
+              onClose={() => setItemDetailsOpen(false)}
+              onAction={handleItemAction}
+            />
+          )}
+        </AnimatePresence>
 
-      <AnimatePresence>
-        {showSellModal && selectedItem && (
-          <SellModal
-            item={selectedItem}
-            onClose={() => setShowSellModal(false)}
-            onListingComplete={handleListingComplete}
-          />
-        )}
-      </AnimatePresence>
+        <AnimatePresence>
+          {tradePanelOpen && selectedItem && (
+            <TradePanel
+              isOpen={tradePanelOpen}
+              onClose={() => setTradePanelOpen(false)}
+              item={selectedItem}
+              action={tradeAction}
+              onComplete={(data) => {
+                // Handle trade completion
+                if (data && data.success) {
+                  // Refresh items after successful trade
+                  fetchItems();
+                }
+              }}
+            />
+          )}
+        </AnimatePresence>
 
-      <UserListings 
-        show={showListingsPanel} 
-        onClose={() => setShowListingsPanel(false)} 
-      />
-      
-      {renderUserListingsButton()}
-    </div>
-  );
+        <AnimatePresence>
+          {showTradeUrlPrompt && (
+            <TradeUrlPrompt
+              isOpen={showTradeUrlPrompt}
+              onClose={() => setShowTradeUrlPrompt(false)}
+              onSave={(url) => {
+                // Handle trade URL save
+                fetchUserProfile();
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showSellModal && selectedItem && (
+            <SellModal
+              item={selectedItem}
+              onClose={() => setShowSellModal(false)}
+              onListingComplete={handleListingComplete}
+            />
+          )}
+        </AnimatePresence>
+
+        <UserListings 
+          show={showListingsPanel} 
+          onClose={() => setShowListingsPanel(false)} 
+        />
+        
+        {renderUserListingsButton()}
+      </div>
+    );
+  } catch (error) {
+    if (!hasError) {
+      handleError(error);
+      // Force re-render with error state
+      return null;
+    }
+    
+    // Fallback in case handleError doesn't trigger a re-render
+    return (
+      <div className="marketplace-container">
+        <div className="marketplace-header">
+          <h1>CS2 Market</h1>
+          <p>An unexpected error occurred while rendering. Please try again.</p>
+        </div>
+      </div>
+    );
+  }
 }
 
 export default Marketplace;
