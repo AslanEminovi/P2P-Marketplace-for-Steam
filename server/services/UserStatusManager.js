@@ -467,7 +467,6 @@ class UserStatusManager {
       isOnline: false,
       lastSeen: now,
       lastSeenFormatted: "Recently",
-      source: "memory",
     };
 
     // Check if user is in our tracking
@@ -513,7 +512,6 @@ class UserStatusManager {
 
         status.lastSeen = lastActive || now;
         status.lastSeenFormatted = this.formatLastSeen(lastActive);
-        status.source = "database";
 
         // If it's been more than 30 minutes, force offline
         const thirtyMinutesAgo = new Date(now - 30 * 60 * 1000);
