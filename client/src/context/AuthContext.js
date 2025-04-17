@@ -1,13 +1,18 @@
-import React, {
-  createContext,
-  useState,
-  useContext,
-  useEffect,
-  useRef,
-} from "react";
+import React, { createContext, useContext, useEffect, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import { toast } from "react-hot-toast";
 import { API_URL } from "../config/constants";
+import {
+  setCredentials,
+  clearCredentials,
+  fetchUserProfile,
+  logout as logoutAction,
+  selectCurrentUser,
+  selectIsAuthenticated,
+  selectAuthLoading,
+  selectAuthError,
+} from "../redux/slices/authSlice";
 
 // Create the auth context
 const AuthContext = createContext();
@@ -33,9 +38,12 @@ const decodeToken = (token) => {
 
 // Provider component that wraps the app and makes auth available
 export const AuthProvider = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Use Redux instead of local state
+  const dispatch = useDispatch();
+  const user = useSelector(selectCurrentUser);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const loading = useSelector(selectAuthLoading);
+  const error = useSelector(selectAuthError);
 
   // Reference to store the refresh timer
   const tokenRefreshTimer = useRef(null);
@@ -114,16 +122,19 @@ export const AuthProvider = ({ children }) => {
       );
 
       if (response.data && response.data.token) {
-        // Store new token
+        // Store new token and update Redux state
         localStorage.setItem("auth_token", response.data.token);
+
+        // Update Redux state with new credentials
+        dispatch(
+          setCredentials({
+            token: response.data.token,
+            user: response.data.user || user,
+          })
+        );
 
         // Schedule the next refresh
         scheduleTokenRefresh(response.data.token);
-
-        // Update user data if provided
-        if (response.data.user) {
-          setUser(response.data.user);
-        }
 
         console.log("Token refreshed successfully");
       } else {
@@ -138,9 +149,7 @@ export const AuthProvider = ({ children }) => {
         (error.response.status === 401 || error.response.status === 403)
       ) {
         console.log("Token refresh unauthorized, logging out");
-        setIsAuthenticated(false);
-        setUser(null);
-        localStorage.removeItem("auth_token");
+        dispatch(clearCredentials());
       }
     }
   };
@@ -149,8 +158,6 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
-        setLoading(true);
-
         // Check for auth token in URL (Steam redirects with token in URL)
         const urlParams = new URLSearchParams(window.location.search);
         const authToken = urlParams.get("auth_token");
@@ -172,42 +179,12 @@ export const AuthProvider = ({ children }) => {
         if (token) {
           // Schedule refresh for this token
           scheduleTokenRefresh(token);
-        }
 
-        const response = await axios.get(`${API_URL}/auth/user`, {
-          withCredentials: true,
-        });
-
-        if (response.data.authenticated) {
-          setIsAuthenticated(true);
-
-          // Ensure profileComplete field is included
-          const userData = {
-            ...response.data.user,
-            profileComplete: response.data.user.profileComplete || false,
-            firstName: response.data.user.firstName || "",
-            lastName: response.data.user.lastName || "",
-            country: response.data.user.country || "",
-            city: response.data.user.city || "",
-          };
-
-          setUser(userData);
-
-          // Log user information for debugging
-          console.log("User authenticated:", {
-            steamId: userData.steamId,
-            profileComplete: userData.profileComplete,
-          });
-        } else {
-          setIsAuthenticated(false);
-          setUser(null);
+          // Fetch user profile
+          dispatch(fetchUserProfile());
         }
       } catch (error) {
         console.error("Auth check error:", error);
-        setIsAuthenticated(false);
-        setUser(null);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -219,7 +196,7 @@ export const AuthProvider = ({ children }) => {
         clearTimeout(tokenRefreshTimer.current);
       }
     };
-  }, []);
+  }, [dispatch]);
 
   // Login function - not used directly since we authenticate via Steam
   // but included for completeness
@@ -232,11 +209,17 @@ export const AuthProvider = ({ children }) => {
         // Store token
         localStorage.setItem("auth_token", token);
 
+        // Update Redux store
+        dispatch(
+          setCredentials({
+            user: response.data.user,
+            token: token,
+          })
+        );
+
         // Schedule token refresh
         scheduleTokenRefresh(token);
 
-        setIsAuthenticated(true);
-        setUser(response.data.user);
         return true;
       }
       return false;
@@ -250,11 +233,9 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await axios.get(`${API_URL}/auth/logout`, { withCredentials: true });
-      setIsAuthenticated(false);
-      setUser(null);
 
-      // Clear stored token
-      localStorage.removeItem("auth_token");
+      // Dispatch logout action to Redux
+      dispatch(logoutAction());
 
       // Clear any refresh timers
       if (tokenRefreshTimer.current) {
@@ -265,6 +246,9 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("Logout error:", error);
       toast.error("Logout failed");
+
+      // Still clear credentials on error
+      dispatch(clearCredentials());
     }
   };
 
@@ -272,34 +256,37 @@ export const AuthProvider = ({ children }) => {
   const updateUser = (userData) => {
     console.log("AuthContext - updating user with:", userData);
 
-    // Ensure we always preserve existing user data that might not be in the update
-    setUser((prevUser) => {
-      if (!prevUser) return userData;
+    if (!user) return;
 
-      // Create a proper merged user object that preserves all existing fields
-      const mergedUser = {
-        ...prevUser,
-        ...userData,
-        // Make sure email is explicitly updated
-        email: userData.email || prevUser.email,
-        // Ensure settings objects get merged rather than replaced
-        settings: {
-          ...(prevUser.settings || {}),
-          ...(userData.settings || {}),
-        },
-      };
+    // Create merged user data
+    const mergedUser = {
+      ...user,
+      ...userData,
+      // Make sure email is explicitly updated
+      email: userData.email || user.email,
+      // Ensure settings objects get merged rather than replaced
+      settings: {
+        ...(user.settings || {}),
+        ...(userData.settings || {}),
+      },
+    };
 
-      console.log("AuthContext - merged user data:", mergedUser);
+    console.log("AuthContext - merged user data:", mergedUser);
 
-      // Update localStorage backup
-      try {
-        localStorage.setItem("user_data_backup", JSON.stringify(mergedUser));
-      } catch (err) {
-        console.error("Failed to backup user data to localStorage:", err);
-      }
+    // Update Redux store with merged user data
+    dispatch(
+      setCredentials({
+        user: mergedUser,
+        token: getStoredToken(),
+      })
+    );
 
-      return mergedUser;
-    });
+    // Update localStorage backup
+    try {
+      localStorage.setItem("user_data_backup", JSON.stringify(mergedUser));
+    } catch (err) {
+      console.error("Failed to backup user data to localStorage:", err);
+    }
   };
 
   // Context value
@@ -307,6 +294,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     user,
     loading,
+    error,
     login,
     logout,
     updateUser,
