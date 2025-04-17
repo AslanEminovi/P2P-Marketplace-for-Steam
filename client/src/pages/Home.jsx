@@ -8,7 +8,6 @@ import './Home.css';
 // Import background image
 import backgroundImage from '../assets/background.jpg';
 import { FaSteam, FaSearch, FaBoxOpen } from 'react-icons/fa';
-import LoginModal from '../components/LoginModal';
 import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import { FaBolt, FaShieldAlt, FaMoneyBillWave, FaExchangeAlt, FaDollarSign } from 'react-icons/fa';
