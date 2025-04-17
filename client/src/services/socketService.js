@@ -22,6 +22,7 @@ class SocketService {
     this.heartbeatInterval = null;
     this.heartbeatDelay = 60000; // Increasing from 15 seconds to 60 seconds (1 minute)
     this.currentPage = "other"; // Default to 'other' instead of marketplace
+    this.reconnecting = false;
   }
 
   init() {
@@ -46,10 +47,34 @@ class SocketService {
       console.log("[SocketService] Tab became visible, checking connection");
       this.isBrowserTabActive = true;
 
-      // When tab becomes visible, check if we need to reconnect
-      if (!this.isConnected()) {
+      // Only reconnect if we're disconnected
+      if (!this.connected || (this.socket && !this.socket.connected)) {
+        console.log("Reconnecting socket on visibility change");
         this.reconnect();
+
+        // Request stats update after reconnection, only if on a relevant page
+        setTimeout(() => {
+          if (
+            this.isConnected() &&
+            (this.currentPage === "home" || this.currentPage === "marketplace")
+          ) {
+            console.log(`Requesting stats update for ${this.currentPage}`);
+            this.requestStats();
+          }
+        }, 500);
+      } else if (
+        this.isConnected() &&
+        (this.currentPage === "home" || this.currentPage === "marketplace")
+      ) {
+        // If already connected and on a relevant page, just request stats
+        console.log(
+          `Already connected, requesting stats for ${this.currentPage}`
+        );
+        this.requestStats();
       }
+
+      // Send heartbeat to update our activity status
+      this.sendHeartbeat();
     } else {
       console.log("[SocketService] Tab became hidden");
       this.isBrowserTabActive = false;
@@ -122,8 +147,13 @@ class SocketService {
 
     // Get token from localStorage if not provided
     if (!token) {
-      token =
-        localStorage.getItem("auth_token") || localStorage.getItem("token");
+      token = localStorage.getItem("auth_token");
+
+      // For backward compatibility
+      if (!token) {
+        token = localStorage.getItem("token");
+      }
+
       console.log(
         "[SocketService] Using token from localStorage:",
         token ? "Token exists" : "No token"
@@ -150,10 +180,11 @@ class SocketService {
         );
       }
 
+      // Create socket with more robust configuration
       this.socket = io(API_URL, {
         auth: token ? { token } : {},
         query: token ? { token } : {}, // Add token to query params too for fallback
-        transports: ["websocket", "polling"],
+        transports: ["polling", "websocket"], // Start with polling first, then upgrade to websocket if possible
         reconnection: true,
         reconnectionAttempts: 10,
         reconnectionDelay: 1000,
@@ -161,6 +192,10 @@ class SocketService {
         timeout: 20000,
         autoConnect: true,
         forceNew: true, // Force a new connection
+        upgrade: true, // Allow transport upgrade
+        rememberUpgrade: true,
+        timestampRequests: true,
+        rejectUnauthorized: false, // Allow self-signed certificates in development
       });
 
       // Setup connection event handlers
@@ -192,40 +227,62 @@ class SocketService {
       this.socket.on("connect_error", (error) => {
         console.error("[SocketService] Connection error:", error.message);
         console.error("[SocketService] Connection error details:", error);
+
+        // If there are websocket errors, force polling transport
+        if (error.message === "websocket error") {
+          console.log(
+            "[SocketService] Switching to polling transport due to websocket errors"
+          );
+          if (this.socket) {
+            // Close current socket
+            this.socket.close();
+
+            // Create new socket with polling only
+            this.socket = io(API_URL, {
+              auth: token ? { token } : {},
+              query: token ? { token } : {},
+              transports: ["polling"],
+              reconnection: true,
+              reconnectionAttempts: 5,
+              timeout: 20000,
+              autoConnect: true,
+              forceNew: true,
+            });
+
+            // Rebind all event handlers
+            this.socket.on("connect", () => {
+              console.log("[SocketService] Connected with polling transport");
+              this.connected = true;
+              this.reconnectAttempts = 0;
+              if (this.connectedCallback) this.connectedCallback();
+              this.rebindEvents();
+              this.lastSuccessfulConnection = Date.now();
+              this.subscribeToUserStatuses();
+              this.emit("page_view", { page: this.currentPage });
+              this.startHeartbeat();
+            });
+
+            // Re-bind error handlers
+            this.socket.on("connect_error", (e) => {
+              console.error(
+                "[SocketService] Polling connection error:",
+                e.message
+              );
+              this.handleConnectionFailure();
+            });
+
+            // Re-bind other event handlers
+            this.attachSocketEventHandlers();
+
+            return;
+          }
+        }
+
         this.handleConnectionFailure();
       });
 
-      this.socket.on("disconnect", (reason) => {
-        console.log(
-          "[SocketService] Disconnected from socket server, reason:",
-          reason
-        );
-        this.connected = false;
-
-        if (this.disconnectedCallback) {
-          this.disconnectedCallback();
-        }
-
-        // Handle disconnect reason
-        if (reason === "io server disconnect" || reason === "transport close") {
-          // Server disconnected the client, need to reconnect manually
-          this.scheduleReconnect();
-        }
-      });
-
-      this.socket.on("error", (error) => {
-        console.error("[SocketService] Socket error:", error);
-        this.connected = false;
-      });
-
-      this.socket.on("reconnect_attempt", (attemptNumber) => {
-        console.log(`[SocketService] Reconnection attempt #${attemptNumber}`);
-      });
-
-      this.socket.on("reconnect_failed", () => {
-        console.error("[SocketService] Failed to reconnect after max attempts");
-        this.handleConnectionFailure();
-      });
+      // Attach the rest of the event handlers
+      this.attachSocketEventHandlers();
 
       return this.socket;
     } catch (error) {
@@ -610,21 +667,86 @@ class SocketService {
 
   // Method to update the current page and notify the server
   setCurrentPage(page) {
-    if (page !== this.currentPage) {
-      console.log(`[SocketService] User navigated to page: ${page}`);
-      this.currentPage = page;
-
-      // Notify server if connected
-      if (this.isConnected()) {
-        this.emit("page_view", { page });
-      }
-    }
-    return this;
+    console.log(`Socket service: Setting current page to ${page}`);
+    this.currentPage = page || "other";
   }
 
   // Method to get the current page
   getCurrentPage() {
     return this.currentPage;
+  }
+
+  /**
+   * Request stats update from the server based on current page
+   */
+  requestStats() {
+    if (this.isConnected()) {
+      console.log("[socketService] Requesting immediate stats update");
+
+      // Request stats based on current page
+      if (this.currentPage === "home") {
+        this.socket.emit("request_home_stats");
+      } else if (this.currentPage === "marketplace") {
+        this.socket.emit("request_marketplace_stats");
+      } else {
+        // Generic request for any page
+        this.socket.emit("request_stats_update");
+      }
+    } else {
+      console.log(
+        "[socketService] Socket not connected, reconnecting for stats"
+      );
+      // Try to reconnect and then request stats
+      this.reconnect();
+      setTimeout(() => {
+        if (this.isConnected()) {
+          if (this.currentPage === "home") {
+            this.socket.emit("request_home_stats");
+          } else if (this.currentPage === "marketplace") {
+            this.socket.emit("request_marketplace_stats");
+          } else {
+            this.socket.emit("request_stats_update");
+          }
+        }
+      }, 500);
+    }
+  }
+
+  // New method to centralize socket event handlers
+  attachSocketEventHandlers() {
+    if (!this.socket) return;
+
+    this.socket.on("disconnect", (reason) => {
+      console.log(
+        "[SocketService] Disconnected from socket server, reason:",
+        reason
+      );
+      this.connected = false;
+
+      if (this.disconnectedCallback) {
+        this.disconnectedCallback();
+      }
+
+      // Handle disconnect reason
+      if (reason === "io server disconnect" || reason === "transport close") {
+        // Server disconnected the client, need to reconnect manually
+        this.scheduleReconnect();
+      }
+    });
+
+    this.socket.on("error", (error) => {
+      console.error("[SocketService] Socket error:", error);
+      this.connected = false;
+    });
+
+    this.socket.on("reconnect_attempt", (attemptNumber) => {
+      console.log(`[SocketService] Reconnection attempt #${attemptNumber}`);
+    });
+
+    this.socket.on("reconnect_failed", () => {
+      console.error("[SocketService] Failed to reconnect after max attempts");
+      this.handleConnectionFailure();
+    });
   }
 }
 
@@ -638,14 +760,29 @@ socketService.init();
 socketService.requestStats = () => {
   if (socketService.isConnected()) {
     console.log("[socketService] Requesting immediate stats update");
-    socketService.socket.emit("request_stats_update");
+
+    // Request stats based on current page
+    if (socketService.currentPage === "home") {
+      socketService.socket.emit("request_home_stats");
+    } else if (socketService.currentPage === "marketplace") {
+      socketService.socket.emit("request_marketplace_stats");
+    } else {
+      // Generic request for any page
+      socketService.socket.emit("request_stats_update");
+    }
   } else {
     console.log("[socketService] Socket not connected, reconnecting for stats");
     // Try to reconnect and then request stats
     socketService.reconnect();
     setTimeout(() => {
       if (socketService.isConnected()) {
-        socketService.socket.emit("request_stats_update");
+        if (socketService.currentPage === "home") {
+          socketService.socket.emit("request_home_stats");
+        } else if (socketService.currentPage === "marketplace") {
+          socketService.socket.emit("request_marketplace_stats");
+        } else {
+          socketService.socket.emit("request_stats_update");
+        }
       }
     }, 500);
   }
@@ -843,4 +980,26 @@ socketService.reconnectStatusTracking = () => {
       }
     }
   }, 1000);
+};
+
+// Market stats event handlers
+socketService.onMarketStats = (callback) => {
+  if (!callback || typeof callback !== "function") {
+    console.error("[socketService] Invalid callback for market stats updates");
+    return false;
+  }
+
+  socketService.on("market_stats", callback);
+
+  // Request immediate update if connected
+  if (socketService.isConnected()) {
+    socketService.requestStats();
+  }
+
+  return true;
+};
+
+socketService.offMarketStats = () => {
+  socketService.socket?.off("market_stats");
+  return true;
 };

@@ -500,118 +500,72 @@ const io = new Server(server, {
   },
   // Add adapter configuration only if Redis is available
   ...(redisAdapter ? { adapter: redisAdapter } : {}),
-  // Add additional settings to improve stability
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  transports: ["websocket", "polling"],
+  // Increase timeouts to improve stability
+  pingTimeout: 120000, // 2 minutes
+  pingInterval: 30000, // 30 seconds
+  connectTimeout: 45000, // 45 seconds
+  // Allow both transports but prioritize polling for compatibility
+  transports: ["polling", "websocket"],
+  allowUpgrades: true,
+  upgradeTimeout: 30000, // 30 seconds
+  // Prevent excessive log spam
+  serveClient: false,
+  // Handle socket errors better
+  handlePreflightRequest: (req, res) => {
+    res.writeHead(200, {
+      "Access-Control-Allow-Origin": req.headers.origin || "*",
+      "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type,Authorization",
+      "Access-Control-Allow-Credentials": true,
+    });
+    res.end();
+  },
 });
 
-// Socket middleware for authentication
-io.use(async (socket, next) => {
+// Middleware for socket authentication
+const socketMiddleware = (socket, next) => {
   try {
-    console.log(`[socketAuth] Socket authentication for socket ${socket.id}`);
+    const token = socket.handshake.auth.token || socket.handshake.query.token;
 
-    // Extract token from all possible locations
-    const token =
-      socket.handshake.auth.token ||
-      socket.handshake.headers.authorization?.split(" ")[1] ||
-      socket.handshake.query.token;
-
+    // Allow anonymous connections (no token)
     if (!token) {
-      console.log(
-        `[socketAuth] No auth token found for socket ${socket.id}, marking as anonymous`
-      );
-      // Allow anonymous connections but mark them as such
-      socket.userId = null;
-      socket.username = null;
+      console.log(`[Socket] Anonymous connection: ${socket.id}`);
       socket.isAuthenticated = false;
+      socket.isAnonymous = true;
       return next();
     }
 
-    // Log token discovery (don't log the token itself for security)
-    console.log(
-      `[socketAuth] Auth token found for socket ${socket.id}, verifying...`
-    );
-
-    try {
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log(
-        `[socketAuth] Token verified for socket ${socket.id}, user: ${decoded.id}`
-      );
-
-      // Validate decoded user ID is in the correct format
-      if (!decoded.id || typeof decoded.id !== "string") {
-        console.error(
-          `[socketAuth] Invalid user ID format in token: ${JSON.stringify(
-            decoded
-          )}`
-        );
-        socket.userId = null;
+    // Verify the token
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+      if (err) {
+        console.error(`[Socket] Token verification failed: ${err.message}`);
         socket.isAuthenticated = false;
-        return next(new Error("Invalid user ID in token"));
+        socket.isAnonymous = true;
+        // Allow connection but as anonymous
+        return next();
       }
 
-      // Ensure User model is properly loaded
-      if (!User || typeof User.findById !== "function") {
-        console.error("[socketAuth] User model not properly loaded");
-        socket.userId = null;
-        socket.isAuthenticated = false;
-        return next(new Error("Database configuration error"));
-      }
-
-      // Find user
-      const user = await User.findById(decoded.id);
-      if (!user) {
-        console.log(
-          `[socketAuth] User ${decoded.id} not found for socket ${socket.id}`
-        );
-        socket.userId = null;
-        socket.isAuthenticated = false;
-        return next(new Error("User not found"));
-      }
-
-      // Ensure userId is always a string for consistent comparison
-      const userIdStr = user._id.toString();
-
-      // Log detailed user information
-      console.log(
-        `[socketAuth] User found: ID=${userIdStr}, Username=${
-          user.username || user.steamName || "Unknown"
-        }`
-      );
-      console.log(
-        `[socketAuth] Previous connections for this user: ${
-          userStatusManager.isUserOnline(userIdStr) ? "Yes" : "No"
-        }`
-      );
-
-      // Don't update the database here - UserStatusManager will handle that
-      // Just attach user data to the socket
-      socket.userId = userIdStr;
-      socket.username = user.username || user.steamName || "User";
+      // Valid token, set user info on socket
       socket.isAuthenticated = true;
-
+      socket.isAnonymous = false;
+      socket.userId = decoded.id;
+      socket.user = decoded;
       console.log(
-        `[socketAuth] Successfully authenticated user ${userIdStr} (${socket.username}) for socket ${socket.id}`
+        `[Socket] Authenticated connection: ${socket.id} (User: ${decoded.id})`
       );
       next();
-    } catch (jwtError) {
-      // Log the specific error for token verification
-      console.error(`[socketAuth] JWT verification error: ${jwtError.message}`);
-      socket.userId = null;
-      socket.isAuthenticated = false;
-      return next(new Error(`Token verification failed: ${jwtError.message}`));
-    }
-  } catch (err) {
-    console.error(`[socketAuth] Error during socket authentication:`, err);
-    // If token verification fails, allow as anonymous
-    socket.userId = null;
-    socket.username = null;
+    });
+  } catch (error) {
+    console.error(`[Socket] Middleware error: ${error.message}`);
     socket.isAuthenticated = false;
+    socket.isAnonymous = true;
+    // Allow connection but as anonymous
     next();
   }
-});
+};
+
+// Apply socket middleware
+io.use(socketMiddleware);
 
 // Initialize socket service
 const socketService = require("./services/socketService");

@@ -8,6 +8,9 @@ import '../styles/Marketplace.css';
 import '../styles/MarketplaceCustom.css';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { refresh } from '../redux/authSlice';
+import jwtDecode from 'jwt-decode';
 
 // Component imports
 import OfferModal from '../components/OfferModal';
@@ -52,11 +55,41 @@ function Marketplace({ user }) {
   const [activeFilters, setActiveFilters] = useState([]);
   const [sortOption, setSortOption] = useState('latest');
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // State for marketplace statistics with default values
   const [marketStats, setMarketStats] = useState({
-    totalListings: 0,
-    totalVolume: 0,
-    averagePrice: 0
+    totalItems: 0,
+    totalSales: 0,
+    activeListings: 0,
+    onlineUsers: 0
   });
+  
+  // Ref to store the last valid stats to prevent flickering
+  const lastValidStatsRef = useRef(null);
+
+  // Check if user is authenticated - get from Redux
+  const auth = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
+
+  // Load cached stats on component mount (single instance)
+  useEffect(() => {
+    try {
+      // Try to load cached stats from localStorage
+      const cachedStats = JSON.parse(localStorage.getItem('marketplace_stats'));
+      if (cachedStats && typeof cachedStats === 'object') {
+        console.log('Loading cached marketplace stats:', cachedStats);
+        setMarketStats(prev => ({
+          ...prev,
+          ...cachedStats
+        }));
+        // Store in ref for future use
+        lastValidStatsRef.current = cachedStats;
+      }
+    } catch (err) {
+      console.error('Error loading cached stats:', err);
+    }
+  }, []);
+
   const [showActivityFeed, setShowActivityFeed] = useState(true);
   const itemsPerPage = 12;
   const [showSellModal, setShowSellModal] = useState(false);
@@ -109,10 +142,21 @@ function Marketplace({ user }) {
         setItems(res.data.items);
         setFilteredItems(res.data.items);
         
+        // Cache the items for future use
+        try {
+          localStorage.setItem('cachedMarketplaceItems', JSON.stringify(res.data.items));
+          localStorage.setItem('cachedMarketplaceTimestamp', Date.now().toString());
+        } catch (cacheErr) {
+          console.error('Error caching items:', cacheErr);
+        }
+        
         // Update market stats if available
         if (res.data.stats) {
-          setMarketStats(res.data.stats);
+          updateMarketStats(res.data.stats);
         }
+        
+        // Store last successful fetch time
+        localStorage.setItem('lastMarketplaceFetch', Date.now().toString());
       } else {
         console.error('Invalid response format:', res.data);
         setItems([]);
@@ -120,40 +164,121 @@ function Marketplace({ user }) {
       }
     } catch (err) {
       console.error('Error fetching items:', err);
-      setItems([]);
-      setFilteredItems([]);
+      
+      // Use cached items if available
+      try {
+        const cachedItems = JSON.parse(localStorage.getItem('cachedMarketplaceItems'));
+        const cachedTimestamp = localStorage.getItem('cachedMarketplaceTimestamp');
+        
+        // Check if we have cached items and they're not too old (less than 5 minutes)
+        if (
+          cachedItems && 
+          Array.isArray(cachedItems) && 
+          cachedItems.length > 0 && 
+          cachedTimestamp && 
+          (Date.now() - Number(cachedTimestamp)) < 5 * 60 * 1000
+        ) {
+          console.log('Using cached marketplace items from', new Date(Number(cachedTimestamp)).toLocaleTimeString());
+          setItems(cachedItems);
+          setFilteredItems(cachedItems);
+        } else {
+          setItems([]);
+          setFilteredItems([]);
+        }
+      } catch (cacheErr) {
+        console.error('Error reading cached items:', cacheErr);
+        setItems([]);
+        setFilteredItems([]);
+      }
+      
       toast.error(t('errors.fetchItems'));
     } finally {
       setLoading(false);
     }
-  }, [currentPage, sortOption, searchQuery, activeFilters, t]);
+  }, [currentPage, sortOption, searchQuery, activeFilters, t, updateMarketStats]);
 
-  // Fetch market statistics
+  // Function to fetch market stats with caching
   const fetchMarketStats = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_URL}/marketplace/stats`);
-      if (res.data) {
-        // Ensure we include all stats even if some are missing
-        setMarketStats({
-          totalListings: res.data.totalListings || 0,
-          totalVolume: res.data.totalVolume || 0,
-          averagePrice: res.data.averagePrice || 0,
-          activeUsers: res.data.activeUsers || 0,
-          completedTrades: res.data.completedTrades || 0
-        });
+      // Check if we have cached stats in localStorage
+      const cachedStats = localStorage.getItem('marketStats');
+      const cachedTimestamp = localStorage.getItem('marketStatsTimestamp');
+      
+      // Use cached stats if they exist and are less than 5 minutes old
+      if (cachedStats && cachedTimestamp) {
+        const parsedStats = JSON.parse(cachedStats);
+        const timestamp = parseInt(cachedTimestamp, 10);
+        const now = Date.now();
+        
+        // If cache is less than 5 minutes old, use it immediately
+        if (now - timestamp < 5 * 60 * 1000 && isValidStats(parsedStats)) {
+          console.log('Using cached market stats');
+          setMarketStats(parsedStats);
+          lastValidStatsRef.current = parsedStats;
+        }
       }
-    } catch (err) {
-      console.error('Error fetching market stats:', err);
-      // Set default values on error
-      setMarketStats({
-        totalListings: 0,
-        totalVolume: 0,
-        averagePrice: 0,
-        activeUsers: 0,
-        completedTrades: 0
-      });
+      
+      // Fetch fresh stats from API regardless of cache
+      console.log('Fetching fresh market stats');
+      const response = await axios.get('/api/marketplace/stats');
+      const fetchedStats = response.data;
+      
+      // Validate stats before updating state
+      if (isValidStats(fetchedStats)) {
+        console.log('Valid stats received:', fetchedStats);
+        setMarketStats(fetchedStats);
+        lastValidStatsRef.current = fetchedStats;
+        
+        // Cache the stats with current timestamp
+        localStorage.setItem('marketStats', JSON.stringify(fetchedStats));
+        localStorage.setItem('marketStatsTimestamp', Date.now().toString());
+      } else {
+        console.warn('Received invalid stats from API:', fetchedStats);
+        
+        // Fall back to last valid stats if available
+        if (lastValidStatsRef.current) {
+          setMarketStats(lastValidStatsRef.current);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching market stats:', error);
+      
+      // Fall back to last valid stats if available
+      if (lastValidStatsRef.current) {
+        setMarketStats(lastValidStatsRef.current);
+      }
     }
   }, []);
+
+  // Function to validate stats object
+  const isValidStats = useCallback((stats) => {
+    if (!stats || typeof stats !== 'object') return false;
+    
+    // Check that all required fields are non-negative numbers
+    const requiredFields = ['totalItems', 'totalSales', 'activeListings', 'onlineUsers'];
+    return requiredFields.every(field => 
+      typeof stats[field] === 'number' && 
+      !isNaN(stats[field]) && 
+      stats[field] >= 0
+    );
+  }, []);
+
+  // Function to handle stats updates from socket
+  const handleStatsUpdate = useCallback((updatedStats) => {
+    console.log('Received market stats update:', updatedStats);
+    
+    if (isValidStats(updatedStats)) {
+      console.log('Updating stats from socket');
+      setMarketStats(updatedStats);
+      lastValidStatsRef.current = updatedStats;
+      
+      // Update cache with latest stats
+      localStorage.setItem('marketStats', JSON.stringify(updatedStats));
+      localStorage.setItem('marketStatsTimestamp', Date.now().toString());
+    } else {
+      console.warn('Received invalid stats from socket:', updatedStats);
+    }
+  }, [isValidStats]);
 
   // Fetch user profile
   const fetchUserProfile = useCallback(async () => {
@@ -189,188 +314,163 @@ function Marketplace({ user }) {
     }
   }, [user]);
 
-  // Initial data load - ONLY fetch on mount
+  // Add a useEffect to handle socket stats updates, modified to use caching
   useEffect(() => {
-    console.log('Marketplace component mounted - initializing data');
+    // Socket handler for stats updates
+    const handleStatsUpdate = (statsData) => {
+      console.log('Received stats update from socket:', statsData);
+      
+      if (!statsData) return;
+      
+      // Create new stats object, using existing values as fallback
+      const newStats = {
+        totalItems: statsData.activeListings ?? marketStats.activeListings,
+        totalSales: statsData.totalSales ?? marketStats.totalSales,
+        activeListings: statsData.activeListings ?? marketStats.activeListings,
+        onlineUsers: statsData.onlineUsers ?? marketStats.onlineUsers,
+      };
+      
+      // Only update if we have meaningful data
+      if (newStats.activeListings > 0 || newStats.totalItems > 0) {
+        setMarketStats(newStats);
+        lastValidStatsRef.current = newStats;
+        localStorage.setItem('cachedMarketStats', JSON.stringify(newStats));
+      }
+    };
     
-    // Initial data fetch - ONLY ONCE AT MOUNT
-    fetchItems();
-    fetchMarketStats();
-
-    if (user) {
-      fetchUserProfile();
-      fetchUserListings();
-    }
+    // Register socket handler
+    socketService.on('stats_update', handleStatsUpdate);
     
-    // Setup socket connection if not already connected
-    if (!socketService.isConnected()) {
-      console.log('Marketplace: Socket not connected, connecting...');
-      socketService.connect();
+    // Request stats update when component mounts
+    if (socketService.isConnected()) {
+      socketService.requestStats();
     } else {
-      console.log('Marketplace: Socket already connected');
+      socketService.reconnect();
+      setTimeout(() => {
+        if (socketService.isConnected()) {
+          socketService.requestStats();
+        }
+      }, 500);
     }
     
-    // Set current page to marketplace
+    return () => {
+      socketService.off('stats_update', handleStatsUpdate);
+    };
+  }, [marketStats]);
+
+  // Check if token is about to expire and refresh it
+  useEffect(() => {
+    if (!auth.token) return;
+    
+    const checkTokenExpiration = () => {
+      try {
+        const decoded = jwtDecode(auth.token);
+        const currentTime = Date.now() / 1000;
+        
+        // If token expires in less than 5 minutes (300 seconds), refresh it
+        if (decoded.exp - currentTime < 300) {
+          console.log('Token expiring soon, refreshing...');
+          dispatch(refresh())
+            .unwrap()
+            .then(result => {
+              console.log('Token refreshed successfully');
+              // Reconnect socket with new token
+              socketService.disconnect();
+              socketService.connect(result.token);
+            })
+            .catch(error => {
+              console.error('Failed to refresh token:', error);
+            });
+        }
+      } catch (error) {
+        console.error('Error checking token expiration:', error);
+      }
+    };
+    
+    // Check token on mount
+    checkTokenExpiration();
+    
+    // Set up interval to check token every minute
+    const interval = setInterval(checkTokenExpiration, 60000);
+    
+    return () => clearInterval(interval);
+  }, [auth.token, dispatch]);
+
+  // Set up socket connection for marketplace stats with fallback
+  useEffect(() => {
+    // Set current page for socket service
     socketService.setCurrentPage('marketplace');
     
-    // Return cleanup function
-    return () => {
-      // Set page to 'other' when leaving marketplace
-      socketService.setCurrentPage('other');
-      console.log('Marketplace component unmounting');
+    // Function to handle connection status
+    const handleConnectionStatus = (isConnected) => {
+      if (isConnected) {
+        console.log('Socket connected, requesting stats');
+        // Request stats only if connected
+        socketService.requestStats();
+      } else {
+        console.log('Socket disconnected, using HTTP fallback for stats');
+        // If socket disconnected, fetch stats via HTTP
+        fetchMarketStats();
+      }
     };
-  }, []); // Empty dependency array - run ONLY on mount
+    
+    // Register connection status handlers
+    socketService.onConnected(() => handleConnectionStatus(true));
+    socketService.onDisconnected(() => handleConnectionStatus(false));
+    
+    // Connect socket if not already connected
+    if (!socketService.isConnected()) {
+      console.log('Connecting socket from Marketplace component');
+      socketService.connect(auth.token);
+    } else {
+      // Already connected, request stats
+      socketService.requestStats();
+    }
+    
+    // Set up listener for marketplace stats
+    socketService.onMarketStats(handleStatsUpdate);
+    
+    // Fetch stats on mount regardless of socket state
+    fetchMarketStats();
+    
+    // Fetch initial items
+    fetchItems();
+    
+    // Clean up on unmount
+    return () => {
+      console.log('Cleaning up Marketplace component');
+      socketService.offMarketStats();
+      socketService.onConnected(null); // Remove the callback
+      socketService.onDisconnected(null); // Remove the callback
+      socketService.setCurrentPage(null);
+    };
+  }, [fetchMarketStats, handleStatsUpdate, auth.token, fetchItems]);
 
-  // REMOVE ALL AUTO-REFRESH LOGIC - only respond to specific events
-  useEffect(() => {
-    // Handler for ONLY new listings and sales - NO automatic refreshes
-    const handleMarketUpdate = async (update) => {
-      console.log('Market update received:', update);
-      
-      // Process all market updates regardless of targeting
-      // Remove the filtering based on targetPage as it's causing missed updates
-      
-      // Only handle specific item updates, NO general refreshes
-      if (update.type === 'new_listing' && update.item) {
-        console.log('New listing received:', update.item.marketHashName);
-        
-        try {
-          // Fetch complete item details with owner information
-          const response = await axios.get(`${API_URL}/marketplace/item/${update.item._id}`, {
-            withCredentials: true
-          });
-          
-          const itemWithOwner = response.data;
-          
-          // Add the new item to the list without full refresh
-          setItems(prevItems => {
-            // Check if this item already exists to avoid duplicates
-            const itemExists = prevItems.some(item => item._id === itemWithOwner._id);
-            if (itemExists) {
-              console.log('Item already exists in list, skipping');
-              return prevItems;
-            }
-            console.log('Adding new item with complete owner info to list');
-            // Add at the beginning for "latest" sorting
-            return [itemWithOwner, ...prevItems];
-          });
-          
-          toast.success(`New item listed: ${itemWithOwner.marketHashName}`, {
-            duration: 3000
-          });
-        } catch (err) {
-          console.error('Error fetching complete item details:', err);
-          // Fallback to using the update data even without full owner info
-          setItems(prevItems => {
-            const itemExists = prevItems.some(item => item._id === update.item._id);
-            if (itemExists) return prevItems;
-            return [update.item, ...prevItems];
-          });
-          
-          toast.success(`New item listed: ${update.item.marketHashName}`, {
-            duration: 3000
-          });
-        }
-      }
-      
-      // Handle cancelled listings
-      if ((update.type === 'item_unavailable' || update.type === 'listing_cancelled') && update.itemId) {
-        console.log(`Item cancelled/removed: ${update.itemId} - ${update.marketHashName || 'Unknown item'}`);
-        
-        // Remove the item from the current list immediately for all users
-        setItems(prevItems => {
-          const newItems = prevItems.filter(item => item._id !== update.itemId);
-          // If items were removed, update filtered items too
-          if (newItems.length !== prevItems.length) {
-            console.log(`Removed cancelled item ${update.itemId} from display`);
-            
-            // Show toast ONLY if this user is the one who cancelled the item - check by userId
-            if (update.userId && user && update.userId === user._id) {
-              if (update.marketHashName) {
-                toast(`Your listing for ${update.marketHashName} was cancelled`, {
-                  duration: 3000
-                });
-              }
-            }
-            
-            // If this is the user who owns the listing, refresh their listings
-            if (user && update.userId === user._id) {
-              fetchUserListings();
-            }
-            
-            return newItems;
-          }
-          return prevItems;
-        });
-        
-        // Update market stats to reflect the change
-        fetchMarketStats();
-      }
-      
-      // Handle user count updates
-      if (update.type === 'user_count' && update.count !== undefined) {
-        console.log('User count update received:', update.count);
-        setMarketStats(prev => ({
-          ...prev,
-          activeUsers: update.count
-        }));
-      }
-      
-      // Only refresh stats occasionally for sold items without refreshing all items
-      if (update.type === 'item_sold') {
-        // Just update stats, not full item refresh
-        fetchMarketStats();
-      }
+  // Function to update market stats with validation
+  const updateMarketStats = useCallback((newStats) => {
+    // Validate stats and use last valid values for any missing/invalid properties
+    const validatedStats = {
+      totalItems: newStats.activeListings >= 0 ? newStats.activeListings : lastValidStatsRef.current.activeListings,
+      totalSales: newStats.totalSales >= 0 ? newStats.totalSales : lastValidStatsRef.current.totalSales,
+      activeListings: newStats.activeListings >= 0 ? newStats.activeListings : lastValidStatsRef.current.activeListings,
+      onlineUsers: newStats.onlineUsers >= 0 ? newStats.onlineUsers : lastValidStatsRef.current.onlineUsers,
     };
     
-    // Handler for direct item cancellation events
-    const handleItemCancelled = (data) => {
-      console.log('Direct item cancellation received:', data);
-      if (data && data.itemId) {
-        // Remove the item from the list immediately
-        setItems(prevItems => {
-          const newItems = prevItems.filter(item => item._id !== data.itemId);
-          
-          // Only show notification if we actually removed something
-          if (newItems.length !== prevItems.length) {
-            console.log(`Removed cancelled item ${data.itemId} from display (direct event)`);
-            
-            // No user-specific notification here as we're handling a dedicated cancellation event
-            // that's meant to be seen by everyone
-            
-            // Update market stats to reflect the change
-            fetchMarketStats();
-            return newItems;
-          }
-          return prevItems;
-        });
-      }
-    };
+    // Update ref with valid stats
+    lastValidStatsRef.current = validatedStats;
     
-    // Register socket event listeners
-    console.log('Registering market event handlers');
-    socketService.on('market_update', handleMarketUpdate);
-    socketService.on('item_cancelled', handleItemCancelled);
+    // Update state
+    setMarketStats(validatedStats);
     
-    // Register user count update handler
-    socketService.on('user_count', (data) => {
-      console.log('User count direct update:', data);
-      if (data && typeof data.count === 'number') {
-        setMarketStats(prev => ({
-          ...prev,
-          activeUsers: data.count
-        }));
-      }
-    });
+    // Cache in localStorage
+    try {
+      localStorage.setItem('cachedMarketStats', JSON.stringify(validatedStats));
+    } catch (e) {
+      console.error('Error caching stats:', e);
+    }
     
-    // Cleanup event listener
-    return () => {
-      console.log('Removing market event handlers');
-      socketService.off('market_update', handleMarketUpdate);
-      socketService.off('item_cancelled', handleItemCancelled);
-      socketService.off('user_count');
-    };
-  }, [user]); // Add user as dependency to properly handle user-specific messages
+    return validatedStats;
+  }, []);
 
   // Handle connection status with minimal side-effects
   useEffect(() => {
@@ -393,13 +493,60 @@ function Marketplace({ user }) {
     };
   }, []); // Empty dependency array - only register once
 
-  // Add a manual refresh button instead of auto-refresh
-  const handleManualRefresh = () => {
+  // Handle manual refresh with retry mechanism
+  const handleManualRefresh = useCallback(() => {
     console.log('Manual refresh requested');
+    
+    // Track refresh attempt
+    const refreshAttempt = {
+      timestamp: Date.now(),
+      count: 1
+    };
+    
+    // Check if we've tried recently (within 5 seconds)
+    const lastRefresh = localStorage.getItem('lastManualRefresh');
+    if (lastRefresh) {
+      try {
+        const lastRefreshData = JSON.parse(lastRefresh);
+        const timeSinceLastRefresh = Date.now() - lastRefreshData.timestamp;
+        
+        // If last refresh was recent, increment the count
+        if (timeSinceLastRefresh < 5000) {
+          refreshAttempt.count = lastRefreshData.count + 1;
+        }
+      } catch (e) {
+        console.error('Error parsing last refresh data:', e);
+      }
+    }
+    
+    // Save this refresh attempt
+    localStorage.setItem('lastManualRefresh', JSON.stringify(refreshAttempt));
+    
+    // Track if we're refreshing
     setLoading(true);
-    fetchItems().then(() => setLoading(false));
-    fetchMarketStats();
-  };
+    
+    // If this is the third rapid attempt, try reconnecting the socket
+    if (refreshAttempt.count >= 3) {
+      console.log('Multiple refresh attempts detected, reconnecting socket');
+      socketService.disconnect();
+      setTimeout(() => {
+        socketService.connect(auth.token);
+      }, 1000);
+    }
+    
+    // Always try to fetch items regardless of socket state
+    Promise.all([
+      fetchItems(),
+      fetchMarketStats()
+    ])
+      .catch(error => {
+        console.error('Error during manual refresh:', error);
+        toast.error(t('errors.refresh'));
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [fetchItems, fetchMarketStats, auth.token, t]);
 
   // Handle item click
   const handleItemClick = (item) => {
@@ -559,7 +706,7 @@ function Marketplace({ user }) {
             fontSize: '1.75rem',
             fontWeight: 'bold',
             color: 'var(--gaming-text-bright)'
-          }}>{marketStats.totalListings || 0}</p>
+          }}>{marketStats.activeListings || 0}</p>
         </div>
 
         <div style={{
