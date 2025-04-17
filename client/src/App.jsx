@@ -11,6 +11,7 @@ import SocketConnectionIndicator from './components/SocketConnectionIndicator';
 import LiveActivityFeed from './components/LiveActivityFeed';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import SteamRegistrationModal from './components/SteamRegistrationModal';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Pages
 import Home from './pages/Home';
@@ -401,9 +402,13 @@ function AppContent() {
             <Route path="/inventory" element={<ProtectedRoute>
               <Inventory user={user} />
             </ProtectedRoute>} />
-            <Route path="/marketplace" element={<ProtectedRoute>
-              <Marketplace user={user} />
-            </ProtectedRoute>} />
+            <Route path="/marketplace" element={
+              <ErrorBoundary pageName="Marketplace">
+                <ProtectedRoute>
+                  <Marketplace user={user} />
+                </ProtectedRoute>
+              </ErrorBoundary>
+            } />
             <Route path="/my-listings" element={<ProtectedRoute>
               <MyListings user={user} />
             </ProtectedRoute>} />
