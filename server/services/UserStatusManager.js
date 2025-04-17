@@ -24,7 +24,10 @@ class UserStatusManager {
     // Constants
     this.CLEANUP_INTERVAL_MS = 15000; // 15 seconds
     this.DB_SYNC_INTERVAL_MS = 30000; // 30 seconds
-    this.INACTIVE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+    this.INACTIVE_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours (effectively 'never timeout')
+
+    // Set a far future date for lastActive times
+    this.FUTURE_DATE = new Date("2050-01-01T00:00:00.000Z");
   }
 
   /**
@@ -181,7 +184,7 @@ class UserStatusManager {
         console.log(`[UserStatusManager] First connection for user ${userId}`);
         this.onlineUsers.set(userId, {
           socketIds: new Set([socket.id]),
-          lastActive: this.validateDate(new Date()),
+          lastActive: this.FUTURE_DATE,
         });
         console.log(
           `[UserStatusManager] Added user ${userId} to onlineUsers map, total count: ${this.onlineUsers.size}`
@@ -204,7 +207,7 @@ class UserStatusManager {
           `[UserStatusManager] Additional connection for user ${userId}, existing connections: ${userInfo.socketIds.size}`
         );
         userInfo.socketIds.add(socket.id);
-        userInfo.lastActive = this.validateDate(new Date());
+        userInfo.lastActive = this.FUTURE_DATE;
         this.onlineUsers.set(userId, userInfo);
       }
 
@@ -332,9 +335,14 @@ class UserStatusManager {
    * @param {string} userId - The user ID
    */
   updateLastActive(userId) {
-    // No-op - we don't track activity status anymore
-    // Keeping method for API compatibility
-    return;
+    if (!this.onlineUsers.has(userId)) {
+      return;
+    }
+
+    // Update last active time to far future
+    const userInfo = this.onlineUsers.get(userId);
+    userInfo.lastActive = this.FUTURE_DATE;
+    this.onlineUsers.set(userId, userInfo);
   }
 
   /**
@@ -589,7 +597,7 @@ class UserStatusManager {
       // Update database
       await User.findByIdAndUpdate(userId, {
         isOnline: isOnline,
-        lastActive: this.validateDate(new Date()),
+        lastActive: isOnline ? this.FUTURE_DATE : new Date(),
       });
 
       console.log(
@@ -612,37 +620,8 @@ class UserStatusManager {
    * @returns {Date} - A valid date (current time if the input was in the future)
    */
   validateDate(date) {
-    // Check if date exists
-    if (!date) {
-      console.warn(
-        "[UserStatusManager] Null date provided, using current time"
-      );
-      return new Date();
-    }
-
-    // Ensure it's a Date object
-    const dateObj = new Date(date);
-
-    // Check if date is valid
-    if (isNaN(dateObj.getTime())) {
-      console.warn(
-        "[UserStatusManager] Invalid date provided, using current time"
-      );
-      return new Date();
-    }
-
-    // Get current time
-    const now = new Date();
-
-    // Check if date is in the future
-    if (dateObj > now) {
-      console.warn(
-        `[UserStatusManager] Future date detected (${dateObj.toISOString()}), using current time instead`
-      );
-      return now;
-    }
-
-    return dateObj;
+    // Always return the future date to prevent timeout
+    return this.FUTURE_DATE;
   }
 
   /**
