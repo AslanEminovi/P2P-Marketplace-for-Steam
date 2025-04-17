@@ -92,6 +92,16 @@ class UserStatusManager {
   }
 
   /**
+   * Handle a socket connection - Called by socketService
+   * This is the entry point used by the socketService
+   * @param {Object} socket - The socket.io socket
+   */
+  handleSocketConnection(socket) {
+    // Delegate to the handleConnection method
+    return this.handleConnection(socket);
+  }
+
+  /**
    * Handle a new socket connection
    * @param {Object} socket - The socket.io socket
    */
@@ -998,11 +1008,22 @@ class UserStatusManager {
    */
   getUserCounts() {
     try {
+      console.log("[UserStatusManager] Getting user counts...");
+
       // Check if maps are initialized
       if (!this.onlineUsers || !this.anonymousSockets) {
         console.error("[UserStatusManager] Maps not initialized properly");
+        console.error(
+          `onlineUsers: ${this.onlineUsers ? "defined" : "undefined"}`
+        );
+        console.error(
+          `anonymousSockets: ${this.anonymousSockets ? "defined" : "undefined"}`
+        );
+
         if (!this.isInitialized) {
-          console.log("[UserStatusManager] Re-initializing manager");
+          console.log(
+            "[UserStatusManager] Manager not initialized, initializing now"
+          );
           this.init();
         }
         return {
@@ -1025,6 +1046,14 @@ class UserStatusManager {
       // We exclude anonymous users because they could be duplicate tabs
       // and there's no reliable way to deduplicate them without cookies
       const totalCount = authenticatedCount;
+
+      // Always log the counts for diagnostics
+      console.log("[UserStatusManager] Current user counts:", {
+        authenticated: authenticatedCount,
+        anonymous: anonymousCount,
+        total: totalCount,
+        note: "Total only includes authenticated users",
+      });
 
       // If everything is zero, log more detailed debug info
       if (authenticatedCount === 0 && anonymousCount === 0) {
@@ -1049,22 +1078,26 @@ class UserStatusManager {
           );
         }
 
-        // Force a sync with database to recover any missing users
-        this.syncWithDatabase().catch((err) => {
-          console.error(
-            "[UserStatusManager] Error syncing with database during recovery:",
-            err
-          );
-        });
+        // Check if we have any data in the database
+        User.countDocuments({ isOnline: true })
+          .then((count) => {
+            console.log(
+              `[UserStatusManager] Users marked online in database: ${count}`
+            );
+            if (count > 0 && authenticatedCount === 0) {
+              console.log(
+                "[UserStatusManager] Database shows online users but memory has none - syncing"
+              );
+              this.syncWithDatabase();
+            }
+          })
+          .catch((err) => {
+            console.error(
+              "[UserStatusManager] Error checking online users in database:",
+              err
+            );
+          });
       }
-
-      // Log counts for debugging
-      console.log("[UserStatusManager] Current user counts:", {
-        authenticated: authenticatedCount,
-        anonymous: anonymousCount,
-        total: totalCount,
-        note: "Total only includes authenticated users",
-      });
 
       // Return counts
       return {
