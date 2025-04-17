@@ -9,7 +9,7 @@ import '../styles/MarketplaceCustom.css';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { refresh } from '../redux/authSlice';
+import { refresh } from '../features/auth/authSlice';
 import jwtDecode from 'jwt-decode';
 
 // Component imports
