@@ -321,8 +321,8 @@ const useUserStatus = (userId, initialStatus = null) => {
       );
       const cachedStatus = statusCache[userId];
 
-      // Use cached status if recent (within 2 minutes)
-      if (cachedStatus && Date.now() - cachedStatus.timestamp < 120000) {
+      // Always use cached status initially to prevent flashing
+      if (cachedStatus) {
         debug("Using cached status:", cachedStatus);
         setStatus({
           isOnline: cachedStatus.isOnline,
@@ -330,7 +330,7 @@ const useUserStatus = (userId, initialStatus = null) => {
           lastSeenFormatted: cachedStatus.lastSeenFormatted,
           source: "cache",
         });
-        setLoading(false);
+        // Don't set loading to false yet - keep loading but with a status displayed
       }
     } catch (err) {
       debug("Error reading from cache:", err);
@@ -350,7 +350,8 @@ const useUserStatus = (userId, initialStatus = null) => {
       socketService.onConnected(() => {
         debug("Socket reconnected, resubscribing to status updates");
         subscribeToUserStatus();
-        fetchStatus(); // Also fetch fresh status
+        // Keep a slight delay before fetching status to let socket establish
+        setTimeout(() => fetchStatus(), 300);
       });
 
       socketRegisteredRef.current = true;
