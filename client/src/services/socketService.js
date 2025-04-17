@@ -2,7 +2,8 @@ import io from "socket.io-client";
 import { API_URL } from "../config/constants";
 // Remove import from non-existent authService
 // import { getToken } from "./authService";
-import config from "../config";
+// Remove unused import
+// import config from "../config";
 import { toast } from "react-toastify";
 
 // Track global connection state across tabs
