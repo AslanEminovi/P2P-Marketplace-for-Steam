@@ -497,12 +497,18 @@ const io = new Server(server, {
 // Socket middleware for authentication
 io.use(async (socket, next) => {
   try {
+    console.log(`[socketAuth] Socket authentication for socket ${socket.id}`);
+
+    // Extract token from all possible locations
     const token =
       socket.handshake.auth.token ||
       socket.handshake.headers.authorization?.split(" ")[1] ||
-      socket.handshake.query.token; // Also check in query parameters
+      socket.handshake.query.token;
 
     if (!token) {
+      console.log(
+        `[socketAuth] No auth token found for socket ${socket.id}, marking as anonymous`
+      );
       // Allow anonymous connections but mark them as such
       socket.userId = null;
       socket.username = null;
@@ -510,21 +516,46 @@ io.use(async (socket, next) => {
       return next();
     }
 
+    // Log token discovery (don't log the token itself for security)
+    console.log(
+      `[socketAuth] Auth token found for socket ${socket.id}, verifying...`
+    );
+
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log(
+      `[socketAuth] Token verified for socket ${socket.id}, user: ${decoded.id}`
+    );
 
     // Find user
     const user = await User.findById(decoded.id);
     if (!user) {
+      console.log(
+        `[socketAuth] User ${decoded.id} not found for socket ${socket.id}`
+      );
+      socket.userId = null;
+      socket.isAuthenticated = false;
       return next(new Error("User not found"));
     }
+
+    // Set online status in database immediately
+    user.isOnline = true;
+    user.lastActive = new Date();
+    await user.save();
 
     // Attach user data to socket
     socket.userId = user._id.toString();
     socket.username = user.username || user.steamName || "User";
     socket.isAuthenticated = true;
+
+    console.log(
+      `[socketAuth] Successfully authenticated user ${user._id.toString()} (${
+        socket.username
+      }) for socket ${socket.id}`
+    );
     next();
   } catch (err) {
+    console.error(`[socketAuth] Error during socket authentication:`, err);
     // If token verification fails, allow as anonymous
     socket.userId = null;
     socket.username = null;
