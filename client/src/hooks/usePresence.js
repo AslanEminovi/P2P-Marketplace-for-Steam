@@ -19,8 +19,24 @@ export function usePresence(myUserId) {
     // Only connect if we have a user ID
     if (!myUserId) return;
 
-    const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
-    const socketInstance = io(API_URL, {
+    let apiUrl = process.env.REACT_APP_API_URL;
+
+    // Fallback detection for production
+    if (!apiUrl && window.location.hostname !== "localhost") {
+      // If on Vercel production and no API URL set, use the likely Render URL
+      apiUrl = "https://cs2-marketplace.onrender.com";
+      console.log(
+        `[Presence] No API_URL env var found, using fallback: ${apiUrl}`
+      );
+    } else if (!apiUrl) {
+      // Local development fallback
+      apiUrl = "http://localhost:5001";
+      console.log(`[Presence] Using local development API: ${apiUrl}`);
+    }
+
+    console.log(`[Presence] Connecting to Socket.IO at: ${apiUrl}`);
+
+    const socketInstance = io(apiUrl, {
       auth: {
         token: localStorage.getItem("token"),
         userId: myUserId,
@@ -58,12 +74,26 @@ export function usePresence(myUserId) {
     if (!targetId) return null;
 
     try {
-      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
+      let apiUrl = process.env.REACT_APP_API_URL;
+
+      // Fallback detection for production
+      if (!apiUrl && window.location.hostname !== "localhost") {
+        // If on Vercel production and no API URL set, use the likely Render URL
+        apiUrl = "https://cs2-marketplace.onrender.com";
+        console.log(
+          `[Presence] No API_URL env var found, using fallback: ${apiUrl}`
+        );
+      } else if (!apiUrl) {
+        // Local development fallback
+        apiUrl = "http://localhost:5001";
+        console.log(`[Presence] Using local development API: ${apiUrl}`);
+      }
+
       console.log(
-        `[Presence] Fetching status for user ${targetId} from ${API_URL}/api/presence/${targetId}`
+        `[Presence] Fetching status for user ${targetId} from ${apiUrl}/api/presence/${targetId}`
       );
 
-      const res = await fetch(`${API_URL}/api/presence/${targetId}`);
+      const res = await fetch(`${apiUrl}/api/presence/${targetId}`);
 
       if (!res.ok) {
         throw new Error(`Failed to fetch user presence: ${res.status}`);

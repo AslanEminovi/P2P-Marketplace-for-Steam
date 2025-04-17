@@ -28,8 +28,8 @@ const REDIS_CHANNEL_USER_STATUS = "user_status";
 const REDIS_CHANNEL_MARKET_UPDATE = "market_update";
 const REDIS_CHANNEL_TRADE_UPDATE = "trade_update";
 
-// Check if Redis is enabled
-let isRedisEnabled = process.env.USE_REDIS === "true";
+// Check if Redis is enabled - always use if REDIS_URL is available
+let isRedisEnabled = !!process.env.REDIS_URL;
 
 /**
  * Format last seen time for user-friendly display
@@ -83,27 +83,58 @@ const init = (ioInstance) => {
   }
   console.log("Initializing socket service with Socket.io");
 
-  // Initialize Redis if available
-  isRedisEnabled = process.env.USE_REDIS === "true";
+  // Initialize Redis if URL is available (direct check)
+  isRedisEnabled = !!process.env.REDIS_URL;
+
   if (isRedisEnabled) {
     try {
-      console.log("Initializing Redis for socket service");
+      console.log(
+        `[socketService] Redis URL detected (${
+          process.env.REDIS_URL.includes("@")
+            ? "..." + process.env.REDIS_URL.split("@").pop()
+            : "masked"
+        }), initializing Redis`
+      );
+
       const redis = require("../config/redis");
       const { pubClient: pub, subClient: sub } = redis.initRedis();
+
+      // Verify clients are created
+      if (!pub || !sub) {
+        throw new Error("Redis clients not properly initialized");
+      }
+
       pubClient = pub;
       subClient = sub;
 
+      // Publish test message to verify Redis is working
+      pubClient
+        .set("socket:test", "Connection test at " + new Date().toISOString())
+        .then(() => console.log("[socketService] Redis test write successful"))
+        .catch((err) =>
+          console.error("[socketService] Redis test write failed:", err)
+        );
+
       // Subscribe to Redis channels
       initRedisSubscriptions();
-      console.log("Redis subscriptions initialized successfully");
+      console.log(
+        "[socketService] Redis subscriptions initialized successfully"
+      );
     } catch (error) {
-      console.error("Failed to initialize Redis for socket service:", error);
+      console.error(
+        "[socketService] Failed to initialize Redis for socket service:",
+        error
+      );
       isRedisEnabled = false;
-      console.warn("Falling back to local socket tracking only");
+      pubClient = null;
+      subClient = null;
+      console.warn(
+        "[socketService] Falling back to local socket tracking only"
+      );
     }
   } else {
     console.log(
-      "Redis is not enabled for socket service, using local tracking only"
+      "[socketService] No REDIS_URL detected, using local tracking only"
     );
   }
 
@@ -265,10 +296,29 @@ const getLatestStats = async () => {
   try {
     console.log("[socketService] Fetching latest stats");
 
+    // Double check Redis is enabled and we have a client
+    const redisAvailable = !!process.env.REDIS_URL && !!pubClient;
+    if (!isRedisEnabled) {
+      console.log(
+        "[socketService] Redis not enabled, updating flag if URL is available"
+      );
+      isRedisEnabled = !!process.env.REDIS_URL;
+    }
+
     // Try to get cached stats from Redis
-    if (isRedisEnabled && pubClient) {
+    if (redisAvailable && pubClient) {
       try {
         console.log("[socketService] Attempting to get stats from Redis cache");
+
+        // Test Redis connection first
+        const testResult = await pubClient.set(
+          "socket:statsTest",
+          `Stats request at ${new Date().toISOString()}`,
+          "EX",
+          60
+        );
+        console.log(`[socketService] Redis test result: ${testResult}`);
+
         const cachedStats = await redis.getCache("site:stats");
 
         // If stats are recent (< 60 seconds old), use them
@@ -297,7 +347,8 @@ const getLatestStats = async () => {
       }
     } else {
       console.log(
-        "[socketService] Redis not enabled or client not available, fetching from database"
+        `[socketService] Redis not available: URL=${!!process.env
+          .REDIS_URL}, client=${!!pubClient}, enabled=${isRedisEnabled}`
       );
     }
 
