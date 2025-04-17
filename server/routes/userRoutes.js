@@ -210,4 +210,73 @@ router.get("/direct-status/:userId", async (req, res) => {
   }
 });
 
+// Debug endpoint for user status - admin only
+router.get("/debug-status", async (req, res) => {
+  try {
+    // Only allow for authenticated admin users or in dev environment
+    const isAdmin = req.user && req.user.isAdmin === true;
+    const isDev = process.env.NODE_ENV !== "production";
+
+    if (!isAdmin && !isDev) {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+
+    console.log("[userRoutes] DEBUG endpoint called");
+
+    // Get UserStatusManager
+    const userStatusManager = require("../services/UserStatusManager");
+
+    // Force connection log
+    userStatusManager.logConnections();
+
+    // Get basic stats
+    const User = require("../models/User");
+    const totalUsers = await User.countDocuments();
+    const onlineInDB = await User.countDocuments({ isOnline: true });
+
+    // Get tracked users from UserStatusManager
+    const trackedUsers = [...userStatusManager.onlineUsers.keys()].map(
+      (userId) => {
+        const info = userStatusManager.onlineUsers.get(userId);
+        return {
+          userId,
+          socketCount: info.socketIds.size,
+          lastActive: info.lastActive,
+        };
+      }
+    );
+
+    // Get current time on server
+    const serverTime = new Date();
+
+    // Response data
+    const debugData = {
+      serverTime,
+      memory: {
+        trackedUsers: trackedUsers.length,
+        anonymousSockets: userStatusManager.anonymousSockets.size,
+        userDetails: trackedUsers,
+      },
+      database: {
+        totalUsers,
+        onlineUsers: onlineInDB,
+      },
+      environment: {
+        nodeEnv: process.env.NODE_ENV || "development",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        serverTimeISOString: serverTime.toISOString(),
+      },
+    };
+
+    res.json(debugData);
+  } catch (error) {
+    console.error("[userRoutes] Error in debug-status endpoint:", error);
+    res.status(500).json({
+      error: "Server error",
+      message: error.message,
+      stack: process.env.NODE_ENV !== "production" ? error.stack : undefined,
+    });
+  }
+});
+
 module.exports = router;

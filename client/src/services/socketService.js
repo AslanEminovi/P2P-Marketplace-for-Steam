@@ -122,17 +122,37 @@ class SocketService {
 
     // Get token from localStorage if not provided
     if (!token) {
-      token = localStorage.getItem("auth_token");
+      token =
+        localStorage.getItem("auth_token") || localStorage.getItem("token");
       console.log(
         "[SocketService] Using token from localStorage:",
         token ? "Token exists" : "No token"
       );
     }
 
+    if (!token) {
+      console.warn(
+        "[SocketService] No auth token found, will connect as anonymous"
+      );
+    }
+
     // Initialize socket connection with auth token
     try {
+      // Log the API URL for debugging
+      console.log(`[SocketService] Connecting to: ${API_URL}`);
+
+      // Log token format without exposing contents
+      if (token) {
+        const tokenStart = token.substring(0, 5);
+        const tokenEnd = token.substring(token.length - 5);
+        console.log(
+          `[SocketService] Token format check: ${tokenStart}...${tokenEnd}, length: ${token.length}`
+        );
+      }
+
       this.socket = io(API_URL, {
         auth: token ? { token } : {},
+        query: token ? { token } : {}, // Add token to query params too for fallback
         transports: ["websocket", "polling"],
         reconnection: true,
         reconnectionAttempts: 10,
@@ -141,10 +161,6 @@ class SocketService {
         timeout: 20000,
         autoConnect: true,
         forceNew: true, // Force a new connection
-        withCredentials: true,
-        extraHeaders: {
-          "Access-Control-Allow-Origin": "*",
-        },
       });
 
       // Setup connection event handlers
@@ -175,6 +191,7 @@ class SocketService {
 
       this.socket.on("connect_error", (error) => {
         console.error("[SocketService] Connection error:", error.message);
+        console.error("[SocketService] Connection error details:", error);
         this.handleConnectionFailure();
       });
 
@@ -194,6 +211,11 @@ class SocketService {
           // Server disconnected the client, need to reconnect manually
           this.scheduleReconnect();
         }
+      });
+
+      this.socket.on("error", (error) => {
+        console.error("[SocketService] Socket error:", error);
+        this.connected = false;
       });
 
       this.socket.on("reconnect_attempt", (attemptNumber) => {

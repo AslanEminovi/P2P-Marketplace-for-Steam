@@ -35,6 +35,9 @@ class UserStatusManager {
 
     console.log("[UserStatusManager] Initializing");
 
+    // Immediately log connections on startup for debugging
+    this.logConnections();
+
     // Start cleanup interval
     this.cleanupInterval = setInterval(() => {
       this.cleanupInactiveSessions();
@@ -53,7 +56,14 @@ class UserStatusManager {
       }, 60000); // Every minute
     }
 
+    // Perform an initial database synchronization
+    setTimeout(() => {
+      this.syncWithDatabase();
+    }, 5000); // Wait 5 seconds to allow initial connections
+
     this.isInitialized = true;
+
+    console.log("[UserStatusManager] Initialization complete");
   }
 
   /**
@@ -64,14 +74,42 @@ class UserStatusManager {
     const userId = socket.userId;
     const isAuthenticated = socket.isAuthenticated === true;
 
+    // Log detailed connection information
     console.log(
       `[UserStatusManager] New connection: Socket ${socket.id}, UserId: ${
         userId || "anonymous"
       }, Auth: ${isAuthenticated}`
     );
 
+    // Check if token exists in socket.handshake
+    const tokenExists = !!(
+      socket.handshake?.auth?.token ||
+      socket.handshake?.headers?.authorization ||
+      socket.handshake?.query?.token
+    );
+
+    if (!tokenExists) {
+      console.log(
+        `[UserStatusManager] No token in socket handshake for socket ${socket.id}`
+      );
+    }
+
     if (!userId || !isAuthenticated) {
-      // Anonymous user
+      // Anonymous user - log reason
+      if (!userId && !isAuthenticated) {
+        console.log(
+          `[UserStatusManager] Socket ${socket.id} is anonymous: No userId and not authenticated`
+        );
+      } else if (!userId) {
+        console.log(
+          `[UserStatusManager] Socket ${socket.id} is anonymous: No userId even though authenticated=${isAuthenticated}`
+        );
+      } else {
+        console.log(
+          `[UserStatusManager] Socket ${socket.id} is anonymous: Has userId=${userId} but not authenticated`
+        );
+      }
+
       this.anonymousSockets.add(socket.id);
 
       // Handle disconnect
@@ -88,6 +126,7 @@ class UserStatusManager {
     // Authenticated user
     if (!this.onlineUsers.has(userId)) {
       // First socket for this user
+      console.log(`[UserStatusManager] First connection for user ${userId}`);
       this.onlineUsers.set(userId, {
         socketIds: new Set([socket.id]),
         lastActive: this.validateDate(new Date()),
@@ -103,6 +142,9 @@ class UserStatusManager {
     } else {
       // Add to existing user's socket set
       const userInfo = this.onlineUsers.get(userId);
+      console.log(
+        `[UserStatusManager] Additional connection for user ${userId}, existing connections: ${userInfo.socketIds.size}`
+      );
       userInfo.socketIds.add(socket.id);
       userInfo.lastActive = this.validateDate(new Date());
       this.onlineUsers.set(userId, userInfo);
@@ -129,6 +171,11 @@ class UserStatusManager {
     socket.on("user_active", () => {
       this.updateLastActive(userId);
     });
+
+    // After successful connection, log current stats
+    setTimeout(() => {
+      this.logConnections();
+    }, 1000);
   }
 
   /**

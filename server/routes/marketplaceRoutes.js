@@ -35,6 +35,34 @@ router.get("/stats", async (req, res) => {
     const userStatusManager = require("../services/UserStatusManager");
     const userCounts = userStatusManager.getUserCounts();
 
+    console.log("User counts from UserStatusManager:", userCounts);
+
+    // Force stats refresh with detailed logging if user count is zero
+    if (userCounts.total === 0) {
+      console.log(
+        "WARNING: User count is zero, this might indicate a tracking issue"
+      );
+
+      // Trigger a connection log for debugging
+      userStatusManager.logConnections();
+
+      // You might want to check database for a fallback count
+      const User = require("../models/User");
+      const onlineUsersCountFromDB = await User.countDocuments({
+        isOnline: true,
+      });
+      console.log(`Online users in database: ${onlineUsersCountFromDB}`);
+
+      // If DB has users but memory doesn't, there might be an initialization issue
+      if (onlineUsersCountFromDB > 0 && userCounts.total === 0) {
+        console.log(
+          "Mismatch between database and memory user counts, triggering sync"
+        );
+        // This will update the database based on memory, not what we want right now
+        // Instead just log the discrepancy
+      }
+    }
+
     // Fetch stats from database
     const Item = require("../models/Item");
     const User = require("../models/User");
@@ -44,7 +72,7 @@ router.get("/stats", async (req, res) => {
       await Promise.all([
         Item.countDocuments({ isListed: true }),
         User.countDocuments({
-          lastActive: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+          lastActive: { $gte: new Date(now - 30 * 24 * 60 * 60 * 1000) },
         }),
         Trade.countDocuments({ status: "completed" }),
       ]);
@@ -56,7 +84,14 @@ router.get("/stats", async (req, res) => {
       registeredUsers,
       completedTrades,
       timestamp: new Date(),
+      _debug: {
+        authenticatedUsers: userCounts.authenticated,
+        anonymousUsers: userCounts.anonymous,
+        source: "fresh",
+      },
     };
+
+    console.log("Generated marketplace stats:", formattedStats);
 
     // Update cache
     statsCache.data = formattedStats;
@@ -69,11 +104,21 @@ router.get("/stats", async (req, res) => {
     // Return cached data if available, even if it's old
     if (statsCache.data) {
       console.log("Returning stale cached stats due to error");
-      return res.json(statsCache.data);
+      return res.json({
+        ...statsCache.data,
+        _stale: true,
+        error: "Using cached data due to error",
+      });
     }
 
-    // If no cache available, return error
-    res.status(500).json({ error: "Failed to get statistics" });
+    // If no cache available, return error with zeros
+    res.status(500).json({
+      error: "Failed to get statistics",
+      activeListings: 0,
+      activeUsers: 0,
+      registeredUsers: 0,
+      completedTrades: 0,
+    });
   }
 });
 
