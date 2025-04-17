@@ -401,9 +401,7 @@ function AppContent() {
             <Route path="/inventory" element={<ProtectedRoute>
               <Inventory user={user} />
             </ProtectedRoute>} />
-            <Route path="/marketplace" element={<ProtectedRoute>
-              <Marketplace user={user} />
-            </ProtectedRoute>} />
+            <Route path="/marketplace" element={<Marketplace user={user} />} />
             <Route path="/my-listings" element={<ProtectedRoute>
               <MyListings user={user} />
             </ProtectedRoute>} />

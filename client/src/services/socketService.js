@@ -22,6 +22,7 @@ class SocketService {
     this.heartbeatInterval = null;
     this.heartbeatDelay = 60000; // Increasing from 15 seconds to 60 seconds (1 minute)
     this.currentPage = "other"; // Default to 'other' instead of marketplace
+    this.lastStatsUpdate = 0; // Track when we last updated stats
   }
 
   init() {
@@ -41,6 +42,15 @@ class SocketService {
     return this;
   }
 
+  // Request fresh statistics from the server
+  requestStatsUpdate() {
+    if (this.isConnected()) {
+      console.log("[SocketService] Requesting fresh stats update");
+      this.emit("request_stats_update");
+      this.lastStatsUpdate = Date.now();
+    }
+  }
+
   handleVisibilityChange() {
     if (document.visibilityState === "visible") {
       console.log("[SocketService] Tab became visible, checking connection");
@@ -49,6 +59,9 @@ class SocketService {
       // When tab becomes visible, check if we need to reconnect
       if (!this.isConnected()) {
         this.reconnect();
+      } else {
+        // If connected, request fresh stats
+        this.requestStatsUpdate();
       }
     } else {
       console.log("[SocketService] Tab became hidden");
@@ -72,6 +85,13 @@ class SocketService {
               "[SocketService] Detected disconnected socket during periodic check"
             );
             this.reconnect();
+          } else {
+            // Check if it's been more than 60 seconds since our last stats update
+            const timeSinceLastUpdate = Date.now() - this.lastStatsUpdate;
+            if (timeSinceLastUpdate > 60000) {
+              // 60 seconds
+              this.requestStatsUpdate();
+            }
           }
         } else if (localStorage.getItem("auth_token")) {
           // We have an auth token but no socket, try to connect
@@ -108,6 +128,9 @@ class SocketService {
 
       // Still ensure subscriptions are active
       this.subscribeToUserStatuses();
+
+      // Request fresh stats
+      this.requestStatsUpdate();
 
       return this.socket;
     }
@@ -181,6 +204,9 @@ class SocketService {
 
         // Notify the server about our user status subscription needs
         this.subscribeToUserStatuses();
+
+        // Request fresh stats update
+        this.requestStatsUpdate();
 
         // Send current page information
         this.emit("page_view", { page: this.currentPage });

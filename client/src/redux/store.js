@@ -12,19 +12,21 @@ import socketMiddleware, {
 import authReducer from "./slices/authSlice";
 import listingsReducer from "./slices/listingsSlice";
 import notificationsReducer from "./slices/notificationsSlice";
+import statsReducer from "./slices/statsSlice";
 
 // Configure persist options
 const persistConfig = {
   key: "root",
   storage,
   whitelist: ["auth", "notifications"], // Only persist these reducers
-  blacklist: ["listings"], // Don't persist listings (we'll fetch fresh data)
+  blacklist: ["listings", "stats"], // Don't persist listings or stats (we'll fetch fresh data)
 };
 
 const rootReducer = combineReducers({
   auth: authReducer,
   listings: listingsReducer,
   notifications: notificationsReducer,
+  stats: statsReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

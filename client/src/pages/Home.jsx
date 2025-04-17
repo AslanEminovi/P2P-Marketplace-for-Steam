@@ -8,6 +8,11 @@ import './Home.css';
 // Import background image
 import backgroundImage from '../assets/background.jpg';
 import { FaSteam, FaSearch, FaBoxOpen } from 'react-icons/fa';
+import LoginModal from '../components/LoginModal';
+import { toast } from 'react-hot-toast';
+import { useSelector } from 'react-redux';
+import { FaBolt, FaShieldAlt, FaMoneyBillWave, FaExchangeAlt, FaDollarSign } from 'react-icons/fa';
+import { selectActiveListings, selectActiveUsers, selectCompletedTrades } from '../redux/slices/statsSlice';
 
 // Login Modal Component
 const LoginModal = ({ isOpen, onClose }) => {
@@ -682,44 +687,31 @@ const Home = ({ user }) => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [featuredItems, setFeaturedItems] = useState([]);
-  const [stats, setStats] = useState({
-    items: 0,
-    users: 0,
-    trades: 0
-  });
   
-  // Track if we've received real stats yet
-  const [statsLoaded, setStatsLoaded] = useState(false);
+  // Get stats from Redux store
+  const activeListings = useSelector(selectActiveListings);
+  const activeUsers = useSelector(selectActiveUsers);
+  const completedTrades = useSelector(selectCompletedTrades);
+  
+  // Create stats object from Redux values
+  const stats = {
+    items: activeListings,
+    users: activeUsers,
+    trades: completedTrades
+  };
+  
+  // Stats are loaded if at least one value is non-zero
+  const statsLoaded = activeListings > 0 || activeUsers > 0 || completedTrades > 0;
   
   // Cache last valid stats to prevent flickering to zero
   const lastValidStats = useRef(stats);
 
-  // Function to handle stats updates from socket
-  const handleStatsUpdate = useCallback((statsData) => {
-    console.log("Received real-time stats update:", statsData);
-    
-    // Only update stats if we have valid data
-    if (statsData && (statsData.activeListings >= 0 || statsData.activeUsers >= 0 || statsData.completedTrades >= 0)) {
-      const newStats = {
-        items: statsData.activeListings || lastValidStats.current.items,
-        users: statsData.activeUsers || lastValidStats.current.users,
-        trades: statsData.completedTrades || lastValidStats.current.trades
-      };
-      
-      // Update the ref with the new valid stats
-      lastValidStats.current = newStats;
-      
-      // Update state with new stats
-      setStats(newStats);
-      
-      // Mark stats as loaded
-      if (!statsLoaded) {
-        setStatsLoaded(true);
-      }
-    } else {
-      console.log("Received invalid or empty stats, using cached values");
+  // Update the lastValidStats ref when we get valid stats
+  useEffect(() => {
+    if (stats.items > 0 || stats.users > 0 || stats.trades > 0) {
+      lastValidStats.current = stats;
     }
-  }, [statsLoaded]);
+  }, [stats]);
 
   // Fetch data from API endpoints
   const fetchMarketplaceData = useCallback(async () => {
@@ -760,25 +752,14 @@ const Home = ({ user }) => {
         setFeaturedItems([]);
       }
 
-      // Also fetch stats directly if socket isn't connected
-      if (!socketService.isConnected()) {
-        try {
-          console.log("Socket not connected, fetching stats via HTTP");
-          const statsResponse = await axios.get(`${API_URL}/marketplace/stats`, { 
-            withCredentials: true 
-          });
-          if (statsResponse.data) {
-            handleStatsUpdate(statsResponse.data);
-          }
-        } catch (statsError) {
-          console.error("Error fetching stats via HTTP:", statsError);
-        }
-      }
-
       // Request updated stats via socket if connected
       if (socketService.isConnected()) {
         console.log("Requesting stats update from server");
-        socketService.emit('request_stats_update');
+        if (socketService.requestStatsUpdate) {
+          socketService.requestStatsUpdate();
+        } else {
+          socketService.emit('request_stats_update');
+        }
       } else {
         console.log("Socket not connected, attempting to reconnect");
         // Use a delayed reconnect to prevent rapid connection attempts
@@ -791,7 +772,7 @@ const Home = ({ user }) => {
       setFeaturedItems([]);
       setLoading(false);
     }
-  }, [handleStatsUpdate]);
+  }, []);
 
   // Initialize socket connection and set up listeners
   useEffect(() => {
@@ -800,9 +781,6 @@ const Home = ({ user }) => {
       socketService.init();
     }
 
-    // Set up listener for stats updates
-    socketService.on('stats_update', handleStatsUpdate);
-
     // Set up listener for connection status changes
     socketService.on('connection_status', (status) => {
       console.log("Socket connection status:", status);
@@ -810,7 +788,11 @@ const Home = ({ user }) => {
       // If we're connected, request a stats update
       if (status.connected) {
         console.log("Connected to server, requesting stats update");
-        socketService.socket.emit('request_stats_update');
+        if (socketService.requestStatsUpdate) {
+          socketService.requestStatsUpdate();
+        } else {
+          socketService.socket.emit('request_stats_update');
+        }
       }
     });
 
@@ -835,12 +817,11 @@ const Home = ({ user }) => {
     
     // Clean up listeners when component unmounts
     return () => {
-      socketService.off('stats_update', handleStatsUpdate);
       socketService.off('connection_status');
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [handleStatsUpdate, fetchMarketplaceData]);
+  }, [fetchMarketplaceData]);
 
   return (
     <div className="home-container">

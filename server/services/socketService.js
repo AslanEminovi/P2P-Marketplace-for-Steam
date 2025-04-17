@@ -297,20 +297,25 @@ const getLatestStats = async () => {
     // Get user counts from UserStatusManager
     const userCounts = userStatusManager.getUserCounts();
 
-    // Fetch stats from database
+    // Fetch stats from database - use a direct query for the most up-to-date count
     const Item = require("../models/Item");
     const User = require("../models/User");
     const Trade = require("../models/Trade");
 
+    // Use Promise.all for parallel execution
     const [activeListings, registeredUsers, completedTrades] =
       await Promise.all([
-        Item.countDocuments({ isListed: true }),
+        // Use a lean query for better performance
+        Item.countDocuments({ isListed: true }).lean().exec(),
         User.countDocuments({
           lastActive: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-        }),
-        Trade.countDocuments({ status: "completed" }),
+        })
+          .lean()
+          .exec(),
+        Trade.countDocuments({ status: "completed" }).lean().exec(),
       ]);
 
+    // Create stats object with all data
     const stats = {
       activeListings,
       activeUsers: userCounts.total,
@@ -362,7 +367,10 @@ const broadcastStats = async () => {
   }
 
   try {
+    // Get the latest stats
     const stats = await getLatestStats();
+
+    // Emit to all clients
     io.emit("stats_update", stats);
 
     console.log("[socketService] Broadcasted stats to all clients:", {
@@ -424,10 +432,13 @@ const sendMarketUpdate = (update, userId = null) => {
       ].includes(update.type)
     ) {
       emitMarketActivity(enrichedUpdate);
-    }
 
-    // Broadcast updated stats after market changes
-    broadcastStats().catch(console.error);
+      // Force immediate stats update for these important actions
+      // This ensures stats are updated right away
+      setTimeout(() => {
+        broadcastStats().catch(console.error);
+      }, 100);
+    }
   } catch (err) {
     console.error("Error sending market update:", err);
   }

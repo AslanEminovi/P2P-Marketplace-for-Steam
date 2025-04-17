@@ -1,6 +1,7 @@
 import socketService from "../../services/socketService";
 import { addNotification } from "../slices/notificationsSlice";
 import { updateListingLocally } from "../slices/listingsSlice";
+import { updateStats } from "../slices/statsSlice";
 
 // Socket middleware to connect Socket.io events with Redux
 const socketMiddleware = (store) => {
@@ -23,11 +24,21 @@ const socketMiddleware = (store) => {
         if (!socketService.isConnected()) {
           socketService.reconnect();
         }
+
+        // Request fresh stats after authentication changes
+        if (socketService.requestStatsUpdate) {
+          socketService.requestStatsUpdate();
+        }
         break;
 
       case "auth/logout/fulfilled":
         // Optionally disconnect socket on logout (or keep it for anonymous browsing)
         // socketService.disconnect();
+
+        // Request fresh stats after authentication changes
+        if (socketService.requestStatsUpdate) {
+          socketService.requestStatsUpdate();
+        }
         break;
 
       // Notifications
@@ -41,32 +52,31 @@ const socketMiddleware = (store) => {
 
       // Listings
       case "listings/createListing/fulfilled":
-        // Notify about new listing
-        if (socketService.isConnected()) {
-          socketService.emit("market_update", {
-            type: "new_listing",
-            listing: action.payload,
-          });
-        }
-        break;
-
       case "listings/updateListing/fulfilled":
-        // Notify about updated listing
-        if (socketService.isConnected()) {
-          socketService.emit("market_update", {
-            type: "listing_updated",
-            listing: action.payload,
-          });
-        }
-        break;
-
       case "listings/deleteListing/fulfilled":
-        // Notify about deleted listing
+        // These actions affect stats, request an update
+        if (socketService.requestStatsUpdate) {
+          socketService.requestStatsUpdate();
+        }
+
+        // For specific listing operations, also emit the appropriate event
         if (socketService.isConnected()) {
-          socketService.emit("market_update", {
-            type: "listing_deleted",
-            listingId: action.payload,
-          });
+          if (action.type === "listings/createListing/fulfilled") {
+            socketService.emit("market_update", {
+              type: "new_listing",
+              listing: action.payload,
+            });
+          } else if (action.type === "listings/updateListing/fulfilled") {
+            socketService.emit("market_update", {
+              type: "listing_updated",
+              listing: action.payload,
+            });
+          } else if (action.type === "listings/deleteListing/fulfilled") {
+            socketService.emit("market_update", {
+              type: "listing_deleted",
+              listingId: action.payload,
+            });
+          }
         }
         break;
 
@@ -98,6 +108,11 @@ export const setupSocketListeners = (store) => {
         // Re-subscribe to notifications and user-specific events
         console.log("[socketMiddleware] Re-subscribing authenticated user");
       }
+
+      // Request fresh stats on reconnection
+      if (socketService.requestStatsUpdate) {
+        socketService.requestStatsUpdate();
+      }
     });
 
     // Handle notifications
@@ -115,8 +130,10 @@ export const setupSocketListeners = (store) => {
         store.dispatch(updateListingLocally(update.listing));
       }
 
-      // Could dispatch different actions based on update.type
-      // For now, just log it
+      // Request fresh stats after any market update
+      if (socketService.requestStatsUpdate) {
+        setTimeout(() => socketService.requestStatsUpdate(), 100);
+      }
     });
 
     // Handle user status updates
@@ -125,8 +142,27 @@ export const setupSocketListeners = (store) => {
         "[socketMiddleware] Received user status update:",
         statusUpdate
       );
-      // Could dispatch an action to update user status in the store
+
+      // Request fresh stats after user status changes
+      if (socketService.requestStatsUpdate) {
+        socketService.requestStatsUpdate();
+      }
     });
+
+    // Handle stats updates
+    socketService.socket.on("stats_update", (stats) => {
+      console.log("[socketMiddleware] Received stats update:", stats);
+      store.dispatch(updateStats(stats));
+    });
+
+    // Request initial stats update
+    if (socketService.requestStatsUpdate) {
+      socketService.requestStatsUpdate();
+    } else {
+      console.warn(
+        "[socketMiddleware] requestStatsUpdate method not available"
+      );
+    }
   });
 };
 
