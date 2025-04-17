@@ -295,7 +295,10 @@ const handleTradeUpdateMessage = (data) => {
   }
 };
 
-// Function to get the count of unique authenticated and anonymous users
+/**
+ * Function to get the count of unique authenticated and anonymous users
+ * @returns {Object} Counts of authenticated and anonymous users
+ */
 const getUniqueUserCounts = () => {
   // Unique authenticated users is the size of the connected users map
   const authenticatedCount = connectedUserSockets
@@ -350,13 +353,13 @@ const getLatestStats = async () => {
 
         const cachedStats = await redisModule.getCache("site:stats");
 
-        // If stats are recent (< 30 seconds old), use them
+        // If stats are recent (< 10 seconds old), use them for better performance
         if (
           cachedStats &&
           cachedStats.timestamp &&
-          Date.now() - new Date(cachedStats.timestamp).getTime() < 30000
+          Date.now() - new Date(cachedStats.timestamp).getTime() < 10000
         ) {
-          console.log("[socketService] Using cached stats from Redis:", {
+          console.log("[socketService] Using fresh cached stats from Redis:", {
             activeListings: cachedStats.activeListings,
             activeUsers: cachedStats.activeUsers,
             timestamp: cachedStats.timestamp,
@@ -401,64 +404,11 @@ const getLatestStats = async () => {
       completedTrades,
     });
 
-    // Get connected users from the new tracking method or Redis if enabled
-    let totalActiveUsers = 0;
-    let authenticatedActiveUsers = 0;
-    let anonymousActiveUsers = 0;
-
-    if (isRedisEnabled && pubClient) {
-      try {
-        console.log("[socketService] Getting online users from Redis");
-        // Get the count of online users from Redis
-        const keys = await pubClient.keys("cs2market:user:*:status");
-        console.log(
-          `[socketService] Found ${keys.length} user status keys in Redis`
-        );
-
-        // Filter keys to only include those with isOnline: true
-        authenticatedActiveUsers = 0;
-        for (const key of keys) {
-          try {
-            const userStatus = await redisModule.getHashCache(
-              key.replace("cs2market:", "")
-            );
-            if (userStatus && userStatus.isOnline === true) {
-              authenticatedActiveUsers++;
-            }
-          } catch (keyError) {
-            console.error(
-              `[socketService] Error checking status for key ${key}:`,
-              keyError.message
-            );
-          }
-        }
-
-        // For anonymous users, we'll keep track locally
-        anonymousActiveUsers = anonymousSockets.size;
-        totalActiveUsers = authenticatedActiveUsers + anonymousActiveUsers;
-        console.log("[socketService] User counts from Redis:", {
-          authenticated: authenticatedActiveUsers,
-          anonymous: anonymousActiveUsers,
-          total: totalActiveUsers,
-        });
-      } catch (error) {
-        console.error(
-          "[socketService] Error getting user stats from Redis:",
-          error.message
-        );
-        // Fall back to local tracking using the new method
-        const counts = getUniqueUserCounts();
-        authenticatedActiveUsers = counts.authenticated;
-        anonymousActiveUsers = counts.anonymous;
-        totalActiveUsers = counts.total;
-      }
-    } else {
-      // Use local tracking with the new method
-      const counts = getUniqueUserCounts();
-      authenticatedActiveUsers = counts.authenticated;
-      anonymousActiveUsers = counts.anonymous;
-      totalActiveUsers = counts.total;
-    }
+    // Get connected users from the new tracking method
+    const userCounts = getUniqueUserCounts();
+    const totalActiveUsers = userCounts.total;
+    const authenticatedActiveUsers = userCounts.authenticated;
+    const anonymousActiveUsers = userCounts.anonymous;
 
     // If totalActiveUsers is 0 but we had a previous valid count, use that instead
     if (
@@ -489,11 +439,11 @@ const getLatestStats = async () => {
       timestamp: new Date(),
     };
 
-    // Cache stats in Redis if enabled
+    // Cache stats in Redis if enabled - with very short TTL for high freshness
     if (isRedisEnabled && pubClient) {
       try {
-        console.log("[socketService] Caching stats in Redis");
-        await redisModule.setCache("site:stats", stats, 30); // 30 seconds expiry
+        console.log("[socketService] Caching stats in Redis with short TTL");
+        await redisModule.setCache("site:stats", stats, 10); // 10 seconds expiry instead of 30
       } catch (cacheError) {
         console.error(
           "[socketService] Error caching stats in Redis:",
@@ -549,10 +499,23 @@ const broadcastStats = async () => {
   if (!io) return;
 
   try {
+    // Don't use cached stats, get fresh ones directly
+    // This ensures data is always current when requested
     const stats = await getLatestStats();
+
+    // Broadcast to all connected clients
     io.emit("stats_update", stats);
+
+    console.log("[socketService] Broadcasted fresh stats to all clients:", {
+      activeListings: stats.activeListings,
+      activeUsers: stats.activeUsers,
+      timestamp: new Date(),
+    });
+
+    return stats;
   } catch (error) {
-    console.error("Error broadcasting stats:", error);
+    console.error("[socketService] Error broadcasting stats:", error);
+    return null;
   }
 };
 
@@ -1136,6 +1099,17 @@ const handleSocketConnection = (socket) => {
       );
     });
 
+    // Add stats request handler for anonymous users too
+    socket.on("request_stats_update", async () => {
+      console.log("[socketService] Stats update requested by anonymous user");
+      try {
+        const stats = await getLatestStats();
+        socket.emit("stats_update", stats);
+      } catch (error) {
+        console.error("[socketService] Error sending stats update:", error);
+      }
+    });
+
     return;
   }
 
@@ -1196,6 +1170,18 @@ const handleSocketConnection = (socket) => {
     console.log(`[socketService] User activity signal from user ${userId}`);
     // Update user's last seen timestamp and ensure they're marked as online
     markUserOnline(userId);
+  });
+
+  // Handler for stats update requests
+  socket.on("request_stats_update", async () => {
+    console.log(`[socketService] Stats update requested by user ${userId}`);
+    try {
+      const stats = await getLatestStats();
+      // Send directly to this socket for immediate response
+      socket.emit("stats_update", stats);
+    } catch (error) {
+      console.error("[socketService] Error sending stats update:", error);
+    }
   });
 
   // Set up event listeners for this socket
@@ -1317,8 +1303,8 @@ const setupPresenceApi = (app) => {
  * Periodically clean up stale connections and ensure user status is accurate
  */
 const startConnectionCleanup = () => {
-  const CLEANUP_INTERVAL = 60000; // Run cleanup every minute
-  const FORCE_OFFLINE_AFTER = 20 * 60 * 1000; // 20 minutes of inactivity
+  const CLEANUP_INTERVAL = 15000; // Run cleanup every 15 seconds (was 60 seconds)
+  const FORCE_OFFLINE_AFTER = 5 * 60 * 1000; // 5 minutes of inactivity (was 20 minutes)
 
   console.log("[socketService] Starting connection cleanup interval");
 
@@ -1333,7 +1319,7 @@ const startConnectionCleanup = () => {
         // Check each socket for validity
         for (const socketId of socketSet) {
           const socket = io?.sockets?.sockets?.get(socketId);
-          if (socket) {
+          if (socket && socket.connected) {
             validSockets.add(socketId);
           }
         }
@@ -1362,7 +1348,7 @@ const startConnectionCleanup = () => {
       // 2. Check the legacy activeSockets map for stale entries
       for (const [userId, socketId] of activeSockets.entries()) {
         const socket = io?.sockets?.sockets?.get(socketId);
-        if (!socket) {
+        if (!socket || !socket.connected) {
           console.log(
             `[socketService] Found stale socket in activeSockets for user ${userId}`
           );
@@ -1389,6 +1375,7 @@ const startConnectionCleanup = () => {
       const User = require("../models/User");
       const onlineUsers = await User.find({ isOnline: true });
 
+      let updatedAnyUser = false;
       for (const user of onlineUsers) {
         const userId = user._id.toString();
         const lastActiveTime = user.lastActive
@@ -1404,6 +1391,7 @@ const startConnectionCleanup = () => {
             )} minutes, marking offline`
           );
           await markUserOffline(userId);
+          updatedAnyUser = true;
           continue;
         }
 
@@ -1423,8 +1411,14 @@ const startConnectionCleanup = () => {
               `[socketService] User ${userId} marked online in DB but has no socket connections, fixing...`
             );
             await markUserOffline(userId);
+            updatedAnyUser = true;
           }
         }
+      }
+
+      // If we updated any user's status, broadcast fresh stats to everyone
+      if (updatedAnyUser) {
+        await broadcastStats();
       }
 
       console.log(`[socketService] Connection cleanup complete`);
