@@ -209,4 +209,108 @@ router.get("/status/:userId", async (req, res) => {
   }
 });
 
+// Get user online status (direct from database, more reliable)
+router.get("/direct-status/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  if (!userId) {
+    return res.status(400).json({ error: "User ID is required" });
+  }
+
+  try {
+    console.log(`[userRoutes] GET /direct-status/${userId} request received`);
+
+    // Get user data directly from the database
+    const User = require("../models/User");
+    const user = await User.findById(userId)
+      .select("lastActive isOnline")
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    console.log(`[userRoutes] Database status for ${userId}:`, {
+      lastActive: user.lastActive,
+      isOnline: user.isOnline,
+    });
+
+    // Calculate online status based on last active time (consider online if active in last 10 minutes)
+    const now = new Date();
+    const lastActive = user.lastActive ? new Date(user.lastActive) : null;
+    const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+
+    // User is online if database says they're online OR they were active in the last 10 minutes
+    const isOnline =
+      user.isOnline || (lastActive && lastActive > tenMinutesAgo);
+
+    // Format last seen time
+    let lastSeenFormatted = null;
+    if (lastActive) {
+      const diffMs = now - lastActive;
+
+      // If less than a minute
+      if (diffMs < 60 * 1000) {
+        lastSeenFormatted = "just now";
+      }
+      // If less than an hour
+      else if (diffMs < 60 * 60 * 1000) {
+        const minutes = Math.floor(diffMs / (60 * 1000));
+        lastSeenFormatted = `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+      }
+      // If less than a day
+      else if (diffMs < 24 * 60 * 60 * 1000) {
+        const hours = Math.floor(diffMs / (60 * 60 * 1000));
+        const minutes = Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000));
+        if (minutes > 0) {
+          lastSeenFormatted = `${hours}h ${minutes}m ago`;
+        } else {
+          lastSeenFormatted = `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+        }
+      }
+      // If less than a week
+      else if (diffMs < 7 * 24 * 60 * 60 * 1000) {
+        const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+        lastSeenFormatted = `${days} day${days !== 1 ? "s" : ""} ago`;
+      }
+      // More than a week - show date and time
+      else {
+        lastSeenFormatted = lastActive.toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+    }
+
+    // Set cache-control headers (but don't use Expires header)
+    res.set({
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      Pragma: "no-cache",
+    });
+
+    const responseData = {
+      userId,
+      isOnline,
+      lastSeen: lastActive,
+      lastSeenFormatted,
+      timestamp: now,
+      source: "database",
+    };
+
+    console.log(
+      `[userRoutes] Sending direct-status response for ${userId}:`,
+      responseData
+    );
+    res.json(responseData);
+  } catch (err) {
+    console.error(
+      `[userRoutes] Error getting direct status for ${userId}:`,
+      err
+    );
+    res.status(500).json({ error: "Error retrieving user status" });
+  }
+});
+
 module.exports = router;

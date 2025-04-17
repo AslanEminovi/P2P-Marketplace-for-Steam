@@ -136,14 +136,60 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
     try {
       setLoading(true);
       
+      // First try to get status directly from database (more reliable)
+      try {
+        debug('Trying direct database status');
+        const directResponse = await axios.get(`${API_URL}/user/direct-status/${sellerId}`, {
+          withCredentials: true,
+          timeout: 3000,
+          params: { _t: Date.now() }
+        });
+        
+        if (directResponse.data) {
+          debug(`Got direct status for user:`, directResponse.data);
+          
+          setStatus({
+            isOnline: directResponse.data.isOnline,
+            lastSeen: directResponse.data.lastSeen,
+            lastSeenFormatted: directResponse.data.lastSeenFormatted
+          });
+          
+          setLoading(false);
+          setError(null);
+          retryCountRef.current = 0;
+          
+          // Store status in local storage for quick display next time
+          try {
+            const statusCache = JSON.parse(localStorage.getItem('seller_status_cache') || '{}');
+            statusCache[sellerId] = {
+              isOnline: directResponse.data.isOnline,
+              lastSeen: directResponse.data.lastSeen,
+              lastSeenFormatted: directResponse.data.lastSeenFormatted,
+              timestamp: Date.now()
+            };
+            localStorage.setItem('seller_status_cache', JSON.stringify(statusCache));
+            debug('Cached seller status in localStorage');
+          } catch (err) {
+            console.error('Error caching seller status:', err);
+          }
+          
+          // If we got direct status successfully, we can skip the socket-based method
+          return;
+        }
+      } catch (directError) {
+        debug('Direct status error:', directError);
+        // Continue to socket-based method if direct method fails
+      }
+      
+      // Fall back to socket-based status
       const response = await axios.get(`${API_URL}/user/status/${sellerId}`, {
         withCredentials: true,
         timeout: 3000, // Shorter timeout for faster feedback
         headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Cache-Control': 'no-cache, no-store',
           'Pragma': 'no-cache',
-          'Expires': '0',
           'X-Requested-With': 'XMLHttpRequest'
+          // Removed 'Expires' header which was causing CORS issues
         },
         params: {
           _t: Date.now() // Add timestamp to prevent caching
@@ -295,7 +341,7 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
     };
   }, [sellerId, forceStatus]);
 
-  // Debug current state in the UI
+  // Simple debug mode version when enabled
   if (DEBUG_MODE) {
     return (
       <div className={`seller-status-container ${className}`} style={{border: '1px dashed #666', padding: '10px', background: '#111', margin: '10px 0'}}>
@@ -320,7 +366,26 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
           <div>Socket: {socketService.isConnected() ? 'Connected' : 'Disconnected'}</div>
           <button 
             onClick={() => { 
-              debug('Manual refresh clicked'); 
+              debug('Manual refresh clicked');
+              
+              // Try direct database lookup as a more reliable alternative
+              axios.get(`${API_URL}/user/direct-status/${sellerId}`, {
+                withCredentials: true,
+                params: { _t: Date.now() }
+              })
+              .then(response => {
+                debug('Direct status response:', response.data);
+                if (response.data) {
+                  setStatus({
+                    isOnline: response.data.isOnline,
+                    lastSeen: response.data.lastSeen,
+                    lastSeenFormatted: response.data.lastSeenFormatted
+                  });
+                }
+              })
+              .catch(err => debug('Direct status error:', err));
+              
+              // Also try regular methods
               socketService.subscribeToUserStatus(sellerId); 
               fetchStatus(); 
             }}

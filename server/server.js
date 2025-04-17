@@ -115,6 +115,7 @@ const corsOptions = {
     "Origin",
     "Cache-Control",
     "Pragma",
+    "Expires",
   ],
   exposedHeaders: ["set-cookie"],
   maxAge: 86400, // 24 hours in seconds
