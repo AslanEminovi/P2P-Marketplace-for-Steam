@@ -26,6 +26,36 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
   const debug = (message, data = null) => {
     if (DEBUG_MODE) {
       console.log(`[SellerStatus:${sellerId}] ${message}`, data || '');
+      
+      // Also send debug info to specified server endpoint for server-side logging in production
+      if (process.env.NODE_ENV === 'production' && API_URL) {
+        try {
+          const debugData = {
+            component: 'SellerStatus',
+            sellerId,
+            message,
+            data: data ? JSON.stringify(data) : null,
+            timestamp: new Date().toISOString(),
+            url: window.location.href,
+            userAgent: navigator.userAgent
+          };
+          
+          // Use navigator.sendBeacon if available to avoid delaying page unload
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon(`${API_URL}/debug/log`, JSON.stringify(debugData));
+          } else {
+            // Fallback to fetch with keepalive
+            fetch(`${API_URL}/debug/log`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify(debugData),
+              keepalive: true
+            }).catch(() => {}); // Ignore errors
+          }
+        } catch (e) {
+          // Ignore errors in debug logging
+        }
+      }
     }
   };
 

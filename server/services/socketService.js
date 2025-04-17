@@ -6,7 +6,10 @@
 const jwt = require("jsonwebtoken");
 const redis = require("../config/redis");
 const User = require("../models/User");
-const { pubClient } = redis;
+
+// Make these variables not constants so we can reassign them
+let pubClient = null;
+let subClient = null;
 
 let io = null;
 let activeSockets = new Map(); // Map of userId -> socket.id
@@ -96,16 +99,17 @@ const init = (ioInstance) => {
         }), initializing Redis`
       );
 
-      const redis = require("../config/redis");
-      const { pubClient: pub, subClient: sub } = redis.initRedis();
+      const redisModule = require("../config/redis");
+      const redisClients = redisModule.initRedis();
 
       // Verify clients are created
-      if (!pub || !sub) {
+      if (!redisClients.pubClient || !redisClients.subClient) {
         throw new Error("Redis clients not properly initialized");
       }
 
-      pubClient = pub;
-      subClient = sub;
+      // Assign to our module-level variables
+      pubClient = redisClients.pubClient;
+      subClient = redisClients.subClient;
 
       // Publish test message to verify Redis is working
       pubClient
