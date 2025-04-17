@@ -9,7 +9,6 @@ import '../styles/MarketplaceCustom.css';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { refresh } from '../redux/authSlice';
 import jwtDecode from 'jwt-decode';
 
 // Component imports
@@ -367,20 +366,16 @@ function Marketplace({ user }) {
         const decoded = jwtDecode(auth.token);
         const currentTime = Date.now() / 1000;
         
-        // If token expires in less than 5 minutes (300 seconds), refresh it
+        // If token expires in less than 5 minutes (300 seconds), notify user
         if (decoded.exp - currentTime < 300) {
-          console.log('Token expiring soon, refreshing...');
-          dispatch(refresh())
-            .unwrap()
-            .then(result => {
-              console.log('Token refreshed successfully');
-              // Reconnect socket with new token
-              socketService.disconnect();
-              socketService.connect(result.token);
-            })
-            .catch(error => {
-              console.error('Failed to refresh token:', error);
-            });
+          console.log('Token expiring soon, should reconnect shortly');
+          toast.warning('Your session will expire soon', { duration: 5000 });
+          
+          // Reconnect socket anyway to ensure it's using the latest token
+          setTimeout(() => {
+            socketService.disconnect();
+            socketService.connect(auth.token);
+          }, 1000);
         }
       } catch (error) {
         console.error('Error checking token expiration:', error);
@@ -394,7 +389,7 @@ function Marketplace({ user }) {
     const interval = setInterval(checkTokenExpiration, 60000);
     
     return () => clearInterval(interval);
-  }, [auth.token, dispatch]);
+  }, [auth.token]);
 
   // Set up socket connection for marketplace stats with fallback
   useEffect(() => {
