@@ -64,10 +64,15 @@ function Marketplace({ user }) {
   });
   
   // Ref to store the last valid stats to prevent flickering
-  const lastValidStatsRef = useRef(null);
+  const lastValidStatsRef = useRef({
+    totalItems: 0,
+    totalSales: 0,
+    activeListings: 0,
+    onlineUsers: 0
+  });
 
   // Check if user is authenticated - get from Redux
-  const auth = useSelector((state) => state.auth);
+  const auth = useSelector((state) => state.auth || {});
   const dispatch = useDispatch();
 
   // Load cached stats on component mount (single instance)
@@ -359,7 +364,7 @@ function Marketplace({ user }) {
 
   // Check if token is about to expire and refresh it
   useEffect(() => {
-    if (!auth.token) return;
+    if (!auth || !auth.token) return;
     
     const checkTokenExpiration = () => {
       try {
@@ -367,7 +372,7 @@ function Marketplace({ user }) {
         const currentTime = Date.now() / 1000;
         
         // If token expires in less than 5 minutes (300 seconds), notify user
-        if (decoded.exp - currentTime < 300) {
+        if (decoded && decoded.exp && decoded.exp - currentTime < 300) {
           console.log('Token expiring soon, should reconnect shortly');
           toast.warning('Your session will expire soon', { duration: 5000 });
           
@@ -389,7 +394,7 @@ function Marketplace({ user }) {
     const interval = setInterval(checkTokenExpiration, 60000);
     
     return () => clearInterval(interval);
-  }, [auth.token]);
+  }, [auth]);
 
   // Set up socket connection for marketplace stats with fallback
   useEffect(() => {
@@ -416,7 +421,7 @@ function Marketplace({ user }) {
     // Connect socket if not already connected
     if (!socketService.isConnected()) {
       console.log('Connecting socket from Marketplace component');
-      socketService.connect(auth.token);
+      socketService.connect(auth?.token || null);
     } else {
       // Already connected, request stats
       socketService.requestStats();
@@ -439,16 +444,26 @@ function Marketplace({ user }) {
       socketService.onDisconnected(null); // Remove the callback
       socketService.setCurrentPage(null);
     };
-  }, [fetchMarketStats, handleStatsUpdate, auth.token, fetchItems]);
+  }, [fetchMarketStats, handleStatsUpdate, auth, fetchItems]);
 
   // Function to update market stats with validation
   const updateMarketStats = useCallback((newStats) => {
+    // Ensure lastValidStatsRef.current is initialized
+    if (!lastValidStatsRef.current) {
+      lastValidStatsRef.current = {
+        totalItems: 0,
+        totalSales: 0,
+        activeListings: 0,
+        onlineUsers: 0
+      };
+    }
+    
     // Validate stats and use last valid values for any missing/invalid properties
     const validatedStats = {
-      totalItems: newStats.activeListings >= 0 ? newStats.activeListings : lastValidStatsRef.current.activeListings,
-      totalSales: newStats.totalSales >= 0 ? newStats.totalSales : lastValidStatsRef.current.totalSales,
-      activeListings: newStats.activeListings >= 0 ? newStats.activeListings : lastValidStatsRef.current.activeListings,
-      onlineUsers: newStats.onlineUsers >= 0 ? newStats.onlineUsers : lastValidStatsRef.current.onlineUsers,
+      totalItems: newStats && newStats.activeListings >= 0 ? newStats.activeListings : (lastValidStatsRef.current?.activeListings || 0),
+      totalSales: newStats && newStats.totalSales >= 0 ? newStats.totalSales : (lastValidStatsRef.current?.totalSales || 0),
+      activeListings: newStats && newStats.activeListings >= 0 ? newStats.activeListings : (lastValidStatsRef.current?.activeListings || 0),
+      onlineUsers: newStats && newStats.onlineUsers >= 0 ? newStats.onlineUsers : (lastValidStatsRef.current?.onlineUsers || 0),
     };
     
     // Update ref with valid stats
@@ -525,7 +540,7 @@ function Marketplace({ user }) {
       console.log('Multiple refresh attempts detected, reconnecting socket');
       socketService.disconnect();
       setTimeout(() => {
-        socketService.connect(auth.token);
+        socketService.connect(auth?.token || null);
       }, 1000);
     }
     
@@ -541,7 +556,7 @@ function Marketplace({ user }) {
       .finally(() => {
         setLoading(false);
       });
-  }, [fetchItems, fetchMarketStats, auth.token, t]);
+  }, [fetchItems, fetchMarketStats, auth, t]);
 
   // Handle item click
   const handleItemClick = (item) => {
