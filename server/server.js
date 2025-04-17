@@ -531,35 +531,68 @@ io.use(async (socket, next) => {
       `[socketAuth] Auth token found for socket ${socket.id}, verifying...`
     );
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log(
-      `[socketAuth] Token verified for socket ${socket.id}, user: ${decoded.id}`
-    );
-
-    // Find user
-    const user = await User.findById(decoded.id);
-    if (!user) {
+    try {
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
       console.log(
-        `[socketAuth] User ${decoded.id} not found for socket ${socket.id}`
+        `[socketAuth] Token verified for socket ${socket.id}, user: ${decoded.id}`
       );
+
+      // Validate decoded user ID is in the correct format
+      if (!decoded.id || typeof decoded.id !== "string") {
+        console.error(
+          `[socketAuth] Invalid user ID format in token: ${JSON.stringify(
+            decoded
+          )}`
+        );
+        socket.userId = null;
+        socket.isAuthenticated = false;
+        return next(new Error("Invalid user ID in token"));
+      }
+
+      // Find user
+      const user = await User.findById(decoded.id);
+      if (!user) {
+        console.log(
+          `[socketAuth] User ${decoded.id} not found for socket ${socket.id}`
+        );
+        socket.userId = null;
+        socket.isAuthenticated = false;
+        return next(new Error("User not found"));
+      }
+
+      // Ensure userId is always a string for consistent comparison
+      const userIdStr = user._id.toString();
+
+      // Log detailed user information
+      console.log(
+        `[socketAuth] User found: ID=${userIdStr}, Username=${
+          user.username || user.steamName || "Unknown"
+        }`
+      );
+      console.log(
+        `[socketAuth] Previous connections for this user: ${
+          userStatusManager.isUserOnline(userIdStr) ? "Yes" : "No"
+        }`
+      );
+
+      // Don't update the database here - UserStatusManager will handle that
+      // Just attach user data to the socket
+      socket.userId = userIdStr;
+      socket.username = user.username || user.steamName || "User";
+      socket.isAuthenticated = true;
+
+      console.log(
+        `[socketAuth] Successfully authenticated user ${userIdStr} (${socket.username}) for socket ${socket.id}`
+      );
+      next();
+    } catch (jwtError) {
+      // Log the specific error for token verification
+      console.error(`[socketAuth] JWT verification error: ${jwtError.message}`);
       socket.userId = null;
       socket.isAuthenticated = false;
-      return next(new Error("User not found"));
+      return next(new Error(`Token verification failed: ${jwtError.message}`));
     }
-
-    // Don't update the database here - UserStatusManager will handle that
-    // Just attach user data to the socket
-    socket.userId = user._id.toString();
-    socket.username = user.username || user.steamName || "User";
-    socket.isAuthenticated = true;
-
-    console.log(
-      `[socketAuth] Successfully authenticated user ${user._id.toString()} (${
-        socket.username
-      }) for socket ${socket.id}`
-    );
-    next();
   } catch (err) {
     console.error(`[socketAuth] Error during socket authentication:`, err);
     // If token verification fails, allow as anonymous

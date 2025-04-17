@@ -16,6 +16,7 @@ class UserStatusManager {
 
     // Debug info
     this.isInitialized = false;
+    this.debugMode = process.env.NODE_ENV !== "production";
 
     // Constants
     this.CLEANUP_INTERVAL_MS = 15000; // 15 seconds
@@ -43,6 +44,14 @@ class UserStatusManager {
     this.dbSyncInterval = setInterval(() => {
       this.syncWithDatabase();
     }, this.DB_SYNC_INTERVAL_MS);
+
+    // In debug mode, log connections every minute
+    if (this.debugMode) {
+      setInterval(() => {
+        this.logConnections();
+        this.checkUserDuplicates();
+      }, 60000); // Every minute
+    }
 
     this.isInitialized = true;
   }
@@ -81,7 +90,7 @@ class UserStatusManager {
       // First socket for this user
       this.onlineUsers.set(userId, {
         socketIds: new Set([socket.id]),
-        lastActive: new Date(),
+        lastActive: this.validateDate(new Date()),
       });
 
       // Update database immediately
@@ -95,7 +104,7 @@ class UserStatusManager {
       // Add to existing user's socket set
       const userInfo = this.onlineUsers.get(userId);
       userInfo.socketIds.add(socket.id);
-      userInfo.lastActive = new Date();
+      userInfo.lastActive = this.validateDate(new Date());
       this.onlineUsers.set(userId, userInfo);
     }
 
@@ -174,7 +183,7 @@ class UserStatusManager {
 
     // Update last active time
     const userInfo = this.onlineUsers.get(userId);
-    userInfo.lastActive = new Date();
+    userInfo.lastActive = this.validateDate(new Date());
     this.onlineUsers.set(userId, userInfo);
 
     // No need to update database here - it will be updated during the next sync
@@ -221,40 +230,93 @@ class UserStatusManager {
    */
   async syncWithDatabase() {
     try {
+      console.log("[UserStatusManager] Starting database synchronization");
+
       // 1. Get all users marked as online in the database
       const onlineUsersInDB = await User.find({ isOnline: true })
-        .select("_id")
+        .select("_id lastActive")
         .lean();
 
+      console.log(
+        `[UserStatusManager] Found ${onlineUsersInDB.length} users marked online in database`
+      );
+
       // 2. Check if they're actually online according to our tracking
+      const now = new Date();
+      const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+      let correctedUsers = 0;
+
       for (const userDoc of onlineUsersInDB) {
         const userId = userDoc._id.toString();
 
-        if (!this.onlineUsers.has(userId)) {
-          // User is marked online in DB but not in our tracking
+        // If user isn't in our map or has a very old lastActive time, mark them offline
+        if (
+          !this.onlineUsers.has(userId) ||
+          (userDoc.lastActive && new Date(userDoc.lastActive) < twoHoursAgo)
+        ) {
           console.log(
-            `[UserStatusManager] User ${userId} marked online in DB but not in memory, fixing`
+            `[UserStatusManager] User ${userId} marked online in DB but not active in memory, fixing`
           );
 
-          // Update database
+          // Update database to mark user offline
           await this.updateUserStatus(userId, false);
+          correctedUsers++;
         }
+      }
+
+      if (correctedUsers > 0) {
+        console.log(
+          `[UserStatusManager] Corrected ${correctedUsers} stale online users in database`
+        );
       }
 
       // 3. Ensure all users we're tracking as online are marked correctly in the DB
+      let updatedUsers = 0;
       for (const userId of this.onlineUsers.keys()) {
-        const user = await User.findById(userId).select("isOnline").lean();
+        try {
+          const user = await User.findById(userId)
+            .select("isOnline lastActive")
+            .lean();
 
-        if (user && user.isOnline !== true) {
-          // User is tracked as online but not marked in DB
-          console.log(
-            `[UserStatusManager] User ${userId} tracked online but not marked in DB, fixing`
+          if (user) {
+            // If lastActive is missing or older than our in-memory value, or isOnline != true
+            const memoryLastActive = this.onlineUsers.get(userId).lastActive;
+            const dbLastActive = user.lastActive
+              ? new Date(user.lastActive)
+              : new Date(0);
+
+            if (!user.isOnline || memoryLastActive > dbLastActive) {
+              // Update database with our more recent data
+              console.log(
+                `[UserStatusManager] User ${userId} status needs update in DB, fixing (isOnline=${user.isOnline})`
+              );
+
+              // Update database
+              await this.updateUserStatus(userId, true);
+              updatedUsers++;
+            }
+          } else {
+            console.warn(
+              `[UserStatusManager] User ${userId} in memory but not found in database`
+            );
+            // Remove from our tracking since user no longer exists
+            this.onlineUsers.delete(userId);
+          }
+        } catch (userErr) {
+          console.error(
+            `[UserStatusManager] Error processing user ${userId}:`,
+            userErr
           );
-
-          // Update database
-          await this.updateUserStatus(userId, true);
         }
       }
+
+      if (updatedUsers > 0) {
+        console.log(
+          `[UserStatusManager] Updated ${updatedUsers} users' online status in database`
+        );
+      }
+
+      console.log("[UserStatusManager] Database synchronization completed");
     } catch (error) {
       console.error("[UserStatusManager] Error during database sync:", error);
     }
@@ -270,7 +332,7 @@ class UserStatusManager {
       // Update database
       await User.findByIdAndUpdate(userId, {
         isOnline: isOnline,
-        lastActive: new Date(),
+        lastActive: this.validateDate(new Date()),
       });
 
       console.log(
@@ -285,6 +347,45 @@ class UserStatusManager {
       );
       throw error;
     }
+  }
+
+  /**
+   * Validate a date to ensure it's not in the future
+   * @param {Date} date - The date to validate
+   * @returns {Date} - A valid date (current time if the input was in the future)
+   */
+  validateDate(date) {
+    // Check if date exists
+    if (!date) {
+      console.warn(
+        "[UserStatusManager] Null date provided, using current time"
+      );
+      return new Date();
+    }
+
+    // Ensure it's a Date object
+    const dateObj = new Date(date);
+
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) {
+      console.warn(
+        "[UserStatusManager] Invalid date provided, using current time"
+      );
+      return new Date();
+    }
+
+    // Get current time
+    const now = new Date();
+
+    // Check if date is in the future
+    if (dateObj > now) {
+      console.warn(
+        `[UserStatusManager] Future date detected (${dateObj.toISOString()}), using current time instead`
+      );
+      return now;
+    }
+
+    return dateObj;
   }
 
   /**
@@ -391,13 +492,22 @@ class UserStatusManager {
    */
   getUserCounts() {
     try {
+      // Check if maps are initialized
+      if (!this.onlineUsers || !this.anonymousSockets) {
+        console.error("[UserStatusManager] Maps not initialized properly");
+        return {
+          authenticated: 0,
+          anonymous: 0,
+          total: 0,
+          error: "Maps not initialized",
+        };
+      }
+
       // Count unique authenticated users
-      const authenticatedCount = this.onlineUsers ? this.onlineUsers.size : 0;
+      const authenticatedCount = this.onlineUsers.size;
 
       // Count anonymous users
-      const anonymousCount = this.anonymousSockets
-        ? this.anonymousSockets.size
-        : 0;
+      const anonymousCount = this.anonymousSockets.size;
 
       // Log counts for debugging
       console.log("[UserStatusManager] Current user counts:", {
@@ -418,6 +528,7 @@ class UserStatusManager {
         authenticated: 0,
         anonymous: 0,
         total: 0,
+        error: error.message,
       };
     }
   }
@@ -454,6 +565,77 @@ class UserStatusManager {
     this.anonymousSockets.clear();
 
     this.isInitialized = false;
+  }
+
+  /**
+   * Log all current connections for debugging
+   */
+  logConnections() {
+    // Log authenticated users
+    console.log(`[UserStatusManager] ==== CONNECTION DEBUG INFO ====`);
+    console.log(
+      `[UserStatusManager] Authenticated users: ${this.onlineUsers.size}`
+    );
+
+    // Log each user's connections
+    let socketCount = 0;
+    for (const [userId, userInfo] of this.onlineUsers.entries()) {
+      console.log(
+        `[UserStatusManager] - User ${userId}: ${
+          userInfo.socketIds.size
+        } sockets, Last active: ${userInfo.lastActive.toISOString()}`
+      );
+      socketCount += userInfo.socketIds.size;
+    }
+
+    // Log anonymous sockets
+    console.log(
+      `[UserStatusManager] Anonymous sockets: ${this.anonymousSockets.size}`
+    );
+
+    // Log total count
+    console.log(
+      `[UserStatusManager] Total authenticated sockets: ${socketCount}`
+    );
+    console.log(
+      `[UserStatusManager] Total connections: ${
+        socketCount + this.anonymousSockets.size
+      }`
+    );
+    console.log(`[UserStatusManager] ==== END DEBUG INFO ====`);
+  }
+
+  /**
+   * Check if any users are being tracked multiple times
+   * This would indicate a bug in the tracking logic
+   */
+  checkUserDuplicates() {
+    // For this check we need to compare Object IDs and their string representations
+    // Since MongoDB ObjectIDs can sometimes be compared as strings and sometimes as objects
+    const userIds = new Set();
+    const duplicates = [];
+
+    for (const userId of this.onlineUsers.keys()) {
+      const normalizedId = userId.toString();
+
+      if (userIds.has(normalizedId)) {
+        duplicates.push(normalizedId);
+      } else {
+        userIds.add(normalizedId);
+      }
+    }
+
+    if (duplicates.length > 0) {
+      console.error(
+        `[UserStatusManager] CRITICAL: Found ${duplicates.length} duplicate user entries!`
+      );
+      console.error(
+        `[UserStatusManager] Duplicate user IDs: ${duplicates.join(", ")}`
+      );
+      console.error(
+        `[UserStatusManager] This indicates a bug in the tracking system that needs to be fixed.`
+      );
+    }
   }
 }
 
