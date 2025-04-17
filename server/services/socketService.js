@@ -29,7 +29,7 @@ const REDIS_CHANNEL_MARKET_UPDATE = "market_update";
 const REDIS_CHANNEL_TRADE_UPDATE = "trade_update";
 
 // Check if Redis is enabled
-const isRedisEnabled = process.env.USE_REDIS === "true";
+let isRedisEnabled = process.env.USE_REDIS === "true";
 
 /**
  * Format last seen time for user-friendly display
@@ -71,413 +71,49 @@ const formatLastSeen = (lastSeenDate) => {
 };
 
 /**
- * Initialize the socket service with the io instance
- * @param {Object} ioInstance - The Socket.io instance
+ * Initialize the socket service with the given io instance
+ * @param {SocketIO.Server} ioInstance - The Socket.io instance
  */
 const init = (ioInstance) => {
   io = ioInstance;
 
-  // Setup Redis subscriptions if Redis is enabled
-  if (isRedisEnabled && redis.subClient) {
-    setupRedisSubscriptions();
+  if (!io) {
+    console.error("Failed to initialize socket service: io instance is null");
+    return;
+  }
+  console.log("Initializing socket service with Socket.io");
+
+  // Initialize Redis if available
+  isRedisEnabled = process.env.USE_REDIS === "true";
+  if (isRedisEnabled) {
+    try {
+      console.log("Initializing Redis for socket service");
+      const redis = require("../config/redis");
+      const { pubClient: pub, subClient: sub } = redis.initRedis();
+      pubClient = pub;
+      subClient = sub;
+
+      // Subscribe to Redis channels
+      initRedisSubscriptions();
+      console.log("Redis subscriptions initialized successfully");
+    } catch (error) {
+      console.error("Failed to initialize Redis for socket service:", error);
+      isRedisEnabled = false;
+      console.warn("Falling back to local socket tracking only");
+    }
+  } else {
+    console.log(
+      "Redis is not enabled for socket service, using local tracking only"
+    );
   }
 
-  // Setup socket middleware for authentication - BEFORE the connection event
-  io.use(async (socket, next) => {
-    try {
-      const token =
-        socket.handshake.auth.token ||
-        socket.handshake.headers.authorization?.split(" ")[1] ||
-        socket.handshake.query?.auth_token ||
-        socket.handshake.cookies?.auth_token;
-
-      if (!token) {
-        // Allow anonymous connections but mark them as such
-        socket.userId = null;
-        socket.username = null;
-        socket.isAuthenticated = false;
-        console.log("Anonymous socket connection accepted");
-        return next();
-      }
-
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // Find user
-      const user = await User.findById(decoded.id);
-      if (!user) {
-        console.error(
-          "User not found for token:",
-          token.substring(0, 10) + "..."
-        );
-        return next(new Error("User not found"));
-      }
-
-      // Attach user data to socket
-      socket.userId = user._id.toString();
-      socket.username =
-        user.username || user.displayName || user.steamName || "User";
-      socket.steamId = user.steamId; // Add Steam ID to socket for Steam-authenticated users
-      socket.isAuthenticated = true;
-
-      console.log(
-        `User ${socket.userId} (${socket.username}) authenticated with socket ${
-          socket.id
-        }${user.steamId ? " via Steam" : ""}`
-      );
-      next();
-    } catch (err) {
-      console.error("Socket authentication error:", err.message);
-      // If token verification fails, allow as anonymous
-      socket.userId = null;
-      socket.username = null;
-      socket.isAuthenticated = false;
-      next();
-    }
+  // Set up socket connection handler
+  io.on("connection", (socket) => {
+    // Use our enhanced socket connection handler
+    handleSocketConnection(socket);
   });
 
-  // Setup global connection events
-  io.on("connection", async (socket) => {
-    console.log(
-      "New socket connection:",
-      socket.id,
-      socket.isAuthenticated
-        ? socket.steamId
-          ? "Steam-authenticated"
-          : "authenticated"
-        : "anonymous"
-    );
-
-    // We'll get the userId from the socket middleware
-    const userId = socket.userId;
-
-    if (userId) {
-      // Check if user already has an active socket
-      const existingSocketId = activeSockets.get(userId);
-      if (existingSocketId) {
-        // If user has an existing socket, disconnect it first
-        const existingSocket = io.sockets.sockets.get(existingSocketId);
-        if (existingSocket) {
-          console.log(
-            `Disconnecting existing socket ${existingSocketId} for user ${userId}`
-          );
-          existingSocket.disconnect(true);
-        }
-      }
-
-      // Store socket association for authenticated users
-      activeSockets.set(userId, socket.id);
-      socket.join(`user:${userId}`); // Join user-specific room
-
-      // Update user activity timestamp
-      activeUsers.set(userId, Date.now());
-
-      // Update user status
-      connectedUsers.set(userId, {
-        socketId: socket.id,
-        lastSeen: new Date(),
-        isOnline: true,
-        steamId: socket.steamId, // Track if this is a Steam user
-      });
-
-      // Broadcast user status update
-      io.emit("userStatusUpdate", {
-        userId,
-        isOnline: true,
-        lastSeen: new Date(),
-      });
-
-      // Store user status in Redis if enabled
-      if (isRedisEnabled && pubClient) {
-        try {
-          // Store user status with 6-minute expiry (slightly longer than activity timeout)
-          await redis.setHashCache(
-            `user:${userId}:status`,
-            {
-              socketId: socket.id,
-              isOnline: true,
-              lastSeen: new Date().toISOString(),
-              serverId: process.env.SERVER_ID || "unknown",
-              steamId: socket.steamId || null, // Include Steam ID in Redis cache
-            },
-            360
-          ); // 6 minutes
-
-          // Publish user status update to all servers
-          await pubClient.publish(
-            REDIS_CHANNEL_USER_STATUS,
-            JSON.stringify({
-              userId,
-              isOnline: true,
-              lastSeen: new Date().toISOString(),
-              steamId: socket.steamId || null, // Include Steam ID in published message
-            })
-          );
-        } catch (error) {
-          console.error("Redis error storing user status:", error);
-        }
-      }
-
-      // Update user's last active status in the database
-      try {
-        await User.findByIdAndUpdate(userId, {
-          lastActive: new Date(),
-          isOnline: true,
-        });
-        console.log(`Updated user ${userId} status in database to online`);
-      } catch (dbErr) {
-        console.error(
-          `Failed to update user status in database:`,
-          dbErr.message
-        );
-      }
-
-      // Emit user activity
-      emitUserActivity({
-        action: "join",
-        user: socket.username || "A user",
-        steamAuth: !!socket.steamId,
-      });
-
-      // Log connection
-      console.log(
-        `User ${userId} connected${
-          socket.steamId ? " via Steam" : ""
-        }. Total connected users: ${connectedUsers.size}`
-      );
-    } else {
-      // Track anonymous connections with a timestamp
-      anonymousSockets.add(socket.id);
-    }
-
-    // Send initial stats to the new connection
-    const stats = await getLatestStats();
-    socket.emit("stats_update", stats);
-
-    // Handle stats request
-    socket.on("request_stats_update", async () => {
-      const stats = await getLatestStats();
-      socket.emit("stats_update", stats);
-    });
-
-    // Handle user activity for heartbeat
-    socket.on("user_active", () => {
-      if (userId) {
-        // Update user activity timestamp
-        activeUsers.set(userId, Date.now());
-      }
-    });
-
-    // Handle user status subscription requests
-    socket.on("subscribeToUserStatus", async (data) => {
-      try {
-        if (!data || !data.userId) {
-          console.log("Invalid subscribeToUserStatus data", data);
-          return;
-        }
-
-        console.log(
-          `User ${
-            userId || "anonymous"
-          } subscribed to status updates for user ${data.userId}`
-        );
-
-        // Get current status for the requested user
-        const status = await getUserStatus(data.userId);
-        console.log(`Status data for ${data.userId}:`, status);
-
-        // Check active socket connection directly
-        const isSocketActive = isUserConnected(data.userId);
-        console.log(
-          `Socket connection for ${data.userId}: ${
-            isSocketActive ? "ACTIVE" : "INACTIVE"
-          }`
-        );
-
-        // If socket is active but status is offline, override
-        if (isSocketActive && !status.isOnline) {
-          console.log(
-            `User ${data.userId} has active socket but status is offline - overriding`
-          );
-          status.isOnline = true;
-          status.lastSeen = new Date();
-        }
-
-        // Also check database for recent activity as another fallback
-        try {
-          const User = require("../models/User");
-          const user = await User.findById(data.userId);
-
-          if (user && user.lastActive) {
-            const lastActiveTime = new Date(user.lastActive).getTime();
-            const now = Date.now();
-            const fiveMinutesAgo = now - 5 * 60 * 1000;
-
-            console.log(
-              `User ${data.userId} last active time:`,
-              user.lastActive
-            );
-            console.log(
-              `Is within last 5 minutes: ${lastActiveTime > fiveMinutesAgo}`
-            );
-
-            // If user was active in the last 5 minutes but status shows offline, override
-            if (lastActiveTime > fiveMinutesAgo && !status.isOnline) {
-              console.log(
-                `User ${data.userId} was active in last 5 minutes but status is offline - overriding`
-              );
-              status.isOnline = true;
-              status.lastSeen = user.lastActive;
-            }
-          }
-        } catch (dbErr) {
-          console.error(
-            `Error checking database for user ${data.userId}:`,
-            dbErr
-          );
-        }
-
-        // Format last seen string
-        const lastSeenFormatted = formatLastSeen(status.lastSeen);
-        console.log(
-          `Formatted last seen for ${data.userId}:`,
-          lastSeenFormatted
-        );
-
-        // Immediately send current status to the requester
-        socket.emit("userStatusUpdate", {
-          userId: data.userId,
-          isOnline: status.isOnline,
-          lastSeen: status.lastSeen,
-          lastSeenFormatted,
-        });
-
-        // Also broadcast to all clients to ensure consistency
-        io.emit("userStatusUpdate", {
-          userId: data.userId,
-          isOnline: status.isOnline,
-          lastSeen: status.lastSeen,
-          lastSeenFormatted,
-        });
-
-        console.log(`Status update for ${data.userId} sent to client`);
-      } catch (err) {
-        console.error("Error handling subscribeToUserStatus:", err);
-      }
-    });
-
-    // Handle page view tracking
-    socket.on("page_view", (data) => {
-      if (userId) {
-        if (data.page === "marketplace") {
-          console.log(`User ${userId} entered marketplace page`);
-          usersOnMarketplace.add(userId);
-        } else {
-          console.log(`User ${userId} left marketplace page`);
-          usersOnMarketplace.delete(userId);
-        }
-      }
-    });
-
-    // Handle disconnection
-    socket.on("disconnect", () => {
-      if (userId) {
-        // Remove from marketplace tracking
-        usersOnMarketplace.delete(userId);
-
-        // Only remove socket if it's still the current one for this user
-        if (activeSockets.get(userId) === socket.id) {
-          activeSockets.delete(userId);
-          // Don't immediately remove from activeUsers to allow for reconnection
-          setTimeout(async () => {
-            // Only remove if they haven't reconnected
-            if (!activeSockets.has(userId)) {
-              activeUsers.delete(userId);
-              emitUserActivity({
-                action: "logout",
-                user: socket.username || "A user",
-              });
-
-              // Update user status
-              connectedUsers.delete(userId);
-
-              // Update Redis status if enabled
-              if (isRedisEnabled && pubClient) {
-                try {
-                  // Update status to offline
-                  await redis.setHashCache(
-                    `user:${userId}:status`,
-                    {
-                      isOnline: false,
-                      lastSeen: new Date().toISOString(),
-                      serverId: null,
-                    },
-                    360
-                  );
-
-                  // Publish offline status
-                  await pubClient.publish(
-                    REDIS_CHANNEL_USER_STATUS,
-                    JSON.stringify({
-                      userId,
-                      isOnline: false,
-                      lastSeen: new Date().toISOString(),
-                    })
-                  );
-                } catch (error) {
-                  console.error("Redis error updating offline status:", error);
-                }
-              }
-
-              // Broadcast user status update
-              io.emit("userStatusUpdate", {
-                userId,
-                isOnline: false,
-                lastSeen: new Date(),
-              });
-
-              // Log disconnection
-              console.log(
-                `User ${userId} disconnected. Total connected users: ${connectedUsers.size}`
-              );
-            }
-          }, 5000); // 5 second grace period for reconnection
-        }
-      } else {
-        anonymousSockets.delete(socket.id);
-      }
-
-      // Broadcast updated stats after disconnection
-      broadcastStats();
-    });
-
-    // Update stats for all clients
-    broadcastStats();
-  });
-
-  // Set up periodic stats broadcasting
-  setInterval(async () => {
-    await broadcastStats();
-  }, STATS_UPDATE_INTERVAL);
-
-  // Set up periodic cleanup of inactive users
-  setInterval(() => {
-    const now = Date.now();
-    for (const [userId, lastActive] of activeUsers.entries()) {
-      if (now - lastActive > USER_ACTIVITY_TIMEOUT) {
-        activeUsers.delete(userId);
-        if (activeSockets.has(userId)) {
-          const socketId = activeSockets.get(userId);
-          const socket = io.sockets.sockets.get(socketId);
-          if (socket) {
-            socket.disconnect(true);
-          }
-          activeSockets.delete(userId);
-        }
-      }
-    }
-    broadcastStats();
-  }, USER_ACTIVITY_TIMEOUT);
+  console.log("Socket service initialized successfully");
 };
 
 /**
@@ -1115,47 +751,38 @@ const sendNotification = (userId, notification) => {
 const getUserStatus = async (userId) => {
   if (!userId) return { isOnline: false, lastSeen: null };
 
-  // Check local memory first for performance
-  const userData = connectedUsers.get(userId);
-  if (userData) {
+  // First check local tracking for performance
+  if (activeUsers.has(userId)) {
     return {
       isOnline: true,
-      lastSeen: userData.lastSeen || new Date(),
+      lastSeen: activeUsers.get(userId).lastSeen || new Date(),
     };
   }
 
-  // Check if user has any active sockets
-  if (activeSockets.has(userId)) {
-    return {
-      isOnline: true,
-      lastSeen: new Date(),
-    };
-  }
-
-  // If Redis is enabled, check there
+  // Then check Redis if enabled
   if (isRedisEnabled && pubClient) {
     try {
-      const userStatus = await redis.getHashCache(`user:${userId}:status`);
+      const [status, lastActive] = await pubClient.mget(
+        `user:${userId}:status`,
+        `user:${userId}:lastActive`
+      );
 
-      if (userStatus) {
+      if (status) {
         return {
-          isOnline: userStatus.isOnline === true,
-          lastSeen: userStatus.lastSeen ? new Date(userStatus.lastSeen) : null,
+          isOnline: status === "online",
+          lastSeen: lastActive ? new Date(parseInt(lastActive)) : null,
         };
       }
     } catch (error) {
       console.error(
-        `Error getting user status from Redis for ${userId}:`,
+        `[socketService] Error getting user status from Redis:`,
         error
       );
     }
   }
 
-  // If we get here, user is not online
-  return {
-    isOnline: false,
-    lastSeen: null,
-  };
+  // Default to offline
+  return { isOnline: false, lastSeen: null };
 };
 
 /**
@@ -1221,6 +848,180 @@ const isUserConnected = (userId) => {
   return false;
 };
 
+// Enhanced user status management with Redis
+async function markUserOnline(userId) {
+  if (!userId) return;
+
+  console.log(`[socketService] Marking user ${userId} as online`);
+
+  try {
+    if (isRedisEnabled && pubClient) {
+      const pipeline = pubClient.pipeline();
+      // Set user as online with 70-second TTL
+      pipeline.set(`user:${userId}:status`, "online", "EX", 70);
+      pipeline.set(`user:${userId}:lastActive`, Date.now(), "EX", 70);
+      await pipeline.exec();
+      console.log(
+        `[socketService] User ${userId} marked online in Redis with 70s TTL`
+      );
+    } else {
+      // Fall back to local tracking
+      console.log(
+        `[socketService] Redis disabled, tracking user ${userId} locally only`
+      );
+      activeUsers.set(userId, { lastSeen: new Date() });
+    }
+
+    // Update our local tracking regardless
+    connectedUsers.set(userId, { lastSeen: new Date() });
+
+    // Broadcast the status update to all clients
+    io.emit("userStatusUpdate", {
+      userId,
+      isOnline: true,
+      lastSeen: new Date(),
+    });
+  } catch (error) {
+    console.error(
+      `[socketService] Error marking user ${userId} online:`,
+      error
+    );
+  }
+}
+
+async function markUserOffline(userId) {
+  if (!userId) return;
+
+  console.log(`[socketService] Marking user ${userId} as offline`);
+
+  try {
+    if (isRedisEnabled && pubClient) {
+      const pipeline = pubClient.pipeline();
+      // Set user as offline with 1-hour TTL for last seen info preservation
+      pipeline.set(`user:${userId}:status`, "offline", "EX", 3600);
+      pipeline.set(`user:${userId}:lastActive`, Date.now(), "EX", 3600);
+      await pipeline.exec();
+      console.log(
+        `[socketService] User ${userId} marked offline in Redis with 1h history`
+      );
+    }
+
+    // Update local tracking
+    connectedUsers.delete(userId);
+    activeUsers.delete(userId);
+
+    // Broadcast the status update to all clients
+    io.emit("userStatusUpdate", {
+      userId,
+      isOnline: false,
+      lastSeen: new Date(),
+    });
+  } catch (error) {
+    console.error(
+      `[socketService] Error marking user ${userId} offline:`,
+      error
+    );
+  }
+}
+
+// Modify handleSocketConnection function to use the new methods
+const handleSocketConnection = (socket) => {
+  const userId = socket.userId;
+
+  // Handle anonymous users
+  if (!userId) {
+    anonymousSockets.add(socket.id);
+
+    // Set up disconnect listener for anonymous users
+    socket.on("disconnect", () => {
+      // Remove from anonymous tracking
+      anonymousSockets.delete(socket.id);
+
+      console.log(
+        `[socketService] Anonymous socket disconnected: ${socket.id}`
+      );
+    });
+
+    return;
+  }
+
+  // For authenticated users
+  console.log(
+    `[socketService] New socket connection: ${socket.id} for user: ${userId}`
+  );
+
+  // Track user's socket
+  activeSockets.set(userId, socket.id);
+  activeUsers.set(userId, { lastSeen: new Date() });
+
+  // Mark user as online in Redis
+  markUserOnline(userId);
+
+  // Set up a periodic ping to refresh online status
+  const pingInterval = setInterval(() => markUserOnline(userId), 30000);
+
+  // Set up event listeners for this socket
+  socket.on("disconnect", async () => {
+    clearInterval(pingInterval);
+
+    // Only mark as offline if this was their last socket
+    let hasOtherSockets = false;
+    for (const [id, socketId] of activeSockets.entries()) {
+      if (
+        id === userId &&
+        socketId !== socket.id &&
+        io.sockets.sockets.has(socketId)
+      ) {
+        hasOtherSockets = true;
+        break;
+      }
+    }
+
+    if (!hasOtherSockets) {
+      // Check if there's a grace period configuration for brief disconnects
+      if (OFFLINE_GRACE_PERIOD_MS > 0) {
+        console.log(
+          `[socketService] Starting offline grace period for user ${userId}`
+        );
+
+        // Wait for grace period before marking offline
+        setTimeout(async () => {
+          // Check if user reconnected during grace period
+          if (!activeSockets.has(userId)) {
+            await markUserOffline(userId);
+          }
+        }, OFFLINE_GRACE_PERIOD_MS);
+      } else {
+        // No grace period, mark offline immediately
+        await markUserOffline(userId);
+      }
+    }
+
+    // Remove this specific socket from tracking
+    if (activeSockets.get(userId) === socket.id) {
+      activeSockets.delete(userId);
+    }
+
+    console.log(`[socketService] User ${userId} socket disconnected`);
+  });
+
+  // ... existing user socket event handlers ...
+};
+
+// Add a new REST API endpoint for presence
+const setupPresenceApi = (app) => {
+  app.get("/api/presence/:id", async (req, res) => {
+    const id = req.params.id;
+    const status = await getUserStatus(id);
+
+    res.json({
+      userId: id,
+      status: status.isOnline ? "online" : "offline",
+      lastActive: status.lastSeen ? status.lastSeen.getTime() : null,
+    });
+  });
+};
+
 module.exports = {
   init,
   broadcastStats,
@@ -1233,4 +1034,5 @@ module.exports = {
   getLatestStats,
   formatLastSeen,
   isUserConnected,
+  setupPresenceApi, // Export the new API setup function
 };

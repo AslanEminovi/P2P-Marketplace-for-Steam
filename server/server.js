@@ -436,8 +436,11 @@ const server = http.createServer(app);
 
 // Initialize Redis connections if enabled
 let redisAdapter = null;
-if (process.env.USE_REDIS === "true") {
+// Always try to use Redis if REDIS_URL is provided
+if (process.env.REDIS_URL) {
   try {
+    console.log("Redis URL detected, attempting to initialize Redis adapter");
+    process.env.USE_REDIS = "true"; // Force enable Redis
     const { pubClient, subClient } = redisConfig.initRedis();
     redisAdapter = createAdapter(pubClient, subClient);
     console.log("Redis adapter for Socket.IO initialized successfully");
@@ -445,6 +448,8 @@ if (process.env.USE_REDIS === "true") {
     console.error("Failed to initialize Redis adapter:", error);
     console.warn("Falling back to in-memory adapter");
   }
+} else {
+  console.warn("No REDIS_URL provided, using in-memory Socket.IO adapter");
 }
 
 // Set up Socket.io with CORS and connection settings
@@ -522,6 +527,9 @@ io.use(async (socket, next) => {
 // Initialize socket service
 const socketService = require("./services/socketService");
 socketService.init(io);
+
+// Set up presence API endpoint
+socketService.setupPresenceApi(app);
 
 // Periodically broadcast stats
 setInterval(async () => {
