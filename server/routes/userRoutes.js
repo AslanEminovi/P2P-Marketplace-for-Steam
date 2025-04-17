@@ -226,88 +226,22 @@ router.get("/direct-status/:userId", async (req, res) => {
       Pragma: "no-cache",
     });
 
-    // Get user data directly from the database
-    const User = require("../models/User");
-    const user = await User.findById(userId)
-      .select("lastActive isOnline")
-      .lean();
+    // Check if the user is authenticated (only for logged-in users trying to check themselves)
+    const isAuthenticated = req.isAuthenticated() && req.user;
+    const isSelf = isAuthenticated && req.user._id.toString() === userId;
 
-    const now = new Date();
-    // Default values in case user is not found
-    let responseData = {
+    // Use our new UserStatusManager
+    const userStatusManager = require("../services/UserStatusManager");
+    const status = await userStatusManager.getUserStatus(userId);
+
+    // Create response
+    const responseData = {
       userId,
-      isOnline: false,
-      lastSeen: now,
-      lastSeenFormatted: "Recently",
-      timestamp: now,
-      source: "database",
-    };
-
-    if (!user) {
-      console.log(`[userRoutes] User ${userId} not found in database`);
-      return res.json(responseData);
-    }
-
-    console.log(`[userRoutes] Database status for ${userId}:`, {
-      lastActive: user.lastActive,
-      isOnline: user.isOnline,
-    });
-
-    // Calculate online status based on last active time (consider online if active in last 10 minutes)
-    const lastActive = user.lastActive ? new Date(user.lastActive) : now;
-    const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
-
-    // User is online if database says they're online OR they were active in the last 10 minutes
-    const isOnline =
-      user.isOnline === true || (lastActive && lastActive > tenMinutesAgo);
-
-    // Format last seen time
-    let lastSeenFormatted = "Recently";
-    if (lastActive) {
-      const diffMs = now - lastActive;
-
-      // If less than a minute
-      if (diffMs < 60 * 1000) {
-        lastSeenFormatted = "just now";
-      }
-      // If less than an hour
-      else if (diffMs < 60 * 60 * 1000) {
-        const minutes = Math.floor(diffMs / (60 * 1000));
-        lastSeenFormatted = `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
-      }
-      // If less than a day
-      else if (diffMs < 24 * 60 * 60 * 1000) {
-        const hours = Math.floor(diffMs / (60 * 60 * 1000));
-        const minutes = Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000));
-        if (minutes > 0) {
-          lastSeenFormatted = `${hours}h ${minutes}m ago`;
-        } else {
-          lastSeenFormatted = `${hours} hour${hours !== 1 ? "s" : ""} ago`;
-        }
-      }
-      // If less than a week
-      else if (diffMs < 7 * 24 * 60 * 60 * 1000) {
-        const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-        lastSeenFormatted = `${days} day${days !== 1 ? "s" : ""} ago`;
-      }
-      // More than a week - show date and time
-      else {
-        lastSeenFormatted = lastActive.toLocaleString("en-US", {
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-      }
-    }
-
-    responseData = {
-      userId,
-      isOnline,
-      lastSeen: lastActive,
-      lastSeenFormatted,
-      timestamp: now,
-      source: "database",
+      isOnline: status.isOnline,
+      lastSeen: status.lastSeen,
+      lastSeenFormatted: status.lastSeenFormatted,
+      timestamp: new Date(),
+      source: status.source,
     };
 
     console.log(
