@@ -314,6 +314,16 @@ const useUserStatus = (userId, initialStatus = null) => {
 
     debug("Initializing status tracking");
 
+    // Track page load/refresh events
+    const isPageLoad = useRef(true);
+
+    // For page reloads, immediately try to reconnect socket
+    if (isPageLoad.current) {
+      debug("Page just loaded, attempting immediate socket reconnection");
+      socketService.reconnect();
+      isPageLoad.current = false;
+    }
+
     // Check if we have cached status first
     try {
       const statusCache = JSON.parse(
@@ -321,15 +331,36 @@ const useUserStatus = (userId, initialStatus = null) => {
       );
       const cachedStatus = statusCache[userId];
 
-      // Use cached status if recent (within 2 minutes)
-      if (cachedStatus && Date.now() - cachedStatus.timestamp < 120000) {
+      // Use cached status if recent (within 5 minutes instead of 2 minutes)
+      // This helps prevent flickering offline/online during page refreshes
+      if (cachedStatus && Date.now() - cachedStatus.timestamp < 5 * 60 * 1000) {
         debug("Using cached status:", cachedStatus);
-        setStatus({
-          isOnline: cachedStatus.isOnline,
-          lastSeen: cachedStatus.lastSeen,
-          lastSeenFormatted: cachedStatus.lastSeenFormatted,
-          source: "cache",
-        });
+
+        // If within the last 3 minutes, trust the online status more
+        // This helps prevent briefly showing users as offline during page refresh
+        if (
+          cachedStatus.isOnline &&
+          Date.now() - cachedStatus.timestamp < 3 * 60 * 1000
+        ) {
+          debug(
+            "User was recently online, maintaining online status during refresh"
+          );
+          setStatus({
+            isOnline: true,
+            lastSeen: cachedStatus.lastSeen,
+            lastSeenFormatted: cachedStatus.lastSeenFormatted,
+            source: "cache-refresh",
+          });
+        } else {
+          // Use normal cached status
+          setStatus({
+            isOnline: cachedStatus.isOnline,
+            lastSeen: cachedStatus.lastSeen,
+            lastSeenFormatted: cachedStatus.lastSeenFormatted,
+            source: "cache",
+          });
+        }
+
         setLoading(false);
       }
     } catch (err) {
@@ -350,7 +381,11 @@ const useUserStatus = (userId, initialStatus = null) => {
       socketService.onConnected(() => {
         debug("Socket reconnected, resubscribing to status updates");
         subscribeToUserStatus();
-        fetchStatus(); // Also fetch fresh status
+
+        // Small delay to allow server to process connection
+        setTimeout(() => {
+          fetchStatus(); // Get fresh status after reconnection
+        }, 500);
       });
 
       socketRegisteredRef.current = true;
@@ -359,8 +394,11 @@ const useUserStatus = (userId, initialStatus = null) => {
     // Initial subscription to status updates
     subscribeToUserStatus();
 
-    // Fetch initial status from server
-    fetchStatus();
+    // Fetch initial status from server - with slight delay on page load
+    // to allow socket connection to establish
+    setTimeout(() => {
+      fetchStatus();
+    }, 300);
 
     // Set up periodic status checks (less frequent - every 2 minutes instead of every 60 seconds)
     // This reduces the chance of flickering status
@@ -382,17 +420,23 @@ const useUserStatus = (userId, initialStatus = null) => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         debug("Tab became visible, checking latest status");
-        fetchStatus();
-        subscribeToUserStatus(); // Resubscribe to status updates
+
+        // Prioritize socket reconnection
+        if (!isConnected()) {
+          socketService.reconnect();
+        }
+
+        // Wait a moment for connection to establish
+        setTimeout(() => {
+          fetchStatus();
+          subscribeToUserStatus(); // Resubscribe to status updates
+        }, 300);
 
         // Send extra heartbeat on tab visibility change
         if (isConnected()) {
           socketService.emit("heartbeat", {});
           socketService.emit("user_active", {});
         } else {
-          // Reconnect if not connected
-          socketService.reconnect();
-
           // Small delay to allow reconnection to complete
           setTimeout(() => {
             if (isConnected()) {
@@ -413,6 +457,19 @@ const useUserStatus = (userId, initialStatus = null) => {
       // Try to notify server about tab closing
       if (isConnected()) {
         socketService.emit("browser_closing", {});
+      }
+
+      // For refresh, cache the current status with recent timestamp
+      try {
+        const currentStatus = { ...status, timestamp: Date.now() };
+        const statusCache = JSON.parse(
+          localStorage.getItem("user_status_cache") || "{}"
+        );
+        statusCache[userId] = currentStatus;
+        localStorage.setItem("user_status_cache", JSON.stringify(statusCache));
+        debug("Saved current status to cache for potential page refresh");
+      } catch (err) {
+        debug("Error saving status to cache:", err);
       }
     };
 

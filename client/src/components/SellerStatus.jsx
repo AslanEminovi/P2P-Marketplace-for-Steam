@@ -12,6 +12,37 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
   const { status, loading, error, checkStatus, isConnected } = useUserStatus(sellerId, forceStatus);
   const [prevOnlineState, setPrevOnlineState] = useState(status.isOnline);
   const [statusTransition, setStatusTransition] = useState('');
+  const [showOffline, setShowOffline] = useState(false);
+  
+  // During page refresh/load, we delay showing offline state to avoid flicker
+  useEffect(() => {
+    // On initial load or refresh, check if we have a cached status in localStorage
+    try {
+      const statusCache = JSON.parse(localStorage.getItem("user_status_cache") || "{}");
+      const cachedStatus = statusCache[sellerId];
+      
+      // If the cached status shows this user was recently online (within 3 minutes)
+      if (cachedStatus && cachedStatus.isOnline && 
+          Date.now() - cachedStatus.timestamp < 3 * 60 * 1000) {
+        // Start with the assumption user is still online during page refresh
+        setPrevOnlineState(true);
+      }
+    } catch (err) {
+      console.error("Error reading cached status:", err);
+    }
+    
+    // Add a delay before showing offline state during initial load
+    // This prevents flickering status during page refresh
+    if (loading && !status.isOnline) {
+      const timer = setTimeout(() => {
+        setShowOffline(true);
+      }, 2000); // 2 second delay before showing offline
+      
+      return () => clearTimeout(timer);
+    } else {
+      setShowOffline(status.isOnline === false);
+    }
+  }, [loading, status.isOnline, sellerId]);
 
   // Handle status changes with animation
   useEffect(() => {
@@ -124,13 +155,13 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
     );
   }
 
-  // Simple loading state - show very briefly
-  if (loading && !status.isOnline) {
+  // Improved loading state - show connecting animation instead of flickering offline
+  if (loading && !showOffline) {
     return (
-      <div className={`seller-status-loading ${className}`}>
-        <div className="status-indicator offline" />
+      <div className={`seller-status-connecting ${className}`}>
+        <div className="status-indicator connecting" />
         <div className="status-text">
-          <span className="offline-text">Checking...</span>
+          <span className="connecting-text">Connecting...</span>
         </div>
       </div>
     );
