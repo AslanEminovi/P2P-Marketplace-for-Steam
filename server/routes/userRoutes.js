@@ -139,6 +139,7 @@ router.get("/status/:userId", async (req, res) => {
       lastSeen: status.lastSeen,
       lastSeenFormatted: status.lastSeenFormatted,
       timestamp: new Date(),
+      source: status.source,
     };
 
     console.log(
@@ -184,6 +185,7 @@ router.get("/direct-status/:userId", async (req, res) => {
       lastSeen: status.lastSeen,
       lastSeenFormatted: status.lastSeenFormatted,
       timestamp: new Date(),
+      source: status.source,
     };
 
     console.log(
@@ -203,6 +205,7 @@ router.get("/direct-status/:userId", async (req, res) => {
       lastSeen: new Date(),
       lastSeenFormatted: "Recently",
       timestamp: new Date(),
+      source: "error",
     });
   }
 });

@@ -467,69 +467,52 @@ class UserStatusManager {
       isOnline: false,
       lastSeen: now,
       lastSeenFormatted: "Recently",
+      source: "default",
     };
 
-    // Check if user is in our tracking
+    // First check if user is in our memory tracking (most reliable source)
     if (this.onlineUsers.has(userId)) {
       const userInfo = this.onlineUsers.get(userId);
       status.isOnline = true;
       status.lastSeen = userInfo.lastActive;
       status.lastSeenFormatted = this.formatLastSeen(userInfo.lastActive);
+      status.source = "memory";
       return status;
     }
 
-    // Check database as fallback
+    // User not in memory tracking, so they're definitely offline
+    // Check database as fallback for last seen time
     try {
       const user = await User.findById(userId)
         .select("isOnline lastActive")
         .lean();
 
       if (user) {
-        // Use stricter rules for database status
-        // Only consider online if:
-        // 1. They were active in the last 3 minutes
-        // OR
-        // 2. isOnline is true AND they were active in the last 10 minutes
+        // The user is not in our memory tracking, so they're definitely offline
+        // regardless of database isOnline flag (which might be stale)
+        status.isOnline = false;
+
+        // But we can use the lastActive time from database
         const lastActive = user.lastActive ? new Date(user.lastActive) : null;
-
-        if (!lastActive) {
-          status.isOnline = false;
-        } else {
-          const threeMinutesAgo = new Date(now - 3 * 60 * 1000);
-          const tenMinutesAgo = new Date(now - 10 * 60 * 1000);
-
-          // Very recent activity always counts as online
-          if (lastActive > threeMinutesAgo) {
-            status.isOnline = true;
-          }
-          // Less recent activity requires the isOnline flag to be true
-          else if (user.isOnline === true && lastActive > tenMinutesAgo) {
-            status.isOnline = true;
-          } else {
-            status.isOnline = false;
-          }
+        if (lastActive) {
+          status.lastSeen = lastActive;
+          status.lastSeenFormatted = this.formatLastSeen(lastActive);
         }
 
-        status.lastSeen = lastActive || now;
-        status.lastSeenFormatted = this.formatLastSeen(lastActive);
+        status.source = "database";
 
-        // If it's been more than 30 minutes, force offline
-        const thirtyMinutesAgo = new Date(now - 30 * 60 * 1000);
-        if (lastActive && lastActive < thirtyMinutesAgo) {
-          status.isOnline = false;
-
-          // Update database to fix incorrect status
-          if (user.isOnline === true) {
-            console.log(
-              `[UserStatusManager] User ${userId} has stale online status in DB, fixing`
+        // If user is marked online in DB but not in our memory tracking, they're actually offline
+        // So fix the database record if needed
+        if (user.isOnline === true) {
+          console.log(
+            `[UserStatusManager] User ${userId} incorrectly marked online in DB, fixing`
+          );
+          this.updateUserStatus(userId, false).catch((err) => {
+            console.error(
+              `[UserStatusManager] Error updating incorrect status for ${userId}:`,
+              err
             );
-            this.updateUserStatus(userId, false).catch((err) => {
-              console.error(
-                `[UserStatusManager] Error updating stale status for ${userId}:`,
-                err
-              );
-            });
-          }
+          });
         }
       }
     } catch (error) {
@@ -537,6 +520,7 @@ class UserStatusManager {
         `[UserStatusManager] Error getting user ${userId} status from database:`,
         error
       );
+      status.source = "error";
     }
 
     return status;
@@ -605,18 +589,24 @@ class UserStatusManager {
         ? this.anonymousSockets.size
         : 0;
 
+      // Calculate total - ONLY counting authenticated users for accuracy
+      // We exclude anonymous users because they could be duplicate tabs
+      // and there's no reliable way to deduplicate them without cookies
+      const totalCount = authenticatedCount;
+
       // Log counts for debugging
       console.log("[UserStatusManager] Current user counts:", {
         authenticated: authenticatedCount,
         anonymous: anonymousCount,
-        total: authenticatedCount + anonymousCount,
+        total: totalCount,
+        note: "Total only includes authenticated users",
       });
 
       // Return counts
       return {
         authenticated: authenticatedCount,
         anonymous: anonymousCount,
-        total: authenticatedCount + anonymousCount,
+        total: totalCount,
       };
     } catch (error) {
       console.error("[UserStatusManager] Error getting user counts:", error);

@@ -489,6 +489,7 @@ const getUserStatus = async (userId) => {
       isOnline: false,
       lastSeen: new Date(),
       lastSeenFormatted: "Unknown",
+      source: "default",
     };
   }
 
