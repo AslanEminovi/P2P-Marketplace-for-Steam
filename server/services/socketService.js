@@ -18,6 +18,7 @@ let lastStatsUpdate = null;
 let activeUsers = new Map(); // Map to track user activity timestamps
 const STATS_UPDATE_INTERVAL = 10000; // 10 seconds
 const USER_ACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+const OFFLINE_GRACE_PERIOD_MS = 10000; // 10 seconds grace period before marking a user offline
 
 // Track connected users
 const connectedUsers = new Map();
@@ -77,7 +78,7 @@ const formatLastSeen = (lastSeenDate) => {
  * Initialize the socket service with the given io instance
  * @param {SocketIO.Server} ioInstance - The Socket.io instance
  */
-const init = (ioInstance) => {
+const init = async (ioInstance) => {
   io = ioInstance;
 
   if (!io) {
@@ -91,12 +92,13 @@ const init = (ioInstance) => {
 
   if (isRedisEnabled) {
     try {
+      // Display masked Redis URL for debugging without exposing credentials
+      const redisUrlForDisplay = process.env.REDIS_URL.includes("@")
+        ? "redis://" + process.env.REDIS_URL.split("@").pop()
+        : "redis://[masked]";
+
       console.log(
-        `[socketService] Redis URL detected (${
-          process.env.REDIS_URL.includes("@")
-            ? "..." + process.env.REDIS_URL.split("@").pop()
-            : "masked"
-        }), initializing Redis`
+        `[socketService] Redis URL detected (${redisUrlForDisplay}), initializing Redis`
       );
 
       const redisModule = require("../config/redis");
@@ -111,13 +113,19 @@ const init = (ioInstance) => {
       pubClient = redisClients.pubClient;
       subClient = redisClients.subClient;
 
+      // Test Redis connection with ping-pong
+      const pingResult = await pubClient.ping();
+      if (pingResult !== "PONG") {
+        throw new Error("Redis ping failed: " + pingResult);
+      }
+      console.log(`[socketService] Redis ping successful: ${pingResult}`);
+
       // Publish test message to verify Redis is working
-      pubClient
-        .set("socket:test", "Connection test at " + new Date().toISOString())
-        .then(() => console.log("[socketService] Redis test write successful"))
-        .catch((err) =>
-          console.error("[socketService] Redis test write failed:", err)
-        );
+      await pubClient.set(
+        "socket:test",
+        "Connection test at " + new Date().toISOString()
+      );
+      console.log("[socketService] Redis test write successful");
 
       // Subscribe to Redis channels
       initRedisSubscriptions();
@@ -814,9 +822,22 @@ const getUserStatus = async (userId) => {
       lastSeenFormatted: "Unknown",
     };
 
-  // First check local tracking for performance
+  // First check if user has an active socket connection - most reliable
+  const hasActiveSocket = activeSockets.has(userId);
+  if (hasActiveSocket) {
+    console.log(`[socketService] User ${userId} has active socket connection`);
+    const lastSeen = activeUsers.get(userId)?.lastSeen || new Date();
+    return {
+      isOnline: true,
+      lastSeen: lastSeen,
+      lastSeenFormatted: formatLastSeen(lastSeen),
+    };
+  }
+
+  // Then check local tracking in memory
   if (activeUsers.has(userId)) {
     const lastSeen = activeUsers.get(userId).lastSeen || new Date();
+    console.log(`[socketService] User ${userId} found in local tracking`);
     return {
       isOnline: true,
       lastSeen: lastSeen,
@@ -827,6 +848,7 @@ const getUserStatus = async (userId) => {
   // Then check Redis if enabled
   if (isRedisEnabled && pubClient) {
     try {
+      console.log(`[socketService] Checking Redis for user ${userId} status`);
       const [status, lastActive] = await pubClient.mget(
         `user:${userId}:status`,
         `user:${userId}:lastActive`
@@ -836,6 +858,9 @@ const getUserStatus = async (userId) => {
         const lastSeen = lastActive
           ? new Date(parseInt(lastActive))
           : new Date();
+        console.log(
+          `[socketService] Redis status for user ${userId}: ${status}`
+        );
         return {
           isOnline: status === "online",
           lastSeen: lastSeen,
@@ -856,6 +881,9 @@ const getUserStatus = async (userId) => {
     const user = await User.findById(userId);
     if (user && user.lastActive) {
       const lastSeen = new Date(user.lastActive);
+      console.log(
+        `[socketService] Database status for user ${userId}: lastActive=${lastSeen}`
+      );
       return {
         isOnline: false,
         lastSeen: lastSeen,
@@ -949,12 +977,12 @@ async function markUserOnline(userId) {
   try {
     if (isRedisEnabled && pubClient) {
       const pipeline = pubClient.pipeline();
-      // Set user as online with 70-second TTL
-      pipeline.set(`user:${userId}:status`, "online", "EX", 70);
-      pipeline.set(`user:${userId}:lastActive`, Date.now(), "EX", 70);
+      // Set user as online with 120-second TTL (increased from 70s)
+      pipeline.set(`user:${userId}:status`, "online", "EX", 120);
+      pipeline.set(`user:${userId}:lastActive`, Date.now(), "EX", 120);
       await pipeline.exec();
       console.log(
-        `[socketService] User ${userId} marked online in Redis with 70s TTL`
+        `[socketService] User ${userId} marked online in Redis with 120s TTL`
       );
     } else {
       // Fall back to local tracking
@@ -1051,6 +1079,20 @@ const handleSocketConnection = (socket) => {
 
   // Set up a periodic ping to refresh online status
   const pingInterval = setInterval(() => markUserOnline(userId), 30000);
+
+  // Add heartbeat handler - this is critical for maintaining online status
+  socket.on("heartbeat", () => {
+    console.log(`[socketService] Heartbeat received from user ${userId}`);
+    // Update user's last seen timestamp and ensure they're marked as online
+    markUserOnline(userId);
+  });
+
+  // Add user_active handler - another way the client signals activity
+  socket.on("user_active", () => {
+    console.log(`[socketService] User activity signal from user ${userId}`);
+    // Update user's last seen timestamp and ensure they're marked as online
+    markUserOnline(userId);
+  });
 
   // Set up event listeners for this socket
   socket.on("disconnect", async () => {
