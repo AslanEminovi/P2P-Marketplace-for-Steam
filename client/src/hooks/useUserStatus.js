@@ -321,7 +321,8 @@ const useUserStatus = (userId, initialStatus = null) => {
       );
       const cachedStatus = statusCache[userId];
 
-      if (cachedStatus && Date.now() - cachedStatus.timestamp < 30000) {
+      // Use cached status if recent (within 2 minutes)
+      if (cachedStatus && Date.now() - cachedStatus.timestamp < 120000) {
         debug("Using cached status:", cachedStatus);
         setStatus({
           isOnline: cachedStatus.isOnline,
@@ -361,8 +362,21 @@ const useUserStatus = (userId, initialStatus = null) => {
     // Fetch initial status from server
     fetchStatus();
 
-    // Set up periodic status checks (less frequent - every 60 seconds)
-    statusTimeoutRef.current = setInterval(fetchStatus, 60000);
+    // Set up periodic status checks (less frequent - every 2 minutes instead of every 60 seconds)
+    // This reduces the chance of flickering status
+    statusTimeoutRef.current = setInterval(fetchStatus, 120000);
+
+    // Set up heartbeat to let server know we're still active even if we're not doing anything
+    const heartbeatInterval = setInterval(() => {
+      if (isConnected()) {
+        debug("Sending heartbeat to maintain connection");
+        socketService.emit("heartbeat", {});
+        socketService.emit("user_active", {});
+      } else {
+        debug("Not connected, attempting reconnect for heartbeat");
+        socketService.reconnect();
+      }
+    }, 30000); // Every 30 seconds
 
     // Set up visibility change listener to update status when tab becomes active
     const handleVisibilityChange = () => {
@@ -370,10 +384,39 @@ const useUserStatus = (userId, initialStatus = null) => {
         debug("Tab became visible, checking latest status");
         fetchStatus();
         subscribeToUserStatus(); // Resubscribe to status updates
+
+        // Send extra heartbeat on tab visibility change
+        if (isConnected()) {
+          socketService.emit("heartbeat", {});
+          socketService.emit("user_active", {});
+        } else {
+          // Reconnect if not connected
+          socketService.reconnect();
+
+          // Small delay to allow reconnection to complete
+          setTimeout(() => {
+            if (isConnected()) {
+              socketService.emit("heartbeat", {});
+              socketService.emit("user_active", {});
+            }
+          }, 1000);
+        }
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Handle browser close/refresh with beforeunload
+    const handleBeforeUnload = () => {
+      debug("Browser tab closing, notifying server");
+
+      // Try to notify server about tab closing
+      if (isConnected()) {
+        socketService.emit("browser_closing", {});
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     // Clean up on unmount
     return () => {
@@ -387,12 +430,17 @@ const useUserStatus = (userId, initialStatus = null) => {
         clearTimeout(fetchTimeoutRef.current);
       }
 
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+      }
+
       if (socketRegisteredRef.current) {
         socketService.off("user_status_update", handleStatusUpdateRef.current);
         document.removeEventListener(
           "visibilitychange",
           handleVisibilityChange
         );
+        window.removeEventListener("beforeunload", handleBeforeUnload);
         socketRegisteredRef.current = false;
       }
     };

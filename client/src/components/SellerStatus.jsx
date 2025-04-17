@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config/constants';
 import socketService from '../services/socketService';
@@ -10,7 +10,48 @@ const DEBUG_MODE = false;
 
 const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStatus = null }) => {
   const { status, loading, error, checkStatus, isConnected } = useUserStatus(sellerId, forceStatus);
+  const [prevOnlineState, setPrevOnlineState] = useState(status.isOnline);
+  const [statusTransition, setStatusTransition] = useState('');
 
+  // Handle status changes with animation
+  useEffect(() => {
+    if (prevOnlineState !== status.isOnline) {
+      // Trigger appropriate animation
+      setStatusTransition(status.isOnline ? 'to-online' : 'to-offline');
+      
+      // Store new state
+      setPrevOnlineState(status.isOnline);
+      
+      // Reset transition class after animation completes
+      const timer = setTimeout(() => {
+        setStatusTransition('');
+      }, 600); // slightly longer than animation duration
+      
+      return () => clearTimeout(timer);
+    }
+  }, [status.isOnline, prevOnlineState]);
+
+  // Force reconnection when page becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Try to reconnect socket
+        if (socketService && !isConnected) {
+          socketService.reconnect();
+        }
+        
+        // Check status
+        setTimeout(checkStatus, 500);
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [checkStatus, isConnected]);
+  
   // Simple debug mode version when enabled
   if (DEBUG_MODE) {
     return (
@@ -108,7 +149,7 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
   }
 
   return (
-    <div className={`seller-status-container ${className}`}>
+    <div className={`seller-status-container ${className} ${statusTransition}`}>
       <div className={`status-indicator ${status.isOnline ? 'online' : 'offline'}`} />
       
       <div className="status-text">
