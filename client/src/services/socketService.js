@@ -631,6 +631,9 @@ class SocketService {
 // Create a singleton instance
 const socketService = new SocketService();
 
+// Initialize at import time
+socketService.init();
+
 // Export the singleton
 export default socketService;
 
@@ -638,25 +641,29 @@ export default socketService;
 
 // Configure beforeunload event to notify server when browser is closing
 window.addEventListener("beforeunload", () => {
-  if (socket && socket.connected) {
+  if (socketService.socket && socketService.socket.connected) {
     // Send browser closing event to server
-    socket.emit("browser_closing");
+    socketService.socket.emit("browser_closing");
   }
 });
 
 // Handle close events using the page visibility API as a fallback
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden" && socket && socket.connected) {
+  if (
+    document.visibilityState === "hidden" &&
+    socketService.socket &&
+    socketService.socket.connected
+  ) {
     // User is navigating away or switching tabs, send a ping
-    socket.emit("user_active");
+    socketService.socket.emit("user_active");
   }
 });
 
 // Handle pings from server
-if (socket) {
-  socket.on("ping", (data) => {
+if (socketService.socket) {
+  socketService.socket.on("ping", (data) => {
     // Respond with a pong to keep the connection alive
-    socket.emit("pong", { timestamp: Date.now() });
+    socketService.socket.emit("pong", { timestamp: Date.now() });
   });
 }
 
@@ -665,12 +672,12 @@ if (socket) {
  * @param {string} userId - The user ID to watch
  */
 const watchUserStatus = (userId) => {
-  if (!socket || !socket.connected) {
+  if (!socketService.socket || !socketService.socket.connected) {
     console.error("Socket not connected, cannot watch user status");
     return false;
   }
 
-  socket.emit("watch_user_status", userId);
+  socketService.socket.emit("watch_user_status", userId);
   return true;
 };
 
@@ -679,12 +686,12 @@ const watchUserStatus = (userId) => {
  * @param {string} userId - The user ID to get status for
  */
 const requestUserStatus = (userId) => {
-  if (!socket || !socket.connected) {
+  if (!socketService.socket || !socketService.socket.connected) {
     console.error("Socket not connected, cannot request user status");
     return false;
   }
 
-  socket.emit("request_user_status", userId);
+  socketService.socket.emit("request_user_status", userId);
   return true;
 };
 
@@ -693,28 +700,16 @@ const requestUserStatus = (userId) => {
  * @param {Function} callback - Function to call when a status update is received
  */
 const onUserStatusUpdate = (callback) => {
-  if (!socket) {
+  if (!socketService.socket) {
     console.error("Socket not initialized, cannot listen for status updates");
     return false;
   }
 
-  socket.on("user_status_update", callback);
+  socketService.socket.on("user_status_update", callback);
   return true;
 };
 
-// Export new methods
-module.exports = {
-  // Existing exports
-  init,
-  disconnect,
-  reconnect,
-  isConnected,
-  on,
-  off,
-  emit,
-
-  // New exports
-  watchUserStatus,
-  requestUserStatus,
-  onUserStatusUpdate,
-};
+// Extend the singleton with additional methods
+socketService.watchUserStatus = watchUserStatus;
+socketService.requestUserStatus = requestUserStatus;
+socketService.onUserStatusUpdate = onUserStatusUpdate;
