@@ -348,6 +348,27 @@ export const fetchTradeHistoryAsync = createAsyncThunk(
   }
 );
 
+// Add the clearCancelledTradesAsync thunk for clearing cancelled trades
+export const clearCancelledTradesAsync = createAsyncThunk(
+  "trades/clearCancelledTrades",
+  async (_, { rejectWithValue }) => {
+    try {
+      // Frontend-only implementation - we'll filter out cancelled trades from state
+      // In a real app, you would make an API call to delete these from the database
+      // For example: await api.post('/api/trades/clear-cancelled');
+
+      // For now, we'll just simulate a delay
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      return { success: true };
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to clear cancelled trades"
+      );
+    }
+  }
+);
+
 // Trades slice
 const tradesSlice = createSlice({
   name: "trades",
@@ -568,6 +589,27 @@ const tradesSlice = createSlice({
       .addCase(fetchTradeHistoryAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || "Failed to fetch trade history";
+      })
+
+      // Clear cancelled trades cases
+      .addCase(clearCancelledTradesAsync.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(clearCancelledTradesAsync.fulfilled, (state) => {
+        // Filter out cancelled trades from the history
+        if (state.tradeHistory && state.tradeHistory.trades) {
+          state.tradeHistory.trades = state.tradeHistory.trades.filter(
+            (trade) =>
+              !["cancelled", "expired", "failed", "declined"].includes(
+                trade.status?.toLowerCase()
+              )
+          );
+        }
+        state.status = "idle";
+      })
+      .addCase(clearCancelledTradesAsync.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload || "Failed to clear cancelled trades";
       });
   },
 });
@@ -643,3 +685,13 @@ export const selectTradeStatus = (state) => ({
   lastFetched: state.trades.lastFetched,
 });
 export const selectTradeError = (state) => state.trades.error;
+
+export {
+  fetchTradesAsync,
+  fetchTradeDetails,
+  fetchActiveTradesAsync,
+  fetchTradeHistoryAsync,
+  clearCancelledTradesAsync,
+  resetTradeError,
+  // ... other exports ...
+};

@@ -30,7 +30,8 @@ import {
   faInfoCircle,
   faSortAmountDown,
   faSort,
-  faRedo
+  faRedo,
+  faTrash
 } from '@fortawesome/free-solid-svg-icons';
 import '../styles/Trades.css';
 import Fade from '../components/Fade';
@@ -46,7 +47,8 @@ import {
   selectTradeStats, 
   selectTradesLoading, 
   selectTradesError,
-  fetchTradeHistoryAsync
+  fetchTradeHistoryAsync,
+  clearCancelledTradesAsync
 } from '../redux/slices/tradesSlice';
 import { selectActiveTradesData, selectTradeHistoryData } from '../redux/selectors/tradesSelectors';
 import StatsCards from '../components/StatsCards';
@@ -85,16 +87,29 @@ const Trades = ({ user }) => {
   }, [user]);
 
   useEffect(() => {
-    // Fetch trades on component mount and when refreshKey changes
-    dispatch(fetchTradesAsync());
+    // Only fetch if not already loading and no data or data is stale
+    const currentTime = Date.now();
+    const stalePeriod = 30000; // 30 seconds before data is considered stale
     
-    // Set up periodic refresh every 2 minutes
+    if (!activeTradesData?.loading && (!activeTradesData?.trades || !activeTradesData?.lastFetched || (currentTime - activeTradesData.lastFetched > stalePeriod))) {
+      console.log('[Trades] Fetching active trades - data stale or not present');
+      dispatch(fetchActiveTradesAsync());
+    }
+    
+    if (!tradeHistoryData?.loading && (!tradeHistoryData?.trades || !tradeHistoryData?.lastFetched || (currentTime - tradeHistoryData.lastFetched > stalePeriod))) {
+      console.log('[Trades] Fetching trade history - data stale or not present');
+      dispatch(fetchTradeHistoryAsync());
+    }
+    
+    // Use reduced frequency for auto-refresh to improve performance
     const refreshInterval = setInterval(() => {
-      setRefreshKey(prevKey => prevKey + 1);
-    }, 120000);
+      if (document.visibilityState === 'visible') {
+        setRefreshKey(prevKey => prevKey + 1);
+      }
+    }, 180000); // Increase to 3 minutes
     
     return () => clearInterval(refreshInterval);
-  }, [refreshKey, dispatch]);
+  }, [refreshKey, dispatch, activeTradesData?.loading, activeTradesData?.lastFetched, tradeHistoryData?.loading, tradeHistoryData?.lastFetched]);
 
   // Auto-refresh active trades periodically
   useEffect(() => {
@@ -170,8 +185,24 @@ const Trades = ({ user }) => {
     const tradesData = activeTab === 'active' 
       ? activeTradesData?.trades || []
       : tradeHistoryData?.trades || [];
-
+    
+    // Add a debug log to see what data we're working with
+    console.log(`[Trades] Filtering ${tradesData.length} trades for ${activeTab} tab`);
+    
     return tradesData.filter(trade => {
+      // For active tab, show created/pending/processing trades
+      if (activeTab === 'active') {
+        if (!["created", "pending", "processing", "accepted", "waiting_confirmation"].includes(trade.status?.toLowerCase())) {
+          return false;
+        }
+      } 
+      // For history tab, show completed/cancelled/expired/failed trades
+      else {
+        if (!["completed", "cancelled", "expired", "failed", "declined"].includes(trade.status?.toLowerCase())) {
+          return false;
+        }
+      }
+    
       // Apply search filter if exists
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase();
@@ -577,6 +608,23 @@ const Trades = ({ user }) => {
     );
   };
 
+  // Add a function to clear cancelled trades history
+  const clearCancelledTrades = useCallback(() => {
+    if (window.confirm('Are you sure you want to clear your cancelled trade history? This action cannot be undone.')) {
+      setIsRefreshing(true);
+      dispatch(clearCancelledTradesAsync())
+        .then(() => {
+          dispatch(fetchTradeHistoryAsync()).then(() => {
+            setIsRefreshing(false);
+          });
+        })
+        .catch(error => {
+          console.error('Error clearing cancelled trades:', error);
+          setIsRefreshing(false);
+        });
+    }
+  }, [dispatch]);
+
   return (
     <div className="trades-container">
       <div className="trades-title-card">
@@ -640,6 +688,16 @@ const Trades = ({ user }) => {
                 <span className="trades-tab-badge">{tradeHistoryData.trades.length}</span>
               )}
             </button>
+            {activeTab === 'history' && tradeHistoryData?.trades?.some(t => ['cancelled', 'expired', 'failed', 'declined'].includes(t.status?.toLowerCase())) && (
+              <button
+                className="trades-clear-history"
+                onClick={clearCancelledTrades}
+                title="Clear cancelled trades history"
+              >
+                <FontAwesomeIcon icon={faTrash} />
+                <span>Clear Cancelled</span>
+              </button>
+            )}
           </div>
           
           <div className="trades-filters">

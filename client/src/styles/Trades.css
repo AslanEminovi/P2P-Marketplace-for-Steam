@@ -1040,20 +1040,21 @@
 .marketplace-browse-button {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: var(--trade-gradient);
   color: white;
-  padding: 12px 24px;
-  border-radius: 12px;
+  padding: 8px 16px;
+  border-radius: 8px;
   font-weight: 600;
+  font-size: 0.9rem;
   text-decoration: none;
   border: none;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  margin-top: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-top: 1rem;
 }
 
 .marketplace-browse-button svg {
@@ -1131,7 +1132,7 @@
   box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* Update Empty State Styling */
+/* Update Empty State Styling to dark theme */
 .trades-empty-state {
   display: flex;
   flex-direction: column;
@@ -1139,18 +1140,58 @@
   justify-content: center;
   padding: 40px 20px;
   text-align: center;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  color: #6c757d;
+  background-color: rgba(13, 17, 23, 0.6);
+  border-radius: 12px;
+  border: 1px solid var(--trade-border);
+  color: var(--trade-text-secondary);
   min-height: 250px;
 }
 
 .trades-empty-state h3 {
   margin: 16px 0 8px;
-  color: #2c3e50;
+  color: var(--trade-text);
 }
 
 .trades-empty-state p {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   max-width: 400px;
+  color: var(--trade-text-secondary);
+}
+
+/* Clear History Button */
+.trades-clear-history {
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid rgba(248, 81, 73, 0.3);
+  color: var(--trade-danger);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: auto;
+  margin-right: 1rem;
+}
+
+.trades-clear-history:hover {
+  background: rgba(248, 81, 73, 0.2);
+  transform: translateY(-2px);
+}
+
+.trades-clear-history:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+  .trades-clear-history {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.75rem;
+  }
+  
+  .trades-clear-history span {
+    display: none;
+  }
 } 
