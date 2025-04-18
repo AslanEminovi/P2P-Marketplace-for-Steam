@@ -26,37 +26,39 @@ import {
   faTimesCircle,
   faAngleRight,
   faMoneyBillWave,
-  faCalendarAlt
+  faCalendarAlt,
+  faInfoCircle,
+  faSortAmountDown,
+  faSort
 } from '@fortawesome/free-solid-svg-icons';
 import '../styles/Trades.css';
 
 // Redux imports
 import { useSelector, useDispatch } from 'react-redux';
 import { 
-  fetchTrades, 
+  fetchTradesAsync, 
+  fetchActiveTradesAsync, 
   selectAllTrades, 
-  selectActiveTrades, 
-  selectHistoricalTrades, 
+  selectTradeStatus, 
+  selectTradeError, 
   selectTradeStats, 
   selectTradesLoading, 
   selectTradesError,
-  fetchActiveTradesAsync,
   fetchTradeHistoryAsync
 } from '../redux/slices/tradesSlice';
 import { selectActiveTradesData, selectTradeHistoryData } from '../redux/selectors/tradesSelectors';
 import StatsCards from '../components/StatsCards';
 import { tradeStatusVariants } from '../utils/statusUtils';
 import moment from 'moment';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Trades = ({ user }) => {
   // Redux hooks
   const dispatch = useDispatch();
-  const trades = useSelector(selectAllTrades);
-  const activeTrades = useSelector(selectActiveTrades);
-  const historicalTrades = useSelector(selectHistoricalTrades);
-  const reduxTradeStats = useSelector(selectTradeStats);
-  const loading = useSelector(selectTradesLoading);
-  const error = useSelector(selectTradesError);
+  const allTrades = useSelector(selectAllTrades);
+  const { loading, lastFetched } = useSelector(selectTradeStatus);
+  const error = useSelector(selectTradeError);
+  const tradeStats = useSelector(selectTradeStats);
 
   const activeTradesData = useSelector(selectActiveTradesData);
   const tradeHistoryData = useSelector(selectTradeHistoryData);
@@ -73,22 +75,7 @@ const Trades = ({ user }) => {
   const [refreshTimer, setRefreshTimer] = useState(null);
   const [autoRefreshInterval, setAutoRefreshInterval] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(user?._id || '');
-
-  // Use a merged stats object that takes values from Redux first, then falls back to calculated values
-  const calculatedStats = {
-    totalTrades: (activeTradesData?.trades?.length || 0) + (tradeHistoryData?.trades?.length || 0),
-    activeTrades: activeTradesData?.trades?.length || 0,
-    completedTrades: tradeHistoryData?.trades?.filter(t => t.status === 'COMPLETED')?.length || 0,
-    moneyTraded: tradeHistoryData?.trades?.filter(t => t.status === 'COMPLETED')?.reduce((sum, trade) => 
-      sum + (parseFloat(trade.item?.price || 0)), 0) || 0
-  };
-
-  // Prioritize Redux stats, fall back to calculated values
-  const tradeStats = {
-    totalTrades: reduxTradeStats.totalTrades || calculatedStats.totalTrades,
-    completedTrades: reduxTradeStats.completedTrades || calculatedStats.completedTrades,
-    tradeVolume: reduxTradeStats.totalValue || calculatedStats.moneyTraded
-  };
+  const [inProgressHovered, setInProgressHovered] = useState(null);
 
   useEffect(() => {
     if (user?._id) {
@@ -98,7 +85,7 @@ const Trades = ({ user }) => {
 
   useEffect(() => {
     // Fetch trades on component mount and when refreshKey changes
-    dispatch(fetchTrades());
+    dispatch(fetchTradesAsync());
     
     // Set up periodic refresh every 2 minutes
     const refreshInterval = setInterval(() => {
@@ -118,7 +105,7 @@ const Trades = ({ user }) => {
         // Only refresh if the component is visible and not already loading
         if (document.visibilityState === 'visible' && !loading) {
           console.log('[Trades] Auto-refreshing active trades');
-          dispatch(fetchTrades());
+          dispatch(fetchTradesAsync());
         }
       }, 60000); // Refresh every minute
     }
@@ -132,7 +119,8 @@ const Trades = ({ user }) => {
 
   // Handle manual refresh when button clicked
   const handleRefresh = () => {
-    dispatch(fetchTrades());
+    dispatch(fetchTradesAsync());
+    dispatch(fetchActiveTradesAsync());
   };
 
   const getStatusColor = (status) => {
@@ -177,54 +165,48 @@ const Trades = ({ user }) => {
   };
 
   const getFilteredTrades = () => {
-    // Determine which trade list to use based on active tab
-    const tradesData = activeTab === 'active' ? 
-      activeTradesData?.trades || [] : 
-      tradeHistoryData?.trades || [];
-      
-    if (!tradesData.length) return [];
-    
-    // Apply role filter
-    let filtered = [...tradesData];
-    if (roleFilter && roleFilter !== 'all') {
-      filtered = filtered.filter(trade => {
-        if (roleFilter === 'seller' && trade.seller?._id === currentUserId) return true;
-        if (roleFilter === 'buyer' && trade.buyer?._id === currentUserId) return true;
-        return false;
-      });
-    }
-    
-    // Apply search term
-    if (searchTerm) {
-      filtered = filtered.filter(trade => {
-        // Search by trade ID
-        if (trade._id?.toLowerCase().includes(searchTerm.toLowerCase())) return true;
-        if (trade.tradeId?.toLowerCase().includes(searchTerm.toLowerCase())) return true;
+    const tradesForTab = activeTab === 'active'
+      ? allTrades.filter(trade => ["created", "pending", "processing"].includes(trade.status))
+      : allTrades.filter(trade => ["completed", "canceled", "declined"].includes(trade.status));
+
+    return tradesForTab.filter(trade => {
+      // Apply search filter if exists
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        const itemNameMatch = trade.item?.name?.toLowerCase().includes(searchLower);
+        const idMatch = trade.tradeId?.toLowerCase().includes(searchLower);
+        const sellerMatch = trade.seller?.username?.toLowerCase().includes(searchLower);
+        const buyerMatch = trade.buyer?.username?.toLowerCase().includes(searchLower);
         
-        // Search by item name
-        if (trade.item?.name?.toLowerCase().includes(searchTerm.toLowerCase())) return true;
-        
-        // Search by username
-        if (trade.seller?.username?.toLowerCase().includes(searchTerm.toLowerCase())) return true;
-        if (trade.buyer?.username?.toLowerCase().includes(searchTerm.toLowerCase())) return true;
-        
-        return false;
-      });
-    }
-    
-    // Apply sort
-    if (sortOrder === 'oldest') {
-      filtered.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-    } else if (sortOrder === 'price-high') {
-      filtered.sort((a, b) => (parseFloat(b.item?.price || 0) - parseFloat(a.item?.price || 0)));
-    } else if (sortOrder === 'price-low') {
-      filtered.sort((a, b) => (parseFloat(a.item?.price || 0) - parseFloat(b.item?.price || 0)));
-    } else {
-      // Default to newest first
-      filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    }
-    
-    return filtered;
+        if (!(itemNameMatch || idMatch || sellerMatch || buyerMatch)) {
+          return false;
+        }
+      }
+
+      // Apply role filter if not "all"
+      if (roleFilter !== 'all') {
+        if (roleFilter === 'seller' && trade.seller?._id !== currentUserId) {
+          return false;
+        }
+        if (roleFilter === 'buyer' && trade.buyer?._id !== currentUserId) {
+          return false;
+        }
+      }
+
+      return true;
+    }).sort((a, b) => {
+      // Apply sorting
+      if (sortOrder === 'newest') {
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      } else if (sortOrder === 'oldest') {
+        return new Date(a.createdAt) - new Date(b.createdAt);
+      } else if (sortOrder === 'price-high') {
+        return b.price - a.price;
+      } else if (sortOrder === 'price-low') {
+        return a.price - b.price;
+      }
+      return 0;
+    });
   };
 
   const clearFilters = () => {
@@ -247,27 +229,32 @@ const Trades = ({ user }) => {
     if (activeTab !== 'active') return null;
     
     // Get trades that require immediate attention
-    const inProgressTrades = activeTrades.filter(
+    const inProgressTrades = allTrades.filter(
       trade => 
-        trade.status === 'awaiting_seller' ||
-        trade.status === 'offer_sent' ||
-        trade.status === 'awaiting_confirmation'
+        trade.status === 'processing' ||
+        trade.status === 'pending'
     );
     
     if (inProgressTrades.length === 0) return null;
     
     return (
-      <div className="in-progress-trades">
-        <h2>Continue Your Trades</h2>
+      <div className="trades-in-progress">
+        <h2>Continue Your Trade</h2>
         <p className="in-progress-description">
-          These trades require your attention and are waiting for a response.
+          You have {inProgressTrades.length} {inProgressTrades.length === 1 ? 'trade' : 'trades'} in progress. Continue where you left off.
         </p>
         
-        <div className="in-progress-trades-list">
-          {inProgressTrades.map(trade => (
-            <div key={trade._id} className="in-progress-trade-card" onClick={() => handleTradeClick(trade._id)}>
-              <div className="in-progress-trade-details">
-                <div className="in-progress-trade-item">
+        <div className="in-progress-list">
+          {inProgressTrades.map((trade) => (
+            <Link
+              key={trade._id}
+              to={`/trades/${trade._id}`}
+              className="in-progress-trade"
+              onMouseEnter={() => setInProgressHovered(trade._id)}
+              onMouseLeave={() => setInProgressHovered(null)}
+            >
+              <div className="in-progress-trade-content">
+                <div className="in-progress-trade-image">
                   {trade.item?.imageUrl ? (
                     <img 
                       src={trade.item.imageUrl} 
@@ -281,32 +268,32 @@ const Trades = ({ user }) => {
                   ) : (
                     <div className="in-progress-trade-item-image-placeholder">?</div>
                   )}
-                  <div className="in-progress-trade-item-info">
-                    <div className="in-progress-trade-item-name">{trade.item?.name || "Unknown Item"}</div>
-                    <div className="in-progress-trade-item-price">${parseFloat(trade.item?.price || 0).toFixed(2)}</div>
+                </div>
+                <div className="in-progress-trade-details">
+                  <h3>{trade.item?.name || "Unknown Item"}</h3>
+                  <div className="in-progress-price">
+                    <FontAwesomeIcon icon={faMoneyBillWave} />
+                    <span>${parseFloat(trade.price || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="in-progress-date">
+                    <FontAwesomeIcon icon={faCalendarAlt} />
+                    <span>{formatDate(trade.createdAt)}</span>
                   </div>
                 </div>
-                
-                <div className="in-progress-trade-status">
+                <div className="in-progress-status">
                   <span 
-                    className="trade-status-badge"
-                    style={{
-                      backgroundColor: getStatusColor(trade.status)
-                    }}
+                    className={`status-badge ${trade.status}`}
                   >
-                    {getStatusLabel(trade.status)}
+                    {trade.status.charAt(0).toUpperCase() + trade.status.slice(1)}
                   </span>
-                  <span className="in-progress-trade-time">{moment(trade.createdAt).fromNow()}</span>
                 </div>
               </div>
-              
-              <div className="in-progress-trade-action">
-                <span className="in-progress-trade-continue-button">
-                  <span>Continue Trade</span>
-                  <FontAwesomeIcon icon={faAngleRight} />
+              <div className="in-progress-action">
+                <span className={inProgressHovered === trade._id ? "action-text-hover" : "action-text"}>
+                  Continue Trade <FontAwesomeIcon icon={faAngleRight} />
                 </span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
@@ -314,26 +301,25 @@ const Trades = ({ user }) => {
   };
 
   const renderEmptyState = () => {
+    if (loading) return null;
+
     if (activeTab === 'active') {
       return (
         <div className="trades-empty-state">
-          <FontAwesomeIcon icon={faClock} />
+          <FontAwesomeIcon icon={faExchangeAlt} size="3x" />
           <h3>No Active Trades</h3>
-          <p>You don't have any active trades at the moment. Browse the marketplace to find items to buy or sell.</p>
-          <Link to="/marketplace" className="trades-primary-button">
-            <FontAwesomeIcon icon={faShoppingCart} /> Browse Marketplace
+          <p>You don't have any active trades at the moment.</p>
+          <Link to="/marketplace" className="btn btn-primary">
+            Browse Marketplace
           </Link>
         </div>
       );
     } else {
       return (
         <div className="trades-empty-state">
-          <FontAwesomeIcon icon={faCalendarAlt} />
+          <FontAwesomeIcon icon={faInfoCircle} size="3x" />
           <h3>No Trade History</h3>
-          <p>Your trade history is currently empty. Complete trades to see them appear here.</p>
-          <Link to="/marketplace" className="trades-primary-button">
-            <FontAwesomeIcon icon={faShoppingCart} /> Browse Marketplace
-          </Link>
+          <p>You don't have any completed or canceled trades.</p>
         </div>
       );
     }
@@ -368,7 +354,7 @@ const Trades = ({ user }) => {
   const refreshTrades = useCallback(() => {
     setIsRefreshing(true);
     
-    dispatch(fetchActiveTradesAsync()).then(() => {
+    dispatch(fetchTradesAsync()).then(() => {
       setIsRefreshing(false);
       
       // Set a cooldown timer to prevent spam refreshing (5 seconds)
@@ -386,7 +372,7 @@ const Trades = ({ user }) => {
 
   // Quietly refresh active trades without UI indicators (for auto-refresh)
   const refreshActiveTradesQuietly = useCallback(() => {
-    dispatch(fetchActiveTradesAsync());
+    dispatch(fetchTradesAsync());
   }, [dispatch]);
 
   // Get status options based on the active tab
@@ -433,7 +419,7 @@ const Trades = ({ user }) => {
     if (isLoading) {
       return (
         <div className="trades-loading">
-          <div className="trades-spinner"></div>
+          <LoadingSpinner />
           <p>Loading your trades...</p>
         </div>
       );
@@ -514,7 +500,7 @@ const Trades = ({ user }) => {
                   <h3 className="trade-item-name">{trade.item?.name || "Unknown Item"}</h3>
                   <div className="trade-price">
                     <FontAwesomeIcon icon={faMoneyBillWave} />
-                    <span>${parseFloat(trade.item?.price || 0).toFixed(2)}</span>
+                    <span>${parseFloat(trade.price || 0).toFixed(2)}</span>
                   </div>
                   <div className="trade-participants">
                     <div className="trade-participant">
@@ -556,8 +542,11 @@ const Trades = ({ user }) => {
             onClick={refreshTrades} 
             disabled={isRefreshing}
           >
-            <FontAwesomeIcon icon={faSync} spin={isRefreshing} />
-            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            {isRefreshing ? (
+              <LoadingSpinner size="small" />
+            ) : (
+              <span>Refresh</span>
+            )}
           </button>
         </div>
         

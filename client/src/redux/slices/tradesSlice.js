@@ -109,6 +109,7 @@ export const fetchTrades = createAsyncThunk(
     }
   }
 );
+export const fetchTradesAsync = fetchTrades;
 
 export const fetchTradeDetails = createAsyncThunk(
   "trades/fetchTradeDetails",
@@ -222,6 +223,126 @@ export const updateTradeStatus = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.error || `Failed to ${action} trade`
+      );
+    }
+  }
+);
+
+export const fetchActiveTradesAsync = createAsyncThunk(
+  "trades/fetchActiveTrades",
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      // Check if we have cached active trades
+      const cachedActiveTrades = safeLocalStorage.getItem(
+        "cs2_marketplace_active_trades"
+      );
+      const cachedTimestamp = safeLocalStorage.getItem(
+        "cs2_marketplace_active_trades_timestamp"
+      );
+
+      // Calculate if the cache is still valid
+      const now = Date.now();
+      const cacheValid =
+        cachedTimestamp &&
+        now - parseInt(cachedTimestamp, 10) < CACHE_EXPIRATION;
+
+      // If we have valid cache, return it immediately
+      if (cachedActiveTrades && cacheValid) {
+        console.log(
+          "[tradesSlice] Loading active trades from localStorage cache"
+        );
+        return {
+          activeTrades: JSON.parse(cachedActiveTrades),
+          fromCache: true,
+        };
+      }
+
+      // Otherwise fetch from API
+      const response = await axios.get(`${API_URL}/trades/active`, {
+        withCredentials: true,
+      });
+
+      if (Array.isArray(response.data)) {
+        // Save to localStorage with timestamp
+        safeLocalStorage.setItem(
+          "cs2_marketplace_active_trades",
+          JSON.stringify(response.data)
+        );
+        safeLocalStorage.setItem(
+          "cs2_marketplace_active_trades_timestamp",
+          now.toString()
+        );
+
+        return {
+          activeTrades: response.data,
+          fromCache: false,
+        };
+      } else {
+        return rejectWithValue("Invalid response format from server");
+      }
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.error || "Failed to fetch active trades"
+      );
+    }
+  }
+);
+
+export const fetchTradeHistoryAsync = createAsyncThunk(
+  "trades/fetchTradeHistory",
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      // Check if we have cached history trades
+      const cachedHistoryTrades = safeLocalStorage.getItem(
+        "cs2_marketplace_history_trades"
+      );
+      const cachedTimestamp = safeLocalStorage.getItem(
+        "cs2_marketplace_history_trades_timestamp"
+      );
+
+      // Calculate if the cache is still valid
+      const now = Date.now();
+      const cacheValid =
+        cachedTimestamp &&
+        now - parseInt(cachedTimestamp, 10) < CACHE_EXPIRATION;
+
+      // If we have valid cache, return it immediately
+      if (cachedHistoryTrades && cacheValid) {
+        console.log(
+          "[tradesSlice] Loading history trades from localStorage cache"
+        );
+        return {
+          trades: JSON.parse(cachedHistoryTrades),
+          fromCache: true,
+        };
+      }
+
+      // Otherwise fetch from API
+      const response = await axios.get(`${API_URL}/trades/history`, {
+        withCredentials: true,
+      });
+
+      if (Array.isArray(response.data)) {
+        // Save to localStorage with timestamp
+        safeLocalStorage.setItem(
+          "cs2_marketplace_history_trades",
+          JSON.stringify(response.data)
+        );
+        safeLocalStorage.setItem(
+          "cs2_marketplace_history_trades_timestamp",
+          now.toString()
+        );
+
+        return {
+          trades: response.data,
+          fromCache: false,
+        };
+      } else {
+        return rejectWithValue("Invalid response format from server");
+      }
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.error || "Failed to fetch trade history"
       );
     }
   }
@@ -409,6 +530,44 @@ const tradesSlice = createSlice({
       .addCase(updateTradeStatus.rejected, (state, action) => {
         state.detailsLoading = false;
         state.error = action.payload || "Failed to update trade status";
+      })
+
+      // fetchActiveTradesAsync
+      .addCase(fetchActiveTradesAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchActiveTradesAsync.fulfilled, (state, action) => {
+        state.loading = false;
+        state.activeTrades = action.payload.activeTrades;
+        state.lastFetched = new Date().toISOString();
+
+        // Update stats
+        updateTradeStats(state);
+      })
+      .addCase(fetchActiveTradesAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || "Failed to fetch active trades";
+      })
+
+      // fetchTradeHistoryAsync
+      .addCase(fetchTradeHistoryAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchTradeHistoryAsync.fulfilled, (state, action) => {
+        state.loading = false;
+        state.historicalTrades = action.payload.trades;
+        state.lastFetched = new Date().toISOString();
+
+        // Recategorize trades
+        updateTradeCategories(state);
+        // Update stats
+        updateTradeStats(state);
+      })
+      .addCase(fetchTradeHistoryAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || "Failed to fetch trade history";
       });
   },
 });
@@ -469,3 +628,8 @@ export const selectTradesLoading = (state) => state.trades.loading;
 export const selectTradeDetailsLoading = (state) => state.trades.detailsLoading;
 export const selectTradesError = (state) => state.trades.error;
 export const selectTradeLastFetched = (state) => state.trades.lastFetched;
+export const selectTradeStatus = (state) => ({
+  loading: state.trades.loading,
+  lastFetched: state.trades.lastFetched,
+});
+export const selectTradeError = (state) => state.trades.error;

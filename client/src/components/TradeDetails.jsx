@@ -3,8 +3,6 @@ import axios from 'axios';
 import { formatCurrency, API_URL } from '../config/constants';
 import { Button, Spinner } from 'react-bootstrap';
 import toast from 'react-hot-toast';
-
-// Redux imports
 import { useSelector, useDispatch } from 'react-redux';
 import { 
   fetchTradeDetails, 
@@ -14,6 +12,16 @@ import {
   selectTradesError,
   resetCurrentTrade
 } from '../redux/slices/tradesSlice';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { formatDate } from '../utils/format';
+import { toast as toastifyToast } from 'react-toastify';
+import LoadingSpinner from './LoadingSpinner';
+
+// Redux imports
+import { 
+  selectCurrentUser
+} from '../redux/slices/authSlice';
 
 // Utility functions for trade status
 const getStatusText = (status) => {
@@ -441,6 +449,7 @@ const TradeDetails = ({ tradeId }) => {
   const trade = useSelector(selectCurrentTrade);
   const loading = useSelector(selectTradeDetailsLoading);
   const reduxError = useSelector(selectTradesError);
+  const currentUser = useSelector(state => state.auth.user);
 
   // Local UI state
   const [steamOfferUrl, setSteamOfferUrl] = useState('');
@@ -459,10 +468,25 @@ const TradeDetails = ({ tradeId }) => {
   const [assetId, setAssetId] = useState('');
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
+  const [actionInProgress, setActionInProgress] = useState(false);
+  const [actionError, setActionError] = useState(null);
   const retryAttempted = useRef(false);
   
   // Additional state for seller waiting status
   const sellerWaitingForBuyer = trade?.status === 'awaiting_buyer' && trade?.isUserSeller;
+
+  // Mock socket service until the real one is implemented
+  const mockSocketService = {
+    isConnected: () => false,
+    joinTradeRoom: () => {},
+    leaveTradeRoom: () => {},
+    subscribeToTradeUpdates: () => {},
+    unsubscribeFromTradeUpdates: () => {},
+    requestTradeRefresh: () => {},
+    onConnected: () => {},
+    off: () => {},
+    sendTradeUpdate: () => {}
+  };
 
   // Get current user information
   useEffect(() => {
@@ -570,7 +594,8 @@ const TradeDetails = ({ tradeId }) => {
     };
   }, [reduxError]);
 
-  // Add this near the top of your component, inside the TradeDetails function
+  /* 
+  // Socket integration code - commented out until socketService is implemented
   useEffect(() => {
     // Subscribe to trade updates via socket when component mounts
     if (tradeId && socketService && socketService.isConnected()) {
@@ -588,9 +613,9 @@ const TradeDetails = ({ tradeId }) => {
         socketService.unsubscribeFromTradeUpdates(tradeId);
       }
     };
-  }, [tradeId, socketService]);
+  }, [tradeId]);
 
-  // Add this effect to handle reconnection scenarios
+  // Socket reconnection handler
   useEffect(() => {
     const handleSocketConnect = () => {
       if (tradeId) {
@@ -615,8 +640,9 @@ const TradeDetails = ({ tradeId }) => {
       }
     };
   }, [tradeId, dispatch]);
+  */
 
-  // Enhance the handleStatusChange function to use sockets
+  // Handle status change
   const handleStatusChange = async (newStatus, data = {}) => {
     try {
       setActionInProgress(true);
@@ -628,7 +654,8 @@ const TradeDetails = ({ tradeId }) => {
         data
       })).unwrap();
       
-      // If successful, also send socket update for real-time notification
+      /* 
+      // Socket update - commented out until socketService is implemented
       if (result && socketService && socketService.isConnected()) {
         socketService.sendTradeUpdate(tradeId, newStatus, {
           status: result.trade?.status,
@@ -636,6 +663,7 @@ const TradeDetails = ({ tradeId }) => {
           username: currentUser?.displayName || currentUser?.username
         });
       }
+      */
       
       // Refresh trade details
       dispatch(fetchTradeDetails(tradeId));
