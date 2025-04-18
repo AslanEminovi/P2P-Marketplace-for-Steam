@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
+import apiClient from "../../services/axiosConfig";
 import { API_URL } from "../../config/constants";
 
 // Constants for localStorage keys (copied from Trades.jsx)
@@ -39,11 +39,12 @@ export const fetchTrades = createAsyncThunk(
   "trades/fetchTrades",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${API_URL}/trades`, {
-        withCredentials: true,
-      });
+      console.log("Fetching trades from:", `${API_URL}/trades/history`);
+      const response = await apiClient.get(`/trades/history`);
+      console.log("Trades API response:", response.data);
       return response.data;
     } catch (error) {
+      console.error("Fetch trades error:", error);
       return rejectWithValue(
         error.response?.data?.message || "Failed to fetch trades"
       );
@@ -55,9 +56,7 @@ export const fetchTradeById = createAsyncThunk(
   "trades/fetchTradeById",
   async (tradeId, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${API_URL}/trades/${tradeId}`, {
-        withCredentials: true,
-      });
+      const response = await apiClient.get(`/trades/${tradeId}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -71,9 +70,7 @@ export const createTrade = createAsyncThunk(
   "trades/createTrade",
   async (tradeData, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${API_URL}/trades`, tradeData, {
-        withCredentials: true,
-      });
+      const response = await apiClient.post("/trades", tradeData);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -87,11 +84,9 @@ export const updateTradeStatus = createAsyncThunk(
   "trades/updateTradeStatus",
   async ({ tradeId, status }, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(
-        `${API_URL}/trades/${tradeId}/status`,
-        { status },
-        { withCredentials: true }
-      );
+      const response = await apiClient.patch(`/trades/${tradeId}/status`, {
+        status,
+      });
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -105,11 +100,9 @@ export const cancelTrade = createAsyncThunk(
   "trades/cancelTrade",
   async ({ tradeId, reason }, { rejectWithValue }) => {
     try {
-      const response = await axios.put(
-        `${API_URL}/trades/${tradeId}/cancel`,
-        { reason },
-        { withCredentials: true }
-      );
+      const response = await apiClient.put(`/trades/${tradeId}/cancel`, {
+        reason,
+      });
 
       return { tradeId, response: response.data };
     } catch (error) {
@@ -124,11 +117,7 @@ export const sellerApproveTrade = createAsyncThunk(
   "trades/sellerApproveTrade",
   async (tradeId, { rejectWithValue }) => {
     try {
-      const response = await axios.put(
-        `${API_URL}/trades/${tradeId}/seller-approve`,
-        {},
-        { withCredentials: true }
-      );
+      const response = await apiClient.put(`/trades/${tradeId}/seller-approve`);
 
       return { tradeId, response: response.data };
     } catch (error) {
@@ -143,10 +132,8 @@ export const sellerInitiateTrade = createAsyncThunk(
   "trades/sellerInitiateTrade",
   async (tradeId, { rejectWithValue }) => {
     try {
-      const response = await axios.put(
-        `${API_URL}/trades/${tradeId}/seller-initiate`,
-        {},
-        { withCredentials: true }
+      const response = await apiClient.put(
+        `/trades/${tradeId}/seller-initiate`
       );
 
       return { tradeId, response: response.data };
@@ -162,11 +149,7 @@ export const buyerConfirmReceipt = createAsyncThunk(
   "trades/buyerConfirmReceipt",
   async (tradeId, { rejectWithValue }) => {
     try {
-      const response = await axios.put(
-        `${API_URL}/trades/${tradeId}/buyer-confirm`,
-        {},
-        { withCredentials: true }
-      );
+      const response = await apiClient.put(`/trades/${tradeId}/buyer-confirm`);
 
       return { tradeId, response: response.data };
     } catch (error) {
@@ -181,11 +164,9 @@ export const updateTradePriceThunk = createAsyncThunk(
   "trades/updateTradePriceThunk",
   async ({ tradeId, price }, { rejectWithValue }) => {
     try {
-      const response = await axios.put(
-        `${API_URL}/trades/${tradeId}/update-price`,
-        { price },
-        { withCredentials: true }
-      );
+      const response = await apiClient.put(`/trades/${tradeId}/update-price`, {
+        price,
+      });
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -199,11 +180,9 @@ export const sellerSentItem = createAsyncThunk(
   "trades/sellerSentItem",
   async ({ tradeId, steamOfferUrl }, { rejectWithValue }) => {
     try {
-      const response = await axios.put(
-        `${API_URL}/trades/${tradeId}/seller-sent`,
-        { steamOfferUrl },
-        { withCredentials: true }
-      );
+      const response = await apiClient.put(`/trades/${tradeId}/seller-sent`, {
+        steamOfferUrl,
+      });
 
       return { tradeId, response: response.data };
     } catch (error) {

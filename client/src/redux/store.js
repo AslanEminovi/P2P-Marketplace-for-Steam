@@ -47,7 +47,7 @@ export const store = configureStore({
         ],
       },
     }).concat(thunk, socketMiddleware),
-  devTools: process.env.NODE_ENV !== "production",
+  devTools: true, // Explicitly enable Redux DevTools
 });
 
 // Set up socket listeners to dispatch Redux actions
