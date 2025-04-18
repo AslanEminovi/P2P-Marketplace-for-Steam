@@ -10,7 +10,25 @@ import '../styles/Trades.css';
  * @param {boolean} props.statsLoading - Whether the stats are loading
  * @returns {JSX.Element}
  */
-const StatsCards = ({ stats, statsLoading }) => {
+const StatsCards = ({ stats = {}, statsLoading = {} }) => {
+  // Ensure stats has default values to prevent undefined errors
+  const safeStats = {
+    totalTrades: 0,
+    activeTrades: 0,
+    completedTrades: 0,
+    totalValue: 0,
+    ...stats
+  };
+
+  // Ensure statsLoading has default values
+  const safeLoading = {
+    totalTrades: true,
+    activeTrades: true,
+    completedTrades: true,
+    totalValue: true,
+    ...statsLoading
+  };
+
   return (
     <div className="trades-stats">
       <div className="trades-stat-card">
@@ -20,10 +38,10 @@ const StatsCards = ({ stats, statsLoading }) => {
         <div className="trades-stat-content">
           <div className="trades-stat-label">Total Trades</div>
           <div className="trades-stat-value">
-            {statsLoading.totalTrades ? (
+            {safeLoading.totalTrades ? (
               <div className="stats-loading"></div>
             ) : (
-              stats.totalTrades
+              safeStats.totalTrades
             )}
           </div>
         </div>
@@ -36,10 +54,10 @@ const StatsCards = ({ stats, statsLoading }) => {
         <div className="trades-stat-content">
           <div className="trades-stat-label">Active Trades</div>
           <div className="trades-stat-value">
-            {statsLoading.activeTrades ? (
+            {safeLoading.activeTrades ? (
               <div className="stats-loading"></div>
             ) : (
-              stats.activeTrades
+              safeStats.activeTrades
             )}
           </div>
         </div>
@@ -52,10 +70,10 @@ const StatsCards = ({ stats, statsLoading }) => {
         <div className="trades-stat-content">
           <div className="trades-stat-label">Completed Trades</div>
           <div className="trades-stat-value">
-            {statsLoading.completedTrades ? (
+            {safeLoading.completedTrades ? (
               <div className="stats-loading"></div>
             ) : (
-              stats.completedTrades
+              safeStats.completedTrades
             )}
           </div>
         </div>
@@ -68,10 +86,10 @@ const StatsCards = ({ stats, statsLoading }) => {
         <div className="trades-stat-content">
           <div className="trades-stat-label">Total Value</div>
           <div className="trades-stat-value">
-            {statsLoading.totalValue ? (
+            {safeLoading.totalValue ? (
               <div className="stats-loading"></div>
             ) : (
-              `$${stats.totalValue.toFixed(2)}`
+              `$${safeStats.totalValue?.toFixed(2) || '0.00'}`
             )}
           </div>
         </div>
