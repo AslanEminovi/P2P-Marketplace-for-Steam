@@ -195,6 +195,25 @@ export const updateTradePriceThunk = createAsyncThunk(
   }
 );
 
+export const sellerSentItem = createAsyncThunk(
+  "trades/sellerSentItem",
+  async ({ tradeId, steamOfferUrl }, { rejectWithValue }) => {
+    try {
+      const response = await axios.put(
+        `${API_URL}/trades/${tradeId}/seller-sent`,
+        { steamOfferUrl },
+        { withCredentials: true }
+      );
+
+      return { tradeId, response: response.data };
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.error || "Failed to mark item as sent"
+      );
+    }
+  }
+);
+
 // Create the trades slice
 const tradesSlice = createSlice({
   name: "trades",
@@ -643,6 +662,20 @@ const tradesSlice = createSlice({
         );
       })
       .addCase(updateTradePriceThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // Seller Sent Item
+      .addCase(sellerSentItem.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(sellerSentItem.fulfilled, (state, action) => {
+        state.loading = false;
+        // We don't directly update the trade here as we'll get a socket update
+      })
+      .addCase(sellerSentItem.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

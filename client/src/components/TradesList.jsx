@@ -61,27 +61,28 @@ const TradesList = () => {
               <div className="trade-parties">
                 <div className="trade-party">
                   <img 
-                    src={trade.sender.avatar || '/default-avatar.png'} 
-                    alt={trade.sender.username} 
+                    src={trade.seller?.avatar || '/default-avatar.png'} 
+                    alt={trade.seller?.displayName} 
                     className="trade-avatar" 
                   />
-                  <span>{trade.sender.username}</span>
+                  <span>{trade.seller?.displayName || 'Unknown Seller'}</span>
                 </div>
                 <div className="trade-direction">↔️</div>
                 <div className="trade-party">
                   <img 
-                    src={trade.receiver.avatar || '/default-avatar.png'} 
-                    alt={trade.receiver.username} 
+                    src={trade.buyer?.avatar || '/default-avatar.png'} 
+                    alt={trade.buyer?.displayName} 
                     className="trade-avatar" 
                   />
-                  <span>{trade.receiver.username}</span>
+                  <span>{trade.buyer?.displayName || 'Unknown Buyer'}</span>
                 </div>
               </div>
               <div className="trade-items-preview">
-                <div className="trade-items-count">
-                  <span>{trade.senderItems.length} items</span>
-                  <span>for</span>
-                  <span>{trade.receiverItems.length} items</span>
+                <div className="trade-item">
+                  <span className="item-name">{trade.item?.marketHashName || trade.itemName || 'Unknown Item'}</span>
+                  {trade.price && (
+                    <span className="item-price">${parseFloat(trade.price).toFixed(2)}</span>
+                  )}
                 </div>
               </div>
             </Link>

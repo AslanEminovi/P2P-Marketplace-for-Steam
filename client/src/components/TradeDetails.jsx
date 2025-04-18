@@ -1,9 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchTradeById, updateTradeStatus, updateTradePriceThunk } from '../redux/slices/tradesSlice';
+import { 
+  fetchTradeById, 
+  sellerApproveTrade, 
+  sellerInitiateTrade, 
+  buyerConfirmReceipt,
+  sellerSentItem,
+  cancelTrade,
+  updateTradePriceThunk 
+} from '../redux/slices/tradesSlice';
 import { formatDate } from '../utils/dateUtils';
 import LoadingSpinner from './LoadingSpinner';
+import '../styles/TradeDetails.css';
 
 const TradeDetails = () => {
   const { tradeId } = useParams();
@@ -17,6 +26,10 @@ const TradeDetails = () => {
   const [newPrice, setNewPrice] = useState('');
   const [updateError, setUpdateError] = useState('');
   const [updateLoading, setUpdateLoading] = useState(false);
+  
+  // State for Steam trade offer URL
+  const [steamOfferUrl, setSteamOfferUrl] = useState('');
+  const [offerError, setOfferError] = useState('');
 
   useEffect(() => {
     if (tradeId) {
@@ -34,6 +47,38 @@ const TradeDetails = () => {
   const handleStatusUpdate = (newStatus) => {
     if (window.confirm(`Are you sure you want to ${newStatus} this trade?`)) {
       dispatch(updateTradeStatus({ tradeId, status: newStatus }));
+    }
+  };
+
+  const handleCancel = () => {
+    if (window.confirm('Are you sure you want to cancel this trade?')) {
+      dispatch(cancelTrade({ tradeId, reason: 'Cancelled by user' }));
+    }
+  };
+  
+  const handleSellerApprove = () => {
+    if (window.confirm('Are you sure you want to approve this trade?')) {
+      dispatch(sellerApproveTrade(tradeId));
+    }
+  };
+  
+  const handleSellerSendItem = (e) => {
+    e.preventDefault();
+    setOfferError('');
+    
+    if (!steamOfferUrl) {
+      setOfferError('Please enter a valid Steam trade offer URL or ID');
+      return;
+    }
+    
+    if (window.confirm('Are you sure you want to mark this item as sent?')) {
+      dispatch(sellerSentItem({ tradeId, steamOfferUrl }));
+    }
+  };
+  
+  const handleBuyerConfirm = () => {
+    if (window.confirm('Are you sure you want to confirm receiving this item?')) {
+      dispatch(buyerConfirmReceipt(tradeId));
     }
   };
 
@@ -97,15 +142,17 @@ const TradeDetails = () => {
     );
   }
 
-  const isUserSender = currentTrade.sender?._id === user?._id;
-  const isUserReceiver = currentTrade.receiver?._id === user?._id;
-  const canAccept = isUserReceiver && currentTrade.status === 'pending';
-  const canCancel = 
-    (isUserSender && ['pending', 'accepted'].includes(currentTrade.status)) ||
-    (isUserReceiver && currentTrade.status === 'accepted');
+  const isUserSeller = currentTrade.seller?._id === user?._id;
+  const isUserBuyer = currentTrade.buyer?._id === user?._id;
+  
+  // Determine what actions are available based on trade status and user role
+  const canCancel = ['awaiting_seller', 'created', 'pending', 'accepted'].includes(currentTrade.status);
+  const canSellerApprove = isUserSeller && currentTrade.status === 'awaiting_seller';
+  const canSellerSend = isUserSeller && currentTrade.status === 'accepted';
+  const canBuyerConfirm = isUserBuyer && currentTrade.status === 'offer_sent';
     
   // Check if price can be updated - allowed statuses
-  const canUpdatePrice = (isUserSender || isUserReceiver) && 
+  const canUpdatePrice = (isUserSeller || isUserBuyer) && 
     ['awaiting_seller', 'created', 'pending', 'accepted'].includes(currentTrade.status);
 
   // Format price with currency symbol
@@ -120,17 +167,19 @@ const TradeDetails = () => {
         <button onClick={goBack} className="btn-back">
           ← Back to Trades
         </button>
-        <h1>Trade Details</h1>
-        <div className="trade-status-badge status-{currentTrade.status}">
-          {currentTrade.status.charAt(0).toUpperCase() + currentTrade.status.slice(1)}
+        <div className="trade-status-section">
+          <h1>Trade #{currentTrade._id.substring(0, 8)}</h1>
+          <div className={`trade-status-badge status-${currentTrade.status}`}>
+            {currentTrade.status.replace(/_/g, ' ').charAt(0).toUpperCase() + currentTrade.status.replace(/_/g, ' ').slice(1)}
+          </div>
         </div>
       </div>
 
       <div className="trade-info">
         <div className="trade-date-info">
           <p>Created: {formatDate(currentTrade.createdAt)}</p>
-          {currentTrade.updatedAt && (
-            <p>Last updated: {formatDate(currentTrade.updatedAt)}</p>
+          {currentTrade.completedAt && (
+            <p>Completed: {formatDate(currentTrade.completedAt)}</p>
           )}
           
           {/* Price information */}
@@ -169,168 +218,148 @@ const TradeDetails = () => {
 
         <div className="trade-parties-info">
           <div className="trade-party">
-            <h3>Sender</h3>
+            <h3>Seller</h3>
             <div className="user-info">
               <img 
-                src={currentTrade.sender?.avatar || '/default-avatar.png'} 
-                alt={currentTrade.sender?.username} 
+                src={currentTrade.seller?.avatar || '/default-avatar.png'} 
+                alt={currentTrade.seller?.displayName} 
                 className="user-avatar" 
               />
-              <span>{currentTrade.sender?.username}</span>
-              {isUserSender && <span className="user-indicator">(You)</span>}
+              <span>{currentTrade.seller?.displayName || 'Unknown'}</span>
+              {isUserSeller && <span className="user-indicator">(You)</span>}
             </div>
           </div>
 
           <div className="trade-party">
-            <h3>Receiver</h3>
+            <h3>Buyer</h3>
             <div className="user-info">
               <img 
-                src={currentTrade.receiver?.avatar || '/default-avatar.png'} 
-                alt={currentTrade.receiver?.username} 
+                src={currentTrade.buyer?.avatar || '/default-avatar.png'} 
+                alt={currentTrade.buyer?.displayName} 
                 className="user-avatar" 
               />
-              <span>{currentTrade.receiver?.username}</span>
-              {isUserReceiver && <span className="user-indicator">(You)</span>}
+              <span>{currentTrade.buyer?.displayName || 'Unknown'}</span>
+              {isUserBuyer && <span className="user-indicator">(You)</span>}
             </div>
           </div>
         </div>
 
-        <div className="trade-items-section">
-          <div className="trade-offering">
-            <h3>Sender is offering:</h3>
-            <div className="items-list">
-              {currentTrade.senderItems?.length > 0 ? (
-                currentTrade.senderItems.map((item) => (
-                  <div key={item._id} className="trade-item">
-                    <img 
-                      src={item.imageUrl || '/default-item.png'} 
-                      alt={item.name} 
-                      className="item-image" 
-                    />
-                    <div className="item-details">
-                      <h4>{item.name}</h4>
-                      <p>{item.description}</p>
-                      <p className="item-value">${item.value.toFixed(2)}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="no-items">No items offered</p>
-              )}
-            </div>
-          </div>
-
-          <div className="trade-requesting">
-            <h3>Receiver is offering:</h3>
-            <div className="items-list">
-              {currentTrade.receiverItems?.length > 0 ? (
-                currentTrade.receiverItems.map((item) => (
-                  <div key={item._id} className="trade-item">
-                    <img 
-                      src={item.imageUrl || '/default-item.png'} 
-                      alt={item.name} 
-                      className="item-image" 
-                    />
-                    <div className="item-details">
-                      <h4>{item.name}</h4>
-                      <p>{item.description}</p>
-                      <p className="item-value">${item.value.toFixed(2)}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="no-items">No items offered</p>
-              )}
+        <div className="trade-item-section">
+          <h3>Item Being Traded:</h3>
+          <div className="trade-item">
+            <img 
+              src={currentTrade.item?.imageUrl || currentTrade.itemImage || '/default-item.png'} 
+              alt={currentTrade.item?.marketHashName || currentTrade.itemName || 'Item'} 
+              className="item-image" 
+            />
+            <div className="item-details">
+              <h4>{currentTrade.item?.marketHashName || currentTrade.itemName || 'Unknown Item'}</h4>
+              {currentTrade.item?.wear && <p>Wear: {currentTrade.item.wear}</p>}
+              {currentTrade.item?.rarity && <p>Rarity: {currentTrade.item.rarity}</p>}
+              <p className="item-price">{formatPrice(currentTrade.price)}</p>
             </div>
           </div>
         </div>
 
-        {currentTrade.message && (
-          <div className="trade-message">
-            <h3>Message</h3>
-            <p>{currentTrade.message}</p>
+        {/* Status history */}
+        {currentTrade.statusHistory && currentTrade.statusHistory.length > 0 && (
+          <div className="status-history-section">
+            <h3>Status History</h3>
+            <ul className="status-history-list">
+              {currentTrade.statusHistory.map((entry, index) => (
+                <li key={index} className="status-history-item">
+                  <span className={`status-badge status-${entry.status}`}>
+                    {entry.status.replace(/_/g, ' ')}
+                  </span>
+                  <span className="status-timestamp">{formatDate(entry.timestamp)}</span>
+                  {entry.note && <span className="status-note">{entry.note}</span>}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
+        {/* Trade actions */}
         <div className="trade-actions">
-          {canAccept && (
-            <button 
-              onClick={() => handleStatusUpdate('accepted')} 
-              className="btn-accept"
-            >
-              Accept Trade
-            </button>
-          )}
-          {isUserReceiver && currentTrade.status === 'pending' && (
-            <button 
-              onClick={() => handleStatusUpdate('declined')} 
-              className="btn-decline"
-            >
-              Decline Trade
-            </button>
-          )}
           {canCancel && (
-            <button 
-              onClick={() => handleStatusUpdate('cancelled')} 
-              className="btn-cancel"
-            >
+            <button className="btn-cancel" onClick={handleCancel}>
               Cancel Trade
             </button>
           )}
-          {currentTrade.status === 'accepted' && (
-            <button 
-              onClick={() => handleStatusUpdate('completed')} 
-              className="btn-complete"
-            >
-              Mark as Completed
+          
+          {canSellerApprove && (
+            <button className="btn-approve" onClick={handleSellerApprove}>
+              Approve Trade
+            </button>
+          )}
+          
+          {canSellerSend && (
+            <div className="send-item-form">
+              <h3>Send Item to Buyer</h3>
+              <form onSubmit={handleSellerSendItem}>
+                <div className="form-group">
+                  <label htmlFor="steamOfferUrl">Steam Trade Offer URL or ID:</label>
+                  <input
+                    type="text"
+                    id="steamOfferUrl"
+                    value={steamOfferUrl}
+                    onChange={(e) => setSteamOfferUrl(e.target.value)}
+                    placeholder="https://steamcommunity.com/tradeoffer/new/... or just the ID"
+                  />
+                  {offerError && <p className="error-message">{offerError}</p>}
+                </div>
+                <button type="submit" className="btn-send">Mark Item as Sent</button>
+              </form>
+            </div>
+          )}
+          
+          {canBuyerConfirm && (
+            <button className="btn-confirm" onClick={handleBuyerConfirm}>
+              Confirm Item Received
             </button>
           )}
         </div>
-      </div>
-      
-      {/* Price Update Modal */}
-      {showPriceModal && (
-        <div className="modal-backdrop">
-          <div className="price-update-modal">
-            <h3>Update Trade Price</h3>
-            <form onSubmit={handleUpdatePrice}>
-              <div className="form-group">
-                <label htmlFor="price">Price ($):</label>
-                <input
-                  type="number"
-                  id="price"
-                  value={newPrice}
-                  onChange={(e) => setNewPrice(e.target.value)}
-                  step="0.01"
-                  min="0.01"
-                  required
-                  disabled={updateLoading}
-                />
-              </div>
-              
-              {updateError && <p className="error-message">{updateError}</p>}
-              
-              <div className="modal-buttons">
-                <button 
-                  type="button" 
-                  className="btn-cancel"
-                  onClick={() => setShowPriceModal(false)}
-                  disabled={updateLoading}
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="btn-update"
-                  disabled={updateLoading}
-                >
-                  {updateLoading ? 'Updating...' : 'Update Price'}
-                </button>
-              </div>
-            </form>
+
+        {/* Price update modal */}
+        {showPriceModal && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <h3>Update Trade Price</h3>
+              <form onSubmit={handleUpdatePrice}>
+                <div className="form-group">
+                  <label htmlFor="newPrice">New Price:</label>
+                  <input
+                    type="number"
+                    id="newPrice"
+                    value={newPrice}
+                    onChange={(e) => setNewPrice(e.target.value)}
+                    step="0.01"
+                    min="0.01"
+                  />
+                  {updateError && <p className="error-message">{updateError}</p>}
+                </div>
+                <div className="modal-actions">
+                  <button 
+                    type="button" 
+                    className="btn-cancel" 
+                    onClick={() => setShowPriceModal(false)}
+                    disabled={updateLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="btn-update"
+                    disabled={updateLoading}
+                  >
+                    {updateLoading ? 'Updating...' : 'Update Price'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
