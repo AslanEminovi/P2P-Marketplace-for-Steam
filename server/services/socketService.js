@@ -909,36 +909,6 @@ const startPeriodicStatusBroadcasts = () => {
   }, 15000); // Every 15 seconds (reduced from 30 seconds)
 };
 
-/**
- * Broadcast a trade price update to all connected clients
- * @param {Object} data - Trade price update data
- * @returns {boolean} - Success status
- */
-const broadcastTradePriceUpdate = (data) => {
-  try {
-    // Check if userStatusManager is available
-    if (!userStatusManager) {
-      console.error(
-        "UserStatusManager not available for broadcastTradePriceUpdate"
-      );
-      return false;
-    }
-
-    // Validate data
-    if (!data || !data.tradeId || data.newPrice === undefined) {
-      console.error("Invalid trade price update data:", data);
-      return false;
-    }
-
-    // Use the UserStatusManager to broadcast the price update
-    userStatusManager.broadcastTradePriceUpdate(data);
-    return true;
-  } catch (error) {
-    console.error("Error in broadcastTradePriceUpdate:", error);
-    return false;
-  }
-};
-
 module.exports = {
   init,
   broadcastStats,
@@ -951,5 +921,4 @@ module.exports = {
   emitUserActivity,
   sendNotification,
   broadcastUserStatusChange,
-  broadcastTradePriceUpdate,
 };

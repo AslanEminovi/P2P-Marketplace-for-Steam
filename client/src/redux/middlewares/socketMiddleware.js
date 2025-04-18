@@ -2,7 +2,6 @@ import socketService from "../../services/socketService";
 import { addNotification } from "../slices/notificationsSlice";
 import { updateListingLocally } from "../slices/listingsSlice";
 import { updateStats } from "../slices/statsSlice";
-import { updateTradeStatus, updateTradePrice } from "../slices/tradesSlice";
 
 // Socket middleware to connect Socket.io events with Redux
 const socketMiddleware = (store) => {
@@ -81,17 +80,6 @@ const socketMiddleware = (store) => {
         }
         break;
 
-      // Trades
-      case "trades/cancelTrade/fulfilled":
-      case "trades/sellerApproveTrade/fulfilled":
-      case "trades/sellerInitiateTrade/fulfilled":
-      case "trades/buyerConfirmReceipt/fulfilled":
-        // These actions affect stats, request an update
-        if (socketService.requestStatsUpdate) {
-          socketService.requestStatsUpdate();
-        }
-        break;
-
       default:
         // Do nothing for other actions
         break;
@@ -165,90 +153,6 @@ export const setupSocketListeners = (store) => {
     socketService.socket.on("stats_update", (stats) => {
       console.log("[socketMiddleware] Received stats update:", stats);
       store.dispatch(updateStats(stats));
-    });
-
-    // Handle trade updates
-    socketService.socket.on("trade_update", (update) => {
-      console.log("[socketMiddleware] Received trade update:", update);
-
-      // Update the trade status in Redux
-      if (update.tradeId && update.status) {
-        store.dispatch(
-          updateTradeStatus({
-            tradeId: update.tradeId,
-            status: update.status,
-            statusHistory: update.statusHistory,
-          })
-        );
-      }
-
-      // Request fresh stats after trade updates
-      if (socketService.requestStatsUpdate) {
-        setTimeout(() => socketService.requestStatsUpdate(), 100);
-      }
-    });
-
-    // Handle trade price updates
-    socketService.socket.on("trade_price_update", (update) => {
-      console.log("[socketMiddleware] Received trade price update:", update);
-
-      if (update.tradeId && update.newPrice !== undefined) {
-        store.dispatch(
-          updateTradePrice({
-            tradeId: update.tradeId,
-            newPrice: update.newPrice,
-            previousPrice: update.previousPrice || 0,
-            updatedBy: update.updatedBy || "system",
-          })
-        );
-
-        // Add a notification about the price change
-        if (update.notification !== false) {
-          store.dispatch(
-            addNotification({
-              type: "trade_price_change",
-              title: "Trade Price Updated",
-              message: `The price for trade #${update.tradeId.substring(
-                0,
-                8
-              )} has been updated to ${update.newPrice}`,
-              tradeId: update.tradeId,
-              createdAt: new Date().toISOString(),
-              read: false,
-              data: {
-                tradeId: update.tradeId,
-                newPrice: update.newPrice,
-                previousPrice: update.previousPrice,
-              },
-            })
-          );
-        }
-
-        // Request fresh stats after price update
-        if (socketService.requestStatsUpdate) {
-          setTimeout(() => socketService.requestStatsUpdate(), 100);
-        }
-      }
-    });
-
-    // Handle tradeStatusUpdate event (specific to this app)
-    socketService.socket.on("tradeStatusUpdate", (data) => {
-      console.log("[socketMiddleware] Received trade status update:", data);
-
-      if (data.tradeId) {
-        store.dispatch(
-          updateTradeStatus({
-            tradeId: data.tradeId,
-            status: data.status,
-            statusHistory: data.statusHistory,
-          })
-        );
-
-        // Request fresh stats
-        if (socketService.requestStatsUpdate) {
-          setTimeout(() => socketService.requestStatsUpdate(), 100);
-        }
-      }
     });
 
     // Request initial stats update
