@@ -2,6 +2,10 @@ import socketService from "../../services/socketService";
 import { addNotification } from "../slices/notificationsSlice";
 import { updateListingLocally } from "../slices/listingsSlice";
 import { updateStats } from "../slices/statsSlice";
+import {
+  socketTradeUpdate,
+  updateLocalTradeStatus,
+} from "../slices/tradesSlice";
 
 // Socket middleware to connect Socket.io events with Redux
 const socketMiddleware = (store) => {
@@ -80,6 +84,20 @@ const socketMiddleware = (store) => {
         }
         break;
 
+      // Trades
+      case "trades/updateTradeStatus/fulfilled":
+        // When we update a trade status, we could notify other clients through socket
+        if (socketService.isConnected() && action.payload?.tradeId) {
+          socketService.emit("trade_update", {
+            type: "status_update",
+            tradeId: action.payload.tradeId,
+            status: action.payload.result?.trade?.status,
+            timestamp: new Date().toISOString(),
+            action: action.payload.action,
+          });
+        }
+        break;
+
       default:
         // Do nothing for other actions
         break;
@@ -133,6 +151,25 @@ export const setupSocketListeners = (store) => {
       // Request fresh stats after any market update
       if (socketService.requestStatsUpdate) {
         setTimeout(() => socketService.requestStatsUpdate(), 100);
+      }
+    });
+
+    // Handle trade updates
+    socketService.socket.on("trade_update", (update) => {
+      console.log("[socketMiddleware] Received trade update:", update);
+
+      // Dispatch to Redux store to update trade state
+      store.dispatch(socketTradeUpdate(update));
+
+      // If update includes status change, also update local status
+      if (update.tradeId && update.status) {
+        store.dispatch(
+          updateLocalTradeStatus({
+            tradeId: update.tradeId,
+            status: update.status,
+            statusHistory: update.statusHistory,
+          })
+        );
       }
     });
 
