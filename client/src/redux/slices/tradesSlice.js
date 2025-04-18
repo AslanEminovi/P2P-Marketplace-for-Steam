@@ -109,7 +109,6 @@ export const fetchTrades = createAsyncThunk(
     }
   }
 );
-export const fetchTradesAsync = fetchTrades;
 
 export const fetchTradeDetails = createAsyncThunk(
   "trades/fetchTradeDetails",
@@ -686,12 +685,8 @@ export const selectTradeStatus = (state) => ({
 });
 export const selectTradeError = (state) => state.trades.error;
 
-export {
-  fetchTradesAsync,
-  fetchTradeDetails,
-  fetchActiveTradesAsync,
-  fetchTradeHistoryAsync,
-  clearCancelledTradesAsync,
-  resetTradeError,
-  // ... other exports ...
-};
+// Re-add the alias export for fetchTradesAsync
+export const fetchTradesAsync = fetchTrades;
+
+// Export resetTradeError directly
+export const resetTradeError = clearTradeError;
