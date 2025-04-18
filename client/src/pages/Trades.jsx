@@ -385,7 +385,7 @@ const Trades = ({ user }) => {
             <p>You don't have any active trades at the moment.</p>
             <Link to="/marketplace" className="marketplace-browse-button">
               <FontAwesomeIcon icon={faStore} />
-              Browse Marketplace
+              <span>Browse Marketplace</span>
             </Link>
           </div>
         </Fade>

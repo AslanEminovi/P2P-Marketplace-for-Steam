@@ -1,0 +1,95 @@
+/* Update the hero-button secondary to match the marketplace-browse-button styling */
+.hero-button.secondary {
+  background: rgba(22, 27, 34, 0.5);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+.hero-button.secondary svg {
+  font-size: 0.85rem;
+  color: var(--accent-color);
+}
+
+.hero-button.secondary span {
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 700;
+}
+
+.hero-button.secondary:hover {
+  background: rgba(22, 27, 34, 0.7);
+  border-color: var(--accent-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Update the view-all-button to match the marketplace-browse-button styling */
+.view-all-button {
+  background: rgba(22, 27, 34, 0.5);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.view-all-button svg {
+  font-size: 0.85rem;
+  color: var(--accent-color);
+  transition: transform 0.3s ease;
+}
+
+.view-all-button span {
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 700;
+}
+
+.view-all-button::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(56, 139, 253, 0.1);
+  transform: translateX(-100%);
+  transition: transform 0.4s ease;
+}
+
+.view-all-button:hover {
+  background: rgba(22, 27, 34, 0.7);
+  border-color: var(--accent-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.view-all-button:hover svg {
+  transform: translateX(3px);
+}
+
+.view-all-button:hover::after {
+  transform: translateX(0);
+}
+
+/* Add the same styling to buy-now-button */
+.buy-now-button span {
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 700;
+} 
