@@ -332,8 +332,8 @@ const TradeItemDetails = ({ item, trade, price }) => {
           <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
           <line x1="12" y1="22.08" x2="12" y2="12"></line>
         </svg>
-        Item Details
-      </h3>
+          Item Details
+        </h3>
       
       <div className="trade-item-container">
         <div className="trade-item-image-container">
@@ -363,7 +363,7 @@ const TradeItemDetails = ({ item, trade, price }) => {
           {itemData.float && (
             <div className="trade-item-float">
               Float: {parseFloat(itemData.float).toFixed(10)}
-            </div>
+          </div>
           )}
           
           <div className="trade-item-properties">
@@ -371,14 +371,14 @@ const TradeItemDetails = ({ item, trade, price }) => {
               <div className="trade-item-property">
                 <span className="trade-item-property-label">Wear:</span>
                 <span className="trade-item-property-value">{itemData.wear}</span>
-              </div>
+        </div>
             )}
             
             {itemData.rarity && (
               <div className="trade-item-property">
                 <span className="trade-item-property-label">Rarity:</span>
                 <span className="trade-item-property-value">{itemData.rarity}</span>
-              </div>
+        </div>
             )}
             
             {itemData.paintSeed && (
@@ -409,8 +409,8 @@ const TradeHeader = ({ trade, userRoles }) => {
     <div className="trade-details-header">
       <div>
         <div className="trade-details-id">Trade #{trade._id}</div>
-      </div>
-      
+          </div>
+          
       <div className="trade-details-status-wrapper">
         <div className="trade-details-date">
           {new Date(trade.createdAt).toLocaleDateString('en-US', { 
@@ -429,7 +429,7 @@ const TradeHeader = ({ trade, userRoles }) => {
         }}>
           {getStatusIcon(trade.status)}
           {getStatusText(trade.status)}
-        </div>
+            </div>
       </div>
     </div>
   );
@@ -570,6 +570,85 @@ const TradeDetails = ({ tradeId }) => {
     };
   }, [reduxError]);
 
+  // Add this near the top of your component, inside the TradeDetails function
+  useEffect(() => {
+    // Subscribe to trade updates via socket when component mounts
+    if (tradeId && socketService && socketService.isConnected()) {
+      socketService.joinTradeRoom(tradeId);
+      socketService.subscribeToTradeUpdates(tradeId);
+      
+      // Force refresh cache data to ensure we have latest
+      socketService.requestTradeRefresh(tradeId);
+    }
+    
+    // Return cleanup function
+    return () => {
+      if (tradeId && socketService && socketService.isConnected()) {
+        socketService.leaveTradeRoom(tradeId);
+        socketService.unsubscribeFromTradeUpdates(tradeId);
+      }
+    };
+  }, [tradeId, socketService]);
+
+  // Add this effect to handle reconnection scenarios
+  useEffect(() => {
+    const handleSocketConnect = () => {
+      if (tradeId) {
+        console.log(`[TradeDetails] Socket reconnected, rejoining trade room for ${tradeId}`);
+        socketService.joinTradeRoom(tradeId);
+        socketService.subscribeToTradeUpdates(tradeId);
+        socketService.requestTradeRefresh(tradeId);
+        
+        // Refresh trade data after reconnection
+        dispatch(fetchTradeDetails(tradeId));
+      }
+    };
+    
+    if (socketService) {
+      socketService.onConnected(handleSocketConnect);
+    }
+    
+    return () => {
+      if (socketService) {
+        // Clean up event listener
+        socketService.off('connect', handleSocketConnect);
+      }
+    };
+  }, [tradeId, dispatch]);
+
+  // Enhance the handleStatusChange function to use sockets
+  const handleStatusChange = async (newStatus, data = {}) => {
+    try {
+      setActionInProgress(true);
+      
+      // Update status through API
+      const result = await dispatch(updateTradeStatus({
+        tradeId,
+        action: newStatus,
+        data
+      })).unwrap();
+      
+      // If successful, also send socket update for real-time notification
+      if (result && socketService && socketService.isConnected()) {
+        socketService.sendTradeUpdate(tradeId, newStatus, {
+          status: result.trade?.status,
+          userId: currentUser?._id,
+          username: currentUser?.displayName || currentUser?.username
+        });
+      }
+      
+      // Refresh trade details
+      dispatch(fetchTradeDetails(tradeId));
+      setActionInProgress(false);
+      
+      return result;
+    } catch (error) {
+      setActionInProgress(false);
+      setActionError(error.message || 'Failed to update trade status');
+      return null;
+    }
+  };
+
   const handleSellerApprove = async () => {
     try {
       setApproveLoading(true);
@@ -592,9 +671,9 @@ const TradeDetails = ({ tradeId }) => {
   const handleSellerConfirmSent = async () => {
     if (!steamOfferUrl.trim()) {
       toast.error('Please enter a valid Steam trade offer ID or URL');
-      return;
-    }
-
+        return;
+      }
+      
     try {
       setSendingLoading(true);
       
@@ -647,14 +726,14 @@ const TradeDetails = ({ tradeId }) => {
       
       if (response.data.itemInSellerInventory) {
         toast.warning('The item is still in the seller\'s inventory');
-      } else {
+        } else {
         toast.success('The item appears to have been transferred');
       }
     } catch (err) {
       console.error('Error checking inventory:', err);
       toast.error(err.response?.data?.error || 'Failed to check inventory');
-      setInventoryCheckResult({
-        success: false,
+        setInventoryCheckResult({
+          success: false,
         message: err.response?.data?.error || 'Failed to check inventory',
         tradeOffersLink: 'https://steamcommunity.com/my/tradeoffers'
       });
@@ -672,8 +751,8 @@ const TradeDetails = ({ tradeId }) => {
         data: { reason: cancelReason }
       })).unwrap();
       
-      toast.success('Trade cancelled successfully');
-      setCancelReason('');
+          toast.success('Trade cancelled successfully');
+        setCancelReason('');
     } catch (err) {
       console.error('Error cancelling trade:', err);
       toast.error(err?.message || 'Failed to cancel trade');
@@ -693,7 +772,7 @@ const TradeDetails = ({ tradeId }) => {
         {/* Seller actions */}
         {isSeller && trade.status === 'awaiting_seller' && (
           <>
-            <button 
+                  <button
               className="trade-action-button trade-action-button-secondary"
               onClick={handleCheckInventory}
               disabled={inventoryCheckLoading}
@@ -701,39 +780,39 @@ const TradeDetails = ({ tradeId }) => {
               {inventoryCheckLoading ? (
                 <>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
-                    <circle cx="12" cy="12" r="10"></circle>
+                          <circle cx="12" cy="12" r="10"></circle>
                     <path d="M16 12a4 4 0 1 1-8 0"></path>
-                  </svg>
+                        </svg>
                   Checking...
-                </>
-              ) : (
-                <>
+                      </>
+                    ) : (
+                      <>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                     <polyline points="15 3 21 3 21 9"></polyline>
                     <line x1="10" y1="14" x2="21" y2="3"></line>
-                  </svg>
+                        </svg>
                   Verify Inventory
-                </>
-              )}
-            </button>
-            
+                      </>
+                    )}
+                  </button>
+
             <div style={{ flex: 1 }}></div>
             
-            <button 
+              <button
               className="trade-action-button trade-action-button-danger"
               onClick={() => handleCancelTrade('Seller cancelled the trade')}
               disabled={approveLoading}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="15" y1="9" x2="9" y2="15"></line>
-                <line x1="9" y1="9" x2="15" y2="15"></line>
-              </svg>
-              Cancel Trade
-            </button>
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="15" y1="9" x2="9" y2="15"></line>
+                  <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+                Cancel Trade
+              </button>
             
-            <button 
+                  <button
               className="trade-action-button trade-action-button-primary"
               onClick={handleSellerApprove}
               disabled={approveLoading}
@@ -745,23 +824,23 @@ const TradeDetails = ({ tradeId }) => {
                     <path d="M16 12a4 4 0 1 1-8 0"></path>
                   </svg>
                   Processing...
-                </>
-              ) : (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      </>
+                    ) : (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
+                        </svg>
                   Approve Trade
-                </>
-              )}
-            </button>
+                      </>
+                    )}
+                  </button>
           </>
         )}
         
         {/* Buyer actions */}
         {isBuyer && trade.status === 'awaiting_buyer' && (
           <>
-            <button 
+                <button
               className="trade-action-button trade-action-button-danger"
               onClick={() => handleCancelTrade('Buyer cancelled the trade')}
               disabled={confirmLoading}
@@ -776,32 +855,32 @@ const TradeDetails = ({ tradeId }) => {
             
             <button 
               className="trade-action-button trade-action-button-primary"
-              onClick={handleBuyerConfirm}
+                  onClick={handleBuyerConfirm}
               disabled={confirmLoading}
-            >
-              {confirmLoading ? (
-                <>
+                >
+                  {confirmLoading ? (
+                    <>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
                     <circle cx="12" cy="12" r="10"></circle>
                     <path d="M16 12a4 4 0 1 1-8 0"></path>
                   </svg>
-                  Processing...
-                </>
-              ) : (
-                <>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
+                      </svg>
                   Confirm Receipt
-                </>
-              )}
-            </button>
+                    </>
+                  )}
+                </button>
           </>
         )}
       </div>
     );
   };
-  
+
   const renderStatusMessage = () => {
     if (!trade) return null;
     
@@ -836,18 +915,18 @@ const TradeDetails = ({ tradeId }) => {
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
                 <line x1="12" y1="9" x2="12" y2="13"></line>
                 <line x1="12" y1="17" x2="12.01" y2="17"></line>
-              </svg>
+                    </svg>
             ) : (
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-              </svg>
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                  </svg>
             )}
-          </div>
+                </div>
           <div className="trade-status-message-text">{statusMessage}</div>
-        </div>
-      </div>
+              </div>
+            </div>
     );
   };
   
@@ -862,10 +941,10 @@ const TradeDetails = ({ tradeId }) => {
             <circle cx="9" cy="7" r="4"></circle>
             <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
             <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
+                  </svg>
           Trade Participants
-        </h3>
-        
+                </h3>
+                
         <div className="trade-participants-container">
           {/* Buyer Card */}
           <div className="trade-participant-card">
@@ -879,7 +958,7 @@ const TradeDetails = ({ tradeId }) => {
                     e.target.src = '/default-avatar.png';
                   }}
                 />
-              </div>
+                </div>
               <div className="trade-participant-info">
                 <div className="trade-participant-role">Buyer {isBuyer && '(You)'}</div>
                 <div className="trade-participant-name">{trade.buyer?.displayName || 'Unknown Buyer'}</div>
@@ -890,14 +969,14 @@ const TradeDetails = ({ tradeId }) => {
               <div className="trade-participant-detail">
                 <span className="trade-participant-detail-label">Steam ID:</span>
                 <span className="trade-participant-detail-value">{trade.buyer?.steamId || 'N/A'}</span>
-              </div>
-              
+          </div>
+          
               <div className="trade-participant-detail">
                 <span className="trade-participant-detail-label">Trade URL:</span>
                 <span className="trade-participant-detail-value">
                   {trade.buyerTradeUrl ? 'Set' : 'Not Set'}
                 </span>
-              </div>
+        </div>
               
               <div className="trade-participant-detail">
                 <span className="trade-participant-detail-label">Joined:</span>
@@ -926,9 +1005,9 @@ const TradeDetails = ({ tradeId }) => {
               <div className="trade-participant-info">
                 <div className="trade-participant-role">Seller {isSeller && '(You)'}</div>
                 <div className="trade-participant-name">{trade.seller?.displayName || 'Unknown Seller'}</div>
+                </div>
               </div>
-            </div>
-            
+              
             <div className="trade-participant-details">
               <div className="trade-participant-detail">
                 <span className="trade-participant-detail-label">Steam ID:</span>
@@ -940,8 +1019,8 @@ const TradeDetails = ({ tradeId }) => {
                 <span className="trade-participant-detail-value">
                   {trade.sellerTradeUrl ? 'Set' : 'Not Set'}
                 </span>
-              </div>
-              
+                        </div>
+                        
               <div className="trade-participant-detail">
                 <span className="trade-participant-detail-label">Joined:</span>
                 <span className="trade-participant-detail-value">
@@ -949,11 +1028,11 @@ const TradeDetails = ({ tradeId }) => {
                     ? new Date(trade.seller.createdAt).toLocaleDateString() 
                     : 'N/A'}
                 </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+                          </div>
+                            </div>
+                            </div>
+                          </div>
+                        </div>
     );
   };
 
@@ -964,8 +1043,8 @@ const TradeDetails = ({ tradeId }) => {
         <div className="trade-details-loading">
           <div className="trade-details-loading-spinner"></div>
           <div className="trade-details-loading-text">Loading trade details...</div>
-        </div>
-      </div>
+                      </div>
+                  </div>
     );
   }
 
@@ -977,10 +1056,10 @@ const TradeDetails = ({ tradeId }) => {
           <div className="trade-status-message-content">
             <div className="trade-status-message-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
+                    <circle cx="12" cy="12" r="10"></circle>
                 <line x1="12" y1="8" x2="12" y2="12"></line>
                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
-              </svg>
+                  </svg>
             </div>
             <div className="trade-status-message-text">
               {error}
@@ -991,10 +1070,10 @@ const TradeDetails = ({ tradeId }) => {
               >
                 Try Again
               </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
     );
   }
 
@@ -1006,18 +1085,18 @@ const TradeDetails = ({ tradeId }) => {
           <div className="trade-status-message-content">
             <div className="trade-status-message-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="10"></circle>
                 <line x1="12" y1="8" x2="12" y2="12"></line>
                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
-              </svg>
-            </div>
+                      </svg>
+              </div>
             <div className="trade-status-message-text">
               Trade not found or you don't have permission to view it.
             </div>
           </div>
         </div>
-      </div>
-    );
+    </div>
+  );
   }
 
   // Render trade details

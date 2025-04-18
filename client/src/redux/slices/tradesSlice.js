@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import { API_URL } from "../../config/constants";
-import { getCachedItem, setCachedItem } from "../../utils/cacheUtils";
 
 // Constants for localStorage keys (brought from Trades.jsx)
 const TRADES_STORAGE_KEY = "cs2_marketplace_trades";
@@ -49,7 +48,6 @@ const initialState = {
   currentTrade: null,
   loading: false,
   detailsLoading: false,
-  statsLoading: false,
   error: null,
   stats: {
     totalTrades: 0,
@@ -148,23 +146,6 @@ export const fetchTradeDetails = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.error || "Failed to fetch trade details"
-      );
-    }
-  }
-);
-
-export const fetchTradeStats = createAsyncThunk(
-  "trades/fetchTradeStats",
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await axios.get(`${API_URL}/trades/stats`, {
-        withCredentials: true,
-      });
-
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || "Failed to fetch trade statistics"
       );
     }
   }
@@ -392,20 +373,6 @@ const tradesSlice = createSlice({
         state.error = action.payload || "Failed to fetch trade details";
       })
 
-      // fetchTradeStats
-      .addCase(fetchTradeStats.pending, (state) => {
-        state.statsLoading = true;
-        state.error = null;
-      })
-      .addCase(fetchTradeStats.fulfilled, (state, action) => {
-        state.statsLoading = false;
-        state.stats = action.payload;
-      })
-      .addCase(fetchTradeStats.rejected, (state, action) => {
-        state.statsLoading = false;
-        state.error = action.payload || "Failed to fetch trade statistics";
-      })
-
       // updateTradeStatus
       .addCase(updateTradeStatus.pending, (state) => {
         state.detailsLoading = true;
@@ -494,7 +461,6 @@ export default tradesSlice.reducer;
 
 // Selectors
 export const selectAllTrades = (state) => state.trades.trades;
-export const selectTrades = (state) => state.trades.trades;
 export const selectActiveTrades = (state) => state.trades.activeTrades;
 export const selectHistoricalTrades = (state) => state.trades.historicalTrades;
 export const selectCurrentTrade = (state) => state.trades.currentTrade;
@@ -502,6 +468,4 @@ export const selectTradeStats = (state) => state.trades.stats;
 export const selectTradesLoading = (state) => state.trades.loading;
 export const selectTradeDetailsLoading = (state) => state.trades.detailsLoading;
 export const selectTradesError = (state) => state.trades.error;
-export const selectTradeError = (state) => state.trades.error;
 export const selectTradeLastFetched = (state) => state.trades.lastFetched;
-export const selectStatsLoading = (state) => state.trades.statsLoading;

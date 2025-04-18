@@ -1,27 +1,34 @@
 const express = require("express");
 const router = express.Router();
 const tradeController = require("../controllers/tradeController");
-const requireAuth = require("../middleware/requireAuth");
+const auth = require("../middleware/auth");
 const mongoose = require("mongoose");
 
-// All trade routes require authentication
-router.use(requireAuth);
+// Apply auth middleware to all trade routes
+router.use(auth);
 
-// Get user's trade history
-router.get("/history", tradeController.getTradeHistory);
+// Get user trades with Redis caching
+router.get("/history", tradeController.getUserTrades);
 
-// Get specific trade details
-router.get("/:tradeId", tradeController.getTradeDetails);
+// Get trade details with Redis caching
+router.get("/:tradeId", tradeController.getTradeById);
+
+// Get trade stats with Redis caching
+router.get("/stats", tradeController.getTradeStats);
+
+// Standard trade operations
+router.post("/create", tradeController.createTrade);
+router.put("/:tradeId/update-status", tradeController.updateTradeStatus);
+router.get("/:tradeId/verify-inventory", tradeController.verifyInventory);
+router.put("/:tradeId/seller-initiate", tradeController.sellerInitiate);
+router.put("/:tradeId/buyer-confirm", tradeController.buyerConfirmReceipt);
+router.put("/:tradeId/cancel", tradeController.cancelTrade);
 
 // Seller approves the trade
 router.put("/:tradeId/seller-approve", tradeController.sellerApproveTrade);
 
 // Seller sent item via Steam trade
 router.put("/:tradeId/seller-sent", tradeController.sellerSentItem);
-
-// New P2P trading flow routes
-// Seller initiates the trade process
-router.put("/:tradeId/seller-initiate", tradeController.sellerInitiate);
 
 // Alternative simplified route for seller initiation
 router.put(
@@ -32,23 +39,11 @@ router.put(
 // Seller manually confirms they've sent the trade offer
 router.put("/:tradeId/seller-sent-manual", tradeController.sellerSentManual);
 
-// Verify item in buyer's inventory
-router.get("/:tradeId/verify-inventory", tradeController.verifyInventory);
-
-// Buyer confirms receipt of item
-router.put("/:tradeId/buyer-confirm", tradeController.buyerConfirmReceipt);
-
-// Cancel a trade (can be done by buyer or seller)
-router.put("/:tradeId/cancel", tradeController.cancelTrade);
-
 // Check Steam trade status
 router.get(
   "/:tradeId/check-steam-status",
   tradeController.checkSteamTradeStatus
 );
-
-// GET /api/trades/stats - Get user trade statistics
-router.get("/stats", tradeController.getTradeStats);
 
 // Test route for diagnostics - REMOVE IN PRODUCTION
 router.get("/test-trade-system", async (req, res) => {

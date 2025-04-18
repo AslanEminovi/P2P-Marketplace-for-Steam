@@ -721,6 +721,111 @@ class SocketService {
   getCurrentPage() {
     return this.currentPage;
   }
+
+  /**
+   * Subscribe to trade updates for a specific trade
+   * This allows real-time updates when a trade status changes
+   * @param {string} tradeId The ID of the trade to subscribe to
+   */
+  subscribeToTradeUpdates(tradeId) {
+    if (!this.isConnected()) {
+      console.warn(
+        "[SocketService] Not connected, cannot subscribe to trade updates"
+      );
+      return;
+    }
+
+    console.log(`[SocketService] Subscribing to updates for trade ${tradeId}`);
+    this.emit("subscribe_trade", { tradeId });
+  }
+
+  /**
+   * Unsubscribe from trade updates
+   * @param {string} tradeId The ID of the trade to unsubscribe from
+   */
+  unsubscribeFromTradeUpdates(tradeId) {
+    if (!this.isConnected()) return;
+
+    console.log(
+      `[SocketService] Unsubscribing from updates for trade ${tradeId}`
+    );
+    this.emit("unsubscribe_trade", { tradeId });
+  }
+
+  /**
+   * Request a refresh of cached trade data
+   * Useful when we know there might be stale data in the Redis cache
+   * @param {string} tradeId The trade ID to refresh
+   */
+  requestTradeRefresh(tradeId) {
+    if (!this.isConnected()) return;
+
+    console.log(`[SocketService] Requesting refresh for trade ${tradeId}`);
+    this.emit("refresh_trade", { tradeId });
+  }
+
+  /**
+   * Send a trade update event to the server
+   * This will be broadcasted to all clients subscribed to this trade
+   * @param {string} tradeId The ID of the trade being updated
+   * @param {string} action The action being performed (e.g., 'accept', 'cancel')
+   * @param {Object} data Additional data for the update
+   */
+  sendTradeUpdate(tradeId, action, data = {}) {
+    if (!this.isConnected()) {
+      console.warn("[SocketService] Not connected, cannot send trade update");
+      return;
+    }
+
+    const updateData = {
+      tradeId,
+      action,
+      ...data,
+      timestamp: new Date().toISOString(),
+    };
+
+    console.log(`[SocketService] Sending trade update for ${tradeId}:`, action);
+    this.emit("trade_update", updateData);
+  }
+
+  /**
+   * Join a trade room to receive real-time updates about a specific trade
+   * @param {string} tradeId The ID of the trade to join
+   */
+  joinTradeRoom(tradeId) {
+    if (!this.isConnected()) {
+      console.warn("[SocketService] Not connected, cannot join trade room");
+      return;
+    }
+
+    console.log(`[SocketService] Joining trade room for ${tradeId}`);
+    this.emit("join_trade_room", { tradeId });
+  }
+
+  /**
+   * Leave a trade room when no longer interested in updates
+   * @param {string} tradeId The ID of the trade room to leave
+   */
+  leaveTradeRoom(tradeId) {
+    if (!this.isConnected()) return;
+
+    console.log(`[SocketService] Leaving trade room for ${tradeId}`);
+    this.emit("leave_trade_room", { tradeId });
+  }
+
+  /**
+   * Request trade stats from the server
+   * This will trigger a stats_update event with the latest trade statistics
+   */
+  requestTradeStats() {
+    if (!this.isConnected()) {
+      console.warn("[SocketService] Not connected, cannot request trade stats");
+      return;
+    }
+
+    console.log("[SocketService] Requesting trade statistics");
+    this.emit("request_trade_stats");
+  }
 }
 
 // Create a singleton instance

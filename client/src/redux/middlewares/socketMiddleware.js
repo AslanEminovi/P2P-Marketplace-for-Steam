@@ -7,6 +7,8 @@ import {
   updateLocalTradeStatus,
   fetchTradeDetails,
   fetchTrades,
+  fetchActiveTradesAsync,
+  fetchTradeHistoryAsync,
 } from "../slices/tradesSlice";
 
 // Socket middleware to connect Socket.io events with Redux
@@ -23,40 +25,25 @@ const socketMiddleware = (store) => {
 
     // Handle specific actions that should trigger socket events
     switch (action.type) {
-      // Authentication
+      // Auth related actions
       case "auth/login/fulfilled":
-      case "auth/fetchUserProfile/fulfilled":
-        // When user logs in or profile is fetched, ensure socket connection and subscribe to notifications
-        if (!socketService.isConnected()) {
-          socketService.reconnect();
-        }
-
-        // Request fresh stats after authentication changes
-        if (socketService.requestStatsUpdate) {
-          socketService.requestStatsUpdate();
+      case "auth/register/fulfilled":
+        // When user logs in, connect to socket with their token
+        if (action.payload?.token) {
+          console.log(
+            "[socketMiddleware] User authenticated, connecting socket"
+          );
+          socketService.connect(action.payload.token);
         }
         break;
 
       case "auth/logout/fulfilled":
-        // Optionally disconnect socket on logout (or keep it for anonymous browsing)
-        // socketService.disconnect();
-
-        // Request fresh stats after authentication changes
-        if (socketService.requestStatsUpdate) {
-          socketService.requestStatsUpdate();
-        }
+        // When user logs out, disconnect socket
+        console.log("[socketMiddleware] User logged out, disconnecting socket");
+        socketService.disconnect();
         break;
 
-      // Notifications
-      case "notifications/markNotificationsRead/fulfilled":
-      case "notifications/markAllNotificationsRead/fulfilled":
-        // Could emit an event to update other tabs/devices that notifications were read
-        if (socketService.isConnected()) {
-          socketService.emit("notifications_read");
-        }
-        break;
-
-      // Listings
+      // Listings related actions
       case "listings/createListing/fulfilled":
       case "listings/updateListing/fulfilled":
       case "listings/deleteListing/fulfilled":
@@ -97,6 +84,28 @@ const socketMiddleware = (store) => {
             timestamp: new Date().toISOString(),
             action: action.payload.action,
           });
+
+          // Request a stats update after trade status change
+          if (socketService.requestStatsUpdate) {
+            setTimeout(() => socketService.requestStatsUpdate(), 500);
+          }
+        }
+        break;
+
+      // Trade creation
+      case "trades/createTrade/fulfilled":
+        if (socketService.isConnected() && action.payload?.tradeId) {
+          socketService.emit("trade_update", {
+            type: "trade_created",
+            tradeId: action.payload.tradeId,
+            status: action.payload.status || "created",
+            timestamp: new Date().toISOString(),
+          });
+
+          // Request a stats update after trade creation
+          if (socketService.requestStatsUpdate) {
+            setTimeout(() => socketService.requestStatsUpdate(), 500);
+          }
         }
         break;
 
@@ -133,6 +142,10 @@ export const setupSocketListeners = (store) => {
       if (socketService.requestStatsUpdate) {
         socketService.requestStatsUpdate();
       }
+
+      // Refresh trades data after reconnection to ensure we have the latest
+      store.dispatch(fetchActiveTradesAsync());
+      store.dispatch(fetchTradeHistoryAsync());
     });
 
     // Handle notifications
@@ -150,7 +163,7 @@ export const setupSocketListeners = (store) => {
 
           // After a short delay, also refresh the trade list to ensure consistency
           setTimeout(() => {
-            store.dispatch(fetchTrades());
+            store.dispatch(fetchActiveTradesAsync());
           }, 1000);
         }
       }
@@ -196,39 +209,31 @@ export const setupSocketListeners = (store) => {
         if (finalStatuses.includes(update.status)) {
           // After a small delay to allow the DB to update
           setTimeout(() => {
-            store.dispatch(fetchTrades());
+            // Use the async thunk actions for more targeted updates
+            store.dispatch(fetchActiveTradesAsync());
+            store.dispatch(fetchTradeHistoryAsync());
           }, 1000);
+        } else {
+          // For non-final status updates, just refresh active trades
+          setTimeout(() => {
+            store.dispatch(fetchActiveTradesAsync());
+          }, 500);
         }
-      }
-    });
 
-    // Handle user status updates
-    socketService.socket.on("user_status_update", (statusUpdate) => {
-      console.log(
-        "[socketMiddleware] Received user status update:",
-        statusUpdate
-      );
-
-      // Request fresh stats after user status changes
-      if (socketService.requestStatsUpdate) {
-        socketService.requestStatsUpdate();
+        // Also update stats after any trade status change
+        if (socketService.requestStatsUpdate) {
+          setTimeout(() => socketService.requestStatsUpdate(), 1000);
+        }
       }
     });
 
     // Handle stats updates
     socketService.socket.on("stats_update", (stats) => {
       console.log("[socketMiddleware] Received stats update:", stats);
+
+      // Update global stats
       store.dispatch(updateStats(stats));
     });
-
-    // Request initial stats update
-    if (socketService.requestStatsUpdate) {
-      socketService.requestStatsUpdate();
-    } else {
-      console.warn(
-        "[socketMiddleware] requestStatsUpdate method not available"
-      );
-    }
   });
 };
 

@@ -8,7 +8,6 @@ const redisModule = require("../config/redis");
 const User = require("../models/User");
 const userStatusManager = require("./UserStatusManager");
 const mongoose = require("mongoose");
-const redisTradeService = require("./redisTradeService");
 
 // Initialize Redis clients - Set these as global variables
 let pubClient = null;
@@ -202,9 +201,6 @@ const init = async (ioInstance) => {
 
     // Start periodic status broadcasts
     startPeriodicStatusBroadcasts();
-
-    // Subscribe to trade updates from Redis
-    subscribeToTradeUpdates();
 
     console.log("[socketService] Socket service initialized successfully");
   } catch (error) {
@@ -911,145 +907,6 @@ const startPeriodicStatusBroadcasts = () => {
       );
     }
   }, 15000); // Every 15 seconds (reduced from 30 seconds)
-};
-
-/**
- * Subscribe to trade updates from Redis and broadcast to connected clients
- */
-const subscribeToTradeUpdates = () => {
-  if (!redisTradeService.isEnabled) {
-    console.info("Redis disabled. Not subscribing to trade updates.");
-    return;
-  }
-
-  redisTradeService.subscribeToTradeEvents((channel, data) => {
-    console.debug(`Received trade event on channel ${channel}`, { data });
-
-    switch (channel) {
-      case redisTradeService.CHANNELS.TRADE_CREATED:
-        // New trade was created
-        if (data.buyerId && connectedUsers[data.buyerId]) {
-          io.to(connectedUsers[data.buyerId]).emit("trade:created", {
-            tradeId: data.tradeId,
-            role: "buyer",
-          });
-        }
-
-        if (data.sellerId && connectedUsers[data.sellerId]) {
-          io.to(connectedUsers[data.sellerId]).emit("trade:created", {
-            tradeId: data.tradeId,
-            role: "seller",
-          });
-        }
-        break;
-
-      case redisTradeService.CHANNELS.TRADE_UPDATED:
-        // Trade was updated
-        if (data.tradeId && data.trade) {
-          const buyerId = data.trade.buyer.toString();
-          const sellerId = data.trade.seller.toString();
-
-          if (buyerId && connectedUsers[buyerId]) {
-            io.to(connectedUsers[buyerId]).emit("trade:updated", {
-              tradeId: data.tradeId,
-              trade: data.trade,
-              role: "buyer",
-            });
-          }
-
-          if (sellerId && connectedUsers[sellerId]) {
-            io.to(connectedUsers[sellerId]).emit("trade:updated", {
-              tradeId: data.tradeId,
-              trade: data.trade,
-              role: "seller",
-            });
-          }
-        }
-        break;
-
-      case redisTradeService.CHANNELS.TRADE_STATUS_CHANGED:
-        // Trade status was changed
-        if (data.tradeId) {
-          // Get users from connected trades cache or fetch from database
-          const tradeUsersPromise = getTradeUsers(data.tradeId);
-
-          tradeUsersPromise
-            .then((users) => {
-              if (!users) return;
-
-              const { buyerId, sellerId } = users;
-
-              if (buyerId && connectedUsers[buyerId]) {
-                io.to(connectedUsers[buyerId]).emit("trade:status", {
-                  tradeId: data.tradeId,
-                  oldStatus: data.previousStatus,
-                  newStatus: data.newStatus,
-                  role: "buyer",
-                  updatedBy: data.updatedBy,
-                });
-              }
-
-              if (sellerId && connectedUsers[sellerId]) {
-                io.to(connectedUsers[sellerId]).emit("trade:status", {
-                  tradeId: data.tradeId,
-                  oldStatus: data.previousStatus,
-                  newStatus: data.newStatus,
-                  role: "seller",
-                  updatedBy: data.updatedBy,
-                });
-              }
-            })
-            .catch((error) => {
-              console.error("Error getting trade users:", error);
-            });
-        }
-        break;
-
-      default:
-        console.debug(`Unhandled trade event on channel ${channel}`);
-    }
-  });
-
-  console.info("Subscribed to trade updates from Redis");
-};
-
-/**
- * Get user IDs for a trade from cache or database
- * @param {string} tradeId - The trade ID
- * @returns {Promise<{buyerId: string, sellerId: string}|null>} User IDs or null if not found
- */
-const getTradeUsers = async (tradeId) => {
-  try {
-    // Try to get from Redis cache first
-    const cachedTrade = await redisTradeService.getTradeFromCache(tradeId);
-
-    if (cachedTrade) {
-      return {
-        buyerId: cachedTrade.buyer.toString
-          ? cachedTrade.buyer.toString()
-          : cachedTrade.buyer,
-        sellerId: cachedTrade.seller.toString
-          ? cachedTrade.seller.toString()
-          : cachedTrade.seller,
-      };
-    }
-
-    // Not found in cache, try to refresh from database
-    const trade = await redisTradeService.refreshTradeCache(tradeId);
-
-    if (!trade) {
-      console.warn(`Trade ${tradeId} not found when handling status change`);
-      return null;
-    }
-
-    return {
-      buyerId: trade.buyer.toString(),
-      sellerId: trade.seller.toString(),
-    };
-  } catch (error) {
-    console.error(`Error getting trade users for trade ${tradeId}:`, error);
-    return null;
-  }
 };
 
 module.exports = {

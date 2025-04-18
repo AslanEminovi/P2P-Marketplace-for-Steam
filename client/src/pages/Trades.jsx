@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatCurrency, formatDate } from '../utils/formatters';
+import { formatCurrency, formatDate } from '../utils/format';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faExchangeAlt, 
@@ -17,122 +17,122 @@ import {
   faExclamationCircle,
   faShoppingCart,
   faStore,
-  faChevronRight,
-  faChevronDown,
-  faSortAmountDown,
-  faUser,
   faTimes,
-  faUserTag,
-  faTag
+  faExclamationTriangle,
+  faEye,
+  faTag,
+  faUserTie,
+  faUser,
+  faTimesCircle,
+  faAngleRight,
+  faMoneyBillWave,
+  faCalendarAlt
 } from '@fortawesome/free-solid-svg-icons';
 import '../styles/Trades.css';
 
 // Redux imports
-import { useDispatch, useSelector } from 'react-redux';
-import {
-  fetchTrades,
-  fetchTradeStats,
-  selectTrades,
-  selectTradeStats,
-  selectTradesLoading,
-  selectTradeError,
-  selectStatsLoading,
-  selectActiveTrades,
-  selectHistoricalTrades
+import { useSelector, useDispatch } from 'react-redux';
+import { 
+  fetchTrades, 
+  selectAllTrades, 
+  selectActiveTrades, 
+  selectHistoricalTrades, 
+  selectTradeStats, 
+  selectTradesLoading, 
+  selectTradesError,
+  fetchActiveTradesAsync,
+  fetchTradeHistoryAsync
 } from '../redux/slices/tradesSlice';
+import { selectActiveTradesData, selectTradeHistoryData } from '../redux/selectors/tradesSelectors';
 import StatsCards from '../components/StatsCards';
-import TradeItem from '../components/TradeItem';
+import { tradeStatusVariants } from '../utils/statusUtils';
+import moment from 'moment';
 
 const Trades = ({ user }) => {
+  // Redux hooks
   const dispatch = useDispatch();
-  const navigate = useNavigate();
-  
-  // Redux state
-  const trades = useSelector(selectTrades);
-  const stats = useSelector(selectTradeStats);
-  const loading = useSelector(selectTradesLoading);
-  const statsLoading = useSelector(selectStatsLoading);
-  const error = useSelector(selectTradeError);
+  const trades = useSelector(selectAllTrades);
   const activeTrades = useSelector(selectActiveTrades);
   const historicalTrades = useSelector(selectHistoricalTrades);
-  
-  // Local state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
-  const [sortOrder, setSortOrder] = useState('newest');
-  const [activeTab, setActiveTab] = useState('active');
+  const reduxTradeStats = useSelector(selectTradeStats);
+  const loading = useSelector(selectTradesLoading);
+  const error = useSelector(selectTradesError);
 
-  // Function to filter and sort trades
-  const getFilteredTrades = () => {
-    const tradesSource = activeTab === 'active' ? activeTrades : historicalTrades;
-    
-    let filtered = [...tradesSource];
-    
-    // Filter by search term
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(trade => {
-        return (
-          (trade._id && trade._id.toLowerCase().includes(term)) ||
-          (trade.itemName && trade.itemName.toLowerCase().includes(term)) ||
-          (trade.buyer?.displayName && trade.buyer.displayName.toLowerCase().includes(term)) ||
-          (trade.seller?.displayName && trade.seller.displayName.toLowerCase().includes(term))
-        );
-      });
-    }
-    
-    // Filter by role
-    if (roleFilter !== 'all') {
-      filtered = filtered.filter(trade => {
-        return (
-          (roleFilter === 'buyer' && trade.isUserBuyer) ||
-          (roleFilter === 'seller' && trade.isUserSeller)
-        );
-      });
-    }
-    
-    // Sort trades
-    switch (sortOrder) {
-      case 'newest':
-        filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        break;
-      case 'oldest':
-        filtered.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-        break;
-      case 'highest':
-        filtered.sort((a, b) => (b.price || 0) - (a.price || 0));
-        break;
-      case 'lowest':
-        filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
-        break;
-      default:
-        filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    }
-    
-    return filtered;
+  const activeTradesData = useSelector(selectActiveTradesData);
+  const tradeHistoryData = useSelector(selectTradeHistoryData);
+
+  // Local state for UI
+  const [activeTab, setActiveTab] = useState('active'); // 'active', 'history'
+  const [roleFilter, setRoleFilter] = useState('all'); // 'all', 'sent', 'received'
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOrder, setSortOrder] = useState('newest'); // 'newest', 'oldest', 'highest', 'lowest'
+  const [refreshKey, setRefreshKey] = useState(0); // Used to trigger a refresh
+  const navigate = useNavigate();
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshTimer, setRefreshTimer] = useState(null);
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(user?._id || '');
+
+  // Use a merged stats object that takes values from Redux first, then falls back to calculated values
+  const calculatedStats = {
+    totalTrades: (activeTradesData?.trades?.length || 0) + (tradeHistoryData?.trades?.length || 0),
+    activeTrades: activeTradesData?.trades?.length || 0,
+    completedTrades: tradeHistoryData?.trades?.filter(t => t.status === 'COMPLETED')?.length || 0,
+    moneyTraded: tradeHistoryData?.trades?.filter(t => t.status === 'COMPLETED')?.reduce((sum, trade) => 
+      sum + (parseFloat(trade.item?.price || 0)), 0) || 0
   };
 
-  // Filtered trades based on search, filters and active tab
-  const filteredTrades = useMemo(() => {
-    return getFilteredTrades();
-  }, [trades, activeTab, searchTerm, roleFilter, sortOrder]);
+  // Prioritize Redux stats, fall back to calculated values
+  const tradeStats = {
+    totalTrades: reduxTradeStats.totalTrades || calculatedStats.totalTrades,
+    completedTrades: reduxTradeStats.completedTrades || calculatedStats.completedTrades,
+    tradeVolume: reduxTradeStats.totalValue || calculatedStats.moneyTraded
+  };
 
-  // Load trades on component mount
   useEffect(() => {
-    handleRefresh();
-  }, [dispatch]);
+    if (user?._id) {
+      setCurrentUserId(user._id);
+    }
+  }, [user]);
 
-  // Function to refresh trades
+  useEffect(() => {
+    // Fetch trades on component mount and when refreshKey changes
+    dispatch(fetchTrades());
+    
+    // Set up periodic refresh every 2 minutes
+    const refreshInterval = setInterval(() => {
+      setRefreshKey(prevKey => prevKey + 1);
+    }, 120000);
+    
+    return () => clearInterval(refreshInterval);
+  }, [refreshKey, dispatch]);
+
+  // Auto-refresh active trades periodically
+  useEffect(() => {
+    let refreshInterval = null;
+
+    // Only set up auto-refresh if user is on the active trades tab
+    if (activeTab === 'active') {
+      refreshInterval = setInterval(() => {
+        // Only refresh if the component is visible and not already loading
+        if (document.visibilityState === 'visible' && !loading) {
+          console.log('[Trades] Auto-refreshing active trades');
+          dispatch(fetchTrades());
+        }
+      }, 60000); // Refresh every minute
+    }
+
+    return () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    };
+  }, [activeTab, loading, dispatch]);
+
+  // Handle manual refresh when button clicked
   const handleRefresh = () => {
     dispatch(fetchTrades());
-    dispatch(fetchTradeStats());
-  };
-  
-  // Function to clear all filters
-  const clearFilters = () => {
-    setSearchTerm('');
-    setRoleFilter('all');
-    setSortOrder('newest');
   };
 
   const getStatusColor = (status) => {
@@ -176,409 +176,489 @@ const Trades = ({ user }) => {
     }
   };
 
-  // Function to render in-progress trades that need attention
+  const getFilteredTrades = () => {
+    // Determine which trade list to use based on active tab
+    const tradesData = activeTab === 'active' ? 
+      activeTradesData?.trades || [] : 
+      tradeHistoryData?.trades || [];
+      
+    if (!tradesData.length) return [];
+    
+    // Apply role filter
+    let filtered = [...tradesData];
+    if (roleFilter && roleFilter !== 'all') {
+      filtered = filtered.filter(trade => {
+        if (roleFilter === 'seller' && trade.seller?._id === currentUserId) return true;
+        if (roleFilter === 'buyer' && trade.buyer?._id === currentUserId) return true;
+        return false;
+      });
+    }
+    
+    // Apply search term
+    if (searchTerm) {
+      filtered = filtered.filter(trade => {
+        // Search by trade ID
+        if (trade._id?.toLowerCase().includes(searchTerm.toLowerCase())) return true;
+        if (trade.tradeId?.toLowerCase().includes(searchTerm.toLowerCase())) return true;
+        
+        // Search by item name
+        if (trade.item?.name?.toLowerCase().includes(searchTerm.toLowerCase())) return true;
+        
+        // Search by username
+        if (trade.seller?.username?.toLowerCase().includes(searchTerm.toLowerCase())) return true;
+        if (trade.buyer?.username?.toLowerCase().includes(searchTerm.toLowerCase())) return true;
+        
+        return false;
+      });
+    }
+    
+    // Apply sort
+    if (sortOrder === 'oldest') {
+      filtered.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    } else if (sortOrder === 'price-high') {
+      filtered.sort((a, b) => (parseFloat(b.item?.price || 0) - parseFloat(a.item?.price || 0)));
+    } else if (sortOrder === 'price-low') {
+      filtered.sort((a, b) => (parseFloat(a.item?.price || 0) - parseFloat(b.item?.price || 0)));
+    } else {
+      // Default to newest first
+      filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+    
+    return filtered;
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setRoleFilter('all');
+    setSortOrder('newest');
+  };
+
+  const formatDate = (dateString) => {
+    return moment(dateString).format('MMM D, YYYY [at] h:mm A');
+  };
+
+  const getAvatarUrl = (userObj) => {
+    if (!userObj) return '/images/default-avatar.png';
+    return userObj.avatar || '/images/default-avatar.png';
+  };
+
   const renderInProgressTrades = () => {
-    const inProgressTrades = trades.filter(trade => 
-      (trade.status === 'PENDING' || trade.status === 'ACCEPTED' || trade.status === 'PROCESSING') && 
-      ((trade.isUserBuyer && trade.buyerAction) || (trade.isUserSeller && trade.sellerAction))
+    // Only show in-progress trades section on active tab
+    if (activeTab !== 'active') return null;
+    
+    // Get trades that require immediate attention
+    const inProgressTrades = activeTrades.filter(
+      trade => 
+        trade.status === 'awaiting_seller' ||
+        trade.status === 'offer_sent' ||
+        trade.status === 'awaiting_confirmation'
     );
-
+    
     if (inProgressTrades.length === 0) return null;
-
+    
     return (
       <div className="in-progress-trades">
-        {inProgressTrades.map(trade => (
-          <motion.div
-            key={`in-progress-${trade._id}`}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="continue-trade-card"
-          >
-            <div className="continue-trade-content">
-              <h3 className="continue-trade-title">
-                Continue your trade: {trade.itemName || trade.item?.marketHashName || 'Unknown Item'}
-              </h3>
-              <p className="continue-trade-description">
-                {trade.isUserBuyer ? 'You are buying this item' : 'You are selling this item'}.
-                This trade requires your attention to proceed.
-              </p>
+        <h2>Continue Your Trades</h2>
+        <p className="in-progress-description">
+          These trades require your attention and are waiting for a response.
+        </p>
+        
+        <div className="in-progress-trades-list">
+          {inProgressTrades.map(trade => (
+            <div key={trade._id} className="in-progress-trade-card" onClick={() => handleTradeClick(trade._id)}>
+              <div className="in-progress-trade-details">
+                <div className="in-progress-trade-item">
+                  {trade.item?.imageUrl ? (
+                    <img 
+                      src={trade.item.imageUrl} 
+                      alt={trade.item.name} 
+                      className="in-progress-trade-item-image"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "/images/placeholder-item.png";
+                      }}
+                    />
+                  ) : (
+                    <div className="in-progress-trade-item-image-placeholder">?</div>
+                  )}
+                  <div className="in-progress-trade-item-info">
+                    <div className="in-progress-trade-item-name">{trade.item?.name || "Unknown Item"}</div>
+                    <div className="in-progress-trade-item-price">${parseFloat(trade.item?.price || 0).toFixed(2)}</div>
+                  </div>
+                </div>
+                
+                <div className="in-progress-trade-status">
+                  <span 
+                    className="trade-status-badge"
+                    style={{
+                      backgroundColor: getStatusColor(trade.status)
+                    }}
+                  >
+                    {getStatusLabel(trade.status)}
+                  </span>
+                  <span className="in-progress-trade-time">{moment(trade.createdAt).fromNow()}</span>
+                </div>
+              </div>
+              
+              <div className="in-progress-trade-action">
+                <span className="in-progress-trade-continue-button">
+                  <span>Continue Trade</span>
+                  <FontAwesomeIcon icon={faAngleRight} />
+                </span>
+              </div>
             </div>
-            
-            <div className="continue-trade-action">
-              <Link to={`/trades/${trade._id}`} className="continue-trade-button">
-                <FontAwesomeIcon icon={faClock} />
-                Continue Trade
-              </Link>
-            </div>
-          </motion.div>
-        ))}
+          ))}
+        </div>
       </div>
     );
   };
 
-  // Function to render trade history
-  const renderTradeHistory = () => {
-    if (filteredTrades.length === 0) return null;
+  const renderEmptyState = () => {
+    if (activeTab === 'active') {
+      return (
+        <div className="trades-empty-state">
+          <FontAwesomeIcon icon={faClock} />
+          <h3>No Active Trades</h3>
+          <p>You don't have any active trades at the moment. Browse the marketplace to find items to buy or sell.</p>
+          <Link to="/marketplace" className="trades-primary-button">
+            <FontAwesomeIcon icon={faShoppingCart} /> Browse Marketplace
+          </Link>
+        </div>
+      );
+    } else {
+      return (
+        <div className="trades-empty-state">
+          <FontAwesomeIcon icon={faCalendarAlt} />
+          <h3>No Trade History</h3>
+          <p>Your trade history is currently empty. Complete trades to see them appear here.</p>
+          <Link to="/marketplace" className="trades-primary-button">
+            <FontAwesomeIcon icon={faShoppingCart} /> Browse Marketplace
+          </Link>
+        </div>
+      );
+    }
+  };
+
+  // Fetch trades data on component mount
+  useEffect(() => {
+    if (!activeTradesData?.trades) {
+      dispatch(fetchActiveTradesAsync());
+    }
+    
+    if (!tradeHistoryData?.trades) {
+      dispatch(fetchTradeHistoryAsync());
+    }
+    
+    // Set up auto-refresh for active trades (every 30 seconds)
+    const interval = setInterval(() => {
+      if (activeTab === 'active') {
+        refreshActiveTradesQuietly();
+      }
+    }, 30000);
+    
+    setAutoRefreshInterval(interval);
+    
+    return () => {
+      clearInterval(interval);
+      if (refreshTimer) clearTimeout(refreshTimer);
+    };
+  }, []);
+
+  // Refresh active trades with a loading indicator
+  const refreshTrades = useCallback(() => {
+    setIsRefreshing(true);
+    
+    dispatch(fetchActiveTradesAsync()).then(() => {
+      setIsRefreshing(false);
+      
+      // Set a cooldown timer to prevent spam refreshing (5 seconds)
+      const timer = setTimeout(() => {
+        setRefreshTimer(null);
+      }, 5000);
+      
+      setRefreshTimer(timer);
+    });
+    
+    if (activeTab === 'history') {
+      dispatch(fetchTradeHistoryAsync());
+    }
+  }, [dispatch, activeTab]);
+
+  // Quietly refresh active trades without UI indicators (for auto-refresh)
+  const refreshActiveTradesQuietly = useCallback(() => {
+    dispatch(fetchActiveTradesAsync());
+  }, [dispatch]);
+
+  // Get status options based on the active tab
+  const getStatusOptions = () => {
+    if (activeTab === 'active') {
+      return [
+        { value: 'CREATED', label: 'Created' },
+        { value: 'PENDING', label: 'Pending' },
+        { value: 'ACCEPTED', label: 'Accepted' },
+        { value: 'PROCESSING', label: 'Processing' },
+        { value: 'WAITING_CONFIRMATION', label: 'Waiting Confirmation' },
+      ];
+    } else {
+      return [
+        { value: 'COMPLETED', label: 'Completed' },
+        { value: 'CANCELLED', label: 'Cancelled' },
+        { value: 'EXPIRED', label: 'Expired' },
+        { value: 'FAILED', label: 'Failed' },
+      ];
+    }
+  };
+
+  // Handle changes to the active tab
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setRoleFilter('all');
+  };
+
+  // Navigate to trade details page when a trade is clicked
+  const handleTradeClick = (tradeId) => {
+    navigate(`/trades/${tradeId}`);
+  };
+
+  // Get the appropriate loading or error state
+  const getContentState = () => {
+    const isLoading = activeTab === 'active' ? 
+      activeTradesData?.loading : 
+      tradeHistoryData?.loading;
+    
+    const error = activeTab === 'active' ? 
+      activeTradesData?.error : 
+      tradeHistoryData?.error;
+    
+    if (isLoading) {
+      return (
+        <div className="trades-loading">
+          <div className="trades-spinner"></div>
+          <p>Loading your trades...</p>
+        </div>
+      );
+    }
+    
+    if (error) {
+      return (
+        <div className="trades-error">
+          <FontAwesomeIcon icon={faExclamationTriangle} />
+          <h3>Something went wrong</h3>
+          <p>{error}</p>
+          <button className="trades-retry-button" onClick={refreshTrades}>
+            <FontAwesomeIcon icon={faSpinner} /> Try Again
+          </button>
+        </div>
+      );
+    }
+    
+    const trades = getFilteredTrades();
+    
+    if (trades.length === 0) {
+      return (
+        <div className="trades-empty-state">
+          <FontAwesomeIcon icon={activeTab === 'active' ? faClock : faHistory} />
+          <h3>No {activeTab === 'active' ? 'active' : 'historical'} trades found</h3>
+          <p>
+            {searchTerm || roleFilter !== 'all'
+              ? "No trades match your current filters. Try adjusting your search criteria or clear the filters."
+              : activeTab === 'active'
+              ? "You don't have any active trades at the moment. Start trading to see your trades here!"
+              : "You haven't completed any trades yet. Complete trades will show up here."}
+          </p>
+          {searchTerm || roleFilter !== 'all' ? (
+            <button className="trades-primary-button" onClick={clearFilters}>
+              <FontAwesomeIcon icon={faTimes} /> Clear Filters
+            </button>
+          ) : (
+            <Link to="/market" className="trades-primary-button">
+              <FontAwesomeIcon icon={faTag} /> Browse Market
+            </Link>
+          )}
+        </div>
+      );
+    }
     
     return (
       <div className="trades-list">
-        <AnimatePresence mode="popLayout">
-          {filteredTrades.map((trade, index) => (
-            <TradeItem 
-              key={trade._id} 
-              trade={trade} 
-              index={index} 
-            />
-          ))}
-        </AnimatePresence>
-      </div>
-    );
-  };
-
-  // Function to render empty state when no trades are found
-  const renderEmptyState = (tabType) => {
-    const isActive = tabType === 'active';
-    
-    return (
-      <div className="trades-empty" style={{
-        background: 'linear-gradient(135deg, #f9fafb, #f3f4f6)',
-        borderRadius: '16px',
-        padding: '40px 30px',
-        textAlign: 'center',
-        marginTop: '20px',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
-      }}>
-        <FontAwesomeIcon 
-          icon={isActive ? faExchangeAlt : faHistory} 
-          size="2x" 
-          style={{ 
-            marginBottom: '20px', 
-            opacity: 0.8,
-            color: '#4b5563'
-          }} 
-        />
-        <h3 style={{
-          fontSize: '20px',
-          fontWeight: '600',
-          color: '#111827',
-          marginBottom: '12px'
-        }}>
-          {isActive 
-            ? 'No active trades found' 
-            : 'No trade history found'}
-        </h3>
-        <p style={{
-          fontSize: '16px',
-          color: '#6b7280',
-          marginBottom: '24px',
-          maxWidth: '400px',
-          margin: '0 auto 24px'
-        }}>
-          {isActive 
-            ? 'You don\'t have any active trades at the moment.' 
-            : 'You haven\'t completed any trades yet.'}
-        </p>
-        <Link to="/marketplace" className="trades-empty-action" style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '10px',
-          background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-          color: 'white',
-          padding: '12px 20px',
-          borderRadius: '10px',
-          fontSize: '15px',
-          fontWeight: '500',
-          textDecoration: 'none',
-          transition: 'all 0.3s ease',
-          boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
-        }}>
-          <FontAwesomeIcon icon={faStore} />
-          Browse Marketplace
-        </Link>
-      </div>
-    );
-  };
-
-  // Function to render the header with stats
-  const renderHeader = () => {
-    return (
-      <div className="trades-header">
-        <div className="trades-header-backdrop" style={{
-          background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #38b2ac 100%)',
-          opacity: 1
-        }}></div>
-        <div className="trades-header-content">
-          <div className="trades-header-title-section">
-            <h1>
-              <FontAwesomeIcon icon={faExchangeAlt} className="title-icon" />
-              Your Trades
-            </h1>
-            <p>Manage your ongoing trades and view your trading history</p>
-            
-            <button
-              className="trades-refresh-button"
-              onClick={handleRefresh}
-              disabled={loading}
-              style={{
-                background: 'rgba(255, 255, 255, 0.2)',
-                backdropFilter: 'blur(5px)',
-                borderRadius: '8px',
-                padding: '10px 16px',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              {loading ? (
-                <span className="trades-refresh-loading"></span>
-              ) : (
-                <FontAwesomeIcon icon={faSync} />
-              )}
-              {loading ? 'Refreshing...' : 'Refresh Trades'}
-            </button>
+        {trades.map(trade => (
+          <div key={trade.tradeId || trade._id} className="trade-card" onClick={() => handleTradeClick(trade.tradeId || trade._id)}>
+            <div className="trade-card-header">
+              <span 
+                className="trade-status" 
+                style={{
+                  backgroundColor: tradeStatusVariants[trade.status]?.color || '#888',
+                }}
+              >
+                {tradeStatusVariants[trade.status]?.label || trade.status}
+              </span>
+              <span className="trade-date">{formatDate(trade.createdAt)}</span>
+            </div>
+            <div className="trade-card-content">
+              <div className="trade-item-details">
+                <div className="trade-item-image">
+                  {trade.item?.imageUrl ? (
+                    <img 
+                      src={trade.item.imageUrl} 
+                      alt={trade.item.name} 
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "/images/placeholder-item.png";
+                      }}
+                    />
+                  ) : (
+                    <div className="trade-item-image-placeholder">?</div>
+                  )}
+                </div>
+                <div className="trade-item-info">
+                  <h3 className="trade-item-name">{trade.item?.name || "Unknown Item"}</h3>
+                  <div className="trade-price">
+                    <FontAwesomeIcon icon={faMoneyBillWave} />
+                    <span>${parseFloat(trade.item?.price || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="trade-participants">
+                    <div className="trade-participant">
+                      <FontAwesomeIcon icon={faUserTie} />
+                      <span>Seller:</span>
+                      <div className="trade-user">{trade.seller?.username || "Unknown"}</div>
+                    </div>
+                    <div className="trade-participant">
+                      <FontAwesomeIcon icon={faUser} />
+                      <span>Buyer:</span>
+                      <div className="trade-user">{trade.buyer?.username || "Unknown"}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="trade-actions">
+                <Link to={`/trades/${trade.tradeId || trade._id}`} className="trade-view-button">
+                  <FontAwesomeIcon icon={faEye} /> View Trade
+                </Link>
+              </div>
+            </div>
           </div>
-          
-          <div className="trades-header-stats-section">
-            <StatsCards
-              stats={stats}
-              statsLoading={statsLoading}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Function to render the tabs
-  const renderTabs = () => {
-    return (
-      <div className="trades-tabs" style={{ 
-        background: 'linear-gradient(to right, #f8f9fa, #e9ecef)',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
-      }}>
-        <button
-          className={`trades-tab ${activeTab === 'active' ? 'active' : ''}`}
-          onClick={() => setActiveTab('active')}
-          style={{
-            background: activeTab === 'active' ? 'linear-gradient(135deg, #ffffff, #f5f7fa)' : 'transparent',
-            boxShadow: activeTab === 'active' ? '0 2px 10px rgba(0, 0, 0, 0.05)' : 'none'
-          }}
-        >
-          <FontAwesomeIcon icon={faExchangeAlt} />
-          Active Trades
-          {activeTrades.length > 0 && (
-            <span className="trades-tab-badge" style={{
-              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-              boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)'
-            }}>{activeTrades.length}</span>
-          )}
-        </button>
-        <button
-          className={`trades-tab ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
-          style={{
-            background: activeTab === 'history' ? 'linear-gradient(135deg, #ffffff, #f5f7fa)' : 'transparent',
-            boxShadow: activeTab === 'history' ? '0 2px 10px rgba(0, 0, 0, 0.05)' : 'none'
-          }}
-        >
-          <FontAwesomeIcon icon={faHistory} />
-          Trade History
-          {historicalTrades.length > 0 && (
-            <span className="trades-tab-badge" style={{
-              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-              boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)'
-            }}>{historicalTrades.length}</span>
-          )}
-        </button>
-      </div>
-    );
-  };
-
-  // Function to render the filters
-  const renderFilters = () => {
-    const hasFilters = searchTerm || roleFilter !== 'all' || sortOrder !== 'newest';
-    
-    return (
-      <div className="trades-filters" style={{
-        background: 'linear-gradient(135deg, #ffffff, #fafafa)',
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)',
-        borderRadius: '12px'
-      }}>
-        <div className="trades-search-container">
-          <FontAwesomeIcon icon={faSearch} style={{ color: '#4b5563' }} />
-          <input
-            type="text"
-            placeholder="Search by ID, item name, or user..."
-            className="trades-search-input"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              border: '1px solid #e5e7eb',
-              borderRadius: '10px',
-              padding: '14px 15px 14px 40px',
-              fontSize: '15px',
-              transition: 'all 0.3s ease',
-              boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.02)'
-            }}
-          />
-          {searchTerm && (
-            <button 
-              className="trades-search-clear"
-              onClick={() => setSearchTerm('')}
-              style={{ color: '#6b7280' }}
-            >
-              <FontAwesomeIcon icon={faTimes} />
-            </button>
-          )}
-        </div>
-        
-        <div className="trades-filter-actions" style={{ gap: '20px' }}>
-          <div className="trades-filter-group">
-            <span className="trades-filter-label" style={{ color: '#4b5563', fontWeight: '600' }}>
-              <FontAwesomeIcon icon={faUserTag} />
-              Role
-            </span>
-            <select
-              className="trades-filter-select"
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              style={{
-                padding: '10px 35px 10px 15px',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                backgroundColor: '#f9fafb',
-                fontWeight: '500',
-                color: '#4b5563',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
-              }}
-            >
-              <option value="all">All Roles</option>
-              <option value="buyer">Buyer</option>
-              <option value="seller">Seller</option>
-            </select>
-          </div>
-          
-          <div className="trades-filter-group">
-            <span className="trades-filter-label" style={{ color: '#4b5563', fontWeight: '600' }}>
-              <FontAwesomeIcon icon={faSortAmountDown} />
-              Sort
-            </span>
-            <select
-              className="trades-filter-select"
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)}
-              style={{
-                padding: '10px 35px 10px 15px',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                backgroundColor: '#f9fafb',
-                fontWeight: '500',
-                color: '#4b5563',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
-              }}
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="highest">Highest Value</option>
-              <option value="lowest">Lowest Value</option>
-            </select>
-          </div>
-          
-          {hasFilters && (
-            <button 
-              className="trades-filter-clear"
-              onClick={clearFilters}
-              style={{
-                backgroundColor: '#f3f4f6',
-                border: 'none',
-                padding: '10px 16px',
-                borderRadius: '8px',
-                fontWeight: '500',
-                color: '#4b5563',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
-              }}
-            >
-              <FontAwesomeIcon icon={faTimes} />
-              Clear Filters
-            </button>
-          )}
-        </div>
+        ))}
       </div>
     );
   };
 
   return (
     <div className="trades-container">
-      {renderHeader()}
-      {renderTabs()}
-      {renderFilters()}
-      
-      {loading ? (
-        <div className="trades-loading" style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '60px 0',
-          background: 'linear-gradient(135deg, #f9fafb, #f3f4f6)',
-          borderRadius: '16px',
-          marginTop: '20px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
-        }}>
-          <FontAwesomeIcon icon={faSpinner} spin size="2x" style={{ color: '#3b82f6', marginBottom: '16px' }} />
-          <p style={{ fontSize: '16px', color: '#4b5563', fontWeight: '500' }}>Loading your trades...</p>
-        </div>
-      ) : error ? (
-        <div className="trades-error" style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '40px 20px',
-          background: 'linear-gradient(135deg, #fee2e2, #fecaca)',
-          borderRadius: '16px',
-          marginTop: '20px',
-          boxShadow: '0 4px 12px rgba(239, 68, 68, 0.1)'
-        }}>
-          <FontAwesomeIcon icon={faExclamationCircle} size="2x" style={{ color: '#ef4444', marginBottom: '16px' }} />
-          <p style={{ fontSize: '16px', color: '#b91c1c', fontWeight: '500', marginBottom: '20px' }}>{error}</p>
-          <button onClick={handleRefresh} className="trades-retry-button" style={{
-            background: 'linear-gradient(135deg, #f87171, #ef4444)',
-            color: 'white',
-            border: 'none',
-            padding: '10px 20px',
-            borderRadius: '8px',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)'
-          }}>
-            <FontAwesomeIcon icon={faSync} />
-            Try Again
+      <div className="trades-header">
+        <div className="trades-title">
+          <h1>
+            <FontAwesomeIcon icon={faExchangeAlt} /> 
+            Your Trades
+          </h1>
+          <button 
+            className="trades-refresh-button" 
+            onClick={refreshTrades} 
+            disabled={isRefreshing}
+          >
+            <FontAwesomeIcon icon={faSync} spin={isRefreshing} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
-      ) : (
-        <div className="trades-content">
-          {activeTab === 'active' && (
-            <>
-              {renderInProgressTrades()}
-              {renderTradeHistory()}
-              {filteredTrades.length === 0 && renderEmptyState('active')}
-            </>
-          )}
+        
+        <StatsCards
+          statsLoading={loading}
+          totalTrades={tradeStats.totalTrades}
+          completedTrades={tradeStats.completedTrades}
+          tradeVolume={tradeStats.tradeVolume}
+        />
+      </div>
+      
+      {renderInProgressTrades()}
+      
+      <div className="trades-content-panel">
+        <div className="trades-tabs">
+          <button 
+            className={`trades-tab ${activeTab === 'active' ? 'active' : ''}`}
+            onClick={() => handleTabChange('active')}
+          >
+            <FontAwesomeIcon icon={faExchangeAlt} />
+            Active Trades
+            {activeTradesData?.trades?.length > 0 && (
+              <span className="trades-tab-badge">{activeTradesData.trades.length}</span>
+            )}
+          </button>
           
-          {activeTab === 'history' && (
-            <>
-              {renderTradeHistory()}
-              {filteredTrades.length === 0 && renderEmptyState('history')}
-            </>
-          )}
+          <button 
+            className={`trades-tab ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => handleTabChange('history')}
+          >
+            <FontAwesomeIcon icon={faCalendarAlt} />
+            Trade History
+            {tradeHistoryData?.trades?.length > 0 && (
+              <span className="trades-tab-badge">{tradeHistoryData.trades.length}</span>
+            )}
+          </button>
         </div>
-      )}
+        
+        <div className="trades-filters">
+          <div className="trades-search-container">
+            <FontAwesomeIcon icon={faSearch} />
+            <input
+              type="text"
+              className="trades-search-input"
+              placeholder="Search by item name, trade ID, or username..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button 
+                className="trades-search-clear"
+                onClick={() => setSearchTerm('')}
+              >
+                <FontAwesomeIcon icon={faTimesCircle} />
+              </button>
+            )}
+          </div>
+          
+          <div className="trades-filter-actions">
+            <div className="trades-filter-group">
+              <span className="trades-filter-label">Role:</span>
+              <select
+                className="trades-filter-select"
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+              >
+                <option value="all">All Roles</option>
+                <option value="buyer">As Buyer</option>
+                <option value="seller">As Seller</option>
+              </select>
+            </div>
+            
+            <div className="trades-filter-group">
+              <span className="trades-filter-label">Sort:</span>
+              <select
+                className="trades-filter-select"
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="price-high">Price: High to Low</option>
+                <option value="price-low">Price: Low to High</option>
+              </select>
+            </div>
+            
+            {(searchTerm || roleFilter !== 'all' || sortOrder !== 'newest') && (
+              <button 
+                className="trades-filter-clear"
+                onClick={clearFilters}
+              >
+                <FontAwesomeIcon icon={faFilter} /> Clear Filters
+              </button>
+            )}
+          </div>
+        </div>
+        
+        <div className="trades-content">
+          {getContentState()}
+        </div>
+      </div>
     </div>
   );
 };
