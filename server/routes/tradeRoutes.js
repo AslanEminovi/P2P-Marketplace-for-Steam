@@ -47,6 +47,9 @@ router.get(
   tradeController.checkSteamTradeStatus
 );
 
+// GET /api/trades/stats - Get user trade statistics
+router.get("/stats", tradeController.getTradeStats);
+
 // Test route for diagnostics - REMOVE IN PRODUCTION
 router.get("/test-trade-system", async (req, res) => {
   try {

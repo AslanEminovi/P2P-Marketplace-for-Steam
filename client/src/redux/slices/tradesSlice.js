@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import { API_URL } from "../../config/constants";
+import { getCachedItem, setCachedItem } from "../../utils/cacheUtils";
 
 // Constants for localStorage keys (brought from Trades.jsx)
 const TRADES_STORAGE_KEY = "cs2_marketplace_trades";

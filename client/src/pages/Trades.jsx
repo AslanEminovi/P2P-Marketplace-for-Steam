@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatCurrency, formatDate } from '../utils/format';
@@ -16,78 +16,123 @@ import {
   faArrowRight,
   faExclamationCircle,
   faShoppingCart,
-  faStore
+  faStore,
+  faChevronRight,
+  faChevronDown,
+  faSortAmountDown,
+  faUser,
+  faTimes,
+  faUserTag,
+  faTag
 } from '@fortawesome/free-solid-svg-icons';
 import '../styles/Trades.css';
 
 // Redux imports
-import { useSelector, useDispatch } from 'react-redux';
-import { 
-  fetchTrades, 
-  selectAllTrades, 
-  selectActiveTrades, 
-  selectHistoricalTrades, 
-  selectTradeStats, 
-  selectTradesLoading, 
-  selectTradesError 
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchTrades,
+  fetchTradeStats,
+  selectTrades,
+  selectTradeStats,
+  selectTradesLoading,
+  selectTradeError,
+  selectStatsLoading,
+  selectActiveTrades,
+  selectHistoricalTrades
 } from '../redux/slices/tradesSlice';
 import StatsCards from '../components/StatsCards';
+import TradeItem from '../components/TradeItem';
 
 const Trades = ({ user }) => {
-  // Redux hooks
   const dispatch = useDispatch();
-  const trades = useSelector(selectAllTrades);
-  const activeTrades = useSelector(selectActiveTrades);
-  const historicalTrades = useSelector(selectHistoricalTrades);
+  const navigate = useNavigate();
+  
+  // Redux state
+  const trades = useSelector(selectTrades);
   const stats = useSelector(selectTradeStats);
   const loading = useSelector(selectTradesLoading);
-  const error = useSelector(selectTradesError);
-
-  // Local state for UI
-  const [activeTab, setActiveTab] = useState('active'); // 'active', 'history'
-  const [roleFilter, setRoleFilter] = useState('all'); // 'all', 'sent', 'received'
+  const statsLoading = useSelector(selectStatsLoading);
+  const error = useSelector(selectTradeError);
+  const activeTrades = useSelector(selectActiveTrades);
+  const historicalTrades = useSelector(selectHistoricalTrades);
+  
+  // Local state
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortOrder, setSortOrder] = useState('newest'); // 'newest', 'oldest', 'highest', 'lowest'
-  const [refreshKey, setRefreshKey] = useState(0); // Used to trigger a refresh
-  const navigate = useNavigate();
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('newest');
+  const [activeTab, setActiveTab] = useState('active');
 
+  // Filtered trades based on search, filters and active tab
+  const filteredTrades = useMemo(() => {
+    return getFilteredTrades();
+  }, [trades, activeTab, searchTerm, roleFilter, sortOrder]);
+
+  // Load trades on component mount
   useEffect(() => {
-    // Fetch trades on component mount and when refreshKey changes
-    dispatch(fetchTrades());
-    
-    // Set up periodic refresh every 2 minutes
-    const refreshInterval = setInterval(() => {
-      setRefreshKey(prevKey => prevKey + 1);
-    }, 120000);
-    
-    return () => clearInterval(refreshInterval);
-  }, [refreshKey, dispatch]);
+    handleRefresh();
+  }, [dispatch]);
 
-  // Auto-refresh active trades periodically
-  useEffect(() => {
-    let refreshInterval = null;
-
-    // Only set up auto-refresh if user is on the active trades tab
-    if (activeTab === 'active') {
-      refreshInterval = setInterval(() => {
-        // Only refresh if the component is visible and not already loading
-        if (document.visibilityState === 'visible' && !loading) {
-          console.log('[Trades] Auto-refreshing active trades');
-          dispatch(fetchTrades());
-        }
-      }, 60000); // Refresh every minute
-    }
-
-    return () => {
-      if (refreshInterval) {
-        clearInterval(refreshInterval);
-      }
-    };
-  }, [activeTab, loading, dispatch]);
-
-  // Handle manual refresh when button clicked
+  // Function to refresh trades
   const handleRefresh = () => {
     dispatch(fetchTrades());
+    dispatch(fetchTradeStats());
+  };
+
+  // Function to filter and sort trades
+  const getFilteredTrades = () => {
+    const tradesSource = activeTab === 'active' ? activeTrades : historicalTrades;
+    
+    let filtered = [...tradesSource];
+    
+    // Filter by search term
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(trade => {
+        return (
+          (trade._id && trade._id.toLowerCase().includes(term)) ||
+          (trade.itemName && trade.itemName.toLowerCase().includes(term)) ||
+          (trade.buyer?.displayName && trade.buyer.displayName.toLowerCase().includes(term)) ||
+          (trade.seller?.displayName && trade.seller.displayName.toLowerCase().includes(term))
+        );
+      });
+    }
+    
+    // Filter by role
+    if (roleFilter !== 'all') {
+      filtered = filtered.filter(trade => {
+        return (
+          (roleFilter === 'buyer' && trade.isUserBuyer) ||
+          (roleFilter === 'seller' && trade.isUserSeller)
+        );
+      });
+    }
+    
+    // Sort trades
+    switch (sortOrder) {
+      case 'newest':
+        filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        break;
+      case 'oldest':
+        filtered.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        break;
+      case 'highest':
+        filtered.sort((a, b) => (b.price || 0) - (a.price || 0));
+        break;
+      case 'lowest':
+        filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
+        break;
+      default:
+        filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+    
+    return filtered;
+  };
+  
+  // Function to clear all filters
+  const clearFilters = () => {
+    setSearchTerm('');
+    setRoleFilter('all');
+    setSortOrder('newest');
   };
 
   const getStatusColor = (status) => {
@@ -131,417 +176,273 @@ const Trades = ({ user }) => {
     }
   };
 
-  const getFilteredTrades = () => {
-    // Get the appropriate trade list based on the active tab
-    let filtered = activeTab === 'active' ? activeTrades : historicalTrades;
-    
-    if (!Array.isArray(filtered)) {
-      console.error('Trades is not an array:', filtered);
-      return [];
-    }
-
-    // Apply search filter if searchTerm exists
-    if (searchTerm.trim() !== '') {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(trade => {
-        const itemName = trade?.item?.marketHashName?.toLowerCase() || trade?.itemName?.toLowerCase() || '';
-        const buyerName = trade?.buyer?.displayName?.toLowerCase() || '';
-        const sellerName = trade?.seller?.displayName?.toLowerCase() || '';
-        return itemName.includes(term) || buyerName.includes(term) || sellerName.includes(term);
-      });
-    }
-    
-    // Apply role filter
-    if (roleFilter === 'sent') {
-      filtered = filtered.filter(trade => trade?.isUserBuyer);
-    } else if (roleFilter === 'received') {
-      filtered = filtered.filter(trade => trade?.isUserSeller);
-    }
-    
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortOrder) {
-        case 'newest':
-          return new Date(b?.createdAt || 0) - new Date(a?.createdAt || 0);
-        case 'oldest':
-          return new Date(a?.createdAt || 0) - new Date(b?.createdAt || 0);
-        case 'highest':
-          return (Number(b?.price) || 0) - (Number(a?.price) || 0);
-        case 'lowest':
-          return (Number(a?.price) || 0) - (Number(b?.price) || 0);
-        default:
-          return 0;
-      }
-    });
-    
-    return filtered;
-  };
-
-  const filteredTrades = getFilteredTrades();
-  
-  // Function to clear all filters
-  const clearFilters = () => {
-    setSearchTerm('');
-    setRoleFilter('all');
-    setSortOrder('newest');
-  };
-  
-  // Get the appropriate avatar URL
-  const getAvatarUrl = (userObj) => {
-    if (!userObj) return '/default-avatar.png';
-    
-    // Try all possible avatar properties in order
-    return userObj.avatar || 
-           userObj.avatarfull || 
-           userObj.avatarUrl || 
-           userObj.avatarMedium ||
-           userObj.avatarSmall ||
-           '/default-avatar.png';
-  };
-
-  // Function to render in-progress trades from redux activeTrades
+  // Function to render in-progress trades that need attention
   const renderInProgressTrades = () => {
-    if (activeTrades.length === 0) {
-      return null;
-    }
+    const inProgressTrades = trades.filter(trade => 
+      (trade.status === 'PENDING' || trade.status === 'ACCEPTED' || trade.status === 'PROCESSING') && 
+      ((trade.isUserBuyer && trade.buyerAction) || (trade.isUserSeller && trade.sellerAction))
+    );
+
+    if (inProgressTrades.length === 0) return null;
+
+    return (
+      <div className="in-progress-trades">
+        {inProgressTrades.map(trade => (
+          <motion.div
+            key={`in-progress-${trade._id}`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="continue-trade-card"
+          >
+            <div className="continue-trade-content">
+              <h3 className="continue-trade-title">
+                Continue your trade: {trade.itemName || trade.item?.marketHashName || 'Unknown Item'}
+              </h3>
+              <p className="continue-trade-description">
+                {trade.isUserBuyer ? 'You are buying this item' : 'You are selling this item'}.
+                This trade requires your attention to proceed.
+              </p>
+            </div>
+            
+            <div className="continue-trade-action">
+              <Link to={`/trades/${trade._id}`} className="continue-trade-button">
+                <FontAwesomeIcon icon={faClock} />
+                Continue Trade
+              </Link>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    );
+  };
+
+  // Function to render trade history
+  const renderTradeHistory = () => {
+    if (filteredTrades.length === 0) return null;
     
     return (
-      <div className="in-progress-trades-container">
-        <h3 className="in-progress-trades-title">
-          <FontAwesomeIcon icon={faClock} className="in-progress-icon" />
-          In-Progress Trades
-        </h3>
-        <p className="in-progress-trades-description">
-          These trades are currently active. Click to continue.
-        </p>
-        
-        <div className="in-progress-trades-list">
-          {activeTrades.slice(0, 3).map(trade => (
-            <div 
+      <div className="trades-list">
+        <AnimatePresence mode="popLayout">
+          {filteredTrades.map((trade, index) => (
+            <TradeItem 
               key={trade._id} 
-              className="in-progress-trade-card"
-              onClick={() => navigate(`/trades/${trade._id}`)}
-            >
-              <div className="in-progress-trade-header">
-                <span className="in-progress-trade-id">Trade #{trade._id.substring(0, 8)}</span>
-                <span 
-                  className="in-progress-trade-status" 
-                  style={{ 
-                    backgroundColor: getStatusColor(trade.status) + '22',
-                    color: getStatusColor(trade.status),
-                    border: `1px solid ${getStatusColor(trade.status)}44`
-                  }}
-                >
-                  {getStatusLabel(trade.status)}
-                </span>
-              </div>
-              
-              <div className="in-progress-trade-item">
-                <div className="in-progress-trade-item-image">
-                  {trade.itemImage ? (
-                    <img 
-                      src={trade.itemImage} 
-                      alt={trade.itemName || 'Item'} 
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = 'https://community.cloudflare.steamstatic.com/economy/image/IzMF03bi9WpSBq-S-ekoE33L-iLqGFHVaU25ZzQNQcXdEH9myp0erksICfTcePMQFc1nqWSMU5OD2NwOx3sIyShXOjLx2Sk5MbV5MsLD3k3xgfPYDG25bm-Wfw3vUsU9SLPWZ2yp-zWh5OqTE2nIQu4rFl9RKfEEpzdJbsiIaRpp3dUVu2u_0UZyDBl9JNNWfADjmyRCMLwnXeL51Cg/360fx360f';
-                      }}
-                    />
-                  ) : (
-                    <div className="in-progress-trade-item-placeholder">?</div>
-                  )}
-                </div>
-                <div className="in-progress-trade-item-details">
-                  <div className="in-progress-trade-item-name">{trade.itemName || 'Unknown Item'}</div>
-                  <div className="in-progress-trade-item-price">{formatCurrency(trade.price)}</div>
-                </div>
-              </div>
-              
-              <button className="in-progress-trade-continue-btn">
-                Continue Trade
-                <FontAwesomeIcon icon={faArrowRight} />
-              </button>
-            </div>
+              trade={trade} 
+              index={index} 
+            />
           ))}
-        </div>
+        </AnimatePresence>
       </div>
     );
   };
 
-  // Render large empty state
-  const renderEmptyState = () => {
+  // Function to render empty state when no trades are found
+  const renderEmptyState = (tabType) => {
+    const isActive = tabType === 'active';
+    
     return (
-      <div className="trades-empty-state">
-        <FontAwesomeIcon icon={faExchangeAlt} size="3x" />
-        
-        <h3>{activeTab === 'active' ? 'No Active Trades' : 'No Trade History'}</h3>
-        
-        {activeTab === 'active' ? (
-          <p>You don't have any ongoing trades. Start trading by browsing the marketplace.</p>
-        ) : (
-          <p>You haven't completed any trades yet. Your trade history will appear here.</p>
-        )}
-        
-        <button className="trades-primary-button" onClick={() => navigate('/marketplace')}>
+      <div className="trades-empty">
+        <FontAwesomeIcon 
+          icon={isActive ? faExchangeAlt : faHistory} 
+          size="2x" 
+          style={{ marginBottom: '15px', opacity: 0.6 }} 
+        />
+        <h3>
+          {isActive 
+            ? 'No active trades found' 
+            : 'No trade history found'}
+        </h3>
+        <p>
+          {isActive 
+            ? 'You don\'t have any active trades at the moment.' 
+            : 'You haven\'t completed any trades yet.'}
+        </p>
+        <Link to="/marketplace" className="trades-empty-action">
+          <FontAwesomeIcon icon={faStore} />
           Browse Marketplace
-        </button>
+        </Link>
       </div>
     );
   };
 
-  return (
-    <div className="trades-container">
+  // Function to render the header with stats
+  const renderHeader = () => {
+    return (
       <div className="trades-header">
+        <div className="trades-header-backdrop"></div>
         <div className="trades-header-content">
-          <h1>My Trades</h1>
-          <p>Manage and track all your trades in one place</p>
-          <button 
-            className="trades-refresh-button" 
-            onClick={() => dispatch(fetchTrades())}
-            disabled={loading}
-          >
-            {loading ? (
-              <span className="trades-refresh-loading"></span>
-            ) : (
-              <FontAwesomeIcon icon={faSync} />
-            )}
-            Refresh
-          </button>
+          <div className="trades-header-title-section">
+            <h1>
+              <FontAwesomeIcon icon={faExchangeAlt} className="title-icon" />
+              Your Trades
+            </h1>
+            <p>Manage your ongoing trades and view your trading history</p>
+            
+            <button
+              className="trades-refresh-button"
+              onClick={handleRefresh}
+              disabled={loading}
+            >
+              {loading ? (
+                <span className="trades-refresh-loading"></span>
+              ) : (
+                <FontAwesomeIcon icon={faSync} />
+              )}
+              {loading ? 'Refreshing...' : 'Refresh Trades'}
+            </button>
+          </div>
+          
+          <div className="trades-header-stats-section">
+            <StatsCards
+              statsLoading={loading}
+              completedTrades={stats.completedTrades}
+              pendingTrades={stats.pendingTrades}
+              totalValue={stats.totalValue}
+            />
+          </div>
         </div>
-        <StatsCards stats={stats} statsLoading={loading} />
       </div>
-      
-      {/* Tabs */}
-      <motion.div 
-        className="trades-tabs"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.1 }}
-      >
-        <button 
+    );
+  };
+
+  // Function to render the tabs
+  const renderTabs = () => {
+    return (
+      <div className="trades-tabs">
+        <button
           className={`trades-tab ${activeTab === 'active' ? 'active' : ''}`}
           onClick={() => setActiveTab('active')}
         >
-          <FontAwesomeIcon icon={faClock} />
+          <FontAwesomeIcon icon={faExchangeAlt} />
           Active Trades
-          {stats.activeTrades > 0 && <span className="trades-tab-badge">{stats.activeTrades}</span>}
+          {activeTrades.length > 0 && (
+            <span className="trades-tab-badge">{activeTrades.length}</span>
+          )}
         </button>
-        
-        <button 
+        <button
           className={`trades-tab ${activeTab === 'history' ? 'active' : ''}`}
           onClick={() => setActiveTab('history')}
         >
           <FontAwesomeIcon icon={faHistory} />
           Trade History
-          {stats.completedTrades > 0 && <span className="trades-tab-badge">{stats.completedTrades}</span>}
+          {historicalTrades.length > 0 && (
+            <span className="trades-tab-badge">{historicalTrades.length}</span>
+          )}
         </button>
-      </motion.div>
-      
-      {/* Filters */}
-      <motion.div 
-        className="trades-filters"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.2 }}
-      >
+      </div>
+    );
+  };
+
+  // Function to render the filters
+  const renderFilters = () => {
+    const hasFilters = searchTerm || roleFilter !== 'all' || sortOrder !== 'newest';
+    
+    return (
+      <div className="trades-filters">
         <div className="trades-search-container">
           <FontAwesomeIcon icon={faSearch} />
           <input
             type="text"
-            placeholder="Search by item or user..."
+            placeholder="Search by ID, item name, or user..."
+            className="trades-search-input"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="trades-search-input"
           />
           {searchTerm && (
             <button 
-              className="trades-search-clear" 
+              className="trades-search-clear"
               onClick={() => setSearchTerm('')}
-              aria-label="Clear search"
             >
-              <FontAwesomeIcon icon={faFilter} />
+              <FontAwesomeIcon icon={faTimes} />
             </button>
           )}
         </div>
         
         <div className="trades-filter-actions">
           <div className="trades-filter-group">
-            <label htmlFor="roleFilter" className="trades-filter-label">Role:</label>
+            <span className="trades-filter-label">
+              <FontAwesomeIcon icon={faUserTag} />
+              Role
+            </span>
             <select
-              id="roleFilter"
+              className="trades-filter-select"
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="trades-filter-select"
             >
-              <option value="all">All Trades</option>
-              <option value="sent">Purchases</option>
-              <option value="received">Sales</option>
+              <option value="all">All Roles</option>
+              <option value="buyer">Buyer</option>
+              <option value="seller">Seller</option>
             </select>
           </div>
           
           <div className="trades-filter-group">
-            <label htmlFor="sortOrder" className="trades-filter-label">Sort:</label>
+            <span className="trades-filter-label">
+              <FontAwesomeIcon icon={faSortAmountDown} />
+              Sort
+            </span>
             <select
-              id="sortOrder"
+              className="trades-filter-select"
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value)}
-              className="trades-filter-select"
             >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
-              <option value="highest">Highest Price</option>
-              <option value="lowest">Lowest Price</option>
+              <option value="highest">Highest Value</option>
+              <option value="lowest">Lowest Value</option>
             </select>
           </div>
           
-          {(searchTerm || roleFilter !== 'all' || sortOrder !== 'newest') && (
+          {hasFilters && (
             <button 
-              className="trades-filter-clear" 
+              className="trades-filter-clear"
               onClick={clearFilters}
             >
+              <FontAwesomeIcon icon={faTimes} />
               Clear Filters
             </button>
           )}
         </div>
-      </motion.div>
-      
-      {/* Loading, Error or Trades List */}
-      <div className="trades-content">
-        {loading ? (
-          <div className="trades-loading">
-            <div className="trades-spinner"></div>
-            <p>Loading your trades...</p>
-          </div>
-        ) : error ? (
-          <div className="trades-error">
-            <FontAwesomeIcon icon={faExclamationCircle} size="2x" />
-            <p>{error}</p>
-            <button 
-              className="trades-retry-button"
-              onClick={() => dispatch(fetchTrades())}
-            >
-              Try Again
-            </button>
-          </div>
-        ) : filteredTrades.length === 0 ? (
-          renderEmptyState()
-        ) : (
-          <div className="trades-list">
-            <AnimatePresence mode="popLayout">
-              {filteredTrades.map((trade, index) => (
-                <motion.div 
-                  key={trade._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                  className="trade-card"
-                  whileHover={{ scale: 1.01 }}
-                >
-                  <div className="trade-card-header">
-                    <div className="trade-status" style={{ backgroundColor: getStatusColor(trade.status) }}>
-                      {getStatusLabel(trade.status)}
-                    </div>
-                    <div className="trade-date">
-                      {new Date(trade.createdAt).toLocaleDateString('en-US', { 
-                        year: 'numeric', 
-                        month: 'short', 
-                        day: 'numeric'
-                      })}
-                    </div>
-                  </div>
-                  
-                  <div className="trade-card-content">
-                    <div className="trade-item-image">
-                      <img 
-                        src={trade.itemImage || 
-                             (trade.item && (trade.item.iconUrl || trade.item.iconURL || trade.item.icon || trade.item.imageUrl || trade.item.image)) || 
-                             trade.itemIconUrl || 
-                             trade.iconUrl || 
-                             '/default-item.png'} 
-                        alt={trade.itemName || (trade.item && trade.item.marketHashName) || 'Item'} 
-                        onError={(e) => {
-                          console.error("Failed to load image:", e.target.src);
-                          e.target.onerror = null; // Prevent infinite loop
-                          e.target.src = '/default-item.png';
-                        }}
-                      />
-                    </div>
-                    
-                    <div className="trade-item-details">
-                      <h3 className="trade-item-name">{trade.itemName || trade.item?.marketHashName || 'Unknown Item'}</h3>
-                      <p className="trade-item-price">
-                        {formatCurrency(trade.price, trade.currency)} 
-                        {trade.currency && trade.currency !== 'USD' && ` (${trade.currency})`}
-                      </p>
-                      
-                      <div className="trade-participants">
-                        <div className="trade-participant">
-                          <div className="trade-participant-avatar">
-                            <img 
-                              src={getAvatarUrl(trade.buyer)} 
-                              alt={trade.buyer?.displayName || 'Buyer'} 
-                              onError={(e) => {
-                                console.error("Failed to load buyer avatar:", e.target.src);
-                                e.target.onerror = null; // Prevent infinite loop
-                                e.target.src = '/default-avatar.png';
-                              }}
-                              loading="lazy"
-                            />
-                          </div>
-                          <div className="trade-participant-info">
-                            <span className="trade-role">
-                              <FontAwesomeIcon icon={faShoppingCart} size="xs" />
-                              {trade.isUserBuyer ? 'You' : 'Buyer'}:
-                            </span>
-                            <span className="trade-user">{trade.isUserBuyer ? 'You' : trade.buyer?.displayName || 'Unknown'}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="trade-divider">
-                          <FontAwesomeIcon icon={faArrowRight} />
-                        </div>
-                        
-                        <div className="trade-participant">
-                          <div className="trade-participant-avatar">
-                            <img 
-                              src={getAvatarUrl(trade.seller)} 
-                              alt={trade.seller?.displayName || 'Seller'} 
-                              onError={(e) => {
-                                console.error("Failed to load seller avatar:", e.target.src);
-                                e.target.onerror = null; // Prevent infinite loop
-                                e.target.src = '/default-avatar.png';
-                              }}
-                              loading="lazy"
-                            />
-                          </div>
-                          <div className="trade-participant-info">
-                            <span className="trade-role">
-                              <FontAwesomeIcon icon={faStore} size="xs" />
-                              {trade.isUserSeller ? 'You' : 'Seller'}:
-                            </span>
-                            <span className="trade-user">{trade.isUserSeller ? 'You' : trade.seller?.displayName || 'Unknown'}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="trade-actions">
-                      <Link to={`/trades/${trade._id}`} className="trade-view-button">
-                        View Details
-                        <FontAwesomeIcon icon={faArrowRight} />
-                      </Link>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        )}
       </div>
+    );
+  };
+
+  return (
+    <div className="trades-container">
+      {renderHeader()}
+      {renderTabs()}
+      {renderFilters()}
       
-      {/* In-Progress Trades Section */}
-      {renderInProgressTrades()}
+      {loading ? (
+        <div className="trades-loading">
+          <FontAwesomeIcon icon={faSpinner} spin size="2x" />
+          <p>Loading your trades...</p>
+        </div>
+      ) : error ? (
+        <div className="trades-error">
+          <FontAwesomeIcon icon={faExclamationCircle} size="2x" />
+          <p>{error}</p>
+          <button onClick={handleRefresh} className="trades-retry-button">
+            <FontAwesomeIcon icon={faSync} />
+            Try Again
+          </button>
+        </div>
+      ) : (
+        <div className="trades-content">
+          {activeTab === 'active' && (
+            <>
+              {renderInProgressTrades()}
+              {renderTradeHistory()}
+              {filteredTrades.length === 0 && renderEmptyState('active')}
+            </>
+          )}
+          
+          {activeTab === 'history' && (
+            <>
+              {renderTradeHistory()}
+              {filteredTrades.length === 0 && renderEmptyState('history')}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };

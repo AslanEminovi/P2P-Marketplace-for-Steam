@@ -6,6 +6,7 @@ const socketService = require("../services/socketService");
 const mongoose = require("mongoose");
 const axios = require("axios");
 const notificationService = require("../services/notificationService");
+const redisTradeService = require("../services/redisTradeService");
 
 // GET /trades/history
 exports.getTradeHistory = async (req, res) => {
@@ -543,11 +544,9 @@ exports.cancelTrade = async (req, res) => {
     });
   } catch (err) {
     console.error("Cancel trade error:", err);
-    return res
-      .status(500)
-      .json({
-        error: "Failed to cancel trade: " + (err.message || "Unknown error"),
-      });
+    return res.status(500).json({
+      error: "Failed to cancel trade: " + (err.message || "Unknown error"),
+    });
   }
 };
 
@@ -1350,6 +1349,190 @@ const handleTradeOfferCreation = async (userId, tradeId) => {
   } catch (err) {
     console.error(`Error in handleTradeOfferCreation: ${err.message}`);
     return false;
+  }
+};
+
+// Add to the existing getTrades function:
+exports.getTrades = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Check Redis cache first
+    const cachedTrades = await redisTradeService.getUserTradesFromCache(userId);
+    if (cachedTrades) {
+      logger.info(`Returning cached trades for user ${userId}`);
+      return res.json(cachedTrades);
+    }
+
+    const trades = await tradeService.getUserTrades(userId);
+
+    // Transform trades for client consumption
+    const transformedTrades = trades.map((trade) =>
+      formatTradeResponse(trade, req.user)
+    );
+
+    // Cache the transformed trades in Redis
+    await redisTradeService.cacheUserTrades(userId, transformedTrades);
+
+    res.json(transformedTrades);
+  } catch (error) {
+    logger.error("Error fetching trades:", error);
+    res
+      .status(500)
+      .json({ message: "Error fetching trades", error: error.message });
+  }
+};
+
+// Add to the existing getTradeById function:
+exports.getTradeById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Try to get from Redis cache first
+    const cachedTrade = await redisTradeService.getTradeFromCache(id);
+    if (cachedTrade) {
+      // Format the response from cache
+      const formattedTrade = formatTradeResponse(cachedTrade, req.user);
+      return res.json(formattedTrade);
+    }
+
+    // Not found in cache, get from database
+    const trade = await tradeService.getTrade(id);
+
+    if (!trade) {
+      return res.status(404).json({ message: "Trade not found" });
+    }
+
+    // Check if user has permission to view this trade
+    if (!isTradeMember(trade, req.user._id)) {
+      return res
+        .status(403)
+        .json({ message: "You do not have permission to view this trade" });
+    }
+
+    // Format the response
+    const formattedTrade = formatTradeResponse(trade, req.user);
+
+    // Cache the trade in Redis
+    await redisTradeService.cacheTrade(trade);
+
+    res.json(formattedTrade);
+  } catch (error) {
+    logger.error("Error fetching trade:", error);
+    res
+      .status(500)
+      .json({ message: "Error fetching trade", error: error.message });
+  }
+};
+
+// Add to the existing updateTradeStatus function:
+exports.updateTradeStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, action } = req.body;
+
+    const trade = await tradeService.getTrade(id);
+
+    if (!trade) {
+      return res.status(404).json({ message: "Trade not found" });
+    }
+
+    // Check if user has permission to update this trade
+    if (!isTradeMember(trade, req.user._id)) {
+      return res
+        .status(403)
+        .json({ message: "You do not have permission to update this trade" });
+    }
+
+    // Update the trade status
+    const updatedTrade = await tradeService.updateTradeStatus(
+      id,
+      status,
+      req.user._id,
+      action
+    );
+
+    // Format the response
+    const formattedTrade = formatTradeResponse(updatedTrade, req.user);
+
+    // Update Redis cache
+    await redisTradeService.cacheTrade(updatedTrade);
+
+    // Invalidate user trades cache for both buyer and seller
+    await redisTradeService.invalidateUserTrades(trade.buyer.toString());
+    await redisTradeService.invalidateUserTrades(trade.seller.toString());
+
+    // Publish status change event to Redis
+    await redisTradeService.publishTradeEvent(
+      redisTradeService.CHANNELS.TRADE_STATUS_CHANGED,
+      {
+        tradeId: id,
+        previousStatus: trade.status,
+        newStatus: status,
+        updatedBy: req.user._id,
+        timestamp: Date.now(),
+      }
+    );
+
+    // Update trade stats in Redis
+    if (status === "COMPLETED") {
+      await redisTradeService.updateTradeStatsCounter(
+        trade.buyer.toString(),
+        "completedTrades",
+        1
+      );
+      await redisTradeService.updateTradeStatsCounter(
+        trade.seller.toString(),
+        "completedTrades",
+        1
+      );
+
+      // Update total value for both users
+      const tradeValue = trade.price || 0;
+      await redisTradeService.updateTradeStatsCounter(
+        trade.buyer.toString(),
+        "totalValue",
+        tradeValue
+      );
+      await redisTradeService.updateTradeStatsCounter(
+        trade.seller.toString(),
+        "totalValue",
+        tradeValue
+      );
+    }
+
+    res.json(formattedTrade);
+  } catch (error) {
+    logger.error("Error updating trade status:", error);
+    res
+      .status(500)
+      .json({ message: "Error updating trade status", error: error.message });
+  }
+};
+
+// Add a new getTradeStats function:
+exports.getTradeStats = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Try to get stats from Redis cache first
+    const cachedStats = await redisTradeService.getTradeStatsFromCache(userId);
+    if (cachedStats) {
+      return res.json(cachedStats);
+    }
+
+    // Not found in cache, calculate from database
+    const stats = await tradeService.getUserTradeStats(userId);
+
+    // Cache the stats in Redis
+    await redisTradeService.cacheTradeStats(userId, stats);
+
+    res.json(stats);
+  } catch (error) {
+    logger.error("Error fetching trade stats:", error);
+    res
+      .status(500)
+      .json({ message: "Error fetching trade stats", error: error.message });
   }
 };
 
