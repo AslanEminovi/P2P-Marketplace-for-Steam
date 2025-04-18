@@ -1038,28 +1038,28 @@
 
 /* Enhanced Marketplace Browse Button - Updated with smaller size, smaller icon, and text gradient */
 .marketplace-browse-button {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
   background: rgba(22, 27, 34, 0.5);
-  padding: 6px 12px;
+  color: var(--trade-text);
+  padding: 8px 16px;
   border-radius: 6px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  text-decoration: none;
   border: 1px solid var(--trade-border);
+  font-weight: 600;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  text-decoration: none;
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-top: 0.75rem;
 }
 
 .marketplace-browse-button svg {
-  font-size: 0.85rem;
-  transition: transform 0.3s ease;
+  font-size: 1rem;
   color: var(--trade-accent);
+  transition: transform 0.3s ease;
 }
 
 .marketplace-browse-button span {

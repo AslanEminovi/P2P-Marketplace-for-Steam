@@ -30,7 +30,7 @@
   background: rgba(22, 27, 34, 0.5);
   border: 1px solid var(--border-color);
   color: var(--text-color);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
@@ -45,7 +45,7 @@
 }
 
 .view-all-button svg {
-  font-size: 0.85rem;
+  font-size: 1rem;
   color: var(--accent-color);
   transition: transform 0.3s ease;
 }
