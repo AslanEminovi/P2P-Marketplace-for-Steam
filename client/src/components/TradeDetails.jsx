@@ -237,231 +237,70 @@ const StatusBadge = ({ status }) => {
 
 // Add a new visual timeline component for trade status
 const StatusTimeline = ({ trade }) => {
-  // Define the trade flow steps in order
+  if (!trade) return null;
+  
   const steps = [
-    { 
-      status: 'awaiting_seller', 
-      label: 'Offer Sent',
-      icon: (active) => (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "currentColor" : "#6b7280"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <path d="M8 12h4"></path>
-          <path d="M16 12h.01"></path>
-          <path d="M12 16v.01"></path>
-          <path d="M12 8v.01"></path>
-        </svg>
-      )
-    },
-    { 
-      status: 'accepted', 
-      label: 'Seller Accepted',
-      icon: (active) => (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "currentColor" : "#6b7280"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="9 11 12 14 22 4"></polyline>
-          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-        </svg>
-      )
-    },
-    { 
-      status: 'offer_sent', 
-      label: 'Steam Offer Sent',
-      icon: (active) => (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "currentColor" : "#6b7280"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-          <polyline points="22 4 12 14.01 9 11.01"></polyline>
-        </svg>
-      )
-    },
-    { 
-      status: 'awaiting_confirmation', 
-      label: 'Buyer Confirmation',
-      icon: (active) => (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "currentColor" : "#6b7280"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-        </svg>
-      )
-    },
-    { 
-      status: 'completed', 
-      label: 'Completed',
-      icon: (active) => (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "currentColor" : "#6b7280"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-          <polyline points="22 4 12 14.01 9 11.01"></polyline>
-        </svg>
-      ) 
-    }
+    { key: 'created', label: 'Created' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'awaiting_seller', label: 'Seller Sending' },
+    { key: 'awaiting_buyer', label: 'Buyer Receiving' },
+    { key: 'completed', label: 'Completed' }
   ];
   
-  // Find current step index
-  const currentIndex = steps.findIndex(step => step.status === trade.status);
-  const isCancelled = trade.status === 'cancelled' || trade.status === 'failed';
+  // Determine active step based on current status
+  const getActiveIndex = () => {
+    const statusOrder = {
+      'created': 0,
+      'pending': 1,
+      'awaiting_seller': 2,
+      'awaiting_buyer': 3,
+      'completed': 4,
+      'cancelled': -1,
+      'failed': -1,
+      'rejected': -1,
+      'expired': -1
+    };
+    
+    return statusOrder[trade.status] !== undefined ? statusOrder[trade.status] : -1;
+  };
   
-  if (isCancelled) {
-    return (
-      <div style={{
-        padding: '16px 20px',
-        backgroundColor: 'rgba(127, 29, 29, 0.2)',
-        color: '#f87171',
-        borderRadius: '12px',
-        fontWeight: '500',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        marginBottom: '24px',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-        border: '1px solid rgba(239, 68, 68, 0.3)',
-        backdropFilter: 'blur(8px)'
-      }}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="15" y1="9" x2="9" y2="15"></line>
-          <line x1="9" y1="9" x2="15" y2="15"></line>
-        </svg>
-        <div>
-          <div style={{ fontWeight: '600', fontSize: '1.1rem', marginBottom: '4px' }}>
-            Trade {trade.status === 'cancelled' ? 'Cancelled' : 'Failed'}
-          </div>
-          <div style={{ fontSize: '0.9rem', opacity: '0.9' }}>
-            {trade.status === 'cancelled' 
-              ? 'This trade was cancelled and cannot be resumed.' 
-              : 'This trade failed to complete. Please contact support if you need assistance.'}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const activeIndex = getActiveIndex();
+  
+  // Don't show timeline for cancelled/failed trades
+  if (activeIndex < 0) return null;
   
   return (
-    <div style={{ 
-      marginBottom: '30px',
-      backgroundColor: 'rgba(17, 24, 39, 0.4)',
-      borderRadius: '16px',
-      padding: '24px',
-      boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
-      border: '1px solid rgba(55, 65, 81, 0.5)',
-      backdropFilter: 'blur(8px)'
-    }}>
-      <h3 style={{ 
-        color: '#f1f1f1', 
-        margin: '0 0 20px 0',
-        fontSize: '1.1rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px'
-      }}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-          <polyline points="17 6 23 6 23 12"></polyline>
-        </svg>
-        Trade Progress
-      </h3>
-      
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        position: 'relative',
-        marginBottom: '20px'
-      }}>
-        {/* Timeline connector */}
-        <div style={{
-          position: 'absolute',
-          height: '3px',
-          background: 'linear-gradient(90deg, #4ade80 0%, #4ade80 ' + 
-            (currentIndex >= 0 ? ((currentIndex / (steps.length - 1)) * 100) + '%' : '0%') + 
-            ', #374151 ' + 
-            (currentIndex >= 0 ? ((currentIndex / (steps.length - 1)) * 100) + '%' : '0%') + 
-            ', #374151 100%)',
-          top: '50%',
-          left: '24px',
-          right: '24px',
-          transform: 'translateY(-50%)',
-          zIndex: 1,
-          borderRadius: '4px'
-        }} />
-        
-        {/* Timeline steps */}
+    <div className="trade-timeline">
+      <div className="timeline-container">
         {steps.map((step, index) => {
-          const isActive = index <= currentIndex;
-          const isCompleted = index < currentIndex;
-          const isCurrent = index === currentIndex;
+          const isCompleted = index < activeIndex;
+          const isActive = index === activeIndex;
           
           return (
-            <div key={step.status} style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              position: 'relative',
-              zIndex: 2
-            }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                backgroundColor: isActive ? '#10b981' : '#374151',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: '12px',
-                transition: 'all 0.5s ease',
-                boxShadow: isActive ? '0 0 12px rgba(16, 185, 129, 0.7)' : 'none',
-                border: isActive ? '2px solid rgba(16, 185, 129, 0.8)' : '2px solid rgba(55, 65, 81, 0.8)',
-                transform: isCurrent ? 'scale(1.15)' : 'scale(1)'
-              }}>
+            <div 
+              key={step.key}
+              className={`timeline-step ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+            >
+              <div className="timeline-icon">
                 {isCompleted ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12"></polyline>
                   </svg>
-                ) : step.icon(isActive)}
+                ) : isActive ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                  </svg>
+                )}
               </div>
-              <div style={{
-                fontSize: '0.8rem',
-                color: isActive ? '#e5e7eb' : '#9ca3af',
-                textAlign: 'center',
-                width: '80px',
-                transition: 'all 0.3s ease',
-                fontWeight: isCurrent ? '600' : '400'
-              }}>
-                {step.label}
-              </div>
+              <div className="timeline-label">{step.label}</div>
             </div>
           );
         })}
-      </div>
-      
-      {/* Current status info */}
-      <div style={{
-        backgroundColor: 'rgba(31, 41, 55, 0.5)',
-        padding: '12px 16px',
-        borderRadius: '8px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        marginTop: '12px'
-      }}>
-        <div style={{
-          backgroundColor: getStatusBgColor(trade.status),
-          borderRadius: '50%',
-          width: '30px',
-          height: '30px',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          color: getStatusColor(trade.status),
-          flexShrink: 0
-        }}>
-          {getStatusIcon(trade.status)}
-        </div>
-        <div>
-          <div style={{ color: '#e5e7eb', fontWeight: '500', marginBottom: '4px' }}>
-            {getStatusText(trade.status)}
-          </div>
-          <div style={{ color: '#9ca3af', fontSize: '0.85rem' }}>
-            {getDefaultStatusMessage(trade.status, trade.isUserSeller, trade.isUserBuyer)}
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -469,149 +308,93 @@ const StatusTimeline = ({ trade }) => {
 
 // Improved Trade UI for item details section
 const TradeItemDetails = ({ item, trade, price }) => {
-  const rarity = item?.rarity || trade?.itemRarity || 'Unknown';
-  const wear = item?.wear || trade?.itemWear || 'Unknown';
-  const imageUrl = item?.imageUrl || trade?.itemImage || 'https://community.cloudflare.steamstatic.com/economy/image/fWFc82js0fmoRAP-qOIPu5THSWqfSmTELLqcUywGkijVjZULUrsm1j-9xgEGegouTxTgsSxQt5M1V_eNC-VZzY89ssYDjGIzw1B_Z7PlMmQzJVGaVaUJC_Q7-Q28UiRh7pQ7VoLj9ewDKw_us4PAN7coOopJTMDWXvSGMF_860g60agOe8ONpyK-i3vuaGgCUg25_ToQnOKE6bBunMsoYhg/360fx360f';
+  if (!item && !trade) return null;
+  
+  // Get data from either item object or trade object
+  const itemData = item || {
+    name: trade.itemName,
+    marketHashName: trade.itemName,
+    icon: trade.itemImage || trade.iconUrl,
+    rarity: trade.itemRarity,
+    type: trade.itemType,
+    wear: trade.itemWear,
+    float: trade.itemFloat,
+    paintSeed: trade.itemPaintSeed
+  };
+  
+  const itemPrice = price || trade?.price || 0;
   
   return (
-    <div style={{
-      backgroundColor: 'rgba(17, 24, 39, 0.4)',
-      borderRadius: '16px',
-      overflow: 'hidden',
-      border: '1px solid rgba(55, 65, 81, 0.5)',
-      marginBottom: '24px',
-      boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-      backdropFilter: 'blur(10px)'
-    }}>
-      <div style={{
-        backgroundColor: 'rgba(31, 41, 55, 0.7)',
-        padding: '12px 20px',
-        borderBottom: '1px solid rgba(55, 65, 81, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px'
-      }}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+    <div className="trade-details-section">
+      <h3 className="trade-details-section-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+          <line x1="12" y1="22.08" x2="12" y2="12"></line>
         </svg>
-        <h3 style={{
-          margin: 0,
-          fontSize: '1.1rem',
-          fontWeight: '600',
-          color: '#f1f1f1'
-        }}>
-          Item Details
-        </h3>
-      </div>
+        Item Details
+      </h3>
       
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '24px'
-      }}>
-        <div style={{
-          width: '200px',
-          height: '150px',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          marginBottom: '20px',
-          backgroundColor: 'rgba(17, 24, 39, 0.7)',
-          borderRadius: '12px',
-          padding: '16px',
-          position: 'relative',
-          overflow: 'hidden',
-          boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)',
-          border: `1px solid ${getRarityBorderColor(rarity)}`
-        }}>
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(17, 24, 39, 0.3)',
-            backgroundImage: `radial-gradient(circle at center, ${getRarityColor(rarity)}22 0%, transparent 70%)`,
-            zIndex: 1
-          }} />
-          
+      <div className="trade-item-container">
+        <div className="trade-item-image-container">
+          <div 
+            className="trade-item-rarity"
+            style={{ backgroundColor: getRarityColor(itemData.rarity) }}
+          ></div>
           <img 
-            src={imageUrl}
-            alt={item.marketHashName}
-            style={{
-              maxWidth: '90%',
-              maxHeight: '90%',
-              objectFit: 'contain',
-              position: 'relative',
-              zIndex: 2,
-              filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5))',
-              transition: 'transform 0.3s ease-in-out',
-              transform: 'scale(1.05)'
-            }}
-            onMouseOver={(e) => {
-              e.target.style.transform = 'scale(1.15)';
-            }}
-            onMouseOut={(e) => {
-              e.target.style.transform = 'scale(1.05)';
-            }}
+            src={itemData.icon || itemData.iconUrl || '/default-item.png'} 
+            alt={itemData.name || itemData.marketHashName || 'Item'} 
+            className="trade-item-image"
             onError={(e) => {
               e.target.onerror = null;
-              e.target.src = 'https://community.cloudflare.steamstatic.com/economy/image/IzMF03bi9WpSBq-S-ekoE33L-iLqGFHVaU25ZzQNQcXdEH9myp0erksICfTcePMQFc1nqWSMU5OD2NwOx3sIyShXOjLx2Sk5MbV5MsLD3k3xgfPYDG25bm-Wfw3vUsU9SLPWZ2yp-zWh5OqTE2nIQu4rFl9RKfEEpzdJbsiIaRpp3dUVu2u_0UZyDBl9JNNWfADjmyRCMLwnXeL51Cg/360fx360f';
+              e.target.src = '/default-item.png';
             }}
           />
         </div>
         
-        <h2 style={{
-          color: '#f1f1f1',
-          margin: '0 0 16px 0',
-          fontSize: '1.35rem',
-          fontWeight: '600',
-          textAlign: 'center',
-          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
-        }}>
-          {item.marketHashName || 'Unknown Item'}
-        </h2>
-        
-        <div style={{
-          display: 'flex',
-          gap: '16px',
-          marginBottom: '20px'
-        }}>
-          <div style={{
-            backgroundColor: 'rgba(31, 41, 55, 0.5)',
-            padding: '6px 14px',
-            borderRadius: '8px',
-            fontSize: '0.9rem',
-            color: getRarityColor(rarity),
-            border: `1px solid ${getRarityColor(rarity)}55`
-          }}>
-            {rarity}
+        <div className="trade-item-details">
+          <h3 className="trade-item-name">{itemData.name || itemData.marketHashName || 'Unknown Item'}</h3>
+          <p className="trade-item-subtitle">{itemData.type || itemData.category || itemData.collectionName || 'CS:GO Item'}</p>
+          
+          <div className="trade-item-price">
+            {formatCurrency(itemPrice)}
           </div>
           
-          <div style={{
-            backgroundColor: 'rgba(31, 41, 55, 0.5)',
-            padding: '6px 14px',
-            borderRadius: '8px',
-            fontSize: '0.9rem',
-            color: '#d1d5db',
-            border: '1px solid rgba(209, 213, 219, 0.3)'
-          }}>
-            {wear}
+          {itemData.float && (
+            <div className="trade-item-float">
+              Float: {parseFloat(itemData.float).toFixed(10)}
+            </div>
+          )}
+          
+          <div className="trade-item-properties">
+            {itemData.wear && (
+              <div className="trade-item-property">
+                <span className="trade-item-property-label">Wear:</span>
+                <span className="trade-item-property-value">{itemData.wear}</span>
+              </div>
+            )}
+            
+            {itemData.rarity && (
+              <div className="trade-item-property">
+                <span className="trade-item-property-label">Rarity:</span>
+                <span className="trade-item-property-value">{itemData.rarity}</span>
+              </div>
+            )}
+            
+            {itemData.paintSeed && (
+              <div className="trade-item-property">
+                <span className="trade-item-property-label">Pattern:</span>
+                <span className="trade-item-property-value">{itemData.paintSeed}</span>
+              </div>
+            )}
+            
+            {trade && (
+              <div className="trade-item-property">
+                <span className="trade-item-property-label">Steam Asset ID:</span>
+                <span className="trade-item-property-value">{trade.assetId || 'Not available'}</span>
+              </div>
+            )}
           </div>
-        </div>
-        
-        <div style={{
-          fontSize: '1.8rem',
-          fontWeight: '700',
-          color: '#10b981',
-          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
-          background: 'linear-gradient(90deg, #10b981, #4ade80)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent'
-        }}>
-          {formatCurrency(price)}
         </div>
       </div>
     </div>
@@ -620,79 +403,33 @@ const TradeItemDetails = ({ item, trade, price }) => {
 
 // Main trade header component
 const TradeHeader = ({ trade, userRoles }) => {
-  // Display user roles clearly for debugging purposes
-  const { isBuyer, isSeller } = userRoles;
+  if (!trade) return null;
   
   return (
-    <div style={{
-      backgroundColor: 'rgba(17, 24, 39, 0.5)',
-      borderRadius: '16px',
-      padding: '20px',
-      marginBottom: '24px',
-      boxShadow: '0 8px 20px rgba(0, 0, 0, 0.15)',
-      backdropFilter: 'blur(10px)',
-      border: '1px solid rgba(55, 65, 81, 0.5)',
-      position: 'relative'
-    }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '16px'
-      }}>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px'
-        }}>
-          <h2 style={{
-            margin: 0,
-            color: '#f1f1f1',
-            fontSize: '1.5rem',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15.6 11.6L22 7v10l-6.4-4.5v-1"></path>
-              <path d="M15.6 15.9L8 21V11l7.6 5.1"></path>
-              <path d="M15.6 11.6L8 6v5"></path>
-              <path d="M15.6 5.1L22 9l-6.4 3.6-7.6-5.1L15.6 5.1z"></path>
-            </svg>
-            Trade #{trade._id.substring(0, 8)}
-          </h2>
-          <div style={{
-            fontSize: '0.9rem',
-            color: '#d1d5db',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            Created {new Date(trade.createdAt).toLocaleString()}
-          </div>
-          
-          {/* Add user role information for debugging */}
-          <div style={{
-            fontSize: '0.85rem',
-            backgroundColor: 'rgba(17, 24, 39, 0.7)',
-            padding: '4px 10px',
-            borderRadius: '6px',
-            marginTop: '10px',
-            color: isBuyer ? '#93c5fd' : (isSeller ? '#4ade80' : '#d1d5db')
-          }}>
-            Your Role: {isBuyer ? 'Buyer' : (isSeller ? 'Seller' : 'Viewer')}
-            <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '2px' }}>
-              User ID: {trade.userId || 'Unknown'}
-            </div>
-          </div>
+    <div className="trade-details-header">
+      <div>
+        <div className="trade-details-id">Trade #{trade._id}</div>
+      </div>
+      
+      <div className="trade-details-status-wrapper">
+        <div className="trade-details-date">
+          {new Date(trade.createdAt).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })}
         </div>
-        <StatusBadge status={trade.status} />
+        
+        <div className="trade-status-badge" style={{
+          backgroundColor: getStatusBgColor(trade.status),
+          color: getStatusColor(trade.status),
+          border: `1px solid ${getStatusColor(trade.status)}66`
+        }}>
+          {getStatusIcon(trade.status)}
+          {getStatusText(trade.status)}
+        </div>
       </div>
     </div>
   );
@@ -944,531 +681,356 @@ const TradeDetails = ({ tradeId }) => {
   };
 
   const renderTradeActions = () => {
-    if (!trade || loading) return null;
+    if (!trade) return null;
     
-    // Based on trade status and user role, show different action buttons
-    if (trade.status === 'completed' || trade.status === 'cancelled' || trade.status === 'failed') {
-      return null; // No actions for completed/cancelled/failed trades
+    // If trade is in a final state, don't show actions
+    if (['completed', 'cancelled', 'failed', 'rejected', 'expired'].includes(trade.status)) {
+      return null;
     }
     
     return (
-      <div style={{
-        backgroundColor: 'rgba(17, 24, 39, 0.4)',
-        borderRadius: '16px',
-        padding: '24px',
-        border: '1px solid rgba(55, 65, 81, 0.5)',
-        marginBottom: '24px',
-        boxShadow: '0 8px 16px rgba(0, 0, 0, 0.15)',
-        backdropFilter: 'blur(8px)'
-      }}>
-        <h3 style={{ 
-          color: '#f1f1f1', 
-          margin: '0 0 20px 0',
-          fontSize: '1.1rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-          </svg>
-          Trade Actions
-        </h3>
-
-        {/* Debug info for role detection */}
-        <div style={{
-          padding: '8px 12px',
-          backgroundColor: 'rgba(17, 24, 39, 0.8)',
-          borderRadius: '8px',
-          fontSize: '0.8rem',
-          color: '#9ca3af',
-          marginBottom: '16px'
-        }}>
-          <div>Your User ID: {user?.id || localStorage.getItem('userId') || 'Unknown'}</div>
-          <div>Buyer ID: {trade.buyer?._id || 'Unknown'}</div>
-          <div>Seller ID: {trade.seller?._id || 'Unknown'}</div>
-          <div>Is Buyer: {trade.isUserBuyer ? 'Yes' : 'No'}</div>
-          <div>Is Seller: {trade.isUserSeller ? 'Yes' : 'No'}</div>
-        </div>
-
+      <div className="trade-details-actions">
         {/* Seller actions */}
-        {trade.isUserSeller && (
-          <div>
-            {trade.status === 'awaiting_seller' && (
-              <button
-                onClick={handleSellerApprove}
-                disabled={approveLoading}
-                style={{
-                  backgroundColor: '#3b82f6',
-                  color: '#f1f1f1',
-                  border: 'none',
-                  padding: '14px 24px',
-                  borderRadius: '10px',
-                  cursor: approveLoading ? 'not-allowed' : 'pointer',
-                  fontWeight: '600',
-                  width: '100%',
-                  fontSize: '1.05rem',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: '10px',
-                  transition: 'all 0.2s ease',
-                  opacity: approveLoading ? '0.7' : '1',
-                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}
-              >
-                {approveLoading ? (
-                  <>
-                    <div className="spinner" style={{
-                      width: '20px',
-                      height: '20px',
-                      border: '2px solid rgba(255,255,255,0.2)',
-                      borderRadius: '50%',
-                      borderTopColor: 'white'
-                    }} />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                    Accept Purchase Offer
-                  </>
-                )}
-              </button>
-            )}
-
-            {trade.status === 'accepted' && (
-              <div>
-                <div style={{
-                  backgroundColor: 'rgba(30, 64, 175, 0.2)',
-                  color: '#93c5fd',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  marginBottom: '16px'
-                }}>
-                  <p style={{ margin: '0 0 12px 0', fontWeight: '500' }}>
-                    Please send a Steam trade offer to the buyer
-                  </p>
-                  <a 
-                    href={trade.buyer?.tradeUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{ 
-                      color: '#3b82f6',
-                      textDecoration: 'none',
-                      display: 'block',
-                      padding: '8px',
-                      backgroundColor: 'rgba(17, 24, 39, 0.5)',
-                      borderRadius: '4px',
-                      wordBreak: 'break-all',
-                      marginBottom: '12px'
-                    }}
-                  >
-                    {trade.buyer?.tradeUrl}
-                  </a>
-                  
-                  <div style={{ marginBottom: '16px' }}>
-                    <label style={{ 
-                      color: '#f1f1f1', 
-                      display: 'block', 
-                      marginBottom: '8px',
-                      fontSize: '0.9rem' 
-                    }}>
-                      Trade Offer ID/URL (optional):
-                    </label>
-                    <input
-                      type="text"
-                      value={steamOfferUrl}
-                      onChange={(e) => setSteamOfferUrl(e.target.value)}
-                      placeholder="Enter Steam trade offer ID or URL"
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        backgroundColor: 'rgba(17, 24, 39, 0.5)',
-                        border: '1px solid rgba(55, 65, 81, 0.7)',
-                        borderRadius: '6px',
-                        color: '#f1f1f1',
-                        outline: 'none',
-                        fontSize: '0.9rem'
-                      }}
-                    />
-                  </div>
-                  
-                  <button
-                    onClick={handleSellerConfirmSent}
-                    disabled={sendingLoading || sellerWaitingForBuyer}
-                    style={{
-                      backgroundColor: sellerWaitingForBuyer ? '#10b981' : '#3b82f6',
-                      color: '#f1f1f1',
-                      border: 'none',
-                      padding: '12px 20px',
-                      borderRadius: '8px',
-                      cursor: sendingLoading || sellerWaitingForBuyer ? 'not-allowed' : 'pointer',
-                      fontWeight: '500',
-                      width: '100%',
-                      fontSize: '1rem',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      gap: '8px',
-                      transition: 'all 0.2s ease',
-                      opacity: sendingLoading ? '0.7' : '1'
-                    }}
-                  >
-                    {sendingLoading ? (
-                      <>
-                        <div className="spinner" style={{
-                          width: '20px',
-                          height: '20px',
-                          border: '2px solid rgba(255,255,255,0.2)',
-                          borderRadius: '50%',
-                          borderTopColor: 'white'
-                        }} />
-                        Sending...
-                      </>
-                    ) : sellerWaitingForBuyer ? (
-                      <>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10"></circle>
-                          <polyline points="12 6 12 12 16 14"></polyline>
-                        </svg>
-                        Waiting for buyer...
-                      </>
-                    ) : (
-                      <>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
-                          <path d="M5.45 5.11L2 12v6a2 2 0 0 1-2 2h16a2 2 0 0 1 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
-                        </svg>
-                        I've Sent the Trade Offer
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {(['awaiting_seller', 'accepted', 'created'].includes(trade.status)) && (
-              <button
-                onClick={() => {
-                  setCancelReason('');
-                  const modal = document.getElementById('cancelModal');
-                  if (modal) modal.classList.add('visible');
-                }}
-                style={{
-                  backgroundColor: 'rgba(220, 38, 38, 0.9)',
-                  color: 'white',
-                  border: 'none',
-                  padding: '12px 20px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  width: '100%',
-                  fontWeight: '500',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginTop: trade.status === 'accepted' ? '16px' : '0',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(185, 28, 28, 1)';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.9)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="15" y1="9" x2="9" y2="15"></line>
-                  <line x1="9" y1="9" x2="15" y2="15"></line>
-                </svg>
-                Cancel Trade
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Buyer actions */}
-        {trade.isUserBuyer && (
-          <div>
-            {trade.status === 'offer_sent' && (
-              <div>
-                <div style={{
-                  backgroundColor: 'rgba(30, 64, 175, 0.2)',
-                  color: '#93c5fd',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  marginBottom: '16px'
-                }}>
-                  <p style={{ margin: '0 0 12px 0', fontWeight: '500' }}>
-                    The seller has sent you a Steam trade offer
-                  </p>
-                  <p style={{ margin: '0 0 12px 0', fontSize: '0.9rem' }}>
-                    Please check your Steam trade offers and accept the offer before confirming receipt below.
-                  </p>
-                  
-                  {trade.steamTradeOfferId && (
-                    <a
-                      href={`https://steamcommunity.com/tradeoffer/${trade.steamTradeOfferId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ 
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        color: '#3b82f6',
-                        textDecoration: 'none',
-                        padding: '8px 12px',
-                        backgroundColor: 'rgba(17, 24, 39, 0.5)',
-                        borderRadius: '6px',
-                        fontSize: '0.9rem'
-                      }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                        <polyline points="15 3 21 3 21 9"></polyline>
-                        <line x1="10" y1="14" x2="21" y2="3"></line>
-                      </svg>
-                      View Steam Trade Offer
-                    </a>
-                  )}
-                </div>
-                
-                <div style={{ marginBottom: '16px' }}>
-                  <button
-                    onClick={handleCheckInventory}
-                    disabled={isCheckingInventory}
-                    style={{
-                      backgroundColor: 'rgba(31, 41, 55, 0.7)',
-                      color: '#e5e7eb',
-                      border: '1px solid rgba(55, 65, 81, 0.7)',
-                      padding: '10px 16px',
-                      borderRadius: '8px',
-                      cursor: isCheckingInventory ? 'not-allowed' : 'pointer',
-                      fontWeight: '500',
-                      width: '100%',
-                      fontSize: '0.9rem',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      gap: '8px',
-                      transition: 'all 0.2s ease',
-                      opacity: isCheckingInventory ? '0.7' : '1'
-                    }}
-                  >
-                    {isCheckingInventory ? (
-                      <>
-                        <div className="spinner" style={{
-                          width: '18px',
-                          height: '18px',
-                          border: '2px solid rgba(255,255,255,0.2)',
-                          borderRadius: '50%',
-                          borderTopColor: 'white'
-                        }} />
-                        Checking...
-                      </>
-                    ) : (
-                      <>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                          <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                        </svg>
-                        Verify Item Received
-                      </>
-                    )}
-                  </button>
-                </div>
-                
-                {inventoryCheckResult && (
-                  <div style={{
-                    backgroundColor: inventoryCheckResult.canConfirmReceived ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                    color: inventoryCheckResult.canConfirmReceived ? '#10b981' : '#ef4444',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    marginBottom: '16px'
-                  }}>
-                    <p style={{ margin: '0 0 8px 0', fontWeight: '500' }}>
-                      {inventoryCheckResult.message}
-                    </p>
-                  </div>
-                )}
-                
-                <button
-                  onClick={handleBuyerConfirm}
-                  disabled={confirmLoading || !canConfirmReceived}
-                  style={{
-                    backgroundColor: canConfirmReceived ? '#10b981' : 'rgba(156, 163, 175, 0.5)',
-                    color: '#f1f1f1',
-                    border: 'none',
-                    padding: '12px 20px',
-                    borderRadius: '8px',
-                    cursor: confirmLoading || !canConfirmReceived ? 'not-allowed' : 'pointer',
-                    fontWeight: '500',
-                    width: '100%',
-                    fontSize: '1rem',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    gap: '8px',
-                    transition: 'all 0.2s ease',
-                    opacity: confirmLoading ? '0.7' : '1'
-                  }}
-                >
-                  {confirmLoading ? (
-                    <>
-                      <div className="spinner" style={{
-                        width: '20px',
-                        height: '20px',
-                        border: '2px solid rgba(255,255,255,0.2)',
-                        borderRadius: '50%',
-                        borderTopColor: 'white'
-                      }} />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                      </svg>
-                      Confirm Item Received
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
+        {isSeller && trade.status === 'awaiting_seller' && (
+          <>
+            <button 
+              className="trade-action-button trade-action-button-secondary"
+              onClick={handleCheckInventory}
+              disabled={inventoryCheckLoading}
+            >
+              {inventoryCheckLoading ? (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M16 12a4 4 0 1 1-8 0"></path>
+                  </svg>
+                  Checking...
+                </>
+              ) : (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                  </svg>
+                  Verify Inventory
+                </>
+              )}
+            </button>
             
-            {(['awaiting_seller', 'created', 'offer_sent'].includes(trade.status)) && (
-              <button
-                onClick={() => {
-                  setCancelReason('');
-                  const modal = document.getElementById('cancelModal');
-                  if (modal) modal.classList.add('visible');
-                }}
-                style={{
-                  backgroundColor: 'rgba(220, 38, 38, 0.9)',
-                  color: 'white',
-                  border: 'none',
-                  padding: '12px 20px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  width: '100%',
-                  fontWeight: '500',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(185, 28, 28, 1)';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.9)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="15" y1="9" x2="9" y2="15"></line>
-                  <line x1="9" y1="9" x2="15" y2="15"></line>
-                </svg>
-                Cancel Trade
-              </button>
-            )}
-          </div>
+            <div style={{ flex: 1 }}></div>
+            
+            <button 
+              className="trade-action-button trade-action-button-danger"
+              onClick={() => handleCancelTrade('Seller cancelled the trade')}
+              disabled={approveLoading}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
+              Cancel Trade
+            </button>
+            
+            <button 
+              className="trade-action-button trade-action-button-primary"
+              onClick={handleSellerApprove}
+              disabled={approveLoading}
+            >
+              {approveLoading ? (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M16 12a4 4 0 1 1-8 0"></path>
+                  </svg>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  Approve Trade
+                </>
+              )}
+            </button>
+          </>
+        )}
+        
+        {/* Buyer actions */}
+        {isBuyer && trade.status === 'awaiting_buyer' && (
+          <>
+            <button 
+              className="trade-action-button trade-action-button-danger"
+              onClick={() => handleCancelTrade('Buyer cancelled the trade')}
+              disabled={confirmLoading}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
+              Report Issue
+            </button>
+            
+            <button 
+              className="trade-action-button trade-action-button-primary"
+              onClick={handleBuyerConfirm}
+              disabled={confirmLoading}
+            >
+              {confirmLoading ? (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M16 12a4 4 0 1 1-8 0"></path>
+                  </svg>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  Confirm Receipt
+                </>
+              )}
+            </button>
+          </>
         )}
       </div>
     );
   };
-
-  if (loading && !trade) {
+  
+  const renderStatusMessage = () => {
+    if (!trade) return null;
+    
+    const statusMessage = getDefaultStatusMessage(trade.status, isSeller, isBuyer);
+    let messageType = 'info';
+    
+    if (['completed'].includes(trade.status)) {
+      messageType = 'success';
+    } else if (['cancelled', 'failed', 'rejected', 'expired'].includes(trade.status)) {
+      messageType = 'error';
+    } else if (['awaiting_seller', 'awaiting_buyer'].includes(trade.status)) {
+      messageType = 'warning';
+    }
+    
     return (
-      <div className="trade-details-loading">
-        <div className="spinner"></div>
-        <p>Loading trade details...</p>
+      <div className={`trade-status-message ${messageType}`}>
+        <div className="trade-status-message-content">
+          <div className="trade-status-message-icon">
+            {messageType === 'success' ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+            ) : messageType === 'error' ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            ) : messageType === 'warning' ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+            )}
+          </div>
+          <div className="trade-status-message-text">{statusMessage}</div>
+        </div>
+      </div>
+    );
+  };
+  
+  const renderParticipants = () => {
+    if (!trade) return null;
+    
+    return (
+      <div className="trade-details-section">
+        <h3 className="trade-details-section-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          Trade Participants
+        </h3>
+        
+        <div className="trade-participants-container">
+          {/* Buyer Card */}
+          <div className="trade-participant-card">
+            <div className="trade-participant-header">
+              <div className="trade-participant-avatar">
+                <img
+                  src={trade.buyer?.avatar || '/default-avatar.png'}
+                  alt={trade.buyer?.displayName || 'Buyer'}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = '/default-avatar.png';
+                  }}
+                />
+              </div>
+              <div className="trade-participant-info">
+                <div className="trade-participant-role">Buyer {isBuyer && '(You)'}</div>
+                <div className="trade-participant-name">{trade.buyer?.displayName || 'Unknown Buyer'}</div>
+              </div>
+            </div>
+            
+            <div className="trade-participant-details">
+              <div className="trade-participant-detail">
+                <span className="trade-participant-detail-label">Steam ID:</span>
+                <span className="trade-participant-detail-value">{trade.buyer?.steamId || 'N/A'}</span>
+              </div>
+              
+              <div className="trade-participant-detail">
+                <span className="trade-participant-detail-label">Trade URL:</span>
+                <span className="trade-participant-detail-value">
+                  {trade.buyerTradeUrl ? 'Set' : 'Not Set'}
+                </span>
+              </div>
+              
+              <div className="trade-participant-detail">
+                <span className="trade-participant-detail-label">Joined:</span>
+                <span className="trade-participant-detail-value">
+                  {trade.buyer?.createdAt 
+                    ? new Date(trade.buyer.createdAt).toLocaleDateString() 
+                    : 'N/A'}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Seller Card */}
+          <div className="trade-participant-card">
+            <div className="trade-participant-header">
+              <div className="trade-participant-avatar">
+                <img
+                  src={trade.seller?.avatar || '/default-avatar.png'}
+                  alt={trade.seller?.displayName || 'Seller'}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = '/default-avatar.png';
+                  }}
+                />
+              </div>
+              <div className="trade-participant-info">
+                <div className="trade-participant-role">Seller {isSeller && '(You)'}</div>
+                <div className="trade-participant-name">{trade.seller?.displayName || 'Unknown Seller'}</div>
+              </div>
+            </div>
+            
+            <div className="trade-participant-details">
+              <div className="trade-participant-detail">
+                <span className="trade-participant-detail-label">Steam ID:</span>
+                <span className="trade-participant-detail-value">{trade.seller?.steamId || 'N/A'}</span>
+              </div>
+              
+              <div className="trade-participant-detail">
+                <span className="trade-participant-detail-label">Trade URL:</span>
+                <span className="trade-participant-detail-value">
+                  {trade.sellerTradeUrl ? 'Set' : 'Not Set'}
+                </span>
+              </div>
+              
+              <div className="trade-participant-detail">
+                <span className="trade-participant-detail-label">Joined:</span>
+                <span className="trade-participant-detail-value">
+                  {trade.seller?.createdAt 
+                    ? new Date(trade.seller.createdAt).toLocaleDateString() 
+                    : 'N/A'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // If loading, show loading spinner
+  if (loading) {
+    return (
+      <div className="trade-details-container">
+        <div className="trade-details-loading">
+          <div className="trade-details-loading-spinner"></div>
+          <div className="trade-details-loading-text">Loading trade details...</div>
+        </div>
       </div>
     );
   }
 
-  if (error && !trade) {
+  // If error, show error message
+  if (error) {
     return (
-      <div className="trade-details-error">
-        <h3>Error Loading Trade</h3>
-        <p>{error}</p>
-        <button 
-          className="trade-details-retry" 
-          onClick={() => dispatch(fetchTradeDetails(tradeId))}
-        >
-          Retry
-        </button>
+      <div className="trade-details-container">
+        <div className="trade-status-message error">
+          <div className="trade-status-message-content">
+            <div className="trade-status-message-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            </div>
+            <div className="trade-status-message-text">
+              {error}
+              <button 
+                className="trade-action-button trade-action-button-secondary"
+                style={{ marginTop: '10px' }}
+                onClick={() => dispatch(fetchTradeDetails(tradeId))}
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
+  // If no trade data, show message
   if (!trade) {
     return (
-      <div className="trade-details-not-found">
-        <h3>Trade Not Found</h3>
-        <p>The requested trade could not be found or you don't have permission to view it.</p>
+      <div className="trade-details-container">
+        <div className="trade-status-message warning">
+          <div className="trade-status-message-content">
+            <div className="trade-status-message-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            </div>
+            <div className="trade-status-message-text">
+              Trade not found or you don't have permission to view it.
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // Render the rest of the component (existing code)
+  // Render trade details
   return (
     <div className="trade-details-container">
-      {/* Trade header with user role information */}
       <TradeHeader trade={trade} userRoles={{ isBuyer, isSeller }} />
-
-      {/* Error section */}
-      {error && (
-        <div className="trade-details-error-message">
-          <p>{error}</p>
-          {tradeOffersUrl && (
-            <a 
-              href={tradeOffersUrl} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="trade-details-steam-link"
-            >
-              Check Your Steam Trade Offers
-            </a>
-          )}
-        </div>
-      )}
-
-      {/* Trade content */}
-      <div className="trade-details-content">
-        {/* Main content */}
-        <div className="trade-details-main">
-          {/* Status timeline */}
-          <StatusTimeline trade={trade} />
-          
-          {/* Trade information and actions */}
-          {renderTradeActions()}
-        </div>
-
-        {/* Sidebar */}
-        <div className="trade-details-sidebar">
-          {/* Item details */}
-          <TradeItemDetails 
-            item={trade.item} 
-            trade={trade} 
-            price={trade.price}
-          />
-        </div>
-      </div>
+      <StatusTimeline trade={trade} />
+      
+      {renderStatusMessage()}
+      <TradeItemDetails trade={trade} />
+      {renderParticipants()}
+      
+      {renderTradeActions()}
     </div>
   );
 };

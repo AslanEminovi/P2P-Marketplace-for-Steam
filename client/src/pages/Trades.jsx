@@ -2,6 +2,22 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatCurrency, formatDate } from '../utils/format';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { 
+  faExchangeAlt, 
+  faSpinner, 
+  faCheckCircle, 
+  faDollarSign,
+  faSearch,
+  faClock,
+  faHistory,
+  faFilter,
+  faSync,
+  faArrowRight,
+  faExclamationCircle,
+  faShoppingCart,
+  faStore
+} from '@fortawesome/free-solid-svg-icons';
 import '../styles/Trades.css';
 
 // Redux imports
@@ -192,10 +208,7 @@ const Trades = ({ user }) => {
     return (
       <div className="in-progress-trades-container">
         <h3 className="in-progress-trades-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="in-progress-icon">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
+          <FontAwesomeIcon icon={faClock} className="in-progress-icon" />
           In-Progress Trades
         </h3>
         <p className="in-progress-trades-description">
@@ -246,10 +259,7 @@ const Trades = ({ user }) => {
               
               <button className="in-progress-trade-continue-btn">
                 Continue Trade
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14"></path>
-                  <path d="M12 5l7 7-7 7"></path>
-                </svg>
+                <FontAwesomeIcon icon={faArrowRight} />
               </button>
             </div>
           ))}
@@ -262,12 +272,7 @@ const Trades = ({ user }) => {
   const renderEmptyState = () => {
     return (
       <div className="trades-empty-state">
-        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="17 1 21 5 17 9"></polyline>
-          <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-          <polyline points="7 23 3 19 7 15"></polyline>
-          <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-        </svg>
+        <FontAwesomeIcon icon={faExchangeAlt} size="3x" />
         
         <h3>{activeTab === 'active' ? 'No Active Trades' : 'No Trade History'}</h3>
         
@@ -298,11 +303,7 @@ const Trades = ({ user }) => {
             {loading ? (
               <span className="trades-refresh-loading"></span>
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 4v6h6"></path>
-                <path d="M23 20v-6h-6"></path>
-                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-              </svg>
+              <FontAwesomeIcon icon={faSync} />
             )}
             Refresh
           </button>
@@ -321,10 +322,7 @@ const Trades = ({ user }) => {
           className={`trades-tab ${activeTab === 'active' ? 'active' : ''}`}
           onClick={() => setActiveTab('active')}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
+          <FontAwesomeIcon icon={faClock} />
           Active Trades
           {stats.activeTrades > 0 && <span className="trades-tab-badge">{stats.activeTrades}</span>}
         </button>
@@ -333,11 +331,7 @@ const Trades = ({ user }) => {
           className={`trades-tab ${activeTab === 'history' ? 'active' : ''}`}
           onClick={() => setActiveTab('history')}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="1 4 1 10 7 10"></polyline>
-            <polyline points="23 20 23 14 17 14"></polyline>
-            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-          </svg>
+          <FontAwesomeIcon icon={faHistory} />
           Trade History
           {stats.completedTrades > 0 && <span className="trades-tab-badge">{stats.completedTrades}</span>}
         </button>
@@ -351,10 +345,7 @@ const Trades = ({ user }) => {
         transition={{ duration: 0.3, delay: 0.2 }}
       >
         <div className="trades-search-container">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
+          <FontAwesomeIcon icon={faSearch} />
           <input
             type="text"
             placeholder="Search by item or user..."
@@ -368,10 +359,7 @@ const Trades = ({ user }) => {
               onClick={() => setSearchTerm('')}
               aria-label="Clear search"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
+              <FontAwesomeIcon icon={faFilter} />
             </button>
           )}
         </div>
@@ -426,11 +414,7 @@ const Trades = ({ user }) => {
           </div>
         ) : error ? (
           <div className="trades-error">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
+            <FontAwesomeIcon icon={faExclamationCircle} size="2x" />
             <p>{error}</p>
             <button 
               className="trades-retry-button"
@@ -506,16 +490,16 @@ const Trades = ({ user }) => {
                             />
                           </div>
                           <div className="trade-participant-info">
-                            <span className="trade-role">{trade.isUserBuyer ? 'You' : 'Buyer'}:</span>
+                            <span className="trade-role">
+                              <FontAwesomeIcon icon={faShoppingCart} size="xs" />
+                              {trade.isUserBuyer ? 'You' : 'Buyer'}:
+                            </span>
                             <span className="trade-user">{trade.isUserBuyer ? 'You' : trade.buyer?.displayName || 'Unknown'}</span>
                           </div>
                         </div>
                         
                         <div className="trade-divider">
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M5 12h14"></path>
-                            <path d="M12 5l7 7-7 7"></path>
-                          </svg>
+                          <FontAwesomeIcon icon={faArrowRight} />
                         </div>
                         
                         <div className="trade-participant">
@@ -532,7 +516,10 @@ const Trades = ({ user }) => {
                             />
                           </div>
                           <div className="trade-participant-info">
-                            <span className="trade-role">{trade.isUserSeller ? 'You' : 'Seller'}:</span>
+                            <span className="trade-role">
+                              <FontAwesomeIcon icon={faStore} size="xs" />
+                              {trade.isUserSeller ? 'You' : 'Seller'}:
+                            </span>
                             <span className="trade-user">{trade.isUserSeller ? 'You' : trade.seller?.displayName || 'Unknown'}</span>
                           </div>
                         </div>
@@ -542,9 +529,7 @@ const Trades = ({ user }) => {
                     <div className="trade-actions">
                       <Link to={`/trades/${trade._id}`} className="trade-view-button">
                         View Details
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
+                        <FontAwesomeIcon icon={faArrowRight} />
                       </Link>
                     </div>
                   </div>

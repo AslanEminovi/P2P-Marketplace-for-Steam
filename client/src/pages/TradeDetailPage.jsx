@@ -1,23 +1,24 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowLeft, faExchangeAlt } from '@fortawesome/free-solid-svg-icons';
 import TradeDetails from '../components/TradeDetails';
+import '../styles/TradeDetails.css';
 
 const TradeDetailPage = () => {
   const { tradeId } = useParams();
 
   return (
-    <div style={{ 
-      padding: '30px 20px',
-      maxWidth: '1200px',
-      margin: '0 auto'
-    }}>
-      <h1 style={{ 
-        color: '#f1f1f1', 
-        marginBottom: '30px',
-        fontSize: '1.75rem'
-      }}>
-        Trade Details
-      </h1>
+    <div className="page-container">
+      <div className="page-header">
+        <Link to="/trades" className="back-link">
+          <FontAwesomeIcon icon={faArrowLeft} /> Back to Trades
+        </Link>
+        <h1 className="page-title">
+          <FontAwesomeIcon icon={faExchangeAlt} className="title-icon" />
+          Trade Details
+        </h1>
+      </div>
       
       <TradeDetails tradeId={tradeId} />
     </div>
