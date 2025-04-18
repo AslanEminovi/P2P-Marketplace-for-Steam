@@ -573,9 +573,9 @@ const Trades = ({ user }) => {
         
         <StatsCards
           statsLoading={loading}
-          totalTrades={tradeStats.totalTrades}
-          completedTrades={tradeStats.completedTrades}
-          tradeVolume={tradeStats.tradeVolume}
+          totalTrades={tradeStats?.totalTrades || 0}
+          completedTrades={tradeStats?.completedTrades || 0}
+          tradeVolume={tradeStats?.tradeVolume || 0}
         />
       </div>
       

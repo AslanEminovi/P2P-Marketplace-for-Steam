@@ -623,7 +623,14 @@ export const selectAllTrades = (state) => state.trades.trades;
 export const selectActiveTrades = (state) => state.trades.activeTrades;
 export const selectHistoricalTrades = (state) => state.trades.historicalTrades;
 export const selectCurrentTrade = (state) => state.trades.currentTrade;
-export const selectTradeStats = (state) => state.trades.stats;
+export const selectTradeStats = (state) =>
+  state.trades.stats || {
+    totalTrades: 0,
+    activeTrades: 0,
+    completedTrades: 0,
+    totalValue: 0,
+    tradeVolume: 0,
+  };
 export const selectTradesLoading = (state) => state.trades.loading;
 export const selectTradeDetailsLoading = (state) => state.trades.detailsLoading;
 export const selectTradesError = (state) => state.trades.error;
