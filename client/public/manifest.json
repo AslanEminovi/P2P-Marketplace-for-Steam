@@ -1,6 +1,6 @@
 {
   "short_name": "CS2 Marketplace",
-  "name": "CS2 Marketplace - Buy, Sell and Trade CS2 Items",
+  "name": "CS2 Marketplace - Buy, sell, and trade CS2 items securely",
   "icons": [
     {
       "src": "favicon.ico",
@@ -8,18 +8,13 @@
       "type": "image/x-icon"
     },
     {
-      "src": "logo192.png",
+      "src": "Steam-Emblem.png",
       "type": "image/png",
       "sizes": "192x192"
-    },
-    {
-      "src": "logo512.png",
-      "type": "image/png",
-      "sizes": "512x512"
     }
   ],
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "background_color": "#0d1117"
 }

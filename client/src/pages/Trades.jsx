@@ -62,22 +62,6 @@ const Trades = ({ user }) => {
   const [sortOrder, setSortOrder] = useState('newest');
   const [activeTab, setActiveTab] = useState('active');
 
-  // Filtered trades based on search, filters and active tab
-  const filteredTrades = useMemo(() => {
-    return getFilteredTrades();
-  }, [trades, activeTab, searchTerm, roleFilter, sortOrder]);
-
-  // Load trades on component mount
-  useEffect(() => {
-    handleRefresh();
-  }, [dispatch]);
-
-  // Function to refresh trades
-  const handleRefresh = () => {
-    dispatch(fetchTrades());
-    dispatch(fetchTradeStats());
-  };
-
   // Function to filter and sort trades
   const getFilteredTrades = () => {
     const tradesSource = activeTab === 'active' ? activeTrades : historicalTrades;
@@ -126,6 +110,22 @@ const Trades = ({ user }) => {
     }
     
     return filtered;
+  };
+
+  // Filtered trades based on search, filters and active tab
+  const filteredTrades = useMemo(() => {
+    return getFilteredTrades();
+  }, [trades, activeTab, searchTerm, roleFilter, sortOrder]);
+
+  // Load trades on component mount
+  useEffect(() => {
+    handleRefresh();
+  }, [dispatch]);
+
+  // Function to refresh trades
+  const handleRefresh = () => {
+    dispatch(fetchTrades());
+    dispatch(fetchTradeStats());
   };
   
   // Function to clear all filters
