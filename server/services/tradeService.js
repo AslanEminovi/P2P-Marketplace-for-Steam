@@ -49,38 +49,12 @@ const createTrade = async (tradeData) => {
   // If Redis is enabled, store trade data for real-time access
   if (isRedisEnabled && pubClient) {
     try {
-      const tradeKey = `${TRADE_KEY_PREFIX}${newTrade._id}`;
+      // Use the new helper function to cache trade object
+      await redisConfig.cacheTradeObject(newTrade, 86400); // 24 hour expiry
 
-      // Store trade in Redis with 24 hour expiry
-      await redisConfig.setHashCache(
-        tradeKey,
-        {
-          _id: newTrade._id.toString(),
-          sellerId: newTrade.sellerId.toString(),
-          buyerId: newTrade.buyerId.toString(),
-          itemId: newTrade.itemId.toString(),
-          price: newTrade.price,
-          status: newTrade.status,
-          createdAt: newTrade.createdAt.toISOString(),
-          updatedAt: newTrade.updatedAt.toISOString(),
-        },
-        86400
-      ); // 24 hour expiry
-
-      // Add to active trades set
-      await pubClient.sadd(ACTIVE_TRADES_KEY, newTrade._id.toString());
-
-      // Add to seller's trades
-      await pubClient.sadd(
-        `${USER_TRADES_KEY_PREFIX}${newTrade.sellerId}`,
-        newTrade._id.toString()
-      );
-
-      // Add to buyer's trades
-      await pubClient.sadd(
-        `${USER_TRADES_KEY_PREFIX}${newTrade.buyerId}`,
-        newTrade._id.toString()
-      );
+      // Increment statistics counters
+      await redisConfig.incrementTradeStats("totalTrades");
+      await redisConfig.incrementTradeStats("activeTrades");
 
       // Publish trade creation event
       await pubClient.publish(
@@ -88,16 +62,16 @@ const createTrade = async (tradeData) => {
         JSON.stringify({
           type: "trade_created",
           tradeId: newTrade._id.toString(),
-          sellerId: newTrade.sellerId.toString(),
-          buyerId: newTrade.buyerId.toString(),
-          itemId: newTrade.itemId.toString(),
+          sellerId: newTrade.seller.toString(),
+          buyerId: newTrade.buyer.toString(),
+          itemId: newTrade.item.toString(),
           status: newTrade.status,
           timestamp: new Date().toISOString(),
         })
       );
 
       // Send notification to seller
-      socketService.sendNotification(newTrade.sellerId.toString(), {
+      socketService.sendNotification(newTrade.seller.toString(), {
         title: "New Trade Offer",
         message: `You have received a new trade offer for item ${
           newTrade.itemName || "Unknown"
@@ -115,63 +89,111 @@ const createTrade = async (tradeData) => {
 };
 
 /**
- * Update a trade's status
+ * Get a trade by ID, checking Redis cache first
+ * @param {string} tradeId - The trade ID
+ * @returns {Object} The trade
+ */
+const getTrade = async (tradeId) => {
+  // Try Redis first if enabled
+  if (isRedisEnabled && pubClient) {
+    try {
+      const cachedTrade = await redisConfig.getCachedTrade(tradeId);
+
+      if (cachedTrade) {
+        console.log(`Trade ${tradeId} retrieved from Redis cache`);
+        return cachedTrade;
+      }
+    } catch (error) {
+      console.error(`Redis error in getTrade for ${tradeId}:`, error);
+      // Continue to MongoDB if Redis fails
+    }
+  }
+
+  // Fallback to MongoDB
+  const Trade = require("../models/Trade");
+  const trade = await Trade.findById(tradeId)
+    .populate("item")
+    .populate("buyer", "displayName avatar steamId tradeUrl")
+    .populate("seller", "displayName avatar steamId tradeUrl");
+
+  // Cache in Redis if found
+  if (trade && isRedisEnabled && pubClient) {
+    try {
+      await redisConfig.cacheTradeObject(trade, 3600); // 1 hour expiry
+    } catch (error) {
+      console.error(`Redis error caching trade ${tradeId}:`, error);
+    }
+  }
+
+  return trade;
+};
+
+/**
+ * Update trade status in both MongoDB and Redis
  * @param {string} tradeId - The trade ID
  * @param {string} newStatus - The new status
- * @param {Object} metadata - Additional metadata for the update
+ * @param {Object} metadata - Additional metadata
  * @returns {Object} The updated trade
  */
 const updateTradeStatus = async (tradeId, newStatus, metadata = {}) => {
-  // First, update in database
+  // First, update in MongoDB
   const Trade = require("../models/Trade");
-  const updatedTrade = await Trade.findByIdAndUpdate(
-    tradeId,
-    {
-      $set: {
-        status: newStatus,
-        ...metadata,
-        updatedAt: new Date(),
-      },
-    },
-    { new: true }
-  );
+  const updatedTrade = await Trade.findById(tradeId);
 
   if (!updatedTrade) {
     throw new Error(`Trade ${tradeId} not found`);
   }
 
-  // If Redis is enabled, update trade data
+  // Store previous status for stats updates
+  const previousStatus = updatedTrade.status;
+
+  // Update status and add to history
+  updatedTrade.addStatusHistory(newStatus, metadata.note || "");
+  await updatedTrade.save();
+
+  // If Redis is enabled, update cache and publish event
   if (isRedisEnabled && pubClient) {
     try {
-      const tradeKey = `${TRADE_KEY_PREFIX}${tradeId}`;
+      // Update trade in Redis cache
+      await redisConfig.cacheTradeObject(updatedTrade, 3600); // 1 hour expiry
 
-      // Update trade in Redis
-      await redisConfig.setHashCache(
-        tradeKey,
-        {
-          _id: updatedTrade._id.toString(),
-          sellerId: updatedTrade.sellerId.toString(),
-          buyerId: updatedTrade.buyerId.toString(),
-          itemId: updatedTrade.itemId.toString(),
-          price: updatedTrade.price,
-          status: newStatus,
-          createdAt: updatedTrade.createdAt.toISOString(),
-          updatedAt: new Date().toISOString(),
-          ...metadata,
-        },
-        86400
-      ); // 24 hour expiry
+      // Update trade statistics based on status change
+      const completedStatuses = [
+        TRADE_STATUS.COMPLETED,
+        TRADE_STATUS.CANCELLED,
+        TRADE_STATUS.REJECTED,
+        TRADE_STATUS.EXPIRED,
+      ];
 
-      // Remove from active trades set if completed or cancelled
+      // If trade became completed, increment completed counter and decrement active
       if (
-        [
-          TRADE_STATUS.COMPLETED,
-          TRADE_STATUS.CANCELLED,
-          TRADE_STATUS.REJECTED,
-          TRADE_STATUS.EXPIRED,
-        ].includes(newStatus)
+        completedStatuses.includes(newStatus) &&
+        !completedStatuses.includes(previousStatus)
       ) {
-        await pubClient.srem(ACTIVE_TRADES_KEY, tradeId);
+        await redisConfig.incrementTradeStats("completedTrades");
+        await redisConfig.incrementTradeStats("activeTrades", -1);
+
+        // If specifically completed (not cancelled), add to total value
+        if (newStatus === TRADE_STATUS.COMPLETED && updatedTrade.price) {
+          await redisConfig.incrementTradeStats(
+            "totalValue",
+            updatedTrade.price
+          );
+        }
+      }
+
+      // If trade became active from a completed state (rare case)
+      else if (
+        !completedStatuses.includes(newStatus) &&
+        completedStatuses.includes(previousStatus)
+      ) {
+        await redisConfig.incrementTradeStats("activeTrades");
+        if (previousStatus === TRADE_STATUS.COMPLETED && updatedTrade.price) {
+          await redisConfig.incrementTradeStats(
+            "totalValue",
+            -updatedTrade.price
+          );
+        }
       }
 
       // Publish trade update event
@@ -180,9 +202,9 @@ const updateTradeStatus = async (tradeId, newStatus, metadata = {}) => {
         JSON.stringify({
           type: "trade_updated",
           tradeId: updatedTrade._id.toString(),
-          sellerId: updatedTrade.sellerId.toString(),
-          buyerId: updatedTrade.buyerId.toString(),
-          previousStatus: updatedTrade.status,
+          sellerId: updatedTrade.seller.toString(),
+          buyerId: updatedTrade.buyer.toString(),
+          previousStatus,
           newStatus: newStatus,
           timestamp: new Date().toISOString(),
           metadata,
@@ -223,7 +245,7 @@ const updateTradeStatus = async (tradeId, newStatus, metadata = {}) => {
 
       // Send to seller
       if (statusMessages[newStatus]?.seller) {
-        socketService.sendNotification(updatedTrade.sellerId.toString(), {
+        socketService.sendNotification(updatedTrade.seller.toString(), {
           title: "Trade Update",
           message: statusMessages[newStatus].seller,
           type: "trade",
@@ -233,7 +255,7 @@ const updateTradeStatus = async (tradeId, newStatus, metadata = {}) => {
 
       // Send to buyer
       if (statusMessages[newStatus]?.buyer) {
-        socketService.sendNotification(updatedTrade.buyerId.toString(), {
+        socketService.sendNotification(updatedTrade.buyer.toString(), {
           title: "Trade Update",
           message: statusMessages[newStatus].buyer,
           type: "trade",
@@ -241,7 +263,7 @@ const updateTradeStatus = async (tradeId, newStatus, metadata = {}) => {
         });
       }
     } catch (error) {
-      console.error("Redis error in updateTradeStatus:", error);
+      console.error(`Redis error in updateTradeStatus for ${tradeId}:`, error);
       // Continue anyway since we've updated MongoDB
     }
   }
@@ -250,57 +272,58 @@ const updateTradeStatus = async (tradeId, newStatus, metadata = {}) => {
 };
 
 /**
- * Get a user's active trades
+ * Get active trades for a user, checking Redis first
  * @param {string} userId - The user ID
- * @returns {Array} The user's active trades
+ * @returns {Array} Array of active trades
  */
 const getUserActiveTrades = async (userId) => {
-  // If Redis is enabled, get from cache first
+  // If Redis is enabled, try to get from cache
   if (isRedisEnabled && pubClient) {
     try {
-      // Get user's trade IDs from Redis
-      const tradeIds = await pubClient.smembers(
-        `${USER_TRADES_KEY_PREFIX}${userId}`
-      );
+      const userTradesKey = `${redisConfig.USER_TRADES_KEY_PREFIX}${userId}`;
+      const tradeIds = await pubClient.smembers(userTradesKey);
 
       if (tradeIds && tradeIds.length > 0) {
-        // Get trade details for each ID
-        const trades = [];
+        const activeTrades = await Promise.all(
+          tradeIds.map(async (tradeId) => {
+            const trade = await redisConfig.getCachedTrade(tradeId);
 
-        for (const tradeId of tradeIds) {
-          const trade = await redisConfig.getHashCache(
-            `${TRADE_KEY_PREFIX}${tradeId}`
+            // Only return active trades
+            if (
+              trade &&
+              ![
+                TRADE_STATUS.COMPLETED,
+                TRADE_STATUS.CANCELLED,
+                TRADE_STATUS.REJECTED,
+                TRADE_STATUS.EXPIRED,
+              ].includes(trade.status)
+            ) {
+              return trade;
+            }
+            return null;
+          })
+        );
+
+        // Filter out null values
+        const validTrades = activeTrades.filter((t) => t !== null);
+
+        if (validTrades.length > 0) {
+          console.log(
+            `${validTrades.length} active trades for user ${userId} retrieved from Redis`
           );
-
-          // Only include active trades
-          if (
-            trade &&
-            ![
-              TRADE_STATUS.COMPLETED,
-              TRADE_STATUS.CANCELLED,
-              TRADE_STATUS.REJECTED,
-              TRADE_STATUS.EXPIRED,
-            ].includes(trade.status)
-          ) {
-            trades.push(trade);
-          }
-        }
-
-        // If we got trades from Redis, return them
-        if (trades.length > 0) {
-          return trades;
+          return validTrades;
         }
       }
     } catch (error) {
-      console.error("Redis error in getUserActiveTrades:", error);
-      // Fall back to database
+      console.error(`Redis error in getUserActiveTrades for ${userId}:`, error);
+      // Continue to MongoDB if Redis fails
     }
   }
 
-  // Get from database
+  // Fallback to MongoDB
   const Trade = require("../models/Trade");
   const activeTrades = await Trade.find({
-    $or: [{ sellerId: userId }, { buyerId: userId }],
+    $or: [{ buyer: userId }, { seller: userId }],
     status: {
       $nin: [
         TRADE_STATUS.COMPLETED,
@@ -309,44 +332,252 @@ const getUserActiveTrades = async (userId) => {
         TRADE_STATUS.EXPIRED,
       ],
     },
-  }).sort({ createdAt: -1 });
+  })
+    .populate("item")
+    .populate("buyer", "displayName avatar steamId")
+    .populate("seller", "displayName avatar steamId")
+    .sort({ createdAt: -1 });
+
+  // Cache active trades in Redis
+  if (activeTrades.length > 0 && isRedisEnabled && pubClient) {
+    try {
+      await Promise.all(
+        activeTrades.map((trade) => redisConfig.cacheTradeObject(trade, 1800)) // 30 minute expiry
+      );
+    } catch (error) {
+      console.error(
+        `Redis error caching user active trades for ${userId}:`,
+        error
+      );
+    }
+  }
 
   return activeTrades;
 };
 
 /**
- * Get a specific trade by ID
- * @param {string} tradeId - The trade ID
- * @returns {Object} The trade
+ * Get trade statistics with caching
+ * @returns {Object} Trade statistics
  */
-const getTradeById = async (tradeId) => {
-  // If Redis is enabled, get from cache first
+const getTradeStats = async () => {
+  // If Redis is enabled, try to get from cache
   if (isRedisEnabled && pubClient) {
     try {
-      const trade = await redisConfig.getHashCache(
-        `${TRADE_KEY_PREFIX}${tradeId}`
-      );
+      const cachedStats = await redisConfig.getCachedTradeStats();
 
-      if (trade) {
-        return trade;
+      if (cachedStats) {
+        console.log("Trade stats retrieved from Redis cache");
+        return cachedStats;
       }
     } catch (error) {
-      console.error("Redis error in getTradeById:", error);
-      // Fall back to database
+      console.error("Redis error in getTradeStats:", error);
+      // Continue to MongoDB if Redis fails
     }
   }
 
-  // Get from database
+  // Fallback to MongoDB
   const Trade = require("../models/Trade");
-  const trade = await Trade.findById(tradeId);
 
-  return trade;
+  // Get counts with aggregation
+  const stats = await Trade.aggregate([
+    {
+      $facet: {
+        totalTrades: [{ $count: "count" }],
+        completedTrades: [
+          { $match: { status: TRADE_STATUS.COMPLETED } },
+          { $count: "count" },
+        ],
+        activeTrades: [
+          {
+            $match: {
+              status: {
+                $nin: [
+                  TRADE_STATUS.COMPLETED,
+                  TRADE_STATUS.CANCELLED,
+                  TRADE_STATUS.REJECTED,
+                  TRADE_STATUS.EXPIRED,
+                ],
+              },
+            },
+          },
+          { $count: "count" },
+        ],
+        totalValue: [
+          { $match: { status: TRADE_STATUS.COMPLETED } },
+          { $group: { _id: null, sum: { $sum: "$price" } } },
+        ],
+      },
+    },
+  ]);
+
+  // Format the stats
+  const formattedStats = {
+    totalTrades: stats[0].totalTrades[0]?.count || 0,
+    completedTrades: stats[0].completedTrades[0]?.count || 0,
+    activeTrades: stats[0].activeTrades[0]?.count || 0,
+    totalValue: stats[0].totalValue[0]?.sum || 0,
+  };
+
+  // Cache in Redis if enabled
+  if (isRedisEnabled && pubClient) {
+    try {
+      // Update each stat individually
+      Object.entries(formattedStats).forEach(async ([key, value]) => {
+        await pubClient.hset(
+          redisConfig.TRADE_STATS_KEY,
+          key,
+          value.toString()
+        );
+      });
+
+      // Set expiry
+      await pubClient.expire(redisConfig.TRADE_STATS_KEY, 300); // 5 minute expiry
+    } catch (error) {
+      console.error("Redis error caching trade stats:", error);
+    }
+  }
+
+  return formattedStats;
 };
 
+/**
+ * Clear expired trades
+ * Run this periodically to clean up Redis
+ */
+const clearExpiredTrades = async () => {
+  if (!isRedisEnabled || !pubClient) {
+    return;
+  }
+
+  try {
+    // Get all active trades
+    const tradeIds = await pubClient.smembers(redisConfig.ACTIVE_TRADES_KEY);
+
+    // Check each trade
+    for (const tradeId of tradeIds) {
+      const tradeKey = `${redisConfig.TRADE_KEY_PREFIX}${tradeId}`;
+      const exists = await pubClient.exists(tradeKey);
+
+      // If trade doesn't exist in Redis anymore (TTL expired), remove from active set
+      if (!exists) {
+        await pubClient.srem(redisConfig.ACTIVE_TRADES_KEY, tradeId);
+        console.log(`Removed expired trade ${tradeId} from active trades set`);
+      }
+    }
+  } catch (error) {
+    console.error("Redis error in clearExpiredTrades:", error);
+  }
+};
+
+/**
+ * Synchronize Redis trade stats with MongoDB
+ * This ensures our Redis counters stay accurate over time
+ */
+const syncTradeStatsWithDB = async () => {
+  if (!isRedisEnabled || !pubClient) {
+    return;
+  }
+
+  try {
+    console.log("Synchronizing Redis trade stats with database...");
+
+    // Get stats from MongoDB
+    const Trade = require("../models/Trade");
+
+    // Get counts with aggregation
+    const stats = await Trade.aggregate([
+      {
+        $facet: {
+          totalTrades: [{ $count: "count" }],
+          completedTrades: [
+            { $match: { status: TRADE_STATUS.COMPLETED } },
+            { $count: "count" },
+          ],
+          activeTrades: [
+            {
+              $match: {
+                status: {
+                  $nin: [
+                    TRADE_STATUS.COMPLETED,
+                    TRADE_STATUS.CANCELLED,
+                    TRADE_STATUS.REJECTED,
+                    TRADE_STATUS.EXPIRED,
+                  ],
+                },
+              },
+            },
+            { $count: "count" },
+          ],
+          totalValue: [
+            { $match: { status: TRADE_STATUS.COMPLETED } },
+            { $group: { _id: null, sum: { $sum: "$price" } } },
+          ],
+        },
+      },
+    ]);
+
+    // Format the stats from database
+    const dbStats = {
+      totalTrades: stats[0].totalTrades[0]?.count || 0,
+      completedTrades: stats[0].completedTrades[0]?.count || 0,
+      activeTrades: stats[0].activeTrades[0]?.count || 0,
+      totalValue: stats[0].totalValue[0]?.sum || 0,
+    };
+
+    // Get current stats from Redis
+    const redisStats = (await redisConfig.getCachedTradeStats()) || {};
+
+    // Update Redis with the database values
+    await Promise.all(
+      Object.entries(dbStats).map(async ([key, value]) => {
+        // Only update if there's a significant difference (more than 5%)
+        const currentValue = redisStats[key] || 0;
+        const difference = Math.abs(currentValue - value);
+        const percentDiff = value > 0 ? (difference / value) * 100 : 0;
+
+        if (percentDiff > 5 || difference > 10) {
+          console.log(
+            `Updating Redis stat ${key}: ${currentValue} -> ${value} (${percentDiff.toFixed(
+              2
+            )}% difference)`
+          );
+          await pubClient.hset(
+            redisConfig.TRADE_STATS_KEY,
+            key,
+            value.toString()
+          );
+        }
+      })
+    );
+
+    // Set expiry
+    await pubClient.expire(redisConfig.TRADE_STATS_KEY, 3600); // 1 hour expiry
+
+    console.log("Trade stats synchronization complete");
+  } catch (error) {
+    console.error("Error synchronizing trade stats:", error);
+  }
+};
+
+// Initialize cleanup and synchronization jobs if Redis is enabled
+if (isRedisEnabled && pubClient) {
+  // Run clearExpiredTrades every hour
+  setInterval(clearExpiredTrades, 60 * 60 * 1000);
+
+  // Run stats synchronization every 12 hours
+  setInterval(syncTradeStatsWithDB, 12 * 60 * 60 * 1000);
+
+  // Also run the initial synchronization after 5 minutes to ensure stats are accurate
+  setTimeout(syncTradeStatsWithDB, 5 * 60 * 1000);
+}
+
+// Export functions
 module.exports = {
   createTrade,
+  getTrade,
   updateTradeStatus,
   getUserActiveTrades,
-  getTradeById,
+  getTradeStats,
+  syncTradeStatsWithDB,
   TRADE_STATUS,
 };

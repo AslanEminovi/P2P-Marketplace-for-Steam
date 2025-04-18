@@ -5,6 +5,8 @@ import { updateStats } from "../slices/statsSlice";
 import {
   socketTradeUpdate,
   updateLocalTradeStatus,
+  fetchTradeDetails,
+  fetchTrades,
 } from "../slices/tradesSlice";
 
 // Socket middleware to connect Socket.io events with Redux
@@ -137,6 +139,21 @@ export const setupSocketListeners = (store) => {
     socketService.socket.on("notification", (notification) => {
       console.log("[socketMiddleware] Received notification:", notification);
       store.dispatch(addNotification(notification));
+
+      // If notification is trade-related, refresh relevant trade data
+      if (notification.type === "trade" && notification.link) {
+        // Extract trade ID from link (format: /trades/:id)
+        const tradeId = notification.link.split("/").pop();
+        if (tradeId) {
+          // Refresh the specific trade details
+          store.dispatch(fetchTradeDetails(tradeId));
+
+          // After a short delay, also refresh the trade list to ensure consistency
+          setTimeout(() => {
+            store.dispatch(fetchTrades());
+          }, 1000);
+        }
+      }
     });
 
     // Handle market updates
@@ -170,6 +187,18 @@ export const setupSocketListeners = (store) => {
             statusHistory: update.statusHistory,
           })
         );
+
+        // Refresh the specific trade details to get the complete updated data
+        store.dispatch(fetchTradeDetails(update.tradeId));
+
+        // If this is a completion or cancellation event, refresh all trades
+        const finalStatuses = ["completed", "cancelled", "rejected", "expired"];
+        if (finalStatuses.includes(update.status)) {
+          // After a small delay to allow the DB to update
+          setTimeout(() => {
+            store.dispatch(fetchTrades());
+          }, 1000);
+        }
       }
     });
 

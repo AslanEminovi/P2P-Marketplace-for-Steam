@@ -339,6 +339,128 @@ const getClients = () => {
   return { pubClient, subClient };
 };
 
+// Trade-specific Redis helpers
+const TRADE_KEY_PREFIX = "trade:";
+const USER_TRADES_KEY_PREFIX = "user:trades:";
+const ACTIVE_TRADES_KEY = "active_trades";
+const TRADE_STATS_KEY = "trade:stats";
+
+/**
+ * Cache a trade in Redis
+ * @param {Object} trade - The trade object to cache
+ * @param {number} ttl - Time to live in seconds (default: 1 hour)
+ */
+const cacheTradeObject = async (trade, ttl = 3600) => {
+  if (!pubClient) {
+    console.log("Redis not initialized, skipping cacheTradeObject");
+    return null;
+  }
+
+  try {
+    const tradeKey = `${TRADE_KEY_PREFIX}${trade._id}`;
+    const tradeData =
+      typeof trade.toJSON === "function"
+        ? trade.toJSON()
+        : JSON.parse(JSON.stringify(trade));
+
+    await setHashCache(tradeKey, tradeData, ttl);
+
+    // Add to relevant sets
+    if (
+      tradeData.status &&
+      !["completed", "cancelled", "rejected", "expired"].includes(
+        tradeData.status
+      )
+    ) {
+      await pubClient.sadd(ACTIVE_TRADES_KEY, trade._id.toString());
+
+      if (tradeData.seller) {
+        await pubClient.sadd(
+          `${USER_TRADES_KEY_PREFIX}${tradeData.seller.toString()}`,
+          trade._id.toString()
+        );
+      }
+
+      if (tradeData.buyer) {
+        await pubClient.sadd(
+          `${USER_TRADES_KEY_PREFIX}${tradeData.buyer.toString()}`,
+          trade._id.toString()
+        );
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Redis error in cacheTradeObject:", error);
+    return null;
+  }
+};
+
+/**
+ * Get a cached trade from Redis
+ * @param {string} tradeId - The trade ID
+ * @returns {Object|null} The cached trade or null if not found
+ */
+const getCachedTrade = async (tradeId) => {
+  if (!pubClient) {
+    console.log("Redis not initialized, skipping getCachedTrade");
+    return null;
+  }
+
+  try {
+    const tradeKey = `${TRADE_KEY_PREFIX}${tradeId}`;
+    return await getHashCache(tradeKey);
+  } catch (error) {
+    console.error(`Redis error in getCachedTrade for ${tradeId}:`, error);
+    return null;
+  }
+};
+
+/**
+ * Increment trade statistics counters
+ * @param {string} statName - The statistic to increment
+ * @param {number} amount - Amount to increment by (default: 1)
+ */
+const incrementTradeStats = async (statName, amount = 1) => {
+  if (!pubClient) {
+    console.log("Redis not initialized, skipping incrementTradeStats");
+    return;
+  }
+
+  try {
+    await pubClient.hincrby(TRADE_STATS_KEY, statName, amount);
+    // Set expiry if adding a new key
+    await pubClient.expire(TRADE_STATS_KEY, 3600); // 1 hour TTL
+  } catch (error) {
+    console.error(`Redis error in incrementTradeStats for ${statName}:`, error);
+  }
+};
+
+/**
+ * Get cached trade statistics
+ * @returns {Object|null} Cached trade statistics
+ */
+const getCachedTradeStats = async () => {
+  if (!pubClient) {
+    console.log("Redis not initialized, skipping getCachedTradeStats");
+    return null;
+  }
+
+  try {
+    const stats = await getHashCache(TRADE_STATS_KEY);
+    if (!stats) return null;
+
+    // Convert string values to numbers
+    return Object.entries(stats).reduce((acc, [key, value]) => {
+      acc[key] = parseInt(value, 10) || 0;
+      return acc;
+    }, {});
+  } catch (error) {
+    console.error("Redis error in getCachedTradeStats:", error);
+    return null;
+  }
+};
+
 module.exports = {
   initRedis,
   pubClient,
@@ -352,4 +474,12 @@ module.exports = {
   closeConnections,
   getClients,
   USE_REDIS,
+  cacheTradeObject,
+  getCachedTrade,
+  incrementTradeStats,
+  getCachedTradeStats,
+  TRADE_KEY_PREFIX,
+  USER_TRADES_KEY_PREFIX,
+  ACTIVE_TRADES_KEY,
+  TRADE_STATS_KEY,
 };

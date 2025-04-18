@@ -644,4 +644,23 @@ router.post("/users/:userId/role", async (req, res) => {
   }
 });
 
+// Add the Redis-to-DB sync route
+router.post("/sync-trades", requireAdmin, async (req, res) => {
+  try {
+    // Import the trade service
+    const tradeService = require("../services/tradeService");
+
+    // Call the sync function
+    await tradeService.syncTradeStatsWithDB();
+
+    res.json({
+      success: true,
+      message: "Trade statistics synchronized with database",
+    });
+  } catch (error) {
+    console.error("Error in /admin/sync-trades:", error);
+    res.status(500).json({ error: "Failed to synchronize trade statistics" });
+  }
+});
+
 module.exports = router;

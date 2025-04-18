@@ -7,8 +7,38 @@ const TRADES_STORAGE_KEY = "cs2_marketplace_trades";
 const TRADES_TIMESTAMP_KEY = "cs2_marketplace_trades_timestamp";
 const TRADE_DETAILS_KEY_PREFIX = "cs2_trade_details_";
 const TRADE_TIMESTAMP_KEY_PREFIX = "cs2_trade_timestamp_";
-const CACHE_EXPIRATION = 10 * 60 * 1000; // 10 minutes
-const TRADE_CACHE_EXPIRATION = 30 * 60 * 1000; // 30 minutes
+const CACHE_EXPIRATION = 5 * 60 * 1000; // Reduced to 5 minutes for more frequent refreshes
+const TRADE_CACHE_EXPIRATION = 5 * 60 * 1000; // Reduced to 5 minutes with Redis
+
+// Helper function to safely store in localStorage with error handling
+const safeLocalStorage = {
+  setItem: (key, value) => {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (error) {
+      console.warn(`Failed to save to localStorage: ${key}`, error);
+      return false;
+    }
+  },
+  getItem: (key) => {
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      console.warn(`Failed to get from localStorage: ${key}`, error);
+      return null;
+    }
+  },
+  removeItem: (key) => {
+    try {
+      localStorage.removeItem(key);
+      return true;
+    } catch (error) {
+      console.warn(`Failed to remove from localStorage: ${key}`, error);
+      return false;
+    }
+  },
+};
 
 // Initial state
 const initialState = {
@@ -34,8 +64,8 @@ export const fetchTrades = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       // First check if we have cached trades in localStorage
-      const cachedTrades = localStorage.getItem(TRADES_STORAGE_KEY);
-      const cachedTimestamp = localStorage.getItem(TRADES_TIMESTAMP_KEY);
+      const cachedTrades = safeLocalStorage.getItem(TRADES_STORAGE_KEY);
+      const cachedTimestamp = safeLocalStorage.getItem(TRADES_TIMESTAMP_KEY);
 
       // Calculate if the cache is still valid
       const now = Date.now();
@@ -59,19 +89,11 @@ export const fetchTrades = createAsyncThunk(
 
       if (Array.isArray(response.data)) {
         // Save to localStorage with timestamp
-        try {
-          localStorage.setItem(
-            TRADES_STORAGE_KEY,
-            JSON.stringify(response.data)
-          );
-          localStorage.setItem(TRADES_TIMESTAMP_KEY, Date.now().toString());
-        } catch (storageError) {
-          // If localStorage fails, just log it but continue
-          console.warn(
-            "[tradesSlice] Failed to save trades to localStorage:",
-            storageError
-          );
-        }
+        safeLocalStorage.setItem(
+          TRADES_STORAGE_KEY,
+          JSON.stringify(response.data)
+        );
+        safeLocalStorage.setItem(TRADES_TIMESTAMP_KEY, now.toString());
 
         return {
           trades: response.data,
@@ -95,8 +117,8 @@ export const fetchTradeDetails = createAsyncThunk(
       // Check localStorage cache first
       const cacheKey = `${TRADE_DETAILS_KEY_PREFIX}${tradeId}`;
       const timestampKey = `${TRADE_TIMESTAMP_KEY_PREFIX}${tradeId}`;
-      const cachedTrade = localStorage.getItem(cacheKey);
-      const cachedTimestamp = localStorage.getItem(timestampKey);
+      const cachedTrade = safeLocalStorage.getItem(cacheKey);
+      const cachedTimestamp = safeLocalStorage.getItem(timestampKey);
 
       // Check if cache is valid
       const now = Date.now();
@@ -117,15 +139,8 @@ export const fetchTradeDetails = createAsyncThunk(
       });
 
       // Save to localStorage
-      try {
-        localStorage.setItem(cacheKey, JSON.stringify(response.data));
-        localStorage.setItem(timestampKey, Date.now().toString());
-      } catch (storageError) {
-        console.warn(
-          `[tradesSlice] Failed to save trade ${tradeId} to localStorage:`,
-          storageError
-        );
-      }
+      safeLocalStorage.setItem(cacheKey, JSON.stringify(response.data));
+      safeLocalStorage.setItem(timestampKey, now.toString());
 
       return response.data;
     } catch (error) {
@@ -168,7 +183,7 @@ export const updateTradeStatus = createAsyncThunk(
       try {
         const cacheKey = `${TRADE_DETAILS_KEY_PREFIX}${tradeId}`;
         const timestampKey = `${TRADE_TIMESTAMP_KEY_PREFIX}${tradeId}`;
-        const cachedTrade = localStorage.getItem(cacheKey);
+        const cachedTrade = safeLocalStorage.getItem(cacheKey);
 
         if (cachedTrade) {
           const tradeData = JSON.parse(cachedTrade);
@@ -189,8 +204,8 @@ export const updateTradeStatus = createAsyncThunk(
             });
           }
 
-          localStorage.setItem(cacheKey, JSON.stringify(updatedTrade));
-          localStorage.setItem(timestampKey, Date.now().toString());
+          safeLocalStorage.setItem(cacheKey, JSON.stringify(updatedTrade));
+          safeLocalStorage.setItem(timestampKey, Date.now().toString());
         }
       } catch (storageError) {
         console.warn(

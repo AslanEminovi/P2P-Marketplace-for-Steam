@@ -1,97 +1,43 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatCurrency, API_URL } from '../config/constants';
+import { formatCurrency, formatDate } from '../utils/format';
 import '../styles/Trades.css';
 
-// Constants for localStorage keys
-const TRADES_STORAGE_KEY = 'cs2_marketplace_trades';
-const TRADES_TIMESTAMP_KEY = 'cs2_marketplace_trades_timestamp';
-// Trade details constants from TradeDetails.jsx
-const TRADE_DETAILS_KEY_PREFIX = 'cs2_trade_details_';
-const TRADE_TIMESTAMP_KEY_PREFIX = 'cs2_trade_timestamp_';
-// Cache expiration time in milliseconds (10 minutes)
-const CACHE_EXPIRATION = 10 * 60 * 1000;
-const TRADE_CACHE_EXPIRATION = 30 * 60 * 1000;
+// Redux imports
+import { useSelector, useDispatch } from 'react-redux';
+import { 
+  fetchTrades, 
+  selectAllTrades, 
+  selectActiveTrades, 
+  selectHistoricalTrades, 
+  selectTradeStats, 
+  selectTradesLoading, 
+  selectTradesError 
+} from '../redux/slices/tradesSlice';
+import StatsCards from '../components/StatsCards';
 
 const Trades = ({ user }) => {
-  const [trades, setTrades] = useState([]);
-  const [activeCachedTrades, setActiveCachedTrades] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // Redux hooks
+  const dispatch = useDispatch();
+  const trades = useSelector(selectAllTrades);
+  const activeTrades = useSelector(selectActiveTrades);
+  const historicalTrades = useSelector(selectHistoricalTrades);
+  const stats = useSelector(selectTradeStats);
+  const loading = useSelector(selectTradesLoading);
+  const error = useSelector(selectTradesError);
+
+  // Local state for UI
   const [activeTab, setActiveTab] = useState('active'); // 'active', 'history'
   const [roleFilter, setRoleFilter] = useState('all'); // 'all', 'sent', 'received'
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('newest'); // 'newest', 'oldest', 'highest', 'lowest'
   const [refreshKey, setRefreshKey] = useState(0); // Used to trigger a refresh
-  const [stats, setStats] = useState({
-    totalTrades: 0,
-    activeTrades: 0,
-    completedTrades: 0,
-    totalValue: 0
-  });
   const navigate = useNavigate();
 
-  // Effect to find active trades in localStorage on component mount
   useEffect(() => {
-    // Load any active trades from localStorage
-    const recoverActiveTrades = () => {
-      try {
-        // Search for all trade detail items in localStorage
-        const activeTradesFromStorage = [];
-        
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith(TRADE_DETAILS_KEY_PREFIX)) {
-            const timestampKey = key.replace(TRADE_DETAILS_KEY_PREFIX, TRADE_TIMESTAMP_KEY_PREFIX);
-            const timestamp = localStorage.getItem(timestampKey);
-            
-            // Only recover trades with a valid timestamp that aren't too old
-            if (timestamp) {
-              const now = Date.now();
-              const cacheValid = (now - parseInt(timestamp, 10) < TRADE_CACHE_EXPIRATION);
-              
-              if (cacheValid) {
-                try {
-                  const tradeData = JSON.parse(localStorage.getItem(key));
-                  
-                  // Only include active trades (not completed, cancelled, or failed)
-                  if (tradeData && !['completed', 'cancelled', 'failed'].includes(tradeData.status)) {
-                    // Extract the trade ID from the key
-                    const tradeId = key.replace(TRADE_DETAILS_KEY_PREFIX, '');
-                    
-                    // Add trade ID property if it doesn't exist
-                    if (!tradeData._id) {
-                      tradeData._id = tradeId;
-                    }
-                    
-                    activeTradesFromStorage.push(tradeData);
-                  }
-                } catch (err) {
-                  console.warn(`Error parsing trade data for key ${key}`, err);
-                }
-              }
-            }
-          }
-        }
-        
-        // Sort by timestamp, most recent first
-        activeTradesFromStorage.sort((a, b) => {
-          return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
-        });
-        
-        setActiveCachedTrades(activeTradesFromStorage);
-      } catch (err) {
-        console.warn('Error recovering active trades from localStorage', err);
-      }
-    };
-    
-    recoverActiveTrades();
-  }, []);
-
-  useEffect(() => {
-    loadTrades();
+    // Fetch trades on component mount and when refreshKey changes
+    dispatch(fetchTrades());
     
     // Set up periodic refresh every 2 minutes
     const refreshInterval = setInterval(() => {
@@ -99,165 +45,33 @@ const Trades = ({ user }) => {
     }, 120000);
     
     return () => clearInterval(refreshInterval);
-  }, [refreshKey]);
-  
-  // Calculate stats when trades change
+  }, [refreshKey, dispatch]);
+
+  // Auto-refresh active trades periodically
   useEffect(() => {
-    if (Array.isArray(trades) && trades.length > 0) {
-      const activeTrades = trades.filter(trade => 
-        ['awaiting_seller', 'offer_sent', 'awaiting_confirmation', 'created', 'pending'].includes(trade?.status)
-      );
-      
-      const completedTrades = trades.filter(trade => 
-        ['completed'].includes(trade?.status)
-      );
-      
-      const totalValue = trades.reduce((sum, trade) => sum + (Number(trade?.price) || 0), 0);
-      
-      setStats({
-        totalTrades: trades.length,
-        activeTrades: activeTrades.length,
-        completedTrades: completedTrades.length,
-        totalValue
-      });
-    }
-  }, [trades]);
+    let refreshInterval = null;
 
-  // Load trades - first from localStorage cache if valid, then from API
-  const loadTrades = async () => {
-    setLoading(true);
-    
-    try {
-      // First check if we have cached trades in localStorage
-      const cachedTrades = localStorage.getItem(TRADES_STORAGE_KEY);
-      const cachedTimestamp = localStorage.getItem(TRADES_TIMESTAMP_KEY);
-      
-      // Calculate if the cache is still valid
-      const now = Date.now();
-      const cacheValid = cachedTimestamp && (now - parseInt(cachedTimestamp, 10) < CACHE_EXPIRATION);
-      
-      if (cachedTrades && cacheValid) {
-        console.log('Loading trades from localStorage cache');
-        setTrades(JSON.parse(cachedTrades));
-        setLoading(false);
-      }
-      
-      // Always fetch fresh data from API, but if we have cache, don't show loading state
-      await fetchTrades();
-    } catch (err) {
-      console.error('Error loading trades:', err);
-      setError('Failed to load trade history. Please try again later.');
-      setLoading(false);
+    // Only set up auto-refresh if user is on the active trades tab
+    if (activeTab === 'active') {
+      refreshInterval = setInterval(() => {
+        // Only refresh if the component is visible and not already loading
+        if (document.visibilityState === 'visible' && !loading) {
+          console.log('[Trades] Auto-refreshing active trades');
+          dispatch(fetchTrades());
+        }
+      }, 60000); // Refresh every minute
     }
-  };
 
-  const fetchTrades = async () => {
-    try {
-      // If we're not already showing cached data, set loading to true
-      if (trades.length === 0) {
-        setLoading(true);
+    return () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
       }
-      
-      const response = await axios.get(`${API_URL}/trades/history`, { 
-        withCredentials: true 
-      });
-      
-      if (Array.isArray(response.data)) {
-        const tradesWithImages = await enhanceTradesWithUserImages(response.data);
-        
-        // Merge with active cached trades to ensure we don't lose any in-progress trades
-        const existingTradeIds = new Set(tradesWithImages.map(t => t._id));
-        const uniqueCachedTrades = activeCachedTrades.filter(ct => !existingTradeIds.has(ct._id));
-        const mergedTrades = [...tradesWithImages, ...uniqueCachedTrades];
-        
-        // Save to state
-        setTrades(mergedTrades);
-        
-        // Save to localStorage with timestamp
-        try {
-          localStorage.setItem(TRADES_STORAGE_KEY, JSON.stringify(mergedTrades));
-          localStorage.setItem(TRADES_TIMESTAMP_KEY, Date.now().toString());
-        } catch (storageError) {
-          // If localStorage fails (e.g., quota exceeded), just log it but continue
-          console.warn('Failed to save trades to localStorage:', storageError);
-        }
-      } else {
-        console.error('Invalid response format from trade history API:', response.data);
-        setTrades([]);
-        setError('Invalid data format received from server');
-      }
-    } catch (err) {
-      console.error('Error fetching trade history:', err);
-      setError('Failed to load trade history. Please try again later.');
-      setTrades([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Function to enhance trades with user images
-  const enhanceTradesWithUserImages = async (trades) => {
-    return trades.map(trade => {
-      // Ensure buyer and seller have avatars
-      if (trade.buyer && !trade.buyer.avatar && trade.buyer.avatarfull) {
-        trade.buyer.avatar = trade.buyer.avatarfull;
-      }
-      
-      if (trade.seller && !trade.seller.avatar && trade.seller.avatarfull) {
-        trade.seller.avatar = trade.seller.avatarfull;
-      }
-      
-      // Check all possible locations for the item image
-      if (trade.item) {
-        // First check if marketHashName exists to set itemName
-        if (trade.item.marketHashName && !trade.itemName) {
-          trade.itemName = trade.item.marketHashName;
-        }
-        
-        // Then try all possible image properties in order of likelihood
-        if (trade.item.iconUrl) {
-          trade.itemImage = trade.item.iconUrl;
-        } else if (trade.item.iconURL) {
-          trade.itemImage = trade.item.iconURL;
-        } else if (trade.item.icon) {
-          trade.itemImage = trade.item.icon;
-        } else if (trade.item.imageUrl) {
-          trade.itemImage = trade.item.imageUrl;
-        } else if (trade.item.image) {
-          trade.itemImage = trade.item.image;
-        }
-      }
-      
-      // If we still don't have an image, check at the trade level
-      if (!trade.itemImage) {
-        if (trade.itemIconUrl) {
-          trade.itemImage = trade.itemIconUrl;
-        } else if (trade.iconUrl) {
-          trade.itemImage = trade.iconUrl;
-        } else if (trade.imageUrl) {
-          trade.itemImage = trade.imageUrl;
-        }
-      }
-      
-      // Extract hash name from URL if itemName is still missing
-      if (!trade.itemName && trade.itemImage) {
-        const imagePath = trade.itemImage.split('/').pop();
-        const decodedPath = decodeURIComponent(imagePath);
-        if (decodedPath.includes('.png')) {
-          trade.itemName = decodedPath.split('.png')[0];
-        }
-      }
-      
-      // Finally, use a fallback name if still missing
-      if (!trade.itemName) {
-        trade.itemName = "CS2 Item";
-      }
-      
-      // Log the enhanced trade for debugging
-      console.log('Enhanced trade:', trade);
-      
-      return trade;
-    });
+    };
+  }, [activeTab, loading, dispatch]);
+
+  // Handle manual refresh when button clicked
+  const handleRefresh = () => {
+    dispatch(fetchTrades());
   };
 
   const getStatusColor = (status) => {
@@ -302,7 +116,8 @@ const Trades = ({ user }) => {
   };
 
   const getFilteredTrades = () => {
-    let filtered = trades || [];
+    // Get the appropriate trade list based on the active tab
+    let filtered = activeTab === 'active' ? activeTrades : historicalTrades;
     
     if (!Array.isArray(filtered)) {
       console.error('Trades is not an array:', filtered);
@@ -325,17 +140,6 @@ const Trades = ({ user }) => {
       filtered = filtered.filter(trade => trade?.isUserBuyer);
     } else if (roleFilter === 'received') {
       filtered = filtered.filter(trade => trade?.isUserSeller);
-    }
-
-    // Apply status filter (tab)
-    if (activeTab === 'active') {
-      filtered = filtered.filter(trade => 
-        ['awaiting_seller', 'offer_sent', 'awaiting_confirmation', 'created', 'pending', 'accepted'].includes(trade?.status)
-      );
-    } else if (activeTab === 'history') {
-      filtered = filtered.filter(trade => 
-        ['completed', 'cancelled', 'failed'].includes(trade?.status)
-      );
     }
     
     // Apply sorting
@@ -379,14 +183,9 @@ const Trades = ({ user }) => {
            '/default-avatar.png';
   };
 
-  // Handle refresh button click
-  const handleRefresh = () => {
-    setRefreshKey(prevKey => prevKey + 1);
-  };
-
-  // Function to render the in-progress trades section
+  // Function to render in-progress trades from redux activeTrades
   const renderInProgressTrades = () => {
-    if (activeCachedTrades.length === 0) {
+    if (activeTrades.length === 0) {
       return null;
     }
     
@@ -400,11 +199,11 @@ const Trades = ({ user }) => {
           In-Progress Trades
         </h3>
         <p className="in-progress-trades-description">
-          These trades were in progress when you last navigated away. Click to continue where you left off.
+          These trades are currently active. Click to continue.
         </p>
         
         <div className="in-progress-trades-list">
-          {activeCachedTrades.map(trade => (
+          {activeTrades.slice(0, 3).map(trade => (
             <div 
               key={trade._id} 
               className="in-progress-trade-card"
@@ -491,77 +290,25 @@ const Trades = ({ user }) => {
         <div className="trades-header-content">
           <h1>My Trades</h1>
           <p>Manage and track all your trades in one place</p>
+          <button 
+            className="trades-refresh-button" 
+            onClick={() => dispatch(fetchTrades())}
+            disabled={loading}
+          >
+            {loading ? (
+              <span className="trades-refresh-loading"></span>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 4v6h6"></path>
+                <path d="M23 20v-6h-6"></path>
+                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+              </svg>
+            )}
+            Refresh
+          </button>
         </div>
-        
-        {/* Add refresh button */}
-        <button className="trades-refresh-button" onClick={handleRefresh} title="Refresh trades">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M23 4v6h-6"></path>
-            <path d="M1 20v-6h6"></path>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path>
-            <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"></path>
-          </svg>
-        </button>
+        <StatsCards stats={stats} loading={loading} />
       </div>
-      
-      {/* Stats Cards */}
-      <motion.div 
-        className="trades-stats"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div className="trades-stat-card">
-          <div className="trades-stat-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-          </div>
-          <div className="trades-stat-content">
-            <div className="trades-stat-label">Total Trades</div>
-            <div className="trades-stat-value">{stats.totalTrades}</div>
-          </div>
-        </div>
-        
-        <div className="trades-stat-card active">
-          <div className="trades-stat-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-            </svg>
-          </div>
-          <div className="trades-stat-content">
-            <div className="trades-stat-label">Active Trades</div>
-            <div className="trades-stat-value">{stats.activeTrades}</div>
-          </div>
-        </div>
-        
-        <div className="trades-stat-card completed">
-          <div className="trades-stat-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-          </div>
-          <div className="trades-stat-content">
-            <div className="trades-stat-label">Completed</div>
-            <div className="trades-stat-value">{stats.completedTrades}</div>
-          </div>
-        </div>
-        
-        <div className="trades-stat-card">
-          <div className="trades-stat-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="1" x2="12" y2="23"></line>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-            </svg>
-          </div>
-          <div className="trades-stat-content">
-            <div className="trades-stat-label">Total Value</div>
-            <div className="trades-stat-value">{formatCurrency(stats.totalValue)}</div>
-          </div>
-        </div>
-      </motion.div>
       
       {/* Tabs */}
       <motion.div 
@@ -687,7 +434,7 @@ const Trades = ({ user }) => {
             <p>{error}</p>
             <button 
               className="trades-retry-button"
-              onClick={fetchTrades}
+              onClick={() => dispatch(fetchTrades())}
             >
               Try Again
             </button>
