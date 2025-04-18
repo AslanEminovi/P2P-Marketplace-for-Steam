@@ -594,16 +594,19 @@ const updateTradeCategories = (state) => {
 
 // Helper function to update trade statistics
 const updateTradeStats = (state) => {
+  const totalValue = state.trades.reduce(
+    (sum, trade) => sum + (Number(trade?.price) || 0),
+    0
+  );
+
   const stats = {
     totalTrades: state.trades.length,
     activeTrades: state.activeTrades.length,
     completedTrades: state.trades.filter(
       (trade) => trade.status === "completed"
     ).length,
-    totalValue: state.trades.reduce(
-      (sum, trade) => sum + (Number(trade?.price) || 0),
-      0
-    ),
+    totalValue: totalValue,
+    tradeVolume: totalValue,
   };
 
   state.stats = stats;

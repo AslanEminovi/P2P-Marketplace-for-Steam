@@ -576,6 +576,7 @@ const Trades = ({ user }) => {
           totalTrades={tradeStats?.totalTrades || 0}
           completedTrades={tradeStats?.completedTrades || 0}
           tradeVolume={tradeStats?.tradeVolume || 0}
+          activeTrades={tradeStats?.activeTrades || 0}
         />
       </div>
       

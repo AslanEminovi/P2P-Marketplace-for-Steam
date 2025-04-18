@@ -6,11 +6,20 @@ import '../styles/Trades.css';
 /**
  * StatsCards component displays trade statistics in card format
  * @param {Object} props
- * @param {Object} props.stats - The statistics object
+ * @param {number} props.totalTrades - Total number of trades
+ * @param {number} props.activeTrades - Number of active trades
+ * @param {number} props.completedTrades - Number of completed trades
+ * @param {number} props.tradeVolume - Total value of trades
  * @param {boolean} props.statsLoading - Whether the stats are loading
  * @returns {JSX.Element}
  */
-const StatsCards = ({ stats, statsLoading }) => {
+const StatsCards = ({ 
+  totalTrades = 0, 
+  activeTrades = 0, 
+  completedTrades = 0, 
+  tradeVolume = 0, 
+  statsLoading = false 
+}) => {
   return (
     <div className="trades-stats">
       <div className="trades-stat-card">
@@ -20,10 +29,10 @@ const StatsCards = ({ stats, statsLoading }) => {
         <div className="trades-stat-content">
           <div className="trades-stat-label">Total Trades</div>
           <div className="trades-stat-value">
-            {statsLoading.totalTrades ? (
+            {statsLoading ? (
               <div className="stats-loading"></div>
             ) : (
-              stats.totalTrades
+              totalTrades
             )}
           </div>
         </div>
@@ -36,10 +45,10 @@ const StatsCards = ({ stats, statsLoading }) => {
         <div className="trades-stat-content">
           <div className="trades-stat-label">Active Trades</div>
           <div className="trades-stat-value">
-            {statsLoading.activeTrades ? (
+            {statsLoading ? (
               <div className="stats-loading"></div>
             ) : (
-              stats.activeTrades
+              activeTrades
             )}
           </div>
         </div>
@@ -52,10 +61,10 @@ const StatsCards = ({ stats, statsLoading }) => {
         <div className="trades-stat-content">
           <div className="trades-stat-label">Completed Trades</div>
           <div className="trades-stat-value">
-            {statsLoading.completedTrades ? (
+            {statsLoading ? (
               <div className="stats-loading"></div>
             ) : (
-              stats.completedTrades
+              completedTrades
             )}
           </div>
         </div>
@@ -68,10 +77,10 @@ const StatsCards = ({ stats, statsLoading }) => {
         <div className="trades-stat-content">
           <div className="trades-stat-label">Total Value</div>
           <div className="trades-stat-value">
-            {statsLoading.totalValue ? (
+            {statsLoading ? (
               <div className="stats-loading"></div>
             ) : (
-              `$${stats.totalValue.toFixed(2)}`
+              `$${(tradeVolume || 0).toFixed(2)}`
             )}
           </div>
         </div>
