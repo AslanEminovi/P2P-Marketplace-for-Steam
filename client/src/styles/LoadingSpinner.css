@@ -3,10 +3,22 @@
   justify-content: center;
   align-items: center;
   padding: 10px;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .loading-spinner {
   color: #3498db;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.loading-spinner-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #8b949e;
+  text-align: center;
 }
 
 .loading-spinner-container.fullscreen {
@@ -22,4 +34,46 @@
 .loading-spinner-container.centered {
   height: 100%;
   width: 100%;
+}
+
+.loading-spinner-container.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(22, 27, 34, 0.7);
+  backdrop-filter: blur(3px);
+  border-radius: inherit;
+}
+
+/* Animation for fading in the spinner */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.loading-spinner-container {
+  animation: fadeIn 0.3s ease;
+}
+
+/* Pulsing effect for the spinner text */
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+.loading-spinner-text {
+  animation: pulse 1.5s infinite;
 } 
