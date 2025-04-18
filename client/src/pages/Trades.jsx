@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatCurrency, formatDate } from '../utils/format';
+import { formatCurrency, formatDate as formatDateUtil } from '../utils/format';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faExchangeAlt, 
@@ -49,7 +49,6 @@ import {
 import { selectActiveTradesData, selectTradeHistoryData } from '../redux/selectors/tradesSelectors';
 import StatsCards from '../components/StatsCards';
 import { tradeStatusVariants } from '../utils/statusUtils';
-import moment from 'moment';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const Trades = ({ user }) => {
@@ -216,7 +215,29 @@ const Trades = ({ user }) => {
   };
 
   const formatDate = (dateString) => {
-    return moment(dateString).format('MMM D, YYYY [at] h:mm A');
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    
+    // Get month abbreviated name
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[date.getMonth()];
+    
+    // Get day
+    const day = date.getDate();
+    
+    // Get year
+    const year = date.getFullYear();
+    
+    // Get hour, ensuring 12-hour format
+    let hour = date.getHours();
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12;
+    hour = hour || 12; // Hour '0' should be '12'
+    
+    // Get minutes with leading zero if needed
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    
+    return `${month} ${day}, ${year} at ${hour}:${minutes} ${ampm}`;
   };
 
   const getAvatarUrl = (userObj) => {
