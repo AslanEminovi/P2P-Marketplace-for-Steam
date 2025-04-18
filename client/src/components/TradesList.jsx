@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { fetchTrades } from '../redux/slices/tradesSlice';
 import { formatDate } from '../utils/dateUtils';
 import LoadingSpinner from './LoadingSpinner';
+import '../styles/TradesList.css';
 
 const TradesList = () => {
   const dispatch = useDispatch();

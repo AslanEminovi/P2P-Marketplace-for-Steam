@@ -1,0 +1,166 @@
+.trades-container {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.trades-container h1 {
+  margin-bottom: 2rem;
+  color: #333;
+  font-size: 2rem;
+}
+
+.filter-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2rem;
+  gap: 1rem;
+}
+
+.filter-container label {
+  font-weight: 600;
+  color: #555;
+}
+
+.filter-container select {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.empty-trades {
+  background-color: #f5f5f5;
+  padding: 2rem;
+  text-align: center;
+  border-radius: 8px;
+  color: #666;
+  font-size: 1.1rem;
+}
+
+.trades-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.trade-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.trade-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.trade-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.trade-status {
+  display: inline-block;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: white;
+}
+
+.status-pending {
+  background-color: #f59f00;
+}
+
+.status-accepted {
+  background-color: #40c057;
+}
+
+.status-declined,
+.status-cancelled {
+  background-color: #fa5252;
+}
+
+.status-completed {
+  background-color: #228be6;
+}
+
+.status-awaiting_seller,
+.status-created {
+  background-color: #7950f2;
+}
+
+.status-offer_sent,
+.status-awaiting_confirmation {
+  background-color: #e67700;
+}
+
+.trade-date {
+  color: #888;
+  font-size: 0.8rem;
+}
+
+.trade-parties {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.trade-party {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.trade-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e9ecef;
+}
+
+.trade-direction {
+  font-size: 1.5rem;
+}
+
+.trade-items-preview {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+}
+
+.trade-items-count {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  font-size: 0.9rem;
+  color: #495057;
+}
+
+@media (max-width: 768px) {
+  .trades-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .trade-parties {
+    flex-direction: row;
+  }
+  
+  .trade-avatar {
+    width: 40px;
+    height: 40px;
+  }
+} 
