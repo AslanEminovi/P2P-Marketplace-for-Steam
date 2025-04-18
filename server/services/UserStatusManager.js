@@ -1035,6 +1035,78 @@ class UserStatusManager {
       );
     }
   }
+
+  /**
+   * Broadcast a trade price update to all relevant clients
+   * @param {Object} data - The price update data
+   * @param {string} data.tradeId - ID of the trade
+   * @param {number} data.newPrice - New price value
+   * @param {number} data.previousPrice - Previous price value
+   * @param {string} data.updatedBy - User who updated the price (userId or username)
+   * @param {boolean} data.notification - Whether to generate a notification (default: true)
+   */
+  broadcastTradePriceUpdate(data) {
+    if (!this.io) {
+      console.warn(
+        "Cannot broadcast trade price update: Socket.io instance not set"
+      );
+      return;
+    }
+
+    try {
+      // Validate required fields
+      if (!data.tradeId || data.newPrice === undefined) {
+        console.error("Invalid trade price update data:", data);
+        return;
+      }
+
+      console.log(
+        `Broadcasting trade price update for trade ${data.tradeId}: ${data.previousPrice} -> ${data.newPrice}`
+      );
+
+      // Broadcast to all connected clients
+      this.io.emit("trade_price_update", {
+        tradeId: data.tradeId,
+        newPrice: data.newPrice,
+        previousPrice: data.previousPrice,
+        updatedBy: data.updatedBy || "system",
+        notification: data.notification !== false,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Also emit as a normal notification for consistency
+      if (data.notification !== false) {
+        const notificationData = {
+          type: "trade_price_update",
+          title: "Trade Price Updated",
+          message: `Trade price updated from ${data.previousPrice} to ${data.newPrice}`,
+          data: {
+            tradeId: data.tradeId,
+            newPrice: data.newPrice,
+            previousPrice: data.previousPrice,
+          },
+          createdAt: new Date().toISOString(),
+        };
+
+        // If we have user IDs (buyer/seller), we can target the notification
+        if (data.buyerId) {
+          this.io.to(`user_${data.buyerId}`).emit("notification", {
+            ...notificationData,
+            userId: data.buyerId,
+          });
+        }
+
+        if (data.sellerId && data.sellerId !== data.buyerId) {
+          this.io.to(`user_${data.sellerId}`).emit("notification", {
+            ...notificationData,
+            userId: data.sellerId,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error broadcasting trade price update:", error);
+    }
+  }
 }
 
 // Create singleton instance

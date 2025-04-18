@@ -543,11 +543,9 @@ exports.cancelTrade = async (req, res) => {
     });
   } catch (err) {
     console.error("Cancel trade error:", err);
-    return res
-      .status(500)
-      .json({
-        error: "Failed to cancel trade: " + (err.message || "Unknown error"),
-      });
+    return res.status(500).json({
+      error: "Failed to cancel trade: " + (err.message || "Unknown error"),
+    });
   }
 };
 
@@ -1350,6 +1348,147 @@ const handleTradeOfferCreation = async (userId, tradeId) => {
   } catch (err) {
     console.error(`Error in handleTradeOfferCreation: ${err.message}`);
     return false;
+  }
+};
+
+// PUT /trades/:tradeId/update-price
+exports.updateTradePrice = async (req, res) => {
+  try {
+    const { tradeId } = req.params;
+    const { price } = req.body;
+    const userId = req.user._id;
+
+    // Validate price
+    if (!price || isNaN(price) || parseFloat(price) <= 0) {
+      return res
+        .status(400)
+        .json({ error: "Please provide a valid price greater than 0" });
+    }
+
+    // Find the trade
+    const trade = await Trade.findById(tradeId)
+      .populate("buyer", "displayName _id")
+      .populate("seller", "displayName _id");
+
+    if (!trade) {
+      return res.status(404).json({ error: "Trade not found" });
+    }
+
+    // Verify the user is part of this trade
+    const isSeller =
+      trade.seller && trade.seller._id.toString() === userId.toString();
+    const isBuyer =
+      trade.buyer && trade.buyer._id.toString() === userId.toString();
+
+    if (!isSeller && !isBuyer) {
+      return res
+        .status(403)
+        .json({ error: "You are not authorized to update this trade" });
+    }
+
+    // Check if the trade is in a status that allows price updates
+    const allowedStatuses = [
+      "awaiting_seller",
+      "created",
+      "pending",
+      "accepted",
+    ];
+    if (!allowedStatuses.includes(trade.status)) {
+      return res.status(400).json({
+        error: `Cannot update price for a trade in '${
+          trade.status
+        }' status. Trade must be in one of these statuses: ${allowedStatuses.join(
+          ", "
+        )}`,
+      });
+    }
+
+    // Store the previous price for history
+    const previousPrice = trade.price;
+
+    // Save price history if it doesn't exist
+    if (!trade.priceHistory) {
+      trade.priceHistory = [];
+    }
+
+    // Add current price to history if different
+    if (
+      previousPrice !== undefined &&
+      previousPrice !== null &&
+      previousPrice !== parseFloat(price)
+    ) {
+      trade.priceHistory.push({
+        price: previousPrice,
+        updatedAt: new Date(),
+        updatedBy: userId,
+      });
+    }
+
+    // Update the price
+    trade.price = parseFloat(price);
+    await trade.save();
+
+    // Get display name of the user who updated the price
+    const updatedByName = isSeller
+      ? trade.seller.displayName || "Seller"
+      : trade.buyer.displayName || "Buyer";
+
+    // Broadcast the price update via socket
+    const socketService = require("../services/socketService");
+    socketService.broadcastTradePriceUpdate({
+      tradeId: trade._id,
+      newPrice: parseFloat(price),
+      previousPrice: previousPrice || 0,
+      updatedBy: updatedByName,
+      buyerId: trade.buyer ? trade.buyer._id : null,
+      sellerId: trade.seller ? trade.seller._id : null,
+    });
+
+    // Create notifications for the other party
+    const notificationService = require("../services/notificationService");
+
+    // Notify the other party about the price update
+    if (isSeller && trade.buyer) {
+      await notificationService.createNotification(trade.buyer._id, userId, {
+        type: "trade_price_update",
+        title: "Trade Price Updated",
+        message: `The seller has updated the price from $${
+          previousPrice || 0
+        } to $${price}`,
+        data: {
+          tradeId: trade._id,
+          newPrice: parseFloat(price),
+          previousPrice: previousPrice || 0,
+        },
+      });
+    } else if (isBuyer && trade.seller) {
+      await notificationService.createNotification(trade.seller._id, userId, {
+        type: "trade_price_update",
+        title: "Trade Price Updated",
+        message: `The buyer has updated the price from $${
+          previousPrice || 0
+        } to $${price}`,
+        data: {
+          tradeId: trade._id,
+          newPrice: parseFloat(price),
+          previousPrice: previousPrice || 0,
+        },
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Trade price updated successfully",
+      trade: {
+        _id: trade._id,
+        price: trade.price,
+        priceHistory: trade.priceHistory,
+        status: trade.status,
+      },
+    });
+  } catch (err) {
+    console.error("Error updating trade price:", err);
+    return res.status(500).json({ error: "Failed to update trade price" });
   }
 };
 

@@ -13,6 +13,9 @@ router.get("/history", tradeController.getTradeHistory);
 // Get specific trade details
 router.get("/:tradeId", tradeController.getTradeDetails);
 
+// Update trade price
+router.put("/:tradeId/update-price", tradeController.updateTradePrice);
+
 // Seller approves the trade
 router.put("/:tradeId/seller-approve", tradeController.sellerApproveTrade);
 

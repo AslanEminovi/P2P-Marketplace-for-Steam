@@ -7,6 +7,7 @@ const jwt = require("jsonwebtoken");
 const redisModule = require("../config/redis");
 const User = require("../models/User");
 const userStatusManager = require("./UserStatusManager");
+const mongoose = require("mongoose");
 
 // Initialize Redis clients - Set these as global variables
 let pubClient = null;
@@ -553,22 +554,62 @@ const sendNotification = (userId, notification) => {
     return;
   }
 
+  // Add unique ID and timestamp if not present
   const enrichedNotification = {
     ...notification,
-    timestamp: new Date().toISOString(),
+    _id: notification._id || new mongoose.Types.ObjectId().toString(), // Generate a unique ID
+    timestamp: notification.timestamp || new Date().toISOString(),
+    createdAt: notification.createdAt || new Date(),
   };
 
   // Store the notification in the database even if socket delivery fails
   try {
     // Add to user's notifications array in database
+    // Use findOneAndUpdate with addToSet to prevent duplicates
     const User = require("../models/User");
-    User.findByIdAndUpdate(
-      userId,
-      { $push: { notifications: enrichedNotification } },
-      { new: true }
-    ).catch((err) =>
-      console.error("Failed to save notification to database:", err)
-    );
+
+    // Check if a similar notification already exists within the last minute
+    // to prevent duplicates from different triggers
+    User.findById(userId)
+      .select("notifications")
+      .then((user) => {
+        if (!user) return;
+
+        // Look for existing similar notifications in the last 1 minute
+        const lastMinute = new Date(Date.now() - 60 * 1000);
+        const similarExists = user.notifications.some(
+          (n) =>
+            n.title === enrichedNotification.title &&
+            n.message === enrichedNotification.message &&
+            new Date(n.createdAt) > lastMinute
+        );
+
+        if (similarExists) {
+          console.log(
+            `Skipping duplicate notification for user ${userId}: ${enrichedNotification.title}`
+          );
+          return;
+        }
+
+        // If no duplicate exists, add the notification
+        User.findByIdAndUpdate(
+          userId,
+          {
+            $push: {
+              notifications: {
+                $each: [enrichedNotification],
+                $position: 0, // Add at the beginning of the array
+              },
+            },
+          },
+          { new: true }
+        ).catch((err) =>
+          console.error("Failed to save notification to database:", err)
+        );
+      })
+      .catch((err) =>
+        console.error("Error checking for existing notifications:", err)
+      );
   } catch (dbError) {
     console.error("Error saving notification to database:", dbError);
   }
@@ -868,6 +909,36 @@ const startPeriodicStatusBroadcasts = () => {
   }, 15000); // Every 15 seconds (reduced from 30 seconds)
 };
 
+/**
+ * Broadcast a trade price update to all connected clients
+ * @param {Object} data - Trade price update data
+ * @returns {boolean} - Success status
+ */
+const broadcastTradePriceUpdate = (data) => {
+  try {
+    // Check if userStatusManager is available
+    if (!userStatusManager) {
+      console.error(
+        "UserStatusManager not available for broadcastTradePriceUpdate"
+      );
+      return false;
+    }
+
+    // Validate data
+    if (!data || !data.tradeId || data.newPrice === undefined) {
+      console.error("Invalid trade price update data:", data);
+      return false;
+    }
+
+    // Use the UserStatusManager to broadcast the price update
+    userStatusManager.broadcastTradePriceUpdate(data);
+    return true;
+  } catch (error) {
+    console.error("Error in broadcastTradePriceUpdate:", error);
+    return false;
+  }
+};
+
 module.exports = {
   init,
   broadcastStats,
@@ -880,4 +951,5 @@ module.exports = {
   emitUserActivity,
   sendNotification,
   broadcastUserStatusChange,
+  broadcastTradePriceUpdate,
 };
