@@ -8,7 +8,8 @@ import {
   buyerConfirmReceipt,
   sellerSentItem,
   cancelTrade,
-  updateTradePriceThunk 
+  updateTradePriceThunk,
+  updateTradeStatus
 } from '../redux/slices/tradesSlice';
 import { formatDate } from '../utils/dateUtils';
 import LoadingSpinner from './LoadingSpinner';
