@@ -10,302 +10,436 @@ import {
   faUser,
   faTag,
   faDollarSign,
-  faClock
+  faClock,
+  faCheckCircle,
+  faTimesCircle,
+  faQuestionCircle
 } from '@fortawesome/free-solid-svg-icons';
 import { motion } from 'framer-motion';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import '../styles/Trades.css';
 
-// Helper function to determine status color
-const getStatusColor = (status) => {
-  switch (status) {
-    case 'completed':
-      return { background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white' };
-    case 'cancelled':
-    case 'failed':
-      return { background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: 'white' };
-    case 'pending':
-    case 'awaiting_seller':
-    case 'offer_sent':
-    case 'awaiting_confirmation':
-    case 'created':
-      return { background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: 'white' };
-    default:
-      return { background: 'linear-gradient(135deg, #9ca3af, #6b7280)', color: 'white' };
-  }
-};
-
-// Helper function to get user-friendly status label
-const getStatusLabel = (status) => {
-  switch (status) {
-    case 'completed':
-      return 'Completed';
-    case 'cancelled':
-      return 'Cancelled';
-    case 'failed':
-      return 'Failed';
-    case 'pending':
-      return 'Pending';
-    case 'awaiting_seller':
-      return 'Awaiting Seller';
-    case 'offer_sent':
-      return 'Offer Sent';
-    case 'awaiting_confirmation':
-      return 'Awaiting Confirmation';
-    case 'created':
-      return 'Created';
-    default:
-      return status;
-  }
-};
-
-// Helper function to get avatar URL
-const getAvatarUrl = (user) => {
-  if (!user) return '/default-avatar.png';
-  return user.avatar || user.avatarUrl || user.profilePicture || user.imageUrl || '/default-avatar.png';
-};
-
+/**
+ * A component that displays a trade item card with a completely redesigned UI
+ * @param {Object} trade - The trade object to display
+ * @param {Number} index - The index for staggered animations
+ */
 const TradeItem = ({ trade, index }) => {
   // Handle missing data gracefully
   if (!trade) {
     return (
-      <div className="trade-card error">
-        <FontAwesomeIcon icon={faExclamationCircle} />
-        <span>Trade data unavailable</span>
-      </div>
+      <motion.div 
+        className="trade-card error"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        <div style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#f87171' }}>
+          <FontAwesomeIcon icon={faExclamationCircle} size="lg" />
+          <span>Trade data unavailable</span>
+        </div>
+      </motion.div>
     );
   }
 
-  // Use lowercase status string for color mapping
-  const statusColors = getStatusColor(trade.status?.toLowerCase());
-  const statusLabel = getStatusLabel(trade.status?.toLowerCase());
+  // Helper function to determine status colors and gradients
+  const getStatusStyles = (status) => {
+    const statusStr = String(status || '').toLowerCase();
+    
+    if (statusStr.includes('complet')) {
+      return {
+        background: 'linear-gradient(135deg, #10b981, #059669)',
+        color: 'white',
+        icon: faCheckCircle
+      };
+    } else if (statusStr.includes('cancel') || statusStr.includes('fail') || statusStr.includes('declin')) {
+      return {
+        background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+        color: 'white',
+        icon: faTimesCircle
+      };
+    } else if (statusStr.includes('pend') || statusStr.includes('await') || statusStr.includes('offer') || statusStr.includes('process') || statusStr.includes('creat')) {
+      return {
+        background: 'linear-gradient(135deg, #f472b6, #ec4899)',
+        color: 'white', 
+        icon: faClock
+      };
+    } else {
+      return {
+        background: 'linear-gradient(135deg, #9ca3af, #6b7280)',
+        color: 'white',
+        icon: faQuestionCircle
+      };
+    }
+  };
+
+  // Format status text for display
+  const getStatusLabel = (status) => {
+    const statusStr = String(status || '').toLowerCase();
+    
+    if (statusStr.includes('complet')) return 'Completed';
+    if (statusStr.includes('cancel')) return 'Cancelled';
+    if (statusStr.includes('fail')) return 'Failed';
+    if (statusStr.includes('pend')) return 'Pending';
+    if (statusStr.includes('await_seller')) return 'Awaiting Seller';
+    if (statusStr.includes('offer')) return 'Offer Sent';
+    if (statusStr.includes('confirm')) return 'Awaiting Confirmation';
+    if (statusStr.includes('creat')) return 'Created';
+    if (statusStr.includes('process')) return 'Processing';
+    if (statusStr.includes('declin')) return 'Declined';
+    
+    // If we can't match, just clean up the string and capitalize
+    return statusStr
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  // Get status information including colors and icon
+  const statusInfo = getStatusStyles(trade.status);
+  const statusLabel = getStatusLabel(trade.status);
+
+  // Card animation variants
+  const cardVariants = {
+    hidden: { 
+      opacity: 0,
+      y: 20,
+      scale: 0.95
+    },
+    visible: { 
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+        damping: 15,
+        delay: index * 0.08
+      }
+    },
+    hover: {
+      y: -8,
+      scale: 1.02,
+      boxShadow: "0 20px 40px rgba(0, 0, 0, 0.2)", 
+      transition: {
+        type: "spring",
+        stiffness: 400,
+        damping: 10
+      }
+    },
+    exit: { 
+      opacity: 0,
+      y: -20,
+      transition: {
+        duration: 0.2
+      }
+    }
+  };
 
   return (
     <motion.div
       className="trade-card"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.3, delay: index * 0.05 }}
+      variants={cardVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      whileHover="hover"
       style={{
-        background: 'linear-gradient(to right, #ffffff, #f8fafc)',
-        borderRadius: '16px',
-        padding: '20px',
-        marginBottom: '16px',
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
-        transition: 'all 0.3s ease',
-        border: '1px solid #e5e7eb'
+        background: "rgba(255, 255, 255, 0.08)",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+        borderRadius: "20px",
+        overflow: "hidden",
+        marginBottom: "24px",
+        border: "1px solid rgba(255, 255, 255, 0.12)"
       }}
     >
-      <div className="trade-card-header" style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between',
-        marginBottom: '16px',
-        alignItems: 'center' 
+      <div className="trade-card-header" style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "20px 24px",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.08)"
       }}>
-        <div className="trade-status" style={{ 
-          padding: '6px 12px',
-          borderRadius: '20px',
-          fontSize: '13px',
-          fontWeight: '600',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          ...statusColors
+        <motion.div 
+          className="trade-status" 
+          style={{
+            background: statusInfo.background,
+            color: statusInfo.color,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "10px 16px",
+            borderRadius: "30px",
+            fontSize: "0.9rem",
+            fontWeight: "600",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)"
+          }}
+          whileHover={{ scale: 1.05 }}
+        >
+          <FontAwesomeIcon icon={statusInfo.icon || faClock} />
+          <span>{statusLabel}</span>
+        </motion.div>
+        
+        <div className="trade-date" style={{
+          fontSize: "0.9rem",
+          color: "rgba(255, 255, 255, 0.6)",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px"
         }}>
-          <FontAwesomeIcon icon={faClock} />
-          {statusLabel}
-        </div>
-        <div className="trade-date" style={{ 
-          color: '#6b7280',
-          fontSize: '14px', 
-          fontWeight: '500' 
-        }}>
+          <FontAwesomeIcon icon={faClock} style={{ opacity: 0.7 }} />
           {formatDate(trade.createdAt)}
         </div>
       </div>
 
-      <div className="trade-card-content" style={{ 
-        display: 'flex',
-        alignItems: 'center', 
-        gap: '20px',
-        position: 'relative'
+      <div className="trade-card-content" style={{
+        padding: "24px",
+        display: "flex",
+        gap: "24px",
+        alignItems: "center",
+        position: "relative"
       }}>
-        <div className="trade-item-image" style={{ 
-          width: '80px',
-          height: '80px',
-          borderRadius: '10px',
-          overflow: 'hidden',
-          position: 'relative',
-          background: 'linear-gradient(135deg, #f3f4f6, #e5e7eb)',
-          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)'
-        }}>
+        <motion.div 
+          className="trade-item-image"
+          whileHover={{ 
+            scale: 1.1,
+            rotate: 3,
+            transition: { duration: 0.3 }
+          }}
+          style={{
+            width: "90px",
+            height: "90px",
+            borderRadius: "16px",
+            overflow: "hidden",
+            background: "rgba(255, 255, 255, 0.08)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 8px 20px rgba(0, 0, 0, 0.15)"
+          }}
+        >
           <img 
-            src={trade.itemImage || `/images/placeholder-item.png`} 
-            alt={trade.itemName || 'Trade item'} 
-            style={{ 
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              display: 'block' 
+            src={trade.itemImage || 
+                trade.item?.iconUrl || 
+                trade.item?.image || 
+                '/images/placeholder-item.png'} 
+            alt={trade.itemName || trade.item?.marketHashName || 'Trade Item'} 
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = '/images/placeholder-item.png';
+            }}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover"
             }}
           />
-        </div>
+        </motion.div>
 
-        <div className="trade-item-details" style={{ flex: '1' }}>
-          <div className="trade-item-name" style={{ 
-            fontSize: '17px',
-            fontWeight: '600',
-            color: '#111827',
-            marginBottom: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <FontAwesomeIcon icon={faTag} style={{ color: '#6b7280', fontSize: '14px' }} />
-            {trade.itemName || trade.item?.marketHashName || 'Unknown Item'}
-          </div>
-          <div className="trade-item-price" style={{ 
-            fontSize: '16px',
-            fontWeight: '700',
-            color: '#047857',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}>
-            <FontAwesomeIcon icon={faDollarSign} style={{ fontSize: '14px' }} />
-            {formatCurrency(trade.price)}
-          </div>
-        </div>
-
-        <div className="trade-participants" style={{ 
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px'
+        <div className="trade-item-details" style={{
+          flex: "1"
         }}>
-          <div className="trade-participant" style={{ 
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
+          <div className="trade-item-name" style={{
+            fontSize: "1.25rem",
+            fontWeight: "600",
+            marginBottom: "10px",
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px"
           }}>
-            <div className="trade-participant-avatar" style={{ 
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              overflow: 'hidden',
-              background: 'linear-gradient(135deg, #e5e7eb, #d1d5db)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-            }}>
+            <motion.div
+              whileHover={{ rotate: 15 }}
+              style={{
+                background: "rgba(255, 255, 255, 0.1)",
+                borderRadius: "50%",
+                width: "32px",
+                height: "32px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              <FontAwesomeIcon icon={faTag} />
+            </motion.div>
+            <span>{trade.itemName || trade.item?.marketHashName || 'Unknown Item'}</span>
+          </div>
+          
+          <div className="trade-item-price" style={{
+            fontSize: "1.2rem",
+            fontWeight: "700",
+            color: "#10b981",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}>
+            <motion.div
+              whileHover={{ scale: 1.2 }}
+              style={{
+                background: "rgba(16, 185, 129, 0.1)",
+                borderRadius: "50%",
+                width: "32px",
+                height: "32px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#10b981"
+              }}
+            >
+              <FontAwesomeIcon icon={faDollarSign} />
+            </motion.div>
+            <span>{formatCurrency(trade.price)}</span>
+          </div>
+        </div>
+
+        <div className="trade-participants" style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px"
+        }}>
+          <div className="trade-participant" style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px"
+          }}>
+            <motion.div 
+              className="trade-participant-avatar"
+              whileHover={{ scale: 1.1 }}
+              style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "50%",
+                overflow: "hidden",
+                background: "rgba(255, 255, 255, 0.08)",
+                border: "2px solid rgba(255, 255, 255, 0.2)"
+              }}
+            >
               <img 
-                src={trade.buyer?.avatar || `/images/default-avatar.png`} 
+                src={trade.buyer?.avatar || '/images/default-avatar.png'} 
                 alt="Buyer" 
-                style={{ 
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover' 
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = '/images/default-avatar.png';
+                }}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover"
                 }}
               />
-            </div>
+            </motion.div>
             <div className="trade-participant-info">
-              <div className="trade-role" style={{ 
-                fontSize: '12px',
-                color: '#6b7280',
-                fontWeight: '500',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
+              <div className="trade-role" style={{
+                fontSize: "0.75rem",
+                color: trade.isUserBuyer ? "#f472b6" : "rgba(255, 255, 255, 0.5)",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em"
               }}>
-                Buyer
+                {trade.isUserBuyer ? 'You (Buyer)' : 'Buyer'}
               </div>
-              <div className="trade-user" style={{ 
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#374151',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
+              <div className="trade-user" style={{
+                fontSize: "0.95rem",
+                color: "rgba(255, 255, 255, 0.9)",
+                fontWeight: "500",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px"
               }}>
-                <FontAwesomeIcon icon={faUser} style={{ fontSize: '12px' }} />
-                {trade.buyer?.displayName || 'Unknown User'}
+                <FontAwesomeIcon icon={faUser} style={{ fontSize: "0.8rem" }} />
+                <span>{trade.buyer?.displayName || 'Unknown User'}</span>
               </div>
             </div>
           </div>
-
-          <div className="trade-divider" style={{ 
-            height: '1px',
-            background: 'linear-gradient(to right, transparent, #e5e7eb, transparent)',
-            margin: '5px 0'
+          
+          <div className="trade-divider" style={{
+            height: "1px",
+            background: "rgba(255, 255, 255, 0.08)"
           }}></div>
-
-          <div className="trade-participant" style={{ 
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
+          
+          <div className="trade-participant" style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px"
           }}>
-            <div className="trade-participant-avatar" style={{ 
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              overflow: 'hidden',
-              background: 'linear-gradient(135deg, #e5e7eb, #d1d5db)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-            }}>
+            <motion.div 
+              className="trade-participant-avatar"
+              whileHover={{ scale: 1.1 }}
+              style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "50%",
+                overflow: "hidden",
+                background: "rgba(255, 255, 255, 0.08)",
+                border: "2px solid rgba(255, 255, 255, 0.2)"
+              }}
+            >
               <img 
-                src={trade.seller?.avatar || `/images/default-avatar.png`} 
-                alt="Seller" 
-                style={{ 
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover' 
+                src={trade.seller?.avatar || '/images/default-avatar.png'} 
+                alt="Seller"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = '/images/default-avatar.png';
+                }}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover"
                 }}
               />
-            </div>
+            </motion.div>
             <div className="trade-participant-info">
-              <div className="trade-role" style={{ 
-                fontSize: '12px',
-                color: '#6b7280',
-                fontWeight: '500',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
+              <div className="trade-role" style={{
+                fontSize: "0.75rem",
+                color: trade.isUserSeller ? "#f472b6" : "rgba(255, 255, 255, 0.5)",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em"
               }}>
-                Seller
+                {trade.isUserSeller ? 'You (Seller)' : 'Seller'}
               </div>
-              <div className="trade-user" style={{ 
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#374151',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
+              <div className="trade-user" style={{
+                fontSize: "0.95rem",
+                color: "rgba(255, 255, 255, 0.9)",
+                fontWeight: "500",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px"
               }}>
-                <FontAwesomeIcon icon={faUser} style={{ fontSize: '12px' }} />
-                {trade.seller?.displayName || 'Unknown User'}
+                <FontAwesomeIcon icon={faUser} style={{ fontSize: "0.8rem" }} />
+                <span>{trade.seller?.displayName || 'Unknown User'}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <Link to={`/trades/${trade._id}`} className="trade-view-button" style={{ 
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minWidth: '36px',
-          height: '36px',
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-          color: 'white',
-          boxShadow: '0 2px 10px rgba(37, 99, 235, 0.3)',
-          transition: 'all 0.2s ease',
-          border: 'none',
-          fontSize: '14px'
-        }}>
-          <FontAwesomeIcon icon={faChevronRight} />
-        </Link>
+        <motion.div 
+          whileHover={{ 
+            scale: 1.2, 
+            rotate: 90,
+            boxShadow: "0 0 20px rgba(244, 114, 182, 0.6)",
+            background: "linear-gradient(135deg, #f472b6, #ec4899)"
+          }}
+          whileTap={{ scale: 0.9 }}
+        >
+          <Link 
+            to={`/trades/${trade._id}`} 
+            className="trade-view-button"
+            style={{
+              width: "48px",
+              height: "48px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "50%",
+              background: "rgba(255, 255, 255, 0.1)",
+              color: "white",
+              fontSize: "1rem",
+              textDecoration: "none",
+              transition: "all 0.3s ease"
+            }}
+          >
+            <FontAwesomeIcon icon={faChevronRight} />
+          </Link>
+        </motion.div>
       </div>
     </motion.div>
   );
