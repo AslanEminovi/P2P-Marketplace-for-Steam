@@ -77,49 +77,83 @@
 /* Stats Cards */
 .trades-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1.25rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .trades-stat-card {
-  background-color: rgba(30, 41, 59, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  padding: 1.25rem;
+  background-color: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 1.5rem;
   display: flex;
   align-items: center;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+  position: relative;
+}
+
+.trades-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .trades-stat-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.trades-stat-card:hover::before {
+  opacity: 1;
 }
 
 .trades-stat-card.active {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%);
-  border-color: rgba(59, 130, 246, 0.3);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.25) 0%, rgba(59, 130, 246, 0.15) 100%);
+  border-color: rgba(59, 130, 246, 0.4);
 }
 
 .trades-stat-card.completed {
-  background: linear-gradient(135deg, rgba(5, 150, 105, 0.2) 0%, rgba(16, 185, 129, 0.2) 100%);
-  border-color: rgba(16, 185, 129, 0.3);
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.25) 0%, rgba(16, 185, 129, 0.15) 100%);
+  border-color: rgba(16, 185, 129, 0.4);
 }
 
 .trades-stat-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background-color: rgba(255, 255, 255, 0.1);
-  margin-right: 1rem;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background-color: rgba(255, 255, 255, 0.12);
+  margin-right: 1.25rem;
   color: #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.trades-stat-card:hover .trades-stat-icon {
+  background-color: rgba(255, 255, 255, 0.18);
+  transform: scale(1.05);
+}
+
+.trades-stat-card.active .trades-stat-icon {
+  background-color: rgba(59, 130, 246, 0.25);
+  color: #93c5fd;
+}
+
+.trades-stat-card.completed .trades-stat-icon {
+  background-color: rgba(16, 185, 129, 0.25);
+  color: #6ee7b7;
 }
 
 .trades-stat-content {
@@ -127,15 +161,72 @@
 }
 
 .trades-stat-label {
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   color: #94a3b8;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
+  transition: color 0.3s ease;
+}
+
+.trades-stat-card:hover .trades-stat-label {
+  color: #cbd5e1;
 }
 
 .trades-stat-value {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
   color: #f8fafc;
+  transition: all 0.3s ease;
+}
+
+.trades-stat-card:hover .trades-stat-value {
+  transform: scale(1.05);
+  text-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+/* Update the loading animation for stats */
+.stats-loading {
+  display: inline-block;
+  width: 3rem;
+  height: 0.5rem;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1));
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+/* Make responsive for smaller screens */
+@media (max-width: 1024px) {
+  .trades-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .trades-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .trades-stat-card {
+    padding: 1.25rem;
+  }
+  
+  .trades-stat-icon {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .trades-stat-value {
+    font-size: 1.5rem;
+  }
 }
 
 /* Tabs */

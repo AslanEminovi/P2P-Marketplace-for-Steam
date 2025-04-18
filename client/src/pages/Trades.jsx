@@ -307,7 +307,7 @@ const Trades = ({ user }) => {
             Refresh
           </button>
         </div>
-        <StatsCards stats={stats} loading={loading} />
+        <StatsCards stats={stats} statsLoading={loading} />
       </div>
       
       {/* Tabs */}
