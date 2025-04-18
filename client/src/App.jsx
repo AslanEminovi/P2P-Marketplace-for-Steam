@@ -35,6 +35,8 @@ import LanguageSwitcher from './components/LanguageSwitcher';
 import PageWrapper from './components/PageWrapper';
 import ScrollToTop from './components/ScrollToTop';
 import ContactUs from './pages/ContactUs';
+import TradesList from './components/TradesList';
+import TradeDetails from './components/TradeDetails';
 
 // Import constants
 import { API_URL } from './config/constants';
@@ -408,12 +410,8 @@ function AppContent() {
             <Route path="/settings/steam" element={<ProtectedRoute>
               <SteamSettings user={user} />
             </ProtectedRoute>} />
-            <Route path="/trades" element={<ProtectedRoute>
-              <Trades user={user} />
-            </ProtectedRoute>} />
-            <Route path="/trades/:tradeId" element={<ProtectedRoute>
-              <TradeDetailPage user={user} />
-            </ProtectedRoute>} />
+            <Route path="/trades" element={<TradesList />} />
+            <Route path="/trades/:tradeId" element={<TradeDetails />} />
             <Route path="/profile" element={<ProtectedRoute>
               <Profile user={user} onBalanceUpdate={refreshWalletBalance} />
             </ProtectedRoute>} />

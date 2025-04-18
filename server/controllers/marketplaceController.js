@@ -154,7 +154,9 @@ exports.listItem = async (req, res) => {
     const notification = {
       type: "system",
       title: "Item Listed",
-      message: `Your item ${marketHashName} has been listed for $${price} USD.`,
+      message: `Your item ${marketHashName} has been listed for $${parseFloat(
+        price
+      ).toFixed(2)} USD.`,
       relatedItemId: newItem._id,
       createdAt: new Date(),
     };
@@ -444,13 +446,11 @@ exports.buyItem = async (req, res) => {
         title: "New Purchase Request",
         message: `${buyer.displayName} wants to buy your ${
           item.marketHashName
-        } for ${useCurrency === "USD" ? "$" : ""}${price}${
-          useCurrency === "GEL" ? " ₾" : ""
-        }. You will receive ${
-          useCurrency === "USD" ? "$" : ""
-        }${sellerReceives.toFixed(2)}${
-          useCurrency === "GEL" ? " ₾" : ""
-        } after fees when completed.`,
+        } for $${parseFloat(item.price).toFixed(
+          2
+        )}. You will receive $${parseFloat(sellerReceives).toFixed(
+          2
+        )} after fees when completed.`,
         link: `/trades/${trade._id}`,
         relatedItemId: item._id,
         read: false,
@@ -1261,7 +1261,9 @@ exports.updatePrice = async (req, res) => {
         notifications: {
           type: "system",
           title: "Price Updated",
-          message: `Your listing for ${item.marketHashName} has been updated to $${price}.`,
+          message: `Your listing for ${
+            item.marketHashName
+          } has been updated to $${parseFloat(price).toFixed(2)}.`,
           relatedItemId: item._id,
           createdAt: new Date(),
         },

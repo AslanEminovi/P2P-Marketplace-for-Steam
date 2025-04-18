@@ -363,7 +363,11 @@ const steamApiService = {
         seller.notifications.push({
           type: "trade",
           title: "Item Sold",
-          message: `Your item has been sold for ${trade.price} ${trade.currency}. You received ${sellerReceives} ${trade.currency} after fees.`,
+          message: `Your item has been sold for ${parseFloat(
+            trade.price
+          ).toFixed(2)} ${trade.currency}. You received ${parseFloat(
+            sellerReceives
+          ).toFixed(2)} ${trade.currency} after fees.`,
           read: false,
           relatedItemId: trade.item,
           link: `/trade/${trade._id}`,
@@ -386,7 +390,9 @@ const steamApiService = {
         buyer.notifications.push({
           type: "trade",
           title: "Purchase Complete",
-          message: `You have successfully purchased an item for ${trade.price} ${trade.currency}.`,
+          message: `You have successfully purchased an item for ${parseFloat(
+            trade.price
+          ).toFixed(2)} ${trade.currency}.`,
           read: false,
           relatedItemId: trade.item,
           link: `/trade/${trade._id}`,

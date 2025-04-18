@@ -13,13 +13,14 @@ import authReducer from "./slices/authSlice";
 import listingsReducer from "./slices/listingsSlice";
 import notificationsReducer from "./slices/notificationsSlice";
 import statsReducer from "./slices/statsSlice";
+import tradesReducer from "./slices/tradesSlice";
 
 // Configure persist options
 const persistConfig = {
   key: "root",
   storage,
   whitelist: ["auth", "notifications"], // Only persist these reducers
-  blacklist: ["listings", "stats"], // Don't persist listings or stats (we'll fetch fresh data)
+  blacklist: ["listings", "stats", "trades"], // Don't persist listings, stats or trades (we'll fetch fresh data)
 };
 
 const rootReducer = combineReducers({
@@ -27,6 +28,7 @@ const rootReducer = combineReducers({
   listings: listingsReducer,
   notifications: notificationsReducer,
   stats: statsReducer,
+  trades: tradesReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

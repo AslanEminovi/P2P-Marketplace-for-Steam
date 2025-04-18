@@ -18,15 +18,15 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
     if (prevOnlineState !== status.isOnline) {
       // Trigger appropriate animation
       setStatusTransition(status.isOnline ? 'to-online' : 'to-offline');
-      
+
       // Store new state
       setPrevOnlineState(status.isOnline);
-      
+
       // Reset transition class after animation completes
       const timer = setTimeout(() => {
         setStatusTransition('');
       }, 600); // slightly longer than animation duration
-      
+
       return () => clearTimeout(timer);
     }
   }, [status.isOnline, prevOnlineState]);
@@ -39,19 +39,19 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
         if (socketService && !isConnected) {
           socketService.reconnect();
         }
-        
+
         // Check status
         setTimeout(checkStatus, 500);
       }
     };
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [checkStatus, isConnected]);
-  
+
   // Simple debug mode version when enabled
   if (DEBUG_MODE) {
     return (
@@ -71,11 +71,11 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
             )}
           </div>
         </div>
-        
+
         <div className={`status-badge ${status.isOnline ? 'online' : 'offline'}`}>
           {status.isOnline ? 'ONLINE' : 'OFFLINE'}
         </div>
-        
+
         <div className="debug-info">
           <div>
             <span className="debug-label">User ID:</span>
@@ -98,22 +98,22 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
             <span className="debug-value">{status.source || 'unknown'}</span>
           </div>
         </div>
-        
-        <button 
+
+        <button
           className="refresh-button"
-          onClick={() => { 
+          onClick={() => {
             console.log('Manual refresh clicked');
-            
+
             // Try direct database lookup as a more reliable alternative
             axios.get(`${API_URL}/user/direct-status/${sellerId}`, {
               withCredentials: true,
               params: { _t: Date.now() }
             })
-            .then(response => {
-              console.log('Direct status response:', response.data);
-            })
-            .catch(err => console.error('Direct status error:', err));
-            
+              .then(response => {
+                console.log('Direct status response:', response.data);
+              })
+              .catch(err => console.error('Direct status error:', err));
+
             // Trigger status check from the hook
             checkStatus();
           }}
@@ -135,7 +135,7 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
       </div>
     );
   }
-  
+
   // Error state - but still show something useful
   if (error) {
     return (
@@ -151,7 +151,7 @@ const SellerStatus = ({ sellerId, showLastSeen = true, className = '', forceStat
   return (
     <div className={`seller-status-container ${className} ${statusTransition}`}>
       <div className={`status-indicator ${status.isOnline ? 'online' : 'offline'}`} />
-      
+
       <div className="status-text">
         {status.isOnline ? (
           <span className="online-text">Online</span>
