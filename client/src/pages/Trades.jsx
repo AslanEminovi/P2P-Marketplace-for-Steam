@@ -240,23 +240,59 @@ const Trades = ({ user }) => {
     const isActive = tabType === 'active';
     
     return (
-      <div className="trades-empty">
+      <div className="trades-empty" style={{
+        background: 'linear-gradient(135deg, #f9fafb, #f3f4f6)',
+        borderRadius: '16px',
+        padding: '40px 30px',
+        textAlign: 'center',
+        marginTop: '20px',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
+      }}>
         <FontAwesomeIcon 
           icon={isActive ? faExchangeAlt : faHistory} 
           size="2x" 
-          style={{ marginBottom: '15px', opacity: 0.6 }} 
+          style={{ 
+            marginBottom: '20px', 
+            opacity: 0.8,
+            color: '#4b5563'
+          }} 
         />
-        <h3>
+        <h3 style={{
+          fontSize: '20px',
+          fontWeight: '600',
+          color: '#111827',
+          marginBottom: '12px'
+        }}>
           {isActive 
             ? 'No active trades found' 
             : 'No trade history found'}
         </h3>
-        <p>
+        <p style={{
+          fontSize: '16px',
+          color: '#6b7280',
+          marginBottom: '24px',
+          maxWidth: '400px',
+          margin: '0 auto 24px'
+        }}>
           {isActive 
             ? 'You don\'t have any active trades at the moment.' 
             : 'You haven\'t completed any trades yet.'}
         </p>
-        <Link to="/marketplace" className="trades-empty-action">
+        <Link to="/marketplace" className="trades-empty-action" style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '10px',
+          background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+          color: 'white',
+          padding: '12px 20px',
+          borderRadius: '10px',
+          fontSize: '15px',
+          fontWeight: '500',
+          textDecoration: 'none',
+          transition: 'all 0.3s ease',
+          boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
+        }}>
           <FontAwesomeIcon icon={faStore} />
           Browse Marketplace
         </Link>
@@ -268,7 +304,10 @@ const Trades = ({ user }) => {
   const renderHeader = () => {
     return (
       <div className="trades-header">
-        <div className="trades-header-backdrop"></div>
+        <div className="trades-header-backdrop" style={{
+          background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #38b2ac 100%)',
+          opacity: 1
+        }}></div>
         <div className="trades-header-content">
           <div className="trades-header-title-section">
             <h1>
@@ -281,6 +320,13 @@ const Trades = ({ user }) => {
               className="trades-refresh-button"
               onClick={handleRefresh}
               disabled={loading}
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(5px)',
+                borderRadius: '8px',
+                padding: '10px 16px',
+                transition: 'all 0.3s ease'
+              }}
             >
               {loading ? (
                 <span className="trades-refresh-loading"></span>
@@ -293,10 +339,8 @@ const Trades = ({ user }) => {
           
           <div className="trades-header-stats-section">
             <StatsCards
-              statsLoading={loading}
-              completedTrades={stats.completedTrades}
-              pendingTrades={stats.pendingTrades}
-              totalValue={stats.totalValue}
+              stats={stats}
+              statsLoading={statsLoading}
             />
           </div>
         </div>
@@ -307,25 +351,42 @@ const Trades = ({ user }) => {
   // Function to render the tabs
   const renderTabs = () => {
     return (
-      <div className="trades-tabs">
+      <div className="trades-tabs" style={{ 
+        background: 'linear-gradient(to right, #f8f9fa, #e9ecef)',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
+      }}>
         <button
           className={`trades-tab ${activeTab === 'active' ? 'active' : ''}`}
           onClick={() => setActiveTab('active')}
+          style={{
+            background: activeTab === 'active' ? 'linear-gradient(135deg, #ffffff, #f5f7fa)' : 'transparent',
+            boxShadow: activeTab === 'active' ? '0 2px 10px rgba(0, 0, 0, 0.05)' : 'none'
+          }}
         >
           <FontAwesomeIcon icon={faExchangeAlt} />
           Active Trades
           {activeTrades.length > 0 && (
-            <span className="trades-tab-badge">{activeTrades.length}</span>
+            <span className="trades-tab-badge" style={{
+              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+              boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)'
+            }}>{activeTrades.length}</span>
           )}
         </button>
         <button
           className={`trades-tab ${activeTab === 'history' ? 'active' : ''}`}
           onClick={() => setActiveTab('history')}
+          style={{
+            background: activeTab === 'history' ? 'linear-gradient(135deg, #ffffff, #f5f7fa)' : 'transparent',
+            boxShadow: activeTab === 'history' ? '0 2px 10px rgba(0, 0, 0, 0.05)' : 'none'
+          }}
         >
           <FontAwesomeIcon icon={faHistory} />
           Trade History
           {historicalTrades.length > 0 && (
-            <span className="trades-tab-badge">{historicalTrades.length}</span>
+            <span className="trades-tab-badge" style={{
+              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+              boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)'
+            }}>{historicalTrades.length}</span>
           )}
         </button>
       </div>
@@ -337,29 +398,42 @@ const Trades = ({ user }) => {
     const hasFilters = searchTerm || roleFilter !== 'all' || sortOrder !== 'newest';
     
     return (
-      <div className="trades-filters">
+      <div className="trades-filters" style={{
+        background: 'linear-gradient(135deg, #ffffff, #fafafa)',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)',
+        borderRadius: '12px'
+      }}>
         <div className="trades-search-container">
-          <FontAwesomeIcon icon={faSearch} />
+          <FontAwesomeIcon icon={faSearch} style={{ color: '#4b5563' }} />
           <input
             type="text"
             placeholder="Search by ID, item name, or user..."
             className="trades-search-input"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            style={{
+              border: '1px solid #e5e7eb',
+              borderRadius: '10px',
+              padding: '14px 15px 14px 40px',
+              fontSize: '15px',
+              transition: 'all 0.3s ease',
+              boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.02)'
+            }}
           />
           {searchTerm && (
             <button 
               className="trades-search-clear"
               onClick={() => setSearchTerm('')}
+              style={{ color: '#6b7280' }}
             >
               <FontAwesomeIcon icon={faTimes} />
             </button>
           )}
         </div>
         
-        <div className="trades-filter-actions">
+        <div className="trades-filter-actions" style={{ gap: '20px' }}>
           <div className="trades-filter-group">
-            <span className="trades-filter-label">
+            <span className="trades-filter-label" style={{ color: '#4b5563', fontWeight: '600' }}>
               <FontAwesomeIcon icon={faUserTag} />
               Role
             </span>
@@ -367,6 +441,15 @@ const Trades = ({ user }) => {
               className="trades-filter-select"
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
+              style={{
+                padding: '10px 35px 10px 15px',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                backgroundColor: '#f9fafb',
+                fontWeight: '500',
+                color: '#4b5563',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+              }}
             >
               <option value="all">All Roles</option>
               <option value="buyer">Buyer</option>
@@ -375,7 +458,7 @@ const Trades = ({ user }) => {
           </div>
           
           <div className="trades-filter-group">
-            <span className="trades-filter-label">
+            <span className="trades-filter-label" style={{ color: '#4b5563', fontWeight: '600' }}>
               <FontAwesomeIcon icon={faSortAmountDown} />
               Sort
             </span>
@@ -383,6 +466,15 @@ const Trades = ({ user }) => {
               className="trades-filter-select"
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value)}
+              style={{
+                padding: '10px 35px 10px 15px',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                backgroundColor: '#f9fafb',
+                fontWeight: '500',
+                color: '#4b5563',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+              }}
             >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
@@ -395,6 +487,19 @@ const Trades = ({ user }) => {
             <button 
               className="trades-filter-clear"
               onClick={clearFilters}
+              style={{
+                backgroundColor: '#f3f4f6',
+                border: 'none',
+                padding: '10px 16px',
+                borderRadius: '8px',
+                fontWeight: '500',
+                color: '#4b5563',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+              }}
             >
               <FontAwesomeIcon icon={faTimes} />
               Clear Filters
@@ -412,15 +517,46 @@ const Trades = ({ user }) => {
       {renderFilters()}
       
       {loading ? (
-        <div className="trades-loading">
-          <FontAwesomeIcon icon={faSpinner} spin size="2x" />
-          <p>Loading your trades...</p>
+        <div className="trades-loading" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '60px 0',
+          background: 'linear-gradient(135deg, #f9fafb, #f3f4f6)',
+          borderRadius: '16px',
+          marginTop: '20px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
+        }}>
+          <FontAwesomeIcon icon={faSpinner} spin size="2x" style={{ color: '#3b82f6', marginBottom: '16px' }} />
+          <p style={{ fontSize: '16px', color: '#4b5563', fontWeight: '500' }}>Loading your trades...</p>
         </div>
       ) : error ? (
-        <div className="trades-error">
-          <FontAwesomeIcon icon={faExclamationCircle} size="2x" />
-          <p>{error}</p>
-          <button onClick={handleRefresh} className="trades-retry-button">
+        <div className="trades-error" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '40px 20px',
+          background: 'linear-gradient(135deg, #fee2e2, #fecaca)',
+          borderRadius: '16px',
+          marginTop: '20px',
+          boxShadow: '0 4px 12px rgba(239, 68, 68, 0.1)'
+        }}>
+          <FontAwesomeIcon icon={faExclamationCircle} size="2x" style={{ color: '#ef4444', marginBottom: '16px' }} />
+          <p style={{ fontSize: '16px', color: '#b91c1c', fontWeight: '500', marginBottom: '20px' }}>{error}</p>
+          <button onClick={handleRefresh} className="trades-retry-button" style={{
+            background: 'linear-gradient(135deg, #f87171, #ef4444)',
+            color: 'white',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '8px',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)'
+          }}>
             <FontAwesomeIcon icon={faSync} />
             Try Again
           </button>
