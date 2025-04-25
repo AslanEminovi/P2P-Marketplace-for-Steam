@@ -11,7 +11,7 @@ router.use(isAuthenticated);
 router.get("/history", tradeController.getUserTrades);
 
 // Get trade details with Redis caching
-router.get("/:tradeId", tradeController.getTradeById);
+router.get("/:tradeId", tradeController.getTradeDetails);
 
 // Get trade stats with Redis caching
 router.get("/stats", tradeController.getTradeStats);
