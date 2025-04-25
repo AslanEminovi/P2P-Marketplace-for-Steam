@@ -1,8 +1,10 @@
 /* TradeDetails.css - Modern Trade Details UI */
 :root {
-  --trade-primary: #7c3aed; /* Vibrant purple */
+  --trade-primary: #7c3aed;
+  /* Vibrant purple */
   --trade-primary-dark: #6d28d9;
-  --trade-accent: #f59e0b; /* Amber accent */
+  --trade-accent: #f59e0b;
+  /* Amber accent */
   --trade-bg-dark: #13111d;
   --trade-bg-card: rgba(30, 25, 50, 0.5);
   --trade-text: #ffffff;
@@ -68,7 +70,7 @@
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .page-title {
     font-size: 1.5rem;
   }
@@ -526,25 +528,25 @@
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .trade-details-status-wrapper {
     width: 100%;
     justify-content: space-between;
   }
-  
+
   .trade-timeline {
     overflow-x: auto;
     padding: 20px 15px;
   }
-  
+
   .timeline-container {
     min-width: 600px;
   }
-  
+
   .trade-item-container {
     flex-direction: column;
   }
-  
+
   .trade-item-image-container {
     width: 100%;
     height: 200px;
@@ -555,13 +557,13 @@
   .trade-details-section {
     padding: 20px;
   }
-  
+
   .trade-details-actions {
     justify-content: center;
   }
-  
+
   .trade-action-button {
     width: 100%;
     justify-content: center;
   }
-} 
+}

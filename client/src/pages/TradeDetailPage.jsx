@@ -19,7 +19,7 @@ const TradeDetailPage = () => {
           Trade Details
         </h1>
       </div>
-      
+
       <TradeDetails tradeId={tradeId} />
     </div>
   );

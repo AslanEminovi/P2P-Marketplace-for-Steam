@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const tradeController = require("../controllers/tradeController");
-const auth = require("../middleware/auth");
+const { isAuthenticated } = require("../middleware/auth");
 const mongoose = require("mongoose");
 
 // Apply auth middleware to all trade routes
-router.use(auth);
+router.use(isAuthenticated);
 
 // Get user trades with Redis caching
 router.get("/history", tradeController.getUserTrades);
