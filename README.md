@@ -10,8 +10,31 @@ A sophisticated peer-to-peer marketplace for Counter-Strike 2 (CS2) items with s
   <a href="#%EF%B8%8F-system-architecture">Architecture</a> •
   <a href="#-installation--setup">Installation</a> •
   <a href="#-usage-guide">Usage</a> •
+  <a href="#-project-status">Project Status</a> •
+  <a href="#-live-demo">Live Demo</a> •
   <a href="#-contributing">Contributing</a>
 </p>
+
+## 📢 Project Status
+
+**Current Status**: Live and Operational ✅
+
+The CS2 Marketplace is currently deployed and fully operational on Render.com with the following infrastructure:
+
+- Backend API Server: Successfully running
+- MongoDB Database: Connected and operational
+- Redis Caching: Implemented for session management and performance optimization
+- Socket.IO: Configured for real-time updates and notifications
+- Steam API Integration: Fully functional for authentication and inventory management
+
+### Recent Updates
+
+- **Authentication System Improvements**: Enhanced Steam OAuth integration with more robust session management
+- **Redis Implementation**: Added Redis for session storage, caching, and improved performance
+- **Real-time Trade Updates**: Socket.IO integration for instant trade notifications
+- **UI Enhancements**: Improved marketplace button styling and overall user experience
+- **Backend Stability**: Fixed controller function implementations for robust server operation
+- **Deployment Pipeline**: Streamlined deployment process to Render.com with automatic builds
 
 ## 🌟 Key Features
 
@@ -175,6 +198,18 @@ A sophisticated peer-to-peer marketplace for Counter-Strike 2 (CS2) items with s
   - Jest for unit and integration testing
   - Supertest for API endpoint testing
   - Cypress for end-to-end testing
+
+### Redis Implementation
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Redis-6.2-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis" />
+</p>
+
+- **Session Management**: Redis-based session storage for better scalability and performance
+- **Caching**: Intelligent caching of frequently accessed data to reduce database load
+- **Real-time Features**: Redis Pub/Sub for efficient WebSocket message distribution
+- **Rate Limiting**: Distributed rate limiting using Redis counters
+- **Queue Processing**: Background job processing for non-critical tasks
 
 ## 🏗️ System Architecture
 
@@ -344,6 +379,7 @@ Before you begin, ensure you have the following:
 
 - Node.js (v16+)
 - MongoDB (local or Atlas)
+- Redis (local or cloud provider like Redis Labs)
 - Steam API Key ([Get one here](https://steamcommunity.com/dev/apikey))
 - Steam Web API key for inventory access
 - Git
@@ -370,6 +406,7 @@ Before you begin, ensure you have the following:
    # Edit the .env file with your credentials
    # Important variables include:
    # - MONGO_URI
+   # - REDIS_URL
    # - STEAM_API_KEY
    # - STEAMWEBAPI_KEY
    # - SESSION_SECRET
@@ -457,6 +494,8 @@ Before you begin, ensure you have the following:
 | `NODE_ENV`           | Environment mode              | `development` or `production`                                |
 | `PORT`               | Server port                   | `5001`                                                       |
 | `MONGO_URI`          | MongoDB connection string     | `mongodb+srv://user:pass@cluster.mongodb.net/cs2marketplace` |
+| `REDIS_URL`          | Redis connection string       | `redis://default:pass@redis.example.com:17080`               |
+| `USE_REDIS`          | Enable Redis features         | `true` or `false`                                            |
 | `CLIENT_URL`         | Frontend URL                  | `http://localhost:3000`                                      |
 | `SESSION_SECRET`     | Secret for session encryption | Random string                                                |
 | `STEAM_API_KEY`      | Steam API key                 | Get from Steam Dev portal                                    |
@@ -690,6 +729,10 @@ Project Link: [CS2 P2P Marketplace GitHub Repository](https://github.com/AslanEm
   Made with ❤️ for the CS2 community
 </p>
 
+<p align="center">
+  Last updated: May 2024
+</p>
+
 ## Features
 
 - Steam Authentication
@@ -698,3 +741,51 @@ Project Link: [CS2 P2P Marketplace GitHub Repository](https://github.com/AslanEm
 - Trading System
 - Admin Dashboard with user management
 - Responsive Design
+
+## 🌐 Live Demo
+
+Experience the CS2 Marketplace in action:
+
+- **Production Site**: [CS2 Marketplace](https://p2-p-marketplace-for-steam.vercel.app/)
+- **Backend API**: [CS2 Marketplace API](https://p2p-marketplace-for-steam.onrender.com/)
+
+### Demo Credentials
+
+For testing purposes, you can log in with your own Steam account to explore the full functionality of the marketplace.
+
+## 🔍 Troubleshooting
+
+### Common Issues and Solutions
+
+#### Authentication Issues
+
+- **Problem**: Unable to log in with Steam
+- **Solution**: Ensure your Steam profile is public and you have accepted the login request in the Steam authentication window. Check that the STEAM_API_KEY in your environment variables is valid.
+
+#### Redis Connection Failures
+
+- **Problem**: Server fails to start with Redis errors
+- **Solution**: Verify your Redis connection string and ensure your Redis instance is running. If using a cloud provider, check that your IP is whitelisted.
+
+#### MongoDB Connection Issues
+
+- **Problem**: Server fails to connect to MongoDB
+- **Solution**: Check your MongoDB connection string and ensure your network allows connections to the MongoDB server. If using Atlas, verify that your IP is in the allowlist.
+
+#### Socket.IO Connection Problems
+
+- **Problem**: Real-time updates not working
+- **Solution**: Ensure that CORS is properly configured and that the client URL matches the Socket.IO CORS origin setting in your environment variables.
+
+#### Trade Offer Creation Failing
+
+- **Problem**: Unable to create trade offers
+- **Solution**: Verify that your Steam API keys are correctly set and that you have a properly configured trade URL in your Steam account.
+
+### Getting Help
+
+If you encounter any issues not covered here, please:
+
+1. Check the error logs for detailed information
+2. Search for similar issues in the GitHub repository's Issues section
+3. Create a new issue with detailed information about the problem, including error messages and steps to reproduce
