@@ -7,6 +7,7 @@ const mongoose = require("mongoose");
 const axios = require("axios");
 const notificationService = require("../services/notificationService");
 const enhancedTradeService = require("../services/enhancedTradeService");
+const tradeService = require("../services/tradeService");
 
 // GET /trades/history
 exports.getTradeHistory = async (req, res) => {
@@ -1442,6 +1443,68 @@ exports.getTradeStats = async (req, res) => {
     console.error("Error fetching trade stats:", error);
     return res.status(500).json({
       error: "Failed to fetch trade statistics",
+      details: error.message,
+    });
+  }
+};
+
+// Export controller functions for creating a trade
+exports.createTrade = async (req, res) => {
+  try {
+    const { itemId, price, message } = req.body;
+    const buyerId = req.user._id;
+
+    // Validate required fields
+    if (!itemId) {
+      return res.status(400).json({ error: "Item ID is required" });
+    }
+
+    // Get the item to check availability and get seller ID
+    const item = await Item.findById(itemId);
+
+    if (!item) {
+      return res.status(404).json({ error: "Item not found" });
+    }
+
+    if (!item.isAvailable) {
+      return res
+        .status(400)
+        .json({ error: "This item is no longer available for purchase" });
+    }
+
+    // Create trade data
+    const tradeData = {
+      item: itemId,
+      buyer: buyerId,
+      seller: item.seller,
+      price: price || item.price,
+      itemName: item.marketHashName,
+      itemImage: item.imageUrl,
+      itemWear: item.wear,
+      itemRarity: item.rarity,
+      assetId: item.assetId,
+      message: message || "",
+    };
+
+    // Create the trade using trade service
+    const newTrade = await tradeService.createTrade(tradeData);
+
+    // Mark the item as reserved
+    item.isAvailable = false;
+    item.reservedBy = buyerId;
+    item.reservedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    await item.save();
+
+    return res.status(201).json({
+      success: true,
+      tradeId: newTrade._id,
+      status: newTrade.status,
+      message: "Trade created successfully",
+    });
+  } catch (error) {
+    console.error("Create trade error:", error);
+    return res.status(500).json({
+      error: "Failed to create trade",
       details: error.message,
     });
   }
