@@ -681,90 +681,186 @@ const TradeDetails = ({ tradeId }) => {
     try {
       setApproveLoading(true);
       
-      await dispatch(updateTradeStatus({
+      // Replace direct API call with Redux action
+      const resultAction = await dispatch(updateTradeStatus({
         tradeId,
-        action: 'seller-initiate',
-        data: {}
-      })).unwrap();
+        action: 'seller-initiate'
+      }));
       
-      toast.success('Trade approved successfully');
-    } catch (err) {
-      console.error('Error approving trade:', err);
-      toast.error(err?.message || 'Failed to approve trade');
+      if (updateTradeStatus.fulfilled.match(resultAction)) {
+        toast.success('Trade approved! Please send the item to the buyer.');
+        
+        // Update the local trade in Redux
+        dispatch(fetchTradeDetails(tradeId));
+        
+        // Also refresh the active trades list after a short delay
+        setTimeout(() => {
+          dispatch(fetchActiveTradesAsync());
+        }, 1000);
+      } else {
+        toast.error(resultAction.payload || 'Failed to approve trade');
+      }
+    } catch (error) {
+      console.error('Error approving trade:', error);
+      toast.error(error.response?.data?.error || 'Failed to approve trade');
     } finally {
       setApproveLoading(false);
     }
   };
 
   const handleSellerConfirmSent = async () => {
-    if (!steamOfferUrl.trim()) {
-      toast.error('Please enter a valid Steam trade offer ID or URL');
+    try {
+      setConfirmSentLoading(true);
+      
+      // Check if there's a valid trade url for the buyer
+      if (!trade?.buyer?.tradeUrl) {
+        toast.error('Buyer has not provided a trade URL');
         return;
       }
       
-    try {
-      setSendingLoading(true);
-      
-      await dispatch(updateTradeStatus({
+      // Replace direct API call with Redux action
+      const resultAction = await dispatch(updateTradeStatus({
         tradeId,
-        action: 'seller-sent-manual',
-        data: { tradeOfferId: steamOfferUrl.trim() }
-      })).unwrap();
+        action: 'seller-confirm-sent'
+      }));
       
-      toast.success('Trade offer marked as sent');
-      setSteamOfferUrl('');
-    } catch (err) {
-      console.error('Error marking trade as sent:', err);
-      toast.error(err?.message || 'Failed to mark trade as sent');
+      if (updateTradeStatus.fulfilled.match(resultAction)) {
+        toast.success('Confirmed! Buyer will be notified to check their trade offers.');
+        
+        // Open Steam trade URL in a new tab if available
+        if (trade?.buyer?.tradeUrl) {
+          window.open(trade.buyer.tradeUrl, '_blank');
+        }
+        
+        // Update the local trade in Redux
+        dispatch(fetchTradeDetails(tradeId));
+        
+        // Also refresh the active trades list after a short delay
+        setTimeout(() => {
+          dispatch(fetchActiveTradesAsync());
+        }, 1000);
+      } else {
+        toast.error(resultAction.payload || 'Failed to confirm item sent');
+      }
+    } catch (error) {
+      console.error('Error confirming item sent:', error);
+      toast.error(error.response?.data?.error || 'Failed to confirm item sent');
     } finally {
-      setSendingLoading(false);
+      setConfirmSentLoading(false);
     }
   };
 
   const handleBuyerConfirm = async () => {
+    if (!canConfirmReceived && !window.confirm("Are you sure you've received the item? Please verify the item has left the seller's inventory first.")) {
+      return;
+    }
+    
     try {
       setConfirmLoading(true);
       
-      await dispatch(updateTradeStatus({
+      // Replace direct API call with Redux action
+      const resultAction = await dispatch(updateTradeStatus({
         tradeId,
-        action: 'buyer-confirm',
-        data: {}
-      })).unwrap();
+        action: 'buyer-confirm'
+      }));
       
-      toast.success('Trade completed successfully');
-    } catch (err) {
-      console.error('Error confirming trade receipt:', err);
-      toast.error(err?.message || 'Failed to confirm receipt');
+      if (updateTradeStatus.fulfilled.match(resultAction)) {
+        toast.success('Trade completed successfully!');
+        
+        // Dispatch an action to update the trade in Redux
+        dispatch(fetchTradeDetails(tradeId));
+        
+        // Also refresh the active trades list after a short delay
+        setTimeout(() => {
+          dispatch(fetchActiveTradesAsync());
+        }, 1000);
+      } else {
+        toast.error(resultAction.payload || 'Failed to confirm receipt');
+      }
+    } catch (error) {
+      console.error('Error confirming receipt:', error);
+      toast.error(error.response?.data?.error || 'Failed to confirm receipt');
     } finally {
       setConfirmLoading(false);
     }
   };
 
   const handleCheckInventory = async () => {
-    setIsCheckingInventory(true);
     setInventoryCheckLoading(true);
-    
+    setError(null);
     try {
-      const response = await axios.get(`${API_URL}/trades/${tradeId}/verify-inventory`, {
-        withCredentials: true
-      });
+      console.log(`Checking inventory status for trade ${tradeId} with assetId: ${trade?.item?.assetId}`);
+      // Replace direct API call with Redux action
+      const resultAction = await dispatch(updateTradeStatus({
+        tradeId,
+        action: 'check-inventory'
+      }));
       
-      setInventoryCheckResult(response.data);
-      setCanConfirmReceived(!response.data.itemInSellerInventory);
-      
-      if (response.data.itemInSellerInventory) {
-        toast.warning('The item is still in the seller\'s inventory');
+      // Handle the result from the action
+      if (updateTradeStatus.fulfilled.match(resultAction)) {
+        const response = resultAction.payload;
+        console.log('Inventory check response:', response);
+        setInventoryCheckResult(response);
+        
+        if (response.canConfirmReceived) {
+          // Enable confirm button if specific item is no longer in seller's inventory
+          setCanConfirmReceived(true);
+          // Display a positive message
+          if (window.showNotification) {
+            window.showNotification(
+              'Asset Verification Complete',
+              `Asset ID ${response.assetId} has been withdrawn from seller's inventory. You can confirm receipt.`,
+              'SUCCESS'
+            );
+          }
         } else {
-        toast.success('The item appears to have been transferred');
+          setCanConfirmReceived(false);
+          
+          if (response.error) {
+            setError('Error checking seller\'s inventory: ' + response.error);
+            // Show link to trade offers
+            setTradeOffersUrl(response.tradeOffersLink);
+            
+            if (window.showNotification) {
+              window.showNotification(
+                'Verification Error',
+                'Please check your Steam trade offers manually.',
+                'WARNING'
+              );
+            }
+          } else if (!response.itemRemovedFromSellerInventory) {
+            setError(`Asset ID ${response.assetId} is still in seller's inventory. The trade offer hasn't been sent yet or you haven't accepted it.`);
+            // Show link to trade offers
+            setTradeOffersUrl(response.tradeOffersLink);
+            
+            if (window.showNotification) {
+              window.showNotification(
+                'Trade Not Complete',
+                'Check your Steam trade offers or contact the seller.',
+                'WARNING'
+              );
+            }
+          } else {
+            setError(response.message || 'Verification failed. Please try again later.');
+            // Show link to trade offers if available
+            if (response.tradeOffersLink) {
+              setTradeOffersUrl(response.tradeOffersLink);
+            }
+          }
+        }
+      } else if (updateTradeStatus.rejected.match(resultAction)) {
+        // Handle the error
+        const errorMsg = resultAction.payload || 'Failed to check inventory status';
+        console.error('Error checking inventory:', errorMsg);
+        setInventoryCheckResult(null);
+        setError(errorMsg);
+        setCanConfirmReceived(false);
       }
     } catch (err) {
       console.error('Error checking inventory:', err);
-      toast.error(err.response?.data?.error || 'Failed to check inventory');
-        setInventoryCheckResult({
-          success: false,
-        message: err.response?.data?.error || 'Failed to check inventory',
-        tradeOffersLink: 'https://steamcommunity.com/my/tradeoffers'
-      });
+      setInventoryCheckResult(null);
+      setError(err.response?.data?.error || 'Failed to check inventory status');
+      setCanConfirmReceived(false);
     } finally {
       setInventoryCheckLoading(false);
     }

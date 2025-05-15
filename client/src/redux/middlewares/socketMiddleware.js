@@ -188,42 +188,76 @@ export const setupSocketListeners = (store) => {
     socketService.socket.on("trade_update", (update) => {
       console.log("[socketMiddleware] Received trade update:", update);
 
-      // Dispatch to Redux store to update trade state
+      // Dispatch socketTradeUpdate action to update trade in store
       store.dispatch(socketTradeUpdate(update));
 
-      // If update includes status change, also update local status
-      if (update.tradeId && update.status) {
-        store.dispatch(
-          updateLocalTradeStatus({
-            tradeId: update.tradeId,
-            status: update.status,
-            statusHistory: update.statusHistory,
-          })
-        );
+      // Show notification if significant status change
+      if (
+        update.status &&
+        [
+          "completed",
+          "cancelled",
+          "rejected",
+          "offer_sent",
+          "accepted",
+        ].includes(update.status)
+      ) {
+        // Get current user to check if notification should be shown
+        const state = store.getState();
+        const currentUser = state.auth.user;
 
-        // Refresh the specific trade details to get the complete updated data
-        store.dispatch(fetchTradeDetails(update.tradeId));
+        // Only show notification if user is part of this trade
+        if (
+          currentUser &&
+          (update.buyerId === currentUser._id ||
+            update.sellerId === currentUser._id)
+        ) {
+          // Create notification message based on status
+          let message = `Trade #${update.tradeId.substring(0, 6)} `;
+          let type = "INFO";
 
-        // If this is a completion or cancellation event, refresh all trades
-        const finalStatuses = ["completed", "cancelled", "rejected", "expired"];
-        if (finalStatuses.includes(update.status)) {
-          // After a small delay to allow the DB to update
-          setTimeout(() => {
-            // Use the async thunk actions for more targeted updates
-            store.dispatch(fetchActiveTradesAsync());
-            store.dispatch(fetchTradeHistoryAsync());
-          }, 1000);
-        } else {
-          // For non-final status updates, just refresh active trades
-          setTimeout(() => {
-            store.dispatch(fetchActiveTradesAsync());
-          }, 500);
+          switch (update.status) {
+            case "completed":
+              message += "has been completed successfully!";
+              type = "SUCCESS";
+              break;
+            case "cancelled":
+              message += "has been cancelled.";
+              type = "WARNING";
+              break;
+            case "rejected":
+              message += "has been rejected by the seller.";
+              type = "ERROR";
+              break;
+            case "offer_sent":
+              message += "offer has been sent. Check your Steam trade offers.";
+              type = "INFO";
+              break;
+            case "accepted":
+              message += "has been accepted by the seller.";
+              type = "INFO";
+              break;
+            default:
+              message += `status updated to ${update.status}.`;
+          }
+
+          // Show notification using app notification system
+          if (window.showNotification) {
+            window.showNotification("Trade Update", message, type);
+          }
         }
+      }
 
-        // Also update stats after any trade status change
-        if (socketService.requestStatsUpdate) {
-          setTimeout(() => socketService.requestStatsUpdate(), 1000);
-        }
+      // If trade status is completed or cancelled, refresh trade lists
+      if (
+        update.status &&
+        ["completed", "cancelled", "rejected"].includes(update.status)
+      ) {
+        // Small delay to ensure backend processing is complete
+        setTimeout(() => {
+          store.dispatch(fetchActiveTradesAsync());
+          store.dispatch(fetchTradeHistoryAsync());
+        }, 1000);
       }
     });
 
