@@ -35,6 +35,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import '../styles/Trades.css';
 import Fade from '../components/Fade';
+import TradeSidePanel from '../components/TradeSidePanel';
+import '../components/TradeSidePanel.css';
 
 // Redux imports
 import { useSelector, useDispatch } from 'react-redux';
@@ -79,6 +81,9 @@ const Trades = ({ user }) => {
   const [autoRefreshInterval, setAutoRefreshInterval] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(user?._id || '');
   const [inProgressHovered, setInProgressHovered] = useState(null);
+  const [tradeSidePanelOpen, setTradeSidePanelOpen] = useState(false);
+  const [activeTrade, setActiveTrade] = useState(null);
+  const [tradeSidePanelRole, setTradeSidePanelRole] = useState('buyer');
 
   useEffect(() => {
     if (user?._id) {
@@ -493,8 +498,16 @@ const Trades = ({ user }) => {
   };
 
   // Navigate to trade details page when a trade is clicked
-  const handleTradeClick = (tradeId) => {
-    navigate(`/trades/${tradeId}`);
+  const handleTradeClick = (tradeId, trade) => {
+    // Set active trade ID
+    setActiveTrade(tradeId);
+    
+    // Determine role based on the trade
+    const isBuyer = trade.buyer?._id === currentUserId || trade.buyerId === currentUserId;
+    setTradeSidePanelRole(isBuyer ? 'buyer' : 'seller');
+    
+    // Open the side panel
+    setTradeSidePanelOpen(true);
   };
 
   // Update the getContentState function to use enhanced LoadingSpinner
@@ -546,7 +559,11 @@ const Trades = ({ user }) => {
       <Fade>
         <div className="trades-list">
           {trades.map(trade => (
-            <div key={trade.tradeId || trade._id} className="trade-card" onClick={() => handleTradeClick(trade.tradeId || trade._id)}>
+            <div 
+              key={trade.tradeId || trade._id} 
+              className="trade-card" 
+              onClick={() => handleTradeClick(trade.tradeId || trade._id, trade)}
+            >
               <div className="trade-card-header">
                 <span 
                   className="trade-status" 
@@ -764,6 +781,13 @@ const Trades = ({ user }) => {
           </div>
         </div>
       </Fade>
+      
+      <TradeSidePanel
+        isOpen={tradeSidePanelOpen}
+        onClose={() => setTradeSidePanelOpen(false)}
+        tradeId={activeTrade}
+        role={tradeSidePanelRole}
+      />
     </div>
   );
 };

@@ -1,0 +1,436 @@
+/* Trade Side Panel Styles */
+.trade-side-panel-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+  z-index: 9998;
+}
+
+.trade-side-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 400px;
+  max-width: 90vw;
+  background-color: #1a1a1a;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  color: #e5e5e5;
+}
+
+/* Panel Header */
+.trade-side-panel-header {
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #333;
+}
+
+.trade-side-panel-header h3 {
+  font-size: 1.25rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.trade-side-panel-close {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.trade-side-panel-close:hover {
+  color: #e5e5e5;
+}
+
+/* Panel Content */
+.trade-side-panel-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.trade-side-panel-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+}
+
+.trade-side-panel-loading svg {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #3b82f6;
+}
+
+/* Trade Status */
+.trade-side-panel-status {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.trade-status-badge {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.trade-status-created,
+.trade-status-pending {
+  background-color: #374151;
+  color: #9ca3af;
+}
+
+.trade-status-awaiting_seller,
+.trade-status-awaiting_buyer {
+  background-color: #1e40af;
+  color: #93c5fd;
+}
+
+.trade-status-completed {
+  background-color: #166534;
+  color: #4ade80;
+}
+
+.trade-status-cancelled,
+.trade-status-rejected,
+.trade-status-failed,
+.trade-status-expired {
+  background-color: #7f1d1d;
+  color: #f87171;
+}
+
+.trade-status-message {
+  color: #d1d5db;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Trade Info */
+.trade-side-panel-info {
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #222;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.trade-id {
+  color: #9ca3af;
+  margin-bottom: 5px;
+}
+
+.trade-date {
+  color: #9ca3af;
+}
+
+/* Users */
+.trade-side-panel-users {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #222;
+  border-radius: 4px;
+}
+
+.trade-user-display {
+  display: flex;
+  align-items: center;
+}
+
+.trade-user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-right: 10px;
+}
+
+.trade-user-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.trade-user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.trade-user-role {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.trade-user-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.trade-direction-icon {
+  color: #4b5563;
+  font-size: 1rem;
+}
+
+/* Item */
+.trade-side-panel-item {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #222;
+  border-radius: 4px;
+}
+
+.trade-side-panel-item h4 {
+  font-size: 0.9rem;
+  color: #9ca3af;
+  margin-top: 0;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.trade-item-display {
+  display: flex;
+  align-items: center;
+}
+
+.trade-item-image-container {
+  width: 60px;
+  height: 60px;
+  margin-right: 15px;
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.trade-item-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.trade-item-details {
+  flex: 1;
+}
+
+.trade-item-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 5px 0;
+}
+
+.trade-item-price {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #4ade80;
+  margin: 0 0 5px 0;
+}
+
+.trade-item-float,
+.trade-item-wear {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin: 2px 0;
+}
+
+/* Counter Offer */
+.trade-counter-offer {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #222;
+  border-radius: 4px;
+}
+
+.trade-counter-offer h4 {
+  font-size: 0.9rem;
+  color: #9ca3af;
+  margin-top: 0;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.counter-offer-input {
+  display: flex;
+}
+
+.counter-offer-input input {
+  flex: 1;
+  background-color: #333;
+  border: 1px solid #444;
+  padding: 8px 12px;
+  border-radius: 4px 0 0 4px;
+  color: #e5e5e5;
+  font-size: 0.9rem;
+}
+
+.counter-offer-input button {
+  background-color: #3b82f6;
+  border: none;
+  color: white;
+  padding: 8px 15px;
+  border-radius: 0 4px 4px 0;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.counter-offer-input button:hover {
+  background-color: #2563eb;
+}
+
+.counter-offer-input button:disabled {
+  background-color: #374151;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Action Buttons */
+.trade-side-panel-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 30px;
+}
+
+.trade-action-button {
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.trade-action-button svg {
+  margin-right: 5px;
+}
+
+.trade-action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.trade-action-reject {
+  background-color: #7f1d1d;
+  color: #f87171;
+}
+
+.trade-action-reject:hover:not(:disabled) {
+  background-color: #991b1b;
+}
+
+.trade-action-counter {
+  background-color: #374151;
+  color: #d1d5db;
+}
+
+.trade-action-counter:hover:not(:disabled) {
+  background-color: #4b5563;
+}
+
+.trade-action-accept, 
+.trade-action-confirm {
+  background-color: #166534;
+  color: #4ade80;
+}
+
+.trade-action-accept:hover:not(:disabled),
+.trade-action-confirm:hover:not(:disabled) {
+  background-color: #15803d;
+}
+
+.trade-action-cancel {
+  background-color: #7f1d1d;
+  color: #f87171;
+}
+
+.trade-action-cancel:hover:not(:disabled) {
+  background-color: #991b1b;
+}
+
+.trade-action-steam {
+  background-color: #1b2838;
+  color: #66c0f4;
+}
+
+.trade-action-steam:hover:not(:disabled) {
+  background-color: #2a475e;
+}
+
+.trade-action-close {
+  background-color: #374151;
+  color: #d1d5db;
+}
+
+.trade-action-close:hover:not(:disabled) {
+  background-color: #4b5563;
+}
+
+.trade-status-message {
+  color: #d1d5db;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #374151;
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.trade-status-message svg {
+  margin-right: 8px;
+  color: #93c5fd;
+}
+
+.trade-status-success {
+  color: #4ade80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #166534;
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.trade-status-success svg {
+  margin-right: 8px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .trade-side-panel {
+    width: 100%;
+  }
+  
+  .trade-side-panel-actions {
+    flex-direction: column;
+  }
+  
+  .trade-action-button {
+    width: 100%;
+  }
+} 

@@ -5,6 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../utils/languageUtils';
 import { formatCurrency, API_URL } from '../config/constants';
 import '../styles/TradePanel.css';
+import TradeSidePanel from './TradeSidePanel';
+import './TradeSidePanel.css';
+import { toast } from 'react-hot-toast';
 
 // Animation variants
 const backdropVariants = {
@@ -75,6 +78,9 @@ const TradePanel = ({
   const panelRef = useRef(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
+  const [currentTradeId, setCurrentTradeId] = useState(null);
+  const [tradePanelRole, setTradePanelRole] = useState('buyer');
 
   // Fetch user profile when panel opens
   useEffect(() => {
@@ -202,6 +208,16 @@ const TradePanel = ({
         setTradeData(response.data);
         setProcessingStage(2); // Success
         
+        // Open the trade side panel with the trade ID
+        if (response.data.tradeId) {
+          setCurrentTradeId(response.data.tradeId);
+          setTradePanelRole('buyer');
+          setTimeout(() => {
+            onClose(); // Close this panel first
+            setIsTradePanelOpen(true); // Then open the trade side panel
+          }, 1000);
+        }
+        
         // Notify parent component
         if (onComplete) {
           onComplete(response.data);
@@ -211,84 +227,14 @@ const TradePanel = ({
         if (window.showNotification) {
           window.showNotification(
             'Purchase Successful',
-            'Your purchase has been processed successfully. Redirecting to trade page...',
+            'Your purchase has been processed successfully.',
             'SUCCESS'
           );
         }
-        
-        // Automatically navigate to trade page after successful purchase
-        // Reduce the delay to make it more responsive
-        setTimeout(() => {
-          if (response.data.tradeId) {
-            navigate(`/trades/${response.data.tradeId}`);
-          }
-        }, 2000);
-        
-      } catch (err) {
-        console.error('Error buying item:', err);
-        setProcessingStage(0); // Reset to initial state
-        
-        let errorMsg = err.response?.data?.error || 'Failed to purchase item';
-        
-        // Enhanced error handling with specific messages
-        if (err.response?.data?.requiresTradeUrl) {
-          setError(errorMsg);
-          setConfirmationStep(false); // Go back to input step
-          
-          // Show notification
-          if (window.showNotification) {
-            window.showNotification(
-              'Trade URL Required',
-              'Please enter your Steam trade URL to complete this purchase.',
-              'WARNING'
-            );
-          }
-          return;
-        } else if (errorMsg.includes('Insufficient balance') || errorMsg.includes('insufficient funds')) {
-          setError("You don't have enough funds in your wallet to complete this purchase. Please add funds and try again.");
-          
-          // Show notification
-          if (window.showNotification) {
-            window.showNotification(
-              'Insufficient Funds',
-              'Add funds to your wallet to complete this purchase.',
-              'WARNING'
-            );
-          }
-        } else if (errorMsg.includes('Not authenticated') || errorMsg.includes('login')) {
-          setError("You need to be logged in to make a purchase. Please log in and try again.");
-          
-          // Show notification
-          if (window.showNotification) {
-            window.showNotification(
-              'Authentication Required',
-              'Please log in to complete this purchase.',
-              'WARNING'
-            );
-          }
-        } else if (errorMsg.includes('not available') || errorMsg.includes('already sold')) {
-          setError("This item is no longer available for purchase. It may have been sold or removed from the marketplace.");
-          
-          // Show notification
-          if (window.showNotification) {
-            window.showNotification(
-              'Item Unavailable',
-              'This item is no longer available. Refresh your page to see updated listings.',
-              'ERROR'
-            );
-          }
-        } else {
-          setError(errorMsg);
-          
-          // Show notification
-          if (window.showNotification) {
-            window.showNotification(
-              'Error',
-              errorMsg,
-              'ERROR'
-            );
-          }
-        }
+      } catch (error) {
+        console.error('Error buying item:', error);
+        setError(error.response?.data?.error || "Failed to complete purchase");
+        setProcessingStage(0); // Reset
       } finally {
         setLoading(false);
       }
@@ -356,6 +302,16 @@ const TradePanel = ({
         setTradeData(response.data);
         setProcessingStage(2); // Success
         
+        // Open the trade side panel with the trade ID
+        if (response.data.tradeId) {
+          setCurrentTradeId(response.data.tradeId);
+          setTradePanelRole('buyer');
+          setTimeout(() => {
+            onClose(); // Close this panel first
+            setIsTradePanelOpen(true); // Then open the trade side panel
+          }, 1000);
+        }
+        
         // Notify parent component
         if (onComplete) {
           onComplete(response.data);
@@ -369,83 +325,10 @@ const TradePanel = ({
             'SUCCESS'
           );
         }
-        
-      } catch (err) {
-        console.error('Error making offer:', err);
-        setProcessingStage(0); // Reset to initial state
-        
-        let errorMsg = err.response?.data?.error || 'Failed to submit offer';
-        
-        // Enhanced error handling with specific messages
-        if (err.response?.data?.requiresTradeUrl) {
-          setError(errorMsg);
-          setConfirmationStep(false); // Go back to input step
-          
-          // Show notification
-          if (window.showNotification) {
-            window.showNotification(
-              'Trade URL Required',
-              'Please enter your Steam trade URL to complete your offer.',
-              'WARNING'
-            );
-          }
-          return;
-        } else if (errorMsg.includes('Insufficient balance') || errorMsg.includes('insufficient funds')) {
-          setError("You don't have enough funds in your wallet for this offer. Please add funds and try again.");
-          
-          // Show notification
-          if (window.showNotification) {
-            window.showNotification(
-              'Insufficient Funds',
-              'Add funds to your wallet to complete this offer.',
-              'WARNING'
-            );
-          }
-        } else if (errorMsg.includes('Not authenticated') || errorMsg.includes('login')) {
-          setError("You need to be logged in to make an offer. Please log in and try again.");
-          
-          // Show notification
-          if (window.showNotification) {
-            window.showNotification(
-              'Authentication Required',
-              'Please log in to make an offer.',
-              'WARNING'
-            );
-          }
-        } else if (errorMsg.includes('not available') || errorMsg.includes('already sold')) {
-          setError("This item is no longer available. It may have been sold or removed from the marketplace.");
-          
-          // Show notification
-          if (window.showNotification) {
-            window.showNotification(
-              'Item Unavailable',
-              'This item is no longer available. Refresh your page to see updated listings.',
-              'ERROR'
-            );
-          }
-        } else if (errorMsg.includes('own listing')) {
-          setError("You cannot make an offer on your own listing.");
-          
-          // Show notification
-          if (window.showNotification) {
-            window.showNotification(
-              'Invalid Offer',
-              'You cannot make an offer on your own listing.',
-              'ERROR'
-            );
-          }
-        } else {
-          setError(errorMsg);
-          
-          // Show notification
-          if (window.showNotification) {
-            window.showNotification(
-              'Error',
-              errorMsg,
-              'ERROR'
-            );
-          }
-        }
+      } catch (error) {
+        console.error('Error submitting offer:', error);
+        setError(error.response?.data?.error || "Failed to submit offer");
+        setProcessingStage(0); // Reset
       } finally {
         setLoading(false);
       }
@@ -1239,6 +1122,14 @@ const TradePanel = ({
               </motion.div>
             </motion.div>
           </motion.div>
+
+          {/* Add this side panel component */}
+          <TradeSidePanel 
+            isOpen={isTradePanelOpen} 
+            onClose={() => setIsTradePanelOpen(false)} 
+            tradeId={currentTradeId}
+            role={tradePanelRole}
+          />
         </>
       )}
     </AnimatePresence>

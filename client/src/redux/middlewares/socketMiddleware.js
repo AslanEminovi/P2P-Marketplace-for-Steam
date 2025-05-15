@@ -191,60 +191,97 @@ export const setupSocketListeners = (store) => {
       // Dispatch socketTradeUpdate action to update trade in store
       store.dispatch(socketTradeUpdate(update));
 
-      // Show notification if significant status change
-      if (
-        update.status &&
-        [
-          "completed",
-          "cancelled",
-          "rejected",
-          "offer_sent",
-          "accepted",
-        ].includes(update.status)
-      ) {
+      // Show notification for trade status changes that require user attention
+      if (update.status || update.action) {
         // Get current user to check if notification should be shown
         const state = store.getState();
         const currentUser = state.auth.user;
 
-        // Only show notification if user is part of this trade
-        if (
-          currentUser &&
-          (update.buyerId === currentUser._id ||
-            update.sellerId === currentUser._id)
-        ) {
-          // Create notification message based on status
-          let message = `Trade #${update.tradeId.substring(0, 6)} `;
-          let type = "INFO";
+        if (!currentUser) return;
 
-          switch (update.status) {
-            case "completed":
-              message += "has been completed successfully!";
-              type = "SUCCESS";
-              break;
-            case "cancelled":
-              message += "has been cancelled.";
-              type = "WARNING";
-              break;
-            case "rejected":
-              message += "has been rejected by the seller.";
-              type = "ERROR";
-              break;
-            case "offer_sent":
-              message += "offer has been sent. Check your Steam trade offers.";
-              type = "INFO";
-              break;
-            case "accepted":
-              message += "has been accepted by the seller.";
-              type = "INFO";
-              break;
-            default:
-              message += `status updated to ${update.status}.`;
-          }
+        // Only show notifications for trades this user is involved in
+        const isUserInvolved =
+          (update.buyer && update.buyer._id === currentUser._id) ||
+          (update.seller && update.seller._id === currentUser._id) ||
+          update.buyerId === currentUser._id ||
+          update.sellerId === currentUser._id;
 
-          // Show notification using app notification system
-          if (window.showNotification) {
-            window.showNotification("Trade Update", message, type);
-          }
+        if (!isUserInvolved) return;
+
+        let notificationTitle = "";
+        let notificationMessage = "";
+        let notificationType = "INFO";
+
+        // Determine notification based on trade status
+        switch (update.status) {
+          case "created":
+          case "pending":
+            if (update.seller && update.seller._id === currentUser._id) {
+              notificationTitle = "New Trade Offer";
+              notificationMessage = `You have received a new trade offer for ${
+                update.item?.name || "an item"
+              }`;
+              notificationType = "INFO";
+            }
+            break;
+
+          case "awaiting_seller":
+            if (update.buyer && update.buyer._id === currentUser._id) {
+              notificationTitle = "Offer Accepted";
+              notificationMessage = `Your offer for ${
+                update.item?.name || "an item"
+              } has been accepted`;
+              notificationType = "SUCCESS";
+            } else if (update.seller && update.seller._id === currentUser._id) {
+              notificationTitle = "Action Required";
+              notificationMessage = `Please send the item to complete the trade`;
+              notificationType = "WARNING";
+            }
+            break;
+
+          case "awaiting_buyer":
+            if (update.buyer && update.buyer._id === currentUser._id) {
+              notificationTitle = "Item Sent";
+              notificationMessage = `Seller has sent the item. Please confirm when received.`;
+              notificationType = "WARNING";
+            }
+            break;
+
+          case "completed":
+            notificationTitle = "Trade Completed";
+            notificationMessage = `The trade for ${
+              update.item?.name || "an item"
+            } has been completed successfully`;
+            notificationType = "SUCCESS";
+            break;
+
+          case "cancelled":
+          case "rejected":
+            notificationTitle = "Trade Cancelled";
+            notificationMessage = `The trade for ${
+              update.item?.name || "an item"
+            } has been cancelled`;
+            notificationType = "ERROR";
+            break;
+
+          default:
+            // Don't show notification for other statuses
+            return;
+        }
+
+        // Show notification if we have a title and message
+        if (notificationTitle && notificationMessage) {
+          store.dispatch(
+            addNotification({
+              id: Date.now(),
+              title: notificationTitle,
+              message: notificationMessage,
+              type: notificationType,
+              link: `/trades/${update._id}`,
+              read: false,
+              createdAt: new Date().toISOString(),
+            })
+          );
         }
       }
 
