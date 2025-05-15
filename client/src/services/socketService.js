@@ -834,8 +834,23 @@ const socketService = new SocketService();
 // Initialize at import time
 socketService.init();
 
-// Export the singleton
-export default socketService;
+// Export all functions
+export default {
+  connect: socketService.connect,
+  disconnect: socketService.disconnect,
+  isConnected: socketService.isConnected,
+  onConnected: socketService.onConnected,
+  onDisconnected: socketService.onDisconnected,
+  on: socketService.on,
+  off: socketService.off,
+  emit: socketService.emit,
+  setCurrentPage: socketService.setCurrentPage,
+  requestStatsUpdate: socketService.requestStatsUpdate,
+  socket: socketService.socket,
+  // Add new exports
+  notifySellerNewOffer: socketService.notifySellerNewOffer,
+  onSellerTradeOffer: socketService.onSellerTradeOffer,
+};
 
 // Add handlers for user status updates and browser close events
 
@@ -1106,4 +1121,56 @@ socketService.reconnectStatusTracking = () => {
       }
     }
   }, 1000);
+};
+
+// Add these functions to handle trade offer events for sellers
+/**
+ * Emit an event to notify sellers about new trade offers
+ */
+const notifySellerNewOffer = (tradeData) => {
+  if (!socketService || !socketService.isConnected()) {
+    console.log("[SocketService] Cannot notify seller: not connected");
+    return;
+  }
+
+  console.log(
+    "[SocketService] Notifying seller about new trade offer:",
+    tradeData.tradeId
+  );
+  socketService.socket.emit("seller_trade_offer", {
+    tradeId: tradeData.tradeId,
+    sellerId: tradeData.sellerId || tradeData.seller?._id,
+    itemId: tradeData.itemId || tradeData.item?._id,
+    itemName: tradeData.item?.name || "an item",
+    price: tradeData.price,
+    buyerId: tradeData.buyerId || tradeData.buyer?._id,
+    buyerName: tradeData.buyer?.username || "a buyer",
+    createdAt: tradeData.createdAt || new Date().toISOString(),
+  });
+};
+
+/**
+ * Register a callback to handle seller trade offer events
+ */
+const onSellerTradeOffer = (callback) => {
+  if (!socketService) {
+    console.log(
+      "[SocketService] Cannot register seller offer callback: socket not initialized"
+    );
+    return () => {};
+  }
+
+  const handler = (data) => {
+    console.log("[SocketService] Received seller trade offer:", data);
+    if (callback) {
+      callback(data);
+    }
+  };
+
+  socketService.socket.on("seller_trade_offer", handler);
+
+  // Return cleanup function
+  return () => {
+    socketService.socket.off("seller_trade_offer", handler);
+  };
 };

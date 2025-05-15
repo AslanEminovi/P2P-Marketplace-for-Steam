@@ -8,6 +8,8 @@ import '../styles/TradePanel.css';
 import TradeSidePanel from './TradeSidePanel';
 import './TradeSidePanel.css';
 import { toast } from 'react-hot-toast';
+import socketService from '../services/socketService';
+import { useSelector } from 'react-redux';
 
 // Animation variants
 const backdropVariants = {
@@ -81,6 +83,7 @@ const TradePanel = ({
   const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
   const [currentTradeId, setCurrentTradeId] = useState(null);
   const [tradePanelRole, setTradePanelRole] = useState('buyer');
+  const currentUser = useSelector(state => state.auth.user);
 
   // Fetch user profile when panel opens
   useEffect(() => {
@@ -325,6 +328,20 @@ const TradePanel = ({
             'SUCCESS'
           );
         }
+
+        // Notify seller about the new offer via socket
+        socketService.notifySellerNewOffer({
+          tradeId: response.data.tradeId,
+          sellerId: response.data.sellerId,
+          buyerId: response.data.buyerId || currentUser?._id,
+          itemId: item._id,
+          item: {
+            name: item.name || item.marketHashName,
+            _id: item._id
+          },
+          price: parseFloat(offerAmount),
+          createdAt: new Date().toISOString()
+        });
       } catch (error) {
         console.error('Error submitting offer:', error);
         setError(error.response?.data?.error || "Failed to submit offer");

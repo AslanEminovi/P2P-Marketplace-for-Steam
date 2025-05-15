@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from '../utils/languageUtils';
 import OfferActionMenu from './OfferActionMenu';
 import { API_URL } from '../config/constants';
 import socketService from '../services/socketService';
 import { FaTimes } from 'react-icons/fa';
+import TradeSidePanel from './TradeSidePanel';
+import '../components/TradeSidePanel.css';
 
 // Define notification types and their associated colors/icons
 const NOTIFICATION_TYPES = {
@@ -80,9 +82,13 @@ const NotificationCenter = ({ user }) => {
   const [allNotificationsLoading, setAllNotificationsLoading] = useState(false);
   const [welcomeShown, setWelcomeShown] = useState(false);
   const [isSidePanelVisible, setIsSidePanelVisible] = useState(false);
+  const [activeTrade, setActiveTrade] = useState(null);
+  const [tradeSidePanelOpen, setTradeSidePanelOpen] = useState(false);
+  const [tradeSidePanelRole, setTradeSidePanelRole] = useState('seller');
   const dropdownRef = useRef(null);
   const sidePanelRef = useRef(null);
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   // Audio will be implemented later
   const [notificationSounds] = useState({
@@ -553,14 +559,39 @@ const NotificationCenter = ({ user }) => {
   };
 
   // Handle notification click
-  const handleNotificationClick = (notification) => {
+  const handleNotificationClick = async (notification) => {
+    // Mark notification as read
     if (!notification.read) {
-      markAsRead(notification._id);
+      await markAsRead(notification._id);
     }
 
-    if (notification.link) {
-      window.location.href = notification.link;
+    // Handle trade notifications differently
+    if (notification.link && notification.link.includes('/trades/')) {
+      const tradeId = notification.link.split('/').pop();
+      if (tradeId) {
+        // Determine role (default to seller for trade offers)
+        const role = notification.title.toLowerCase().includes('offer') ? 
+          'seller' : notification.type.toLowerCase() === 'success' ? 'buyer' : 'seller';
+        
+        // Open the trade side panel
+        setActiveTrade(tradeId);
+        setTradeSidePanelRole(role);
+        setTradeSidePanelOpen(true);
+        
+        // Close notifications panel
+        setIsOpen(false);
+        setShowAllNotifications(false);
+        return;
+      }
     }
+
+    // Default behavior for non-trade notifications
+    if (notification.link) {
+      navigate(notification.link);
+    }
+
+    // Close notifications panel
+    setIsOpen(false);
   };
 
   // Get notification color based on type
@@ -1042,6 +1073,13 @@ const NotificationCenter = ({ user }) => {
           )}
         </SidePanel>
       )}
+
+      <TradeSidePanel
+        isOpen={tradeSidePanelOpen}
+        onClose={() => setTradeSidePanelOpen(false)}
+        tradeId={activeTrade}
+        role={tradeSidePanelRole}
+      />
     </>
   );
 };

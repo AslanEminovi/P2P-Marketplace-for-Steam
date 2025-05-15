@@ -9,6 +9,7 @@ import {
   fetchTrades,
   fetchActiveTradesAsync,
   fetchTradeHistoryAsync,
+  setSellerTradeOffer,
 } from "../slices/tradesSlice";
 
 // Socket middleware to connect Socket.io events with Redux
@@ -277,7 +278,7 @@ export const setupSocketListeners = (store) => {
               title: notificationTitle,
               message: notificationMessage,
               type: notificationType,
-              link: `/trades/${update._id}`,
+              link: `/trades/${update.tradeId || update._id}`,
               read: false,
               createdAt: new Date().toISOString(),
             })
@@ -304,6 +305,49 @@ export const setupSocketListeners = (store) => {
 
       // Update global stats
       store.dispatch(updateStats(stats));
+    });
+
+    // Handle seller trade offers - opens trade panel for sellers
+    socketService.socket.on("seller_trade_offer", (offerData) => {
+      console.log("[socketMiddleware] Received seller trade offer:", offerData);
+
+      // Get current user to check if the offer is for this seller
+      const state = store.getState();
+      const currentUser = state.auth.user;
+
+      if (!currentUser || currentUser._id !== offerData.sellerId) {
+        console.log(
+          "[socketMiddleware] Trade offer not for this user, ignoring"
+        );
+        return;
+      }
+
+      // Fetch trade details to ensure we have complete data
+      store.dispatch(fetchTradeDetails(offerData.tradeId));
+
+      // Ensure there's a notification for this trade offer
+      store.dispatch(
+        addNotification({
+          id: Date.now(),
+          title: "New Trade Offer",
+          message: `You received a new offer for ${
+            offerData.itemName || "an item"
+          }`,
+          type: "INFO",
+          link: `/trades/${offerData.tradeId}`,
+          read: false,
+          createdAt: new Date().toISOString(),
+        })
+      );
+
+      // Dispatch event to notify app that a seller trade offer arrived
+      // This will be handled by App.jsx to open the trade panel
+      store.dispatch(
+        setSellerTradeOffer({
+          tradeId: offerData.tradeId,
+          role: "seller",
+        })
+      );
     });
   });
 };
