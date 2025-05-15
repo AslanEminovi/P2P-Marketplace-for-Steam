@@ -906,6 +906,13 @@ export default {
   // Add new exports
   notifySellerNewOffer,
   onSellerTradeOffer,
+  // Add missing functions for useUserStatus
+  reconnect: socketService.reconnect.bind(socketService),
+  watchUserStatus: socketService.watchUserStatus.bind(socketService),
+  requestUserStatus: socketService.requestUserStatus.bind(socketService),
+  onUserStatusUpdate: socketService.onUserStatusUpdate.bind(socketService),
+  reconnectStatusTracking:
+    socketService.reconnectStatusTracking.bind(socketService),
 };
 
 // Add handlers for user status updates and browser close events
