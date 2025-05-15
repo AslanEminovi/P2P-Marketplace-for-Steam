@@ -6,8 +6,17 @@ import kaTranslation from "./locales/ka.json";
 // Initialize i18n with a try-catch to prevent it from breaking the app
 try {
   // Default language based on localStorage or fallback to English
-  const savedLanguage = localStorage?.getItem("language") || "en";
+  let savedLanguage = "en";
+  try {
+    // Check if localStorage is available in a safe way
+    if (typeof window !== "undefined" && window.localStorage) {
+      savedLanguage = localStorage.getItem("language") || "en";
+    }
+  } catch (e) {
+    console.warn("Could not access localStorage for language settings");
+  }
 
+  // Initialize with initReactI18next
   i18n.use(initReactI18next).init({
     resources: {
       en: {
@@ -33,7 +42,7 @@ try {
 
   // Provide a fallback i18n instance in case of failure
   if (!i18n.isInitialized) {
-    i18n.init({
+    i18n.use(initReactI18next).init({
       lng: "en",
       resources: { en: { translation: {} } },
       react: { useSuspense: false },
