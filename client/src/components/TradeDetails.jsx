@@ -10,7 +10,9 @@ import {
   selectCurrentTrade, 
   selectTradeDetailsLoading, 
   selectTradesError,
-  resetCurrentTrade
+  resetCurrentTrade,
+  fetchActiveTradesAsync,
+  fetchTradeHistoryAsync
 } from '../redux/slices/tradesSlice';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -471,6 +473,7 @@ const TradeDetails = ({ tradeId }) => {
   const [actionInProgress, setActionInProgress] = useState(false);
   const [actionError, setActionError] = useState(null);
   const retryAttempted = useRef(false);
+  const [confirmSentLoading, setConfirmSentLoading] = useState(false);
   
   // Additional state for seller waiting status
   const sellerWaitingForBuyer = trade?.status === 'awaiting_buyer' && trade?.isUserSeller;
