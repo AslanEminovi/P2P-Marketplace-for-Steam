@@ -1033,28 +1033,44 @@ const onSellerTradeOffer = function (callback) {
   };
 };
 
-// Export all functions with proper binding
+// Export the singleton instance directly along with all necessary methods
 export default {
-  connect: socketService.connect.bind(socketService),
-  disconnect: socketService.disconnect.bind(socketService),
-  isConnected: socketService.isConnected.bind(socketService),
-  onConnected: socketService.onConnected.bind(socketService),
-  onDisconnected: socketService.onDisconnected.bind(socketService),
-  on: socketService.on.bind(socketService),
-  off: socketService.off.bind(socketService),
-  emit: socketService.emit.bind(socketService),
-  setCurrentPage: socketService.setCurrentPage.bind(socketService),
-  requestStatsUpdate: socketService.requestStatsUpdate.bind(socketService),
-  socket: socketService.socket,
-  // Add custom functions
+  // Socket property directly exposed
+  get socket() {
+    return socketService.socket;
+  },
+
+  // Core methods
+  connect: (...args) => socketService.connect(...args),
+  disconnect: () => socketService.disconnect(),
+  isConnected: () => socketService.isConnected(),
+  onConnected: (...args) => socketService.onConnected(...args),
+  onDisconnected: (...args) => socketService.onDisconnected(...args),
+  on: (...args) => socketService.on(...args),
+  off: (...args) => socketService.off(...args),
+  emit: (...args) => socketService.emit(...args),
+  setCurrentPage: (...args) => socketService.setCurrentPage(...args),
+  requestStatsUpdate: () => socketService.requestStatsUpdate(),
+  reconnect: () => socketService.reconnect(),
+
+  // Additional functions
   notifySellerNewOffer,
   onSellerTradeOffer,
-  // Add user status functions
-  reconnect: socketService.reconnect.bind(socketService),
   watchUserStatus,
   requestUserStatus,
   onUserStatusUpdate,
   reconnectStatusTracking,
+
+  // Add trade-related methods
+  subscribeToTradeUpdates: (...args) =>
+    socketService.subscribeToTradeUpdates(...args),
+  unsubscribeFromTradeUpdates: (...args) =>
+    socketService.unsubscribeFromTradeUpdates(...args),
+  requestTradeRefresh: (...args) => socketService.requestTradeRefresh(...args),
+  sendTradeUpdate: (...args) => socketService.sendTradeUpdate(...args),
+  joinTradeRoom: (...args) => socketService.joinTradeRoom(...args),
+  leaveTradeRoom: (...args) => socketService.leaveTradeRoom(...args),
+  requestTradeStats: () => socketService.requestTradeStats(),
 };
 
 // Add handlers for user status updates and browser close events
