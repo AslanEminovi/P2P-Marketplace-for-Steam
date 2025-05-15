@@ -369,6 +369,14 @@ export const clearCancelledTradesAsync = createAsyncThunk(
   }
 );
 
+// Actions for trade offers
+export const setSellerTradeOffer = createAsyncThunk(
+  "trades/setSellerTradeOffer",
+  async (offerData, { dispatch }) => {
+    return offerData;
+  }
+);
+
 // Trades slice
 const tradesSlice = createSlice({
   name: "trades",
@@ -462,9 +470,6 @@ const tradesSlice = createSlice({
     resetCurrentTrade: (state) => {
       state.currentTrade = null;
       state.detailsLoading = false;
-    },
-    setSellerTradeOffer: (state, action) => {
-      state.sellerTradeOffer = action.payload;
     },
     clearSellerTradeOffer: (state) => {
       state.sellerTradeOffer = null;
@@ -616,6 +621,11 @@ const tradesSlice = createSlice({
       .addCase(clearCancelledTradesAsync.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload || "Failed to clear cancelled trades";
+      })
+
+      // Handle seller trade offer
+      .addCase(setSellerTradeOffer.fulfilled, (state, action) => {
+        state.sellerTradeOffer = action.payload;
       });
   },
 });
@@ -665,7 +675,6 @@ export const {
   socketTradeUpdate,
   clearTradeError,
   resetCurrentTrade,
-  setSellerTradeOffer,
   clearSellerTradeOffer,
 } = tradesSlice.actions;
 

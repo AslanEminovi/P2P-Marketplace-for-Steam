@@ -6,7 +6,6 @@ import OfferActionMenu from './OfferActionMenu';
 import { API_URL } from '../config/constants';
 import socketService from '../services/socketService';
 import { FaTimes } from 'react-icons/fa';
-import TradeSidePanel from './TradeSidePanel';
 import '../components/TradeSidePanel.css';
 
 // Define notification types and their associated colors/icons
@@ -82,9 +81,6 @@ const NotificationCenter = ({ user }) => {
   const [allNotificationsLoading, setAllNotificationsLoading] = useState(false);
   const [welcomeShown, setWelcomeShown] = useState(false);
   const [isSidePanelVisible, setIsSidePanelVisible] = useState(false);
-  const [activeTrade, setActiveTrade] = useState(null);
-  const [tradeSidePanelOpen, setTradeSidePanelOpen] = useState(false);
-  const [tradeSidePanelRole, setTradeSidePanelRole] = useState('seller');
   const dropdownRef = useRef(null);
   const sidePanelRef = useRef(null);
   const { t } = useTranslation();
@@ -573,15 +569,15 @@ const NotificationCenter = ({ user }) => {
         const role = notification.title.toLowerCase().includes('offer') ? 
           'seller' : notification.type.toLowerCase() === 'success' ? 'buyer' : 'seller';
         
-        // Open the trade side panel
-        setActiveTrade(tradeId);
-        setTradeSidePanelRole(role);
-        setTradeSidePanelOpen(true);
-        
-        // Close notifications panel
-        setIsOpen(false);
-        setShowAllNotifications(false);
-        return;
+        // Use the global openTradePanel function if available
+        if (window.openTradePanel) {
+          window.openTradePanel(tradeId, role);
+        } else {
+          // Fallback to the old behavior
+          setIsOpen(false);
+          setShowAllNotifications(false);
+          return;
+        }
       }
     }
 
@@ -1073,13 +1069,6 @@ const NotificationCenter = ({ user }) => {
           )}
         </SidePanel>
       )}
-
-      <TradeSidePanel
-        isOpen={tradeSidePanelOpen}
-        onClose={() => setTradeSidePanelOpen(false)}
-        tradeId={activeTrade}
-        role={tradeSidePanelRole}
-      />
     </>
   );
 };
