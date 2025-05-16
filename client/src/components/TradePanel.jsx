@@ -275,20 +275,20 @@ const TradePanel = ({
       setCancelingOffer(offerId);
       setError(null);
       
-      // First try to get the item ID for this offer
-      const offerToCancel = sentOffers.find(o => o._id === offerId);
-      
-      if (!offerToCancel) {
-        throw new Error('Offer not found');
+      // Make sure we have the correct offer ID
+      if (!offerId) {
+        throw new Error('Invalid offer ID');
       }
       
+      // Send the cancel request to the correct endpoint
       const response = await axios.put(
         `${API_URL}/offers/${offerId}/cancel`,
         {},
         { withCredentials: true }
       );
       
-      if (response.data.success) {
+      // Check if the request was successful
+      if (response && response.data && response.data.success) {
         // Update the local state to reflect the cancellation
         setSentOffers(prevOffers => 
           prevOffers.map(offer => 
@@ -307,17 +307,21 @@ const TradePanel = ({
           );
         }
       } else {
-        throw new Error(response.data.error || 'Failed to cancel offer');
+        // If we got a response without success status, treat as error
+        throw new Error(response?.data?.error || 'Failed to cancel offer');
       }
     } catch (err) {
       console.error('Error cancelling offer:', err);
-      setError(err.response?.data?.error || err.message || 'Failed to cancel offer');
+      
+      // Set detailed error message
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to cancel offer';
+      setError(errorMessage);
       
       // Show error notification
       if (window.showNotification) {
         window.showNotification(
           'Error',
-          err.response?.data?.error || err.message || 'Failed to cancel offer',
+          errorMessage,
           'ERROR'
         );
       }
@@ -865,8 +869,8 @@ const TradePanel = ({
 
   // Render offers list view
   const renderOffersView = () => {
-    // Render tabs for switching between sent and received offers
-    const renderTabs = () => (
+    // First render tabs
+    const tabs = (
       <div className="trade-panel-tabs">
         <button 
           className={`trade-panel-tab ${activeOffersTab === 'sent' ? 'active' : ''}`}
@@ -895,11 +899,11 @@ const TradePanel = ({
       </div>
     );
 
-    // Check if we're loading or if there's an error
-    if (activeOffersTab === 'sent' && fetchingSentOffers || activeOffersTab === 'received' && fetchingReceivedOffers) {
+    // Loading states
+    if (activeOffersTab === 'sent' && fetchingSentOffers) {
       return (
         <>
-          {renderTabs()}
+          {tabs}
           <div className="trade-panel-loading">
             <div className="spinner"></div>
             <p>Loading your offers...</p>
@@ -908,10 +912,23 @@ const TradePanel = ({
       );
     }
     
+    if (activeOffersTab === 'received' && fetchingReceivedOffers) {
+      return (
+        <>
+          {tabs}
+          <div className="trade-panel-loading">
+            <div className="spinner"></div>
+            <p>Loading received offers...</p>
+          </div>
+        </>
+      );
+    }
+
+    // Error states - only show for the active tab
     if (error && activeOffersTab === 'sent') {
       return (
         <>
-          {renderTabs()}
+          {tabs}
           <div className="trade-panel-error-state">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
@@ -919,18 +936,24 @@ const TradePanel = ({
               <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
             <p>{error}</p>
-            <button className="trade-panel-button" onClick={fetchSentOffers}>Try Again</button>
+            <button 
+              className="trade-panel-button trade-panel-button-primary"
+              onClick={fetchSentOffers}
+              style={{ maxWidth: "200px", margin: "0 auto", marginTop: "16px" }}
+            >
+              Try Again
+            </button>
           </div>
         </>
       );
     }
     
-    // Render sent offers
+    // Sent offers view
     if (activeOffersTab === 'sent') {
       if (!sentOffers || sentOffers.length === 0) {
         return (
           <>
-            {renderTabs()}
+            {tabs}
             <div className="trade-panel-empty-state">
               <FaPaperPlane size={40} style={{ color: 'var(--panel-text-secondary)', opacity: 0.7, marginBottom: '16px' }} />
               <h3>No Sent Offers</h3>
@@ -940,7 +963,7 @@ const TradePanel = ({
         );
       }
 
-      // Sort sent offers by status: pending first, then accepted, then others
+      // Sort offers
       const sortedOffers = [...sentOffers].sort((a, b) => {
         const statusOrder = { 'pending': 0, 'accepted': 1 };
         const statusA = statusOrder[a.status?.toLowerCase()] ?? 2;
@@ -950,13 +973,12 @@ const TradePanel = ({
           return statusA - statusB;
         }
         
-        // If status is the same, sort by date (newest first)
         return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
       });
       
       return (
         <>
-          {renderTabs()}
+          {tabs}
           <div className="trade-panel-offers-list">
             {sortedOffers.map((offer) => (
               <div key={offer._id} className="trade-panel-offer-item">
@@ -1020,12 +1042,12 @@ const TradePanel = ({
       );
     }
     
-    // Render received offers
+    // Received offers view
     if (activeOffersTab === 'received') {
       if (!receivedOffers || receivedOffers.length === 0) {
         return (
           <>
-            {renderTabs()}
+            {tabs}
             <div className="trade-panel-empty-state">
               <FaInbox size={40} style={{ color: 'var(--panel-text-secondary)', opacity: 0.7, marginBottom: '16px' }} />
               <h3>No Received Offers</h3>
@@ -1037,7 +1059,7 @@ const TradePanel = ({
       
       return (
         <>
-          {renderTabs()}
+          {tabs}
           <div className="trade-panel-offers-list">
             {receivedOffers.map((offer) => (
               <div key={offer._id} className="trade-panel-offer-item">

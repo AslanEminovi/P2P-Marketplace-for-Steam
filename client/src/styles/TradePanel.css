@@ -43,8 +43,9 @@
 .trade-panel-container {
   position: relative;
   height: 100vh;
-  width: 480px;
+  width: 500px;
   max-width: 100%;
+  max-height: 100vh;
   background: var(--panel-bg-gradient);
   box-shadow: -5px 0 25px rgba(0, 0, 0, 0.5);
   display: flex;
@@ -101,11 +102,12 @@
 
 /* Content Area */
 .trade-panel-content {
-  padding: 20px;
+  padding: 16px;
   flex: 1;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--panel-accent) transparent;
+  height: calc(100vh - 130px); /* Account for header and action buttons */
 }
 
 .trade-panel-content::-webkit-scrollbar {
@@ -379,7 +381,7 @@
 
 /* Actions section */
 .trade-panel-actions {
-  padding: 20px;
+  padding: 16px;
   border-top: 1px solid var(--panel-border);
   background: rgba(0, 0, 0, 0.2);
   display: flex;
@@ -388,9 +390,10 @@
 
 .trade-panel-button {
   flex: 1;
-  padding: 14px 20px;
+  padding: 12px 16px;
+  min-height: 44px;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -399,6 +402,8 @@
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
+  width: 100%;
+  text-align: center;
 }
 
 .trade-panel-button:disabled {
@@ -743,20 +748,22 @@
 .trade-panel-offers-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   padding: 4px;
-  margin-top: 8px;
-  max-height: calc(100vh - 180px);
-  overflow-y: auto;
+  margin-bottom: 16px;
+  overflow-y: visible;
+  max-height: none;
 }
 
 .trade-panel-offer-item {
   background: var(--panel-card-bg);
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .trade-panel-offer-item:hover {
@@ -767,15 +774,16 @@
 
 .offer-item-header {
   display: flex;
-  gap: 12px;
-  padding: 12px;
+  gap: 10px;
+  padding: 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .offer-item-img {
-  width: 64px;
-  height: 64px;
-  border-radius: 6px;
+  width: 50px;
+  height: 50px;
+  min-width: 50px;
+  border-radius: 4px;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.3);
   display: flex;
@@ -863,10 +871,10 @@
 }
 
 .offer-item-content {
-  padding: 12px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .offer-amount, .offer-original-price, .offer-owner {
@@ -901,14 +909,8 @@
 
 /* Ensure buttons are properly sized and visible */
 .trade-panel-offer-item .trade-panel-button {
-  padding: 10px 16px;
+  margin-top: 12px;
   min-height: 44px;
-  width: 100%;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 8px;
 }
 
 /* Empty and error states */
@@ -1004,7 +1006,7 @@
 .trade-panel-tabs {
   display: flex;
   width: 100%;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--panel-border);
@@ -1099,4 +1101,19 @@
   flex: 1;
   min-height: 44px;
   font-size: 0.9rem;
+}
+
+/* Responsive adjustments to ensure visibility */
+@media (max-height: 700px) {
+  .trade-panel-header {
+    padding: 10px 16px;
+  }
+  
+  .trade-panel-content {
+    padding: 10px;
+  }
+  
+  .trade-panel-actions {
+    padding: 10px;
+  }
 } 
