@@ -61,6 +61,11 @@ exports.getTradeHistory = async (req, res) => {
 exports.getTradeDetails = async (req, res) => {
   try {
     const { tradeId } = req.params;
+    const userId = req.user._id.toString();
+
+    console.log(
+      `[TradeController] Fetching trade details for ID: ${tradeId}, requested by user: ${userId}`
+    );
 
     // Use enhanced trade service if Redis is enabled
     if (enhancedTradeService.isRedisEnabled) {
@@ -70,12 +75,22 @@ exports.getTradeDetails = async (req, res) => {
 
       const trade = await enhancedTradeService.getTradeById(tradeId);
 
+      // Check if trade exists
+      if (!trade) {
+        console.log(`[TradeController] Trade ${tradeId} not found in Redis`);
+        return res.status(404).json({
+          error: "Trade not found",
+        });
+      }
+
       // Check if user is authorized to view this trade
-      const userId = req.user._id.toString();
       if (
         trade.buyer.toString() !== userId &&
         trade.seller.toString() !== userId
       ) {
+        console.log(
+          `[TradeController] User ${userId} not authorized to view trade ${tradeId}`
+        );
         return res.status(403).json({
           error: "You are not authorized to view this trade",
         });
@@ -85,53 +100,58 @@ exports.getTradeDetails = async (req, res) => {
         success: true,
         trade,
       });
-    } else {
-      // Original implementation (unchanged)
-      const userId = req.user._id;
-
-      // Find the trade and populate related data
-      const trade = await Trade.findById(tradeId)
-        .populate("item")
-        .populate("buyer", "displayName avatar steamId tradeUrl")
-        .populate("seller", "displayName avatar steamId tradeUrl");
-
-      if (!trade) {
-        return res.status(404).json({ error: "Trade not found" });
-      }
-
-      // Verify the user is part of this trade
-      if (
-        (!trade.buyer || trade.buyer._id.toString() !== userId.toString()) &&
-        (!trade.seller || trade.seller._id.toString() !== userId.toString())
-      ) {
-        return res
-          .status(403)
-          .json({ error: "You don't have permission to view this trade" });
-      }
-
-      // Add flag to indicate if user is buyer or seller
-      const result = trade.toObject();
-      result.isUserBuyer =
-        trade.buyer && trade.buyer._id.toString() === userId.toString();
-      result.isUserSeller =
-        trade.seller && trade.seller._id.toString() === userId.toString();
-
-      // Handle missing item case - create a placeholder with stored details
-      if (!result.item || Object.keys(result.item).length === 0) {
-        // Use stored item details if available
-        result.item = {
-          marketHashName: result.itemName || "Unknown Item",
-          imageUrl:
-            result.itemImage ||
-            "https://community.cloudflare.steamstatic.com/economy/image/fWFc82js0fmoRAP-qOIPu5THSWqfSmTELLqcUywGkijVjZULUrsm1j-9xgEGegouTxTgsSxQt5M1V_eNC-VZzY89ssYDjGIzw1B_Z7PlMmQzJVGaVaUJC_Q7-Q28UiRh7pQ7VoLj9ewDKw_us4PAN7coOopJTMDWXvSGMF_860g60agOe8ONpyK-i3vuaGgCUg25_ToQnOKE6bBunMsoYhg/360fx360f",
-          wear: result.itemWear || "Unknown",
-          rarity: result.itemRarity || "Unknown",
-          assetId: result.assetId || "Unknown",
-        };
-      }
-
-      return res.json(result);
     }
+
+    // Original implementation (unchanged)
+    // Find the trade and populate related data
+    const trade = await Trade.findById(tradeId)
+      .populate("item")
+      .populate("buyer", "displayName avatar steamId tradeUrl")
+      .populate("seller", "displayName avatar steamId tradeUrl");
+
+    if (!trade) {
+      console.log(`[TradeController] Trade ${tradeId} not found in database`);
+      return res.status(404).json({ error: "Trade not found" });
+    }
+
+    console.log(`[TradeController] Found trade ${tradeId}, checking permissions:
+      - Buyer: ${trade.buyer ? trade.buyer._id : "undefined"} 
+      - Seller: ${trade.seller ? trade.seller._id : "undefined"}
+      - Requesting User: ${userId}`);
+
+    // Verify the user is part of this trade
+    const buyerIdStr = trade.buyer ? trade.buyer._id.toString() : undefined;
+    const sellerIdStr = trade.seller ? trade.seller._id.toString() : undefined;
+
+    if (buyerIdStr !== userId && sellerIdStr !== userId) {
+      console.log(
+        `[TradeController] User ${userId} not authorized to view trade ${tradeId}`
+      );
+      return res
+        .status(403)
+        .json({ error: "You don't have permission to view this trade" });
+    }
+
+    // Add flag to indicate if user is buyer or seller
+    const result = trade.toObject();
+    result.isUserBuyer = buyerIdStr === userId;
+    result.isUserSeller = sellerIdStr === userId;
+
+    // Handle missing item case - create a placeholder with stored details
+    if (!result.item || Object.keys(result.item).length === 0) {
+      // Use stored item details if available
+      result.item = {
+        marketHashName: result.itemName || "Unknown Item",
+        imageUrl:
+          result.itemImage ||
+          "https://community.cloudflare.steamstatic.com/economy/image/fWFc82js0fmoRAP-qOIPu5THSWqfSmTELLqcUywGkijVjZULUrsm1j-9xgEGegouTxTgsSxQt5M1V_eNC-VZzY89ssYDjGIzw1B_Z7PlMmQzJVGaVaUJC_Q7-Q28UiRh7pQ7VoLj9ewDKw_us4PAN7coOopJTMDWXvSGMF_860g60agOe8ONpyK-i3vuaGgCUg25_ToQnOKE6bBunMsoYhg/360fx360f",
+        wear: result.itemWear || "Unknown",
+        rarity: result.itemRarity || "Unknown",
+        assetId: result.assetId || "Unknown",
+      };
+    }
+
+    return res.json(result);
   } catch (error) {
     console.error(`Error fetching trade ${req.params.tradeId}:`, error);
     return res.status(500).json({
