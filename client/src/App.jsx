@@ -35,7 +35,6 @@ import LanguageSwitcher from './components/LanguageSwitcher';
 import PageWrapper from './components/PageWrapper';
 import ScrollToTop from './components/ScrollToTop';
 import ContactUs from './pages/ContactUs';
-import TradeSidePanelManager from './components/TradeSidePanelManager';
 
 // Import constants
 import { API_URL } from './config/constants';
@@ -43,12 +42,10 @@ import { API_URL } from './config/constants';
 // Import the axiosConfig
 import apiClient, { fetchUserDetails } from './services/axiosConfig';
 
-// Import styles for trade panels
+// Add imports for TradeSidePanel
+import TradeSidePanel from './components/TradeSidePanel';
 import './components/TradeSidePanel.css';
 import { useDispatch, useSelector } from 'react-redux';
-
-// Import fetchStats
-import { fetchStats } from './redux/slices/statsSlice';
 
 // Auth-protected route component
 const ProtectedRoute = ({ children }) => {
@@ -112,9 +109,29 @@ function AppContent() {
   const [userState, setUserState] = useState(null);
   const [loadingState, setLoadingState] = useState(true);
   
+  // Add state for the global trade side panel
+  const [tradeSidePanelOpen, setTradeSidePanelOpen] = useState(false);
+  const [activeTrade, setActiveTrade] = useState(null);
+  const [tradeSidePanelRole, setTradeSidePanelRole] = useState('seller');
+  
   // Redux setup
   const dispatch = useDispatch();
+  const sellerTradeOffer = useSelector(state => state.trades?.sellerTradeOffer);
   
+  // Listen for seller trade offer events from Redux
+  useEffect(() => {
+    if (sellerTradeOffer && sellerTradeOffer.tradeId) {
+      console.log('[App] Received seller trade offer in Redux:', sellerTradeOffer);
+      // Open the trade panel
+      setActiveTrade(sellerTradeOffer.tradeId);
+      setTradeSidePanelRole(sellerTradeOffer.role || 'seller');
+      setTradeSidePanelOpen(true);
+      
+      // Clear the Redux state
+      dispatch({ type: 'trades/clearSellerTradeOffer' });
+    }
+  }, [sellerTradeOffer, dispatch]);
+
   // Function to show a notification
   window.showNotification = (title, message, type = 'INFO', timeout = 5000) => {
     const id = Date.now().toString();
@@ -210,37 +227,56 @@ function AppContent() {
 
   // Handle socket connection status
   useEffect(() => {
-    // Add socket connection handlers
-    socketService.onConnected(() => {
-      setSocketConnected(true);
-      console.log('Socket connected');
-      
-      // Remove the toast notification that shows on socket connection
-      // toast.success('Socket connection established', {
-      //   icon: '🔌',
-      //   duration: 2000
-      // });
-    });
-    
-    socketService.onDisconnected(() => {
-      setSocketConnected(false);
-      console.log('Socket disconnected');
-    });
-    
-    // Connect if authenticated and not already connected
-    if (isAuthenticated && !socketConnected) {
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        socketService.connect(token);
+    const handleConnectionStatus = (status) => {
+      console.log('Socket connection status update:', status);
+      setSocketConnected(status.connected);
+
+      // Only show connection indicator when disconnected
+      if (!status.connected && !status.connecting) {
+        setShowConnectionIndicator(true);
+      } else if (status.connected) {
+        // Hide indicator after a delay when connected
+        setTimeout(() => {
+          setShowConnectionIndicator(false);
+        }, 3000);
       }
-    }
-    
-    // Cleanup socket listeners on unmount
-    return () => {
-      socketService.onConnected(null);
-      socketService.onDisconnected(null);
     };
-  }, [isAuthenticated, socketConnected]);
+
+    // Set up socket notification listener
+    const handleNotification = (data) => {
+      if (data && data.title && data.message) {
+        window.showNotification(
+          data.title,
+          data.message,
+          data.type || 'INFO',
+          data.timeout || 5000
+        );
+      }
+    };
+
+    // Register listeners
+    socketService.on('connection_status', handleConnectionStatus);
+    socketService.on('notification', handleNotification);
+
+    // Initial connection if needed
+    if (!socketService.isConnected()) {
+      // Add a small delay before initial connection to prevent race conditions
+      setTimeout(() => {
+        socketService.connect();
+      }, 100);
+    }
+
+    // Cleanup on unmount
+    return () => {
+      socketService.off('connection_status', handleConnectionStatus);
+      socketService.off('notification', handleNotification);
+      // Don't disconnect on unmount as it might be a route change
+      // Only disconnect if the app is actually being closed
+      if (window.isUnloading) {
+        socketService.disconnect();
+      }
+    };
+  }, []);
 
   // Add window unload handler
   useEffect(() => {
@@ -257,17 +293,8 @@ function AppContent() {
 
   // Handle logout
   const handleLogout = async () => {
-    if (socketService.isConnected()) {
-      socketService.disconnect();
-    }
-    
     await logout();
-    
-    // Force navigation to homepage
     navigate('/');
-    
-    // Show confirmation toast
-    toast.success('You have been logged out', { duration: 2000 });
   };
 
   // Refresh wallet balance (Used by Wallet and Profile pages)
@@ -382,21 +409,6 @@ function AppContent() {
     }
   };
 
-  // Add a new useEffect to fetch stats on app load
-  useEffect(() => {
-    // Fetch global stats for all users
-    dispatch(fetchStats());
-    
-    // Refresh stats periodically
-    const statsInterval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        dispatch(fetchStats());
-      }
-    }, 60000); // Every minute
-    
-    return () => clearInterval(statsInterval);
-  }, [dispatch]);
-
   return (
     <PageWrapper>
       <ScrollToTop />
@@ -465,8 +477,13 @@ function AppContent() {
         />
       )}
       
-      {/* Global trade side panel manager */}
-      <TradeSidePanelManager />
+      {/* Global trade side panel for handling offers */}
+      <TradeSidePanel 
+        isOpen={tradeSidePanelOpen}
+        onClose={() => setTradeSidePanelOpen(false)}
+        tradeId={activeTrade}
+        role={tradeSidePanelRole}
+      />
     </PageWrapper>
   );
 }

@@ -381,13 +381,11 @@ function Marketplace({ user }) {
   useEffect(() => {
     const handleConnected = () => {
       console.log('Socket connected');
-      // Remove toast notification on connection
-      // toast.success('Connection established', { duration: 2000 });
+      toast.success('Connection established', { duration: 2000 });
     };
     
     const handleDisconnected = () => {
       console.log('Socket disconnected');
-      // Keep this toast as it's useful for users to know when connection is lost
       toast.error('Connection lost', { duration: 3000 });
     };
     

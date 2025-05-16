@@ -202,9 +202,6 @@ const init = async (ioInstance) => {
     // Start periodic status broadcasts
     startPeriodicStatusBroadcasts();
 
-    // Set up Redis subscriptions for real-time updates
-    setupRedisSubscriptions();
-
     console.log("[socketService] Socket service initialized successfully");
   } catch (error) {
     console.error("[socketService] Error initializing socket service:", error);
@@ -910,126 +907,6 @@ const startPeriodicStatusBroadcasts = () => {
       );
     }
   }, 15000); // Every 15 seconds (reduced from 30 seconds)
-};
-
-/**
- * Sets up Redis subscriptions for real-time updates
- */
-const setupRedisSubscriptions = () => {
-  if (!isRedisEnabled || !subClient) {
-    console.log("[SocketService] Redis not available, skipping subscriptions");
-    return;
-  }
-
-  try {
-    console.log("[SocketService] Setting up Redis subscriptions");
-
-    // Subscribe to user status updates
-    subClient.subscribe(REDIS_CHANNEL_USER_STATUS, (err) => {
-      if (err) {
-        console.error(
-          "[SocketService] Error subscribing to user status channel:",
-          err
-        );
-      } else {
-        console.log("[SocketService] Subscribed to user status channel");
-      }
-    });
-
-    // Subscribe to notifications
-    subClient.subscribe(REDIS_CHANNEL_NOTIFICATIONS, (err) => {
-      if (err) {
-        console.error(
-          "[SocketService] Error subscribing to notifications channel:",
-          err
-        );
-      } else {
-        console.log("[SocketService] Subscribed to notifications channel");
-      }
-    });
-
-    // Subscribe to market updates
-    subClient.subscribe(REDIS_CHANNEL_MARKET_UPDATE, (err) => {
-      if (err) {
-        console.error(
-          "[SocketService] Error subscribing to market update channel:",
-          err
-        );
-      } else {
-        console.log("[SocketService] Subscribed to market update channel");
-      }
-    });
-
-    // Subscribe to trade updates
-    subClient.subscribe(REDIS_CHANNEL_TRADE_UPDATE, (err) => {
-      if (err) {
-        console.error(
-          "[SocketService] Error subscribing to trade update channel:",
-          err
-        );
-      } else {
-        console.log("[SocketService] Subscribed to trade update channel");
-      }
-    });
-
-    // Message handler for incoming Redis messages
-    subClient.on("message", (channel, message) => {
-      try {
-        const data = JSON.parse(message);
-
-        // Handle different channels
-        if (channel === REDIS_CHANNEL_USER_STATUS) {
-          _handleUserStatusUpdate(data);
-        } else if (channel === REDIS_CHANNEL_NOTIFICATIONS) {
-          _handleNotificationMessage(data);
-        } else if (channel === REDIS_CHANNEL_MARKET_UPDATE) {
-          _handleMarketUpdate(data);
-        } else if (channel === REDIS_CHANNEL_TRADE_UPDATE) {
-          _handleTradeUpdate(data);
-        }
-      } catch (error) {
-        console.error(
-          `[SocketService] Error processing Redis message on channel ${channel}:`,
-          error
-        );
-      }
-    });
-  } catch (error) {
-    console.error(
-      "[SocketService] Error setting up Redis subscriptions:",
-      error
-    );
-  }
-};
-
-/**
- * Handles trade updates from Redis
- * @param {Object} data - The trade update data
- * @private
- */
-const _handleTradeUpdate = (data) => {
-  if (!data || !data.tradeId) {
-    console.warn("[SocketService] Invalid trade update data:", data);
-    return;
-  }
-
-  console.log(
-    `[SocketService] Processing trade update for trade ${data.tradeId}`
-  );
-
-  // Broadcast to all connected clients (they'll filter relevance client-side)
-  if (io) {
-    io.emit("trade_update", data);
-  }
-
-  // If buyer/seller IDs are included, also send targeted notifications
-  if (data.buyerId) {
-    notifyUser(data.buyerId, "trade_update", data);
-  }
-
-  if (data.sellerId) {
-    notifyUser(data.sellerId, "trade_update", data);
-  }
 };
 
 module.exports = {

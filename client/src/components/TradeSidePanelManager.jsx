@@ -3,7 +3,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import TradeSidePanel from './TradeSidePanel';
 import socketService from '../services/socketService';
-import { fetchTradeDetails } from '../redux/slices/tradesSlice';
+import { fetchTradeDetails, clearSellerTradeOffer } from '../redux/slices/tradesSlice';
+import toast from 'react-hot-toast';
 
 /**
  * TradeSidePanelManager - Manages real-time trade side panels
@@ -21,25 +22,38 @@ const TradeSidePanelManager = () => {
   // Local state for active trade panels
   const [activeTradePanels, setActiveTradePanels] = useState([]);
   
-  // Handle new trade offers coming from socket
+  // Handle new trade offers coming from Redux
   useEffect(() => {
     if (sellerTradeOffer && sellerTradeOffer.tradeId) {
+      console.log("[TradeSidePanelManager] Received seller trade offer:", sellerTradeOffer);
+      
       // Check if this trade panel is already open
-      if (!activeTradePanels.some(panel => panel.tradeId === sellerTradeOffer.tradeId)) {
-        // Fetch the trade details
+      const existingPanel = activeTradePanels.find(panel => panel.tradeId === sellerTradeOffer.tradeId);
+      
+      if (!existingPanel) {
+        // Fetch the trade details first to ensure we have the data
         dispatch(fetchTradeDetails(sellerTradeOffer.tradeId));
         
-        // Add the new panel to active panels
-        setActiveTradePanels(prev => [
-          ...prev,
-          {
-            tradeId: sellerTradeOffer.tradeId,
-            role: sellerTradeOffer.role || 'seller',
-            isOpen: true
-          }
-        ]);
-      } else {
-        // If panel exists, make sure it's open
+        // Add the new panel with a slight delay to ensure data is loaded
+        setTimeout(() => {
+          setActiveTradePanels(prev => [
+            ...prev,
+            {
+              tradeId: sellerTradeOffer.tradeId,
+              role: sellerTradeOffer.role || 'seller',
+              isOpen: true
+            }
+          ]);
+          
+          // Show toast notification to confirm panel is opening
+          toast.success('New trade offer received! Panel opening automatically.', {
+            duration: 5000,
+            position: 'top-center',
+            icon: '💰',
+          });
+        }, 300);
+      } else if (existingPanel && !existingPanel.isOpen) {
+        // If panel exists but is closed, make it open again
         setActiveTradePanels(prev => 
           prev.map(panel => 
             panel.tradeId === sellerTradeOffer.tradeId 
@@ -47,13 +61,27 @@ const TradeSidePanelManager = () => {
               : panel
           )
         );
+        
+        // Show toast that we're reopening the panel
+        toast.success('Reopening trade offer panel!', {
+          duration: 3000,
+          position: 'top-right',
+        });
       }
+      
+      // Clear the sellerTradeOffer from Redux after processing
+      // Use a slight delay to avoid race conditions
+      setTimeout(() => {
+        dispatch(clearSellerTradeOffer());
+      }, 500);
     }
-  }, [sellerTradeOffer, dispatch]);
+  }, [sellerTradeOffer, dispatch, activeTradePanels]);
   
   // Subscribe to real-time trade updates via socket
   useEffect(() => {
     if (!socketService.isConnected() || !user) return;
+    
+    console.log("[TradeSidePanelManager] Setting up socket listeners for trade panels");
     
     // Handle trade status updates
     const handleTradeUpdate = (update) => {
@@ -78,8 +106,35 @@ const TradeSidePanelManager = () => {
       }
     };
     
+    // Handle new trade offers directly
+    const handleNewTradeOffer = (data) => {
+      console.log("[TradeSidePanelManager] Received direct trade offer:", data);
+      
+      // Only process if this user is the seller
+      if (user && user._id === data.sellerId) {
+        // Show toast notification
+        toast.success(`New offer from ${data.buyerName || 'a buyer'} for your "${data.itemName || 'item'}"!`, {
+          duration: 5000,
+          position: 'top-center',
+          icon: '💰',
+        });
+        
+        // Automatically open trade panel for seller
+        if (data.tradeId) {
+          // Check if panel is already open
+          if (!activeTradePanels.some(panel => panel.tradeId === data.tradeId)) {
+            handleOpenTradePanel(data.tradeId, 'seller');
+          }
+        }
+      }
+    };
+    
     // Listen for trade updates
     socketService.socket.on('trade_update', handleTradeUpdate);
+    
+    // Listen for new trade offers through multiple event types to ensure we catch them
+    socketService.socket.on('seller_trade_offer', handleNewTradeOffer);
+    socketService.socket.on('newTradeOffer', handleNewTradeOffer);
     
     // Setup socket for each active trade panel
     activeTradePanels.forEach(panel => {
@@ -93,8 +148,12 @@ const TradeSidePanelManager = () => {
     
     // Cleanup function
     return () => {
-      // Remove event listener
+      console.log("[TradeSidePanelManager] Cleaning up socket listeners");
+      
+      // Remove event listeners
       socketService.socket.off('trade_update', handleTradeUpdate);
+      socketService.socket.off('seller_trade_offer', handleNewTradeOffer);
+      socketService.socket.off('newTradeOffer', handleNewTradeOffer);
       
       // Unsubscribe from all active trade rooms
       activeTradePanels.forEach(panel => {
