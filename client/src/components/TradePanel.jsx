@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../utils/languageUtils';
 import { formatCurrency, API_URL } from '../config/constants';
 import '../styles/TradePanel.css';
-import { FaExchangeAlt } from 'react-icons/fa';
+import { FaExchangeAlt, FaInbox, FaPaperPlane } from 'react-icons/fa';
 
 // Animation variants
 const backdropVariants = {
@@ -73,10 +73,15 @@ const TradePanel = ({
   const [processingStage, setProcessingStage] = useState(0); // 0: initial, 1: processing, 2: success
   const [userProfile, setUserProfile] = useState(null);
   const [fetchingProfile, setFetchingProfile] = useState(false);
+  
   // State for managing offers list
-  const [offers, setOffers] = useState([]);
-  const [fetchingOffers, setFetchingOffers] = useState(false);
+  const [sentOffers, setSentOffers] = useState([]);
+  const [receivedOffers, setReceivedOffers] = useState([]);
+  const [fetchingSentOffers, setFetchingSentOffers] = useState(false);
+  const [fetchingReceivedOffers, setFetchingReceivedOffers] = useState(false);
   const [cancelingOffer, setCancelingOffer] = useState(null);
+  const [activeOffersTab, setActiveOffersTab] = useState('sent'); // 'sent' or 'received'
+  
   const panelRef = useRef(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -87,15 +92,21 @@ const TradePanel = ({
       fetchUserProfile();
       
       // Always fetch offers when panel opens to check for existing offers
-      fetchOffers();
+      if (action === 'offers') {
+        fetchSentOffers();
+        fetchReceivedOffers();
+      } else if (action === 'offer' && item?._id) {
+        // Only check for existing offers if we're making a new offer
+        fetchSentOffers();
+      }
     }
   }, [isOpen, action, item?._id]);
 
   // Before making an offer, check if we already have a pending offer for this item
   useEffect(() => {
-    if (isOpen && action === 'offer' && item?._id && offers.length > 0 && !fetchingOffers) {
-      const existingOffer = offers.find(
-        offer => offer.itemId === item._id && offer.status.toLowerCase() === 'pending'
+    if (isOpen && action === 'offer' && item?._id && sentOffers.length > 0 && !fetchingSentOffers) {
+      const existingOffer = sentOffers.find(
+        offer => offer.itemId === item._id && offer.status?.toLowerCase() === 'pending'
       );
       
       if (existingOffer) {
@@ -107,7 +118,7 @@ const TradePanel = ({
         }
       }
     }
-  }, [isOpen, action, item?._id, offers, fetchingOffers, error]);
+  }, [isOpen, action, item?._id, sentOffers, fetchingSentOffers, error]);
 
   // Fetch user profile to get trade URL
   const fetchUserProfile = async () => {
@@ -131,10 +142,10 @@ const TradePanel = ({
     }
   };
 
-  // Fetch offers made by the user
-  const fetchOffers = async () => {
+  // Fetch sent offers
+  const fetchSentOffers = async () => {
     try {
-      setFetchingOffers(true);
+      setFetchingSentOffers(true);
       setError(null);
       const response = await axios.get(`${API_URL}/offers/sent`, {
         withCredentials: true
@@ -156,12 +167,12 @@ const TradePanel = ({
           tradeId: offer.tradeId
         }));
         
-        setOffers(formattedOffers);
+        setSentOffers(formattedOffers);
         
-        // If we're in offer mode and have an item, check if there's a pending offer for it
+        // Check if we need to highlight existing offer
         if (action === 'offer' && item && item._id) {
           const existingOffer = formattedOffers.find(
-            offer => offer.itemId === item._id && offer.status.toLowerCase() === 'pending'
+            offer => offer.itemId === item._id && offer.status?.toLowerCase() === 'pending'
           );
           
           if (existingOffer) {
@@ -169,13 +180,48 @@ const TradePanel = ({
           }
         }
       } else {
-        setOffers([]);
+        setSentOffers([]);
       }
     } catch (err) {
-      console.error('Error fetching offers:', err);
-      setError('Failed to load your offers. Please try again.');
+      console.error('Error fetching sent offers:', err);
+      setError('Failed to load your sent offers. Please try again.');
     } finally {
-      setFetchingOffers(false);
+      setFetchingSentOffers(false);
+    }
+  };
+
+  // Fetch received offers
+  const fetchReceivedOffers = async () => {
+    try {
+      setFetchingReceivedOffers(true);
+      const response = await axios.get(`${API_URL}/offers/received`, {
+        withCredentials: true
+      });
+      
+      if (Array.isArray(response.data)) {
+        // Map the response to a consistent format
+        const formattedOffers = response.data.map(offer => ({
+          _id: offer.offerId,
+          itemId: offer.itemId,
+          itemName: offer.itemName || 'Unknown Item',
+          itemImage: offer.itemImage,
+          offeredBy: offer.offeredBy,
+          amount: offer.offerAmount,
+          currency: offer.offerCurrency || 'USD',
+          message: offer.message,
+          createdAt: offer.createdAt,
+          expiresAt: offer.expiresAt
+        }));
+        
+        setReceivedOffers(formattedOffers);
+      } else {
+        setReceivedOffers([]);
+      }
+    } catch (err) {
+      console.error('Error fetching received offers:', err);
+      // Don't set global error for this one as it's a secondary fetch
+    } finally {
+      setFetchingReceivedOffers(false);
     }
   };
 
@@ -229,33 +275,128 @@ const TradePanel = ({
       setCancelingOffer(offerId);
       setError(null);
       
+      // First try to get the item ID for this offer
+      const offerToCancel = sentOffers.find(o => o._id === offerId);
+      
+      if (!offerToCancel) {
+        throw new Error('Offer not found');
+      }
+      
       const response = await axios.put(
         `${API_URL}/offers/${offerId}/cancel`,
         {},
         { withCredentials: true }
       );
       
-      // Update the local state to reflect the cancellation
-      setOffers(prevOffers => 
-        prevOffers.map(offer => 
-          offer._id === offerId 
-            ? { ...offer, status: 'cancelled' } 
-            : offer
-        )
-      );
-      
-      if (window.showNotification) {
-        window.showNotification(
-          'Offer Cancelled',
-          'Your offer has been cancelled successfully.',
-          'INFO'
+      if (response.data.success) {
+        // Update the local state to reflect the cancellation
+        setSentOffers(prevOffers => 
+          prevOffers.map(offer => 
+            offer._id === offerId 
+              ? { ...offer, status: 'cancelled' } 
+              : offer
+          )
         );
+        
+        // Show success notification
+        if (window.showNotification) {
+          window.showNotification(
+            'Offer Cancelled',
+            'Your offer has been cancelled successfully.',
+            'INFO'
+          );
+        }
+      } else {
+        throw new Error(response.data.error || 'Failed to cancel offer');
       }
     } catch (err) {
       console.error('Error cancelling offer:', err);
-      setError(err.response?.data?.error || 'Failed to cancel offer');
+      setError(err.response?.data?.error || err.message || 'Failed to cancel offer');
+      
+      // Show error notification
+      if (window.showNotification) {
+        window.showNotification(
+          'Error',
+          err.response?.data?.error || err.message || 'Failed to cancel offer',
+          'ERROR'
+        );
+      }
     } finally {
       setCancelingOffer(null);
+    }
+  };
+
+  // Handle accepting an offer
+  const handleAcceptOffer = async (itemId, offerId) => {
+    try {
+      setLoading(true);
+      
+      const response = await axios.put(
+        `${API_URL}/offers/${itemId}/${offerId}/accept`,
+        {},
+        { withCredentials: true }
+      );
+      
+      if (response.data.success) {
+        // Update the local state
+        setReceivedOffers(prevOffers => 
+          prevOffers.filter(offer => offer._id !== offerId)
+        );
+        
+        // Show success notification
+        if (window.showNotification) {
+          window.showNotification(
+            'Offer Accepted',
+            'You have accepted the offer. The trade process has begun.',
+            'SUCCESS'
+          );
+        }
+        
+        // Redirect to trade page if available
+        if (response.data.tradeId) {
+          navigate(`/trades/${response.data.tradeId}`);
+          onClose();
+        }
+      }
+    } catch (err) {
+      console.error('Error accepting offer:', err);
+      setError(err.response?.data?.error || 'Failed to accept offer');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle declining an offer
+  const handleDeclineOffer = async (itemId, offerId) => {
+    try {
+      setLoading(true);
+      
+      const response = await axios.put(
+        `${API_URL}/offers/${itemId}/${offerId}/decline`,
+        {},
+        { withCredentials: true }
+      );
+      
+      if (response.data.success) {
+        // Update the local state
+        setReceivedOffers(prevOffers => 
+          prevOffers.filter(offer => offer._id !== offerId)
+        );
+        
+        // Show success notification
+        if (window.showNotification) {
+          window.showNotification(
+            'Offer Declined',
+            'You have declined the offer.',
+            'INFO'
+          );
+        }
+      }
+    } catch (err) {
+      console.error('Error declining offer:', err);
+      setError(err.response?.data?.error || 'Failed to decline offer');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -638,7 +779,7 @@ const TradePanel = ({
       case 'offer':
         return t('trade.make_offer');
       case 'offers':
-        return 'My Offers';
+        return 'Trade Offers';
       default:
         return t('trade.trade_panel');
     }
@@ -724,114 +865,237 @@ const TradePanel = ({
 
   // Render offers list view
   const renderOffersView = () => {
-    if (fetchingOffers) {
-      return (
-        <div className="trade-panel-loading">
-          <div className="spinner"></div>
-          <p>Loading your offers...</p>
-        </div>
-      );
-    }
-    
-    if (error) {
-      return (
-        <div className="trade-panel-error-state">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-          <p>{error}</p>
-          <button className="trade-panel-button" onClick={fetchOffers}>Try Again</button>
-        </div>
-      );
-    }
-    
-    if (!offers || offers.length === 0) {
-      return (
-        <div className="trade-panel-empty-state">
-          <FaExchangeAlt size={40} style={{ color: 'var(--panel-text-secondary)', opacity: 0.7, marginBottom: '16px' }} />
-          <h3>No Offers Found</h3>
-          <p>You don't have any offers at the moment. Browse the marketplace to make offers on items.</p>
-        </div>
-      );
-    }
-
-    // Sort offers by status: pending first, then accepted, then others
-    const sortedOffers = [...offers].sort((a, b) => {
-      const statusOrder = { 'pending': 0, 'accepted': 1 };
-      const statusA = statusOrder[a.status?.toLowerCase()] ?? 2;
-      const statusB = statusOrder[b.status?.toLowerCase()] ?? 2;
-      
-      if (statusA !== statusB) {
-        return statusA - statusB;
-      }
-      
-      // If status is the same, sort by date (newest first)
-      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-    });
-    
-    return (
-      <div className="trade-panel-offers-list">
-        {sortedOffers.map((offer) => (
-          <div key={offer._id} className="trade-panel-offer-item">
-            <div className="offer-item-header">
-              <div className="offer-item-img">
-                {offer.itemImage ? (
-                  <img src={offer.itemImage} alt={offer.itemName} />
-                ) : (
-                  <div className="placeholder-img"></div>
-                )}
-              </div>
-              <div className="offer-item-details">
-                <h4 className="offer-item-name">{offer.itemName || 'Unknown Item'}</h4>
-                <div className="offer-item-meta">
-                  <span className="offer-timestamp">{offer.createdAt ? formatDate(offer.createdAt) : 'Unknown date'}</span>
-                  <span className={`offer-status ${getStatusClass(offer.status || 'unknown')}`}>
-                    {getStatusText(offer.status || 'unknown')}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="offer-item-content">
-              <div className="offer-amount">
-                <span className="label">Your Offer:</span>
-                <span className="value">{formatCurrency(offer.amount || 0, offer.currency || 'USD')}</span>
-              </div>
-              {offer.originalPrice && (
-                <div className="offer-original-price">
-                  <span className="label">Listed Price:</span>
-                  <span className="value">{formatCurrency(offer.originalPrice, offer.currency || 'USD')}</span>
-                </div>
-              )}
-              {offer.owner && (
-                <div className="offer-owner">
-                  <span className="label">Seller:</span>
-                  <span className="value">{offer.owner.displayName || 'Unknown'}</span>
-                </div>
-              )}
-              {offer.status?.toLowerCase() === 'pending' && (
-                <button 
-                  className="trade-panel-button trade-panel-button-danger"
-                  onClick={() => handleCancelOffer(offer._id)}
-                  disabled={cancelingOffer === offer._id}
-                >
-                  {cancelingOffer === offer._id ? 'Cancelling...' : 'Cancel Offer'}
-                </button>
-              )}
-              {offer.status?.toLowerCase() === 'accepted' && offer.tradeId && (
-                <button 
-                  className="trade-panel-button trade-panel-button-primary"
-                  onClick={() => navigate(`/trades/${offer.tradeId}`)}
-                >
-                  View Trade
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+    // Render tabs for switching between sent and received offers
+    const renderTabs = () => (
+      <div className="trade-panel-tabs">
+        <button 
+          className={`trade-panel-tab ${activeOffersTab === 'sent' ? 'active' : ''}`}
+          onClick={() => setActiveOffersTab('sent')}
+        >
+          <FaPaperPlane size={16} />
+          <span>Sent Offers</span>
+          {sentOffers.filter(o => o.status?.toLowerCase() === 'pending').length > 0 && (
+            <span className="trade-panel-tab-badge">
+              {sentOffers.filter(o => o.status?.toLowerCase() === 'pending').length}
+            </span>
+          )}
+        </button>
+        <button 
+          className={`trade-panel-tab ${activeOffersTab === 'received' ? 'active' : ''}`}
+          onClick={() => setActiveOffersTab('received')}
+        >
+          <FaInbox size={16} />
+          <span>Received Offers</span>
+          {receivedOffers.length > 0 && (
+            <span className="trade-panel-tab-badge">
+              {receivedOffers.length}
+            </span>
+          )}
+        </button>
       </div>
     );
+
+    // Check if we're loading or if there's an error
+    if (activeOffersTab === 'sent' && fetchingSentOffers || activeOffersTab === 'received' && fetchingReceivedOffers) {
+      return (
+        <>
+          {renderTabs()}
+          <div className="trade-panel-loading">
+            <div className="spinner"></div>
+            <p>Loading your offers...</p>
+          </div>
+        </>
+      );
+    }
+    
+    if (error && activeOffersTab === 'sent') {
+      return (
+        <>
+          {renderTabs()}
+          <div className="trade-panel-error-state">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <p>{error}</p>
+            <button className="trade-panel-button" onClick={fetchSentOffers}>Try Again</button>
+          </div>
+        </>
+      );
+    }
+    
+    // Render sent offers
+    if (activeOffersTab === 'sent') {
+      if (!sentOffers || sentOffers.length === 0) {
+        return (
+          <>
+            {renderTabs()}
+            <div className="trade-panel-empty-state">
+              <FaPaperPlane size={40} style={{ color: 'var(--panel-text-secondary)', opacity: 0.7, marginBottom: '16px' }} />
+              <h3>No Sent Offers</h3>
+              <p>You haven't made any offers yet. Browse the marketplace to make offers on items.</p>
+            </div>
+          </>
+        );
+      }
+
+      // Sort sent offers by status: pending first, then accepted, then others
+      const sortedOffers = [...sentOffers].sort((a, b) => {
+        const statusOrder = { 'pending': 0, 'accepted': 1 };
+        const statusA = statusOrder[a.status?.toLowerCase()] ?? 2;
+        const statusB = statusOrder[b.status?.toLowerCase()] ?? 2;
+        
+        if (statusA !== statusB) {
+          return statusA - statusB;
+        }
+        
+        // If status is the same, sort by date (newest first)
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      });
+      
+      return (
+        <>
+          {renderTabs()}
+          <div className="trade-panel-offers-list">
+            {sortedOffers.map((offer) => (
+              <div key={offer._id} className="trade-panel-offer-item">
+                <div className="offer-item-header">
+                  <div className="offer-item-img">
+                    {offer.itemImage ? (
+                      <img src={offer.itemImage} alt={offer.itemName} />
+                    ) : (
+                      <div className="placeholder-img"></div>
+                    )}
+                  </div>
+                  <div className="offer-item-details">
+                    <h4 className="offer-item-name">{offer.itemName || 'Unknown Item'}</h4>
+                    <div className="offer-item-meta">
+                      <span className="offer-timestamp">{offer.createdAt ? formatDate(offer.createdAt) : 'Unknown date'}</span>
+                      <span className={`offer-status ${getStatusClass(offer.status || 'unknown')}`}>
+                        {getStatusText(offer.status || 'unknown')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="offer-item-content">
+                  <div className="offer-amount">
+                    <span className="label">Your Offer:</span>
+                    <span className="value">{formatCurrency(offer.amount || 0, offer.currency || 'USD')}</span>
+                  </div>
+                  {offer.originalPrice && (
+                    <div className="offer-original-price">
+                      <span className="label">Listed Price:</span>
+                      <span className="value">{formatCurrency(offer.originalPrice, offer.currency || 'USD')}</span>
+                    </div>
+                  )}
+                  {offer.owner && (
+                    <div className="offer-owner">
+                      <span className="label">Seller:</span>
+                      <span className="value">{offer.owner.displayName || 'Unknown'}</span>
+                    </div>
+                  )}
+                  {offer.status?.toLowerCase() === 'pending' && (
+                    <button 
+                      className="trade-panel-button trade-panel-button-danger"
+                      onClick={() => handleCancelOffer(offer._id)}
+                      disabled={cancelingOffer === offer._id}
+                    >
+                      {cancelingOffer === offer._id ? 'Cancelling...' : 'Cancel Offer'}
+                    </button>
+                  )}
+                  {offer.status?.toLowerCase() === 'accepted' && offer.tradeId && (
+                    <button 
+                      className="trade-panel-button trade-panel-button-primary"
+                      onClick={() => navigate(`/trades/${offer.tradeId}`)}
+                    >
+                      View Trade
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      );
+    }
+    
+    // Render received offers
+    if (activeOffersTab === 'received') {
+      if (!receivedOffers || receivedOffers.length === 0) {
+        return (
+          <>
+            {renderTabs()}
+            <div className="trade-panel-empty-state">
+              <FaInbox size={40} style={{ color: 'var(--panel-text-secondary)', opacity: 0.7, marginBottom: '16px' }} />
+              <h3>No Received Offers</h3>
+              <p>You haven't received any offers yet.</p>
+            </div>
+          </>
+        );
+      }
+      
+      return (
+        <>
+          {renderTabs()}
+          <div className="trade-panel-offers-list">
+            {receivedOffers.map((offer) => (
+              <div key={offer._id} className="trade-panel-offer-item">
+                <div className="offer-item-header">
+                  <div className="offer-item-img">
+                    {offer.itemImage ? (
+                      <img src={offer.itemImage} alt={offer.itemName} />
+                    ) : (
+                      <div className="placeholder-img"></div>
+                    )}
+                  </div>
+                  <div className="offer-item-details">
+                    <h4 className="offer-item-name">{offer.itemName || 'Unknown Item'}</h4>
+                    <div className="offer-item-meta">
+                      <span className="offer-timestamp">{offer.createdAt ? formatDate(offer.createdAt) : 'Unknown date'}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="offer-item-content">
+                  <div className="offer-amount">
+                    <span className="label">Offer Amount:</span>
+                    <span className="value">{formatCurrency(offer.amount || 0, offer.currency || 'USD')}</span>
+                  </div>
+                  {offer.offeredBy && (
+                    <div className="offer-owner">
+                      <span className="label">From:</span>
+                      <span className="value">{offer.offeredBy.displayName || 'Unknown User'}</span>
+                    </div>
+                  )}
+                  {offer.message && (
+                    <div className="offer-message">
+                      <span className="label">Message:</span>
+                      <p className="message-content">{offer.message}</p>
+                    </div>
+                  )}
+                  <div className="offer-action-buttons">
+                    <button 
+                      className="trade-panel-button trade-panel-button-primary"
+                      onClick={() => handleAcceptOffer(offer.itemId, offer._id)}
+                      disabled={loading}
+                    >
+                      {loading ? 'Processing...' : 'Accept Offer'}
+                    </button>
+                    <button 
+                      className="trade-panel-button trade-panel-button-danger"
+                      onClick={() => handleDeclineOffer(offer.itemId, offer._id)}
+                      disabled={loading}
+                    >
+                      {loading ? 'Processing...' : 'Decline'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      );
+    }
   };
 
   // Render content based on action and state
@@ -1416,9 +1680,9 @@ const TradePanel = ({
           </button>
           <button 
             className="trade-panel-button trade-panel-button-primary"
-            onClick={fetchOffers}
+            onClick={fetchSentOffers}
           >
-            {fetchingOffers ? 'Loading...' : 'Refresh Offers'}
+            {fetchingSentOffers ? 'Loading...' : 'Refresh Offers'}
           </button>
         </>
       );
@@ -1437,9 +1701,9 @@ const TradePanel = ({
           </button>
           <button 
             className="trade-panel-button trade-panel-button-primary"
-            onClick={fetchOffers}
+            onClick={fetchSentOffers}
           >
-            {fetchingOffers ? 'Loading...' : 'Refresh Offers'}
+            {fetchingSentOffers ? 'Loading...' : 'Refresh Offers'}
           </button>
         </>
       );
@@ -1519,7 +1783,7 @@ const TradePanel = ({
                   {action === 'offers' && (
                     <>
                       <FaExchangeAlt size={20} color="var(--panel-accent)" />
-                      <span>My Offers</span>
+                      <span>Trade Offers</span>
                     </>
                   )}
                 </div>

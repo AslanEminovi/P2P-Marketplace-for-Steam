@@ -866,7 +866,7 @@
   padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .offer-amount, .offer-original-price, .offer-owner {
@@ -897,6 +897,18 @@
   font-size: 0.9rem;
   color: var(--panel-text);
   font-weight: 500;
+}
+
+/* Ensure buttons are properly sized and visible */
+.trade-panel-offer-item .trade-panel-button {
+  padding: 10px 16px;
+  min-height: 44px;
+  width: 100%;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
 }
 
 /* Empty and error states */
@@ -986,4 +998,105 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* TradePanel Tabs for Sent/Received Offers */
+.trade-panel-tabs {
+  display: flex;
+  width: 100%;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.trade-panel-tab {
+  flex: 1;
+  padding: 14px 0;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--panel-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.trade-panel-tab.active {
+  background: var(--panel-card-bg);
+  color: var(--panel-text);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.trade-panel-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--panel-accent);
+}
+
+.trade-panel-tab:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--panel-text);
+}
+
+.trade-panel-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-accent);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+}
+
+/* Offer message styling */
+.offer-message {
+  padding: 6px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.offer-message .label {
+  font-size: 0.9rem;
+  color: var(--panel-text-secondary);
+}
+
+.message-content {
+  font-size: 0.9rem;
+  color: var(--panel-text);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 12px;
+  border-radius: 8px;
+  margin: 0;
+  line-height: 1.5;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Offer action buttons layout */
+.offer-action-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.offer-action-buttons .trade-panel-button {
+  flex: 1;
+  min-height: 44px;
+  font-size: 0.9rem;
 } 
