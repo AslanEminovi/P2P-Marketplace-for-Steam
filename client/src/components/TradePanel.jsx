@@ -579,19 +579,19 @@ const TradePanel = ({
     }
   };
 
-  // Get title based on action and state
+  // Helper to get the panel title based on action
   const getTitle = () => {
-    if (success) return 'Success';
-    
-    switch (action) {
+    switch(action) {
       case 'buy':
-        return confirmationStep ? t('common.confirm') : t('tradePanel.buyNow');
+        return t('trade.buy_item');
+      case 'sell':
+        return t('trade.sell_item');
       case 'offer':
-        return t('tradePanel.makeOffer');
+        return t('trade.make_offer');
       case 'offers':
-        return t('tradePanel.your_offers');
+        return 'My Offers';
       default:
-        return t('tradePanel.title');
+        return t('trade.trade_panel');
     }
   };
 
@@ -702,18 +702,31 @@ const TradePanel = ({
       return (
         <div className="trade-panel-empty-state">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
-            <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+            <path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 0C1.46 6.7 1.33 10.28 4 13l8 8 8-8c2.67-2.72 2.54-6.3.42-8.42z"></path>
           </svg>
           <h3>No Offers Found</h3>
           <p>You don't have any offers at the moment. Browse the marketplace to make offers on items.</p>
         </div>
       );
     }
+
+    // Sort offers by status: pending first, then accepted, then others
+    const sortedOffers = [...offers].sort((a, b) => {
+      const statusOrder = { 'pending': 0, 'accepted': 1 };
+      const statusA = statusOrder[a.status.toLowerCase()] ?? 2;
+      const statusB = statusOrder[b.status.toLowerCase()] ?? 2;
+      
+      if (statusA !== statusB) {
+        return statusA - statusB;
+      }
+      
+      // If status is the same, sort by date (newest first)
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
     
     return (
       <div className="trade-panel-offers-list">
-        {offers.map((offer) => (
+        {sortedOffers.map((offer) => (
           <div key={offer._id} className="trade-panel-offer-item">
             <div className="offer-item-header">
               <div className="offer-item-img">
