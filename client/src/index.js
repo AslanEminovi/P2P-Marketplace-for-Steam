@@ -12,8 +12,9 @@ import "bootstrap/dist/js/bootstrap.bundle.min";
 import "./services/axiosConfig";
 import reportWebVitals from "./reportWebVitals";
 
-// Import global services
-import "./services/socketService";
+// Initialize any global services
+import socketService from "./services/socketService";
+socketService.init();
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(

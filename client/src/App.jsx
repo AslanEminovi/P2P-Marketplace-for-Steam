@@ -42,11 +42,6 @@ import { API_URL } from './config/constants';
 // Import the axiosConfig
 import apiClient, { fetchUserDetails } from './services/axiosConfig';
 
-// Add imports for TradeSidePanel
-import TradeSidePanel from './components/TradeSidePanel';
-import './components/TradeSidePanel.css';
-import { useDispatch, useSelector } from 'react-redux';
-
 // Auth-protected route component
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, user, loading } = useAuth();
@@ -108,29 +103,6 @@ function AppContent() {
   const navigate = useNavigate();
   const [userState, setUserState] = useState(null);
   const [loadingState, setLoadingState] = useState(true);
-  
-  // Add state for the global trade side panel
-  const [tradeSidePanelOpen, setTradeSidePanelOpen] = useState(false);
-  const [activeTrade, setActiveTrade] = useState(null);
-  const [tradeSidePanelRole, setTradeSidePanelRole] = useState('seller');
-  
-  // Redux setup
-  const dispatch = useDispatch();
-  const sellerTradeOffer = useSelector(state => state.trades?.sellerTradeOffer);
-  
-  // Listen for seller trade offer events from Redux
-  useEffect(() => {
-    if (sellerTradeOffer && sellerTradeOffer.tradeId) {
-      console.log('[App] Received seller trade offer in Redux:', sellerTradeOffer);
-      // Open the trade panel
-      setActiveTrade(sellerTradeOffer.tradeId);
-      setTradeSidePanelRole(sellerTradeOffer.role || 'seller');
-      setTradeSidePanelOpen(true);
-      
-      // Clear the Redux state
-      dispatch({ type: 'trades/clearSellerTradeOffer' });
-    }
-  }, [sellerTradeOffer, dispatch]);
 
   // Function to show a notification
   window.showNotification = (title, message, type = 'INFO', timeout = 5000) => {
@@ -476,14 +448,6 @@ function AppContent() {
           onComplete={handleRegistrationComplete}
         />
       )}
-      
-      {/* Global trade side panel for handling offers */}
-      <TradeSidePanel 
-        isOpen={tradeSidePanelOpen}
-        onClose={() => setTradeSidePanelOpen(false)}
-        tradeId={activeTrade}
-        role={tradeSidePanelRole}
-      />
     </PageWrapper>
   );
 }

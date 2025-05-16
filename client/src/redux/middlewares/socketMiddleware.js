@@ -9,7 +9,6 @@ import {
   fetchTrades,
   fetchActiveTradesAsync,
   fetchTradeHistoryAsync,
-  setSellerTradeOffer,
 } from "../slices/tradesSlice";
 
 // Socket middleware to connect Socket.io events with Redux
@@ -189,113 +188,42 @@ export const setupSocketListeners = (store) => {
     socketService.socket.on("trade_update", (update) => {
       console.log("[socketMiddleware] Received trade update:", update);
 
-      // Dispatch socketTradeUpdate action to update trade in store
+      // Dispatch to Redux store to update trade state
       store.dispatch(socketTradeUpdate(update));
 
-      // Show notification for trade status changes that require user attention
-      if (update.status || update.action) {
-        // Get current user to check if notification should be shown
-        const state = store.getState();
-        const currentUser = state.auth.user;
+      // If update includes status change, also update local status
+      if (update.tradeId && update.status) {
+        store.dispatch(
+          updateLocalTradeStatus({
+            tradeId: update.tradeId,
+            status: update.status,
+            statusHistory: update.statusHistory,
+          })
+        );
 
-        if (!currentUser) return;
+        // Refresh the specific trade details to get the complete updated data
+        store.dispatch(fetchTradeDetails(update.tradeId));
 
-        // Only show notifications for trades this user is involved in
-        const isUserInvolved =
-          (update.buyer && update.buyer._id === currentUser._id) ||
-          (update.seller && update.seller._id === currentUser._id) ||
-          update.buyerId === currentUser._id ||
-          update.sellerId === currentUser._id;
-
-        if (!isUserInvolved) return;
-
-        let notificationTitle = "";
-        let notificationMessage = "";
-        let notificationType = "INFO";
-
-        // Determine notification based on trade status
-        switch (update.status) {
-          case "created":
-          case "pending":
-            if (update.seller && update.seller._id === currentUser._id) {
-              notificationTitle = "New Trade Offer";
-              notificationMessage = `You have received a new trade offer for ${
-                update.item?.name || "an item"
-              }`;
-              notificationType = "INFO";
-            }
-            break;
-
-          case "awaiting_seller":
-            if (update.buyer && update.buyer._id === currentUser._id) {
-              notificationTitle = "Offer Accepted";
-              notificationMessage = `Your offer for ${
-                update.item?.name || "an item"
-              } has been accepted`;
-              notificationType = "SUCCESS";
-            } else if (update.seller && update.seller._id === currentUser._id) {
-              notificationTitle = "Action Required";
-              notificationMessage = `Please send the item to complete the trade`;
-              notificationType = "WARNING";
-            }
-            break;
-
-          case "awaiting_buyer":
-            if (update.buyer && update.buyer._id === currentUser._id) {
-              notificationTitle = "Item Sent";
-              notificationMessage = `Seller has sent the item. Please confirm when received.`;
-              notificationType = "WARNING";
-            }
-            break;
-
-          case "completed":
-            notificationTitle = "Trade Completed";
-            notificationMessage = `The trade for ${
-              update.item?.name || "an item"
-            } has been completed successfully`;
-            notificationType = "SUCCESS";
-            break;
-
-          case "cancelled":
-          case "rejected":
-            notificationTitle = "Trade Cancelled";
-            notificationMessage = `The trade for ${
-              update.item?.name || "an item"
-            } has been cancelled`;
-            notificationType = "ERROR";
-            break;
-
-          default:
-            // Don't show notification for other statuses
-            return;
+        // If this is a completion or cancellation event, refresh all trades
+        const finalStatuses = ["completed", "cancelled", "rejected", "expired"];
+        if (finalStatuses.includes(update.status)) {
+          // After a small delay to allow the DB to update
+          setTimeout(() => {
+            // Use the async thunk actions for more targeted updates
+            store.dispatch(fetchActiveTradesAsync());
+            store.dispatch(fetchTradeHistoryAsync());
+          }, 1000);
+        } else {
+          // For non-final status updates, just refresh active trades
+          setTimeout(() => {
+            store.dispatch(fetchActiveTradesAsync());
+          }, 500);
         }
 
-        // Show notification if we have a title and message
-        if (notificationTitle && notificationMessage) {
-          store.dispatch(
-            addNotification({
-              id: Date.now(),
-              title: notificationTitle,
-              message: notificationMessage,
-              type: notificationType,
-              link: `/trades/${update.tradeId || update._id}`,
-              read: false,
-              createdAt: new Date().toISOString(),
-            })
-          );
+        // Also update stats after any trade status change
+        if (socketService.requestStatsUpdate) {
+          setTimeout(() => socketService.requestStatsUpdate(), 1000);
         }
-      }
-
-      // If trade status is completed or cancelled, refresh trade lists
-      if (
-        update.status &&
-        ["completed", "cancelled", "rejected"].includes(update.status)
-      ) {
-        // Small delay to ensure backend processing is complete
-        setTimeout(() => {
-          store.dispatch(fetchActiveTradesAsync());
-          store.dispatch(fetchTradeHistoryAsync());
-        }, 1000);
       }
     });
 
@@ -305,49 +233,6 @@ export const setupSocketListeners = (store) => {
 
       // Update global stats
       store.dispatch(updateStats(stats));
-    });
-
-    // Handle seller trade offers - opens trade panel for sellers
-    socketService.socket.on("seller_trade_offer", (offerData) => {
-      console.log("[socketMiddleware] Received seller trade offer:", offerData);
-
-      // Get current user to check if the offer is for this seller
-      const state = store.getState();
-      const currentUser = state.auth.user;
-
-      if (!currentUser || currentUser._id !== offerData.sellerId) {
-        console.log(
-          "[socketMiddleware] Trade offer not for this user, ignoring"
-        );
-        return;
-      }
-
-      // Fetch trade details to ensure we have complete data
-      store.dispatch(fetchTradeDetails(offerData.tradeId));
-
-      // Ensure there's a notification for this trade offer
-      store.dispatch(
-        addNotification({
-          id: Date.now(),
-          title: "New Trade Offer",
-          message: `You received a new offer for ${
-            offerData.itemName || "an item"
-          }`,
-          type: "INFO",
-          link: `/trades/${offerData.tradeId}`,
-          read: false,
-          createdAt: new Date().toISOString(),
-        })
-      );
-
-      // Dispatch event to notify app that a seller trade offer arrived
-      // This will be handled by App.jsx to open the trade panel
-      store.dispatch(
-        setSellerTradeOffer({
-          tradeId: offerData.tradeId,
-          role: "seller",
-        })
-      );
     });
   });
 };

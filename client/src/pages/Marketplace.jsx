@@ -19,8 +19,6 @@ import TradeUrlPrompt from '../components/TradeUrlPrompt';
 import LiveActivityFeed from '../components/LiveActivityFeed';
 import SocketConnectionIndicator from '../components/SocketConnectionIndicator';
 import SellModal from '../components/SellModal';
-import TradeSidePanel from '../components/TradeSidePanel';
-import '../components/TradeSidePanel.css';
 
 // Add CSS for refresh animation
 const styles = `
@@ -62,9 +60,6 @@ function Marketplace({ user }) {
   const [showActivityFeed, setShowActivityFeed] = useState(true);
   const itemsPerPage = 12;
   const [showSellModal, setShowSellModal] = useState(false);
-  const [tradeSidePanelOpen, setTradeSidePanelOpen] = useState(false);
-  const [activeTrade, setActiveTrade] = useState(null);
-  const [tradeSidePanelRole, setTradeSidePanelRole] = useState('buyer');
   
   // Add style tag for animations
   useEffect(() => {
@@ -415,24 +410,9 @@ function Marketplace({ user }) {
   };
 
   // Handle item action (buy/offer)
-  const handleItemAction = (action, item) => {
-    setSelectedItem(item);
-    
-    if (action === 'details') {
-      setSelectedItemId(item._id);
-      setItemDetailsOpen(true);
-    } else if (action === 'buy' || action === 'offer') {
-      // If user has no trade URL, prompt for it
-      if (user && (!userProfile || !userProfile.tradeUrl)) {
-        setTradeAction(action);
-        setShowTradeUrlPrompt(true);
-      } else {
-        setTradeAction(action);
-        setTradePanelOpen(true);
-      }
-    } else if (action === 'sell') {
-      setShowSellModal(true);
-    }
+  const handleItemAction = (action) => {
+    setTradeAction(action);
+    setTradePanelOpen(true);
   };
 
   // Handle trade completion
@@ -539,19 +519,6 @@ function Marketplace({ user }) {
     }, 0);
 
     return (total / items.length).toFixed(2);
-  };
-
-  // Add a function to handle successful trade creation
-  const handleTradeCreated = (data) => {
-    // Set active trade and open side panel
-    if (data.tradeId) {
-      setActiveTrade(data.tradeId);
-      setTradeSidePanelRole(data.role || 'buyer');
-      setTradeSidePanelOpen(true);
-      
-      // Fetch items after successful trade to update the listing
-      fetchItems();
-    }
   };
 
   // Render header section
@@ -891,7 +858,7 @@ function Marketplace({ user }) {
             item={selectedItem}
             isOpen={itemDetailsOpen}
             onClose={() => setItemDetailsOpen(false)}
-            onAction={(action) => handleItemAction(action, selectedItem)}
+            onAction={handleItemAction}
           />
         )}
       </AnimatePresence>
@@ -906,19 +873,6 @@ function Marketplace({ user }) {
             onComplete={(data) => {
               // Handle trade completion
               if (data && data.success) {
-                // Open the trade side panel if trade was created
-                if (data.tradeId) {
-                  handleTradeCreated({
-                    tradeId: data.tradeId,
-                    role: 'buyer'
-                  });
-                }
-                
-                // Close the trade panel with a slight delay
-                setTimeout(() => {
-                  setTradePanelOpen(false);
-                }, 500);
-                
                 // Refresh items after successful trade
                 fetchItems();
               }
@@ -956,14 +910,6 @@ function Marketplace({ user }) {
       />
       
       {renderUserListingsButton()}
-
-      {/* Include the TradeSidePanel component */}
-      <TradeSidePanel
-        isOpen={tradeSidePanelOpen}
-        onClose={() => setTradeSidePanelOpen(false)}
-        tradeId={activeTrade}
-        role={tradeSidePanelRole}
-      />
     </div>
   );
 }

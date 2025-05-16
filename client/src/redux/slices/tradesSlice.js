@@ -56,7 +56,6 @@ const initialState = {
     totalValue: 0,
   },
   lastFetched: null,
-  sellerTradeOffer: null,
 };
 
 // Async thunks for trades
@@ -463,12 +462,6 @@ const tradesSlice = createSlice({
       state.currentTrade = null;
       state.detailsLoading = false;
     },
-    setSellerTradeOffer: (state, action) => {
-      state.sellerTradeOffer = action.payload;
-    },
-    clearSellerTradeOffer: (state) => {
-      state.sellerTradeOffer = null;
-    },
   },
   extraReducers: (builder) => {
     builder
@@ -665,8 +658,6 @@ export const {
   socketTradeUpdate,
   clearTradeError,
   resetCurrentTrade,
-  setSellerTradeOffer,
-  clearSellerTradeOffer,
 } = tradesSlice.actions;
 
 export default tradesSlice.reducer;
