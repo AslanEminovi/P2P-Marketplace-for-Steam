@@ -15,7 +15,7 @@ import logo from '../assets/cs-logo.png';
 // import csLogo from '../assets/cs-logo.png';
 
 // Navbar now receives user and onLogout as props
-const Navbar = ({ user, onLogout }) => {
+const Navbar = ({ user, onLogout, openOffersPanel }) => {
   const { isAuthenticated, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -368,6 +368,27 @@ const Navbar = ({ user, onLogout }) => {
 
                 {/* Profile and notification container with fixes for layout */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  {/* Trade Panel Button */}
+                  <button 
+                    className="navbar-icon-button" 
+                    onClick={openOffersPanel}
+                    title="Your Offers"
+                  >
+                    <div className="icon-container">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                      </svg>
+                      {pendingTradesCount > 0 && (
+                        <span className="badge">{pendingTradesCount}</span>
+                      )}
+                    </div>
+                  </button>
+                  
+                  {/* Notification Center (existing) */}
+                  <NotificationCenter user={user} />
+                  
+                  {/* Rest of the user section (profile, etc.) */}
                   <div className="dropdown-wrapper" style={{ marginRight: '8px' }}>
                     <button 
                       ref={profileBtnRef}
@@ -477,6 +498,20 @@ const Navbar = ({ user, onLogout }) => {
                             My Profile
                           </NavLink>
                           
+                          <button 
+                            className="dropdown-menu-item button-style"
+                            onClick={() => {
+                              setDropdownOpen(false);
+                              openOffersPanel();
+                            }}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="12" y1="1" x2="12" y2="23"></line>
+                              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                            </svg>
+                            My Offers
+                          </button>
+                          
                           <NavLink to="/inventory" className="dropdown-menu-item" onClick={() => setDropdownOpen(false)}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -552,9 +587,6 @@ const Navbar = ({ user, onLogout }) => {
                       </div>
                     )}
                   </div>
-                  
-                  {/* Add notification center NEXT TO profile button */}
-                  {user && <NotificationCenter user={user} />}
                 </div>
               </div>
             ) : (
@@ -607,7 +639,7 @@ const Navbar = ({ user, onLogout }) => {
               <span>Sell Items</span>
             </NavLink>
             
-            {user && (
+            {user && isAuthenticated && (
               <>
                 <NavLink to="/inventory" className={({ isActive }) => 
                 isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
@@ -621,7 +653,7 @@ const Navbar = ({ user, onLogout }) => {
                 My Inventory
               </NavLink>
               
-              <NavLink to="/trades" className={({ isActive }) => 
+                <NavLink to="/trades" className={({ isActive }) => 
                 isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
               }>
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -633,7 +665,7 @@ const Navbar = ({ user, onLogout }) => {
                 My Trades
               </NavLink>
               
-              <NavLink to="/profile" className={({ isActive }) => 
+                <NavLink to="/profile" className={({ isActive }) => 
                 isActive ? 'mobile-menu-link active' : 'mobile-menu-link'
               }>
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -642,7 +674,21 @@ const Navbar = ({ user, onLogout }) => {
                 </svg>
                 My Profile
               </NavLink>
-            </>
+              
+                <button 
+                  className="mobile-menu-link" 
+                  onClick={() => {
+                    openOffersPanel();
+                    setMobileOpen(false); // Close mobile menu
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                  </svg>
+                  My Offers
+                </button>
+              </>
             )}
           
             <NavLink to="/faq" className={({ isActive }) => 

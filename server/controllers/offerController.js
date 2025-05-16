@@ -198,11 +198,9 @@ exports.acceptOffer = async (req, res) => {
     }
 
     if (item.owner.toString() !== req.user._id.toString()) {
-      return res
-        .status(403)
-        .json({
-          error: "You don't have permission to accept offers for this item.",
-        });
+      return res.status(403).json({
+        error: "You don't have permission to accept offers for this item.",
+      });
     }
 
     // Find the specific offer
@@ -212,11 +210,9 @@ exports.acceptOffer = async (req, res) => {
     }
 
     if (offer.status !== "pending") {
-      return res
-        .status(400)
-        .json({
-          error: `Offer cannot be accepted because it is ${offer.status}.`,
-        });
+      return res.status(400).json({
+        error: `Offer cannot be accepted because it is ${offer.status}.`,
+      });
     }
 
     // Get the buyer
@@ -237,28 +233,22 @@ exports.acceptOffer = async (req, res) => {
     );
 
     if (!seller.steamLoginSecure) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "You need to re-authenticate with Steam to accept offers. Please update your Steam login secure token.",
-        });
+      return res.status(400).json({
+        error:
+          "You need to re-authenticate with Steam to accept offers. Please update your Steam login secure token.",
+      });
     }
 
     if (!seller.tradeUrl) {
-      return res
-        .status(400)
-        .json({
-          error: "You need to set up your trade URL before accepting offers.",
-        });
+      return res.status(400).json({
+        error: "You need to set up your trade URL before accepting offers.",
+      });
     }
 
     if (!item.assetId) {
-      return res
-        .status(400)
-        .json({
-          error: "This item doesn't have a valid Asset ID for trading.",
-        });
+      return res.status(400).json({
+        error: "This item doesn't have a valid Asset ID for trading.",
+      });
     }
 
     try {
@@ -392,11 +382,9 @@ exports.declineOffer = async (req, res) => {
     }
 
     if (offer.status !== "pending") {
-      return res
-        .status(400)
-        .json({
-          error: `Offer cannot be declined because it is ${offer.status}.`,
-        });
+      return res.status(400).json({
+        error: `Offer cannot be declined because it is ${offer.status}.`,
+      });
     }
 
     // Update offer status
@@ -460,12 +448,10 @@ exports.createCounterOffer = async (req, res) => {
 
     // Verify ownership
     if (item.owner.toString() !== req.user._id.toString()) {
-      return res
-        .status(403)
-        .json({
-          error:
-            "You don't have permission to make counter offers for this item.",
-        });
+      return res.status(403).json({
+        error:
+          "You don't have permission to make counter offers for this item.",
+      });
     }
 
     // Find the specific offer
@@ -475,11 +461,9 @@ exports.createCounterOffer = async (req, res) => {
     }
 
     if (originalOffer.status !== "pending") {
-      return res
-        .status(400)
-        .json({
-          error: `Cannot counter an offer that is ${originalOffer.status}.`,
-        });
+      return res.status(400).json({
+        error: `Cannot counter an offer that is ${originalOffer.status}.`,
+      });
     }
 
     // Update original offer status to counter-offered
@@ -542,12 +526,10 @@ exports.checkTradeOffers = async (req, res) => {
     const user = await User.findById(userId).select("+steamLoginSecure");
 
     if (!user.steamLoginSecure) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "You need to provide your Steam login secure token to check trade offers.",
-        });
+      return res.status(400).json({
+        error:
+          "You need to provide your Steam login secure token to check trade offers.",
+      });
     }
 
     const steamApiService = require("../services/steamApiService");
@@ -632,5 +614,119 @@ exports.updateTradeUrl = async (req, res) => {
   } catch (err) {
     console.error("Update trade URL error:", err);
     return res.status(500).json({ error: "Failed to update trade URL." });
+  }
+};
+
+// GET /offers/user - Get all offers made by the current user
+exports.getUserOffers = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Find all items where the user has made an offer
+    const Item = mongoose.model("Item");
+    const items = await Item.find({
+      "offers.user": userId,
+    });
+
+    // Extract the offers this user has made from all items
+    const userOffers = [];
+
+    items.forEach((item) => {
+      item.offers.forEach((offer) => {
+        if (offer.user.toString() === userId.toString()) {
+          userOffers.push({
+            _id: offer._id,
+            itemId: item._id,
+            itemName: item.marketHashName,
+            itemImage: item.imageUrl,
+            amount: offer.offerAmount,
+            currency: offer.offerCurrency,
+            originalPrice: item.price,
+            status: offer.status,
+            createdAt: offer.createdAt,
+            tradeId: offer.tradeId, // If an offer was accepted, it might have a trade ID
+          });
+        }
+      });
+    });
+
+    // Sort by creation date (newest first)
+    userOffers.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    return res.json({
+      success: true,
+      offers: userOffers,
+    });
+  } catch (err) {
+    console.error("Get user offers error:", err);
+    return res.status(500).json({ error: "Failed to fetch your offers." });
+  }
+};
+
+// PUT /offers/:offerId/cancel - Cancel a pending offer
+exports.cancelOffer = async (req, res) => {
+  try {
+    const { offerId } = req.params;
+    const userId = req.user._id;
+
+    // Find the item containing this offer
+    const Item = mongoose.model("Item");
+    const item = await Item.findOne({ "offers._id": offerId });
+
+    if (!item) {
+      return res.status(404).json({ error: "Offer not found." });
+    }
+
+    // Find the specific offer
+    const offer = item.offers.find((o) => o._id.toString() === offerId);
+
+    if (!offer) {
+      return res.status(404).json({ error: "Offer not found." });
+    }
+
+    // Verify the offer belongs to the user
+    if (offer.user.toString() !== userId.toString()) {
+      return res
+        .status(403)
+        .json({ error: "You do not have permission to cancel this offer." });
+    }
+
+    // Verify the offer is in a state that can be cancelled
+    if (offer.status !== "pending") {
+      return res.status(400).json({
+        error: "This offer cannot be cancelled as it is no longer pending.",
+        status: offer.status,
+      });
+    }
+
+    // Update the offer status
+    offer.status = "cancelled";
+
+    // Save the item
+    await item.save();
+
+    // Add notification for the seller
+    const User = mongoose.model("User");
+    const seller = await User.findById(item.owner);
+
+    if (seller) {
+      seller.notifications.push({
+        type: "offer",
+        title: "Offer Cancelled",
+        message: `An offer on your item ${item.marketHashName} was cancelled by the buyer.`,
+        link: `/marketplace/item/${item._id}`,
+        relatedItemId: item._id,
+        read: false,
+      });
+      await seller.save();
+    }
+
+    return res.json({
+      success: true,
+      message: "Offer cancelled successfully.",
+    });
+  } catch (err) {
+    console.error("Cancel offer error:", err);
+    return res.status(500).json({ error: "Failed to cancel offer." });
   }
 };

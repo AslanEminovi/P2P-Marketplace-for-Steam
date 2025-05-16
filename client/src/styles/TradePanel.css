@@ -738,4 +738,247 @@
 /* For use with color utilities */
 .text-gray-400 {
   color: rgba(156, 163, 175, 0.7);
+}
+
+/* Offers List Styling */
+.trade-panel-offers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px;
+  margin-top: 8px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+}
+
+.trade-panel-offer-item {
+  background: var(--panel-card-bg);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.trade-panel-offer-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  border-color: var(--panel-border);
+}
+
+.offer-item-header {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.offer-item-img {
+  width: 64px;
+  height: 64px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.offer-item-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.placeholder-img {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--panel-text-secondary);
+  font-size: 24px;
+  background: linear-gradient(145deg, rgba(0, 0, 0, 0.3), rgba(30, 30, 50, 0.3));
+}
+
+.offer-item-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.offer-item-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--panel-text);
+  margin: 0 0 8px 0;
+  line-height: 1.2;
+}
+
+.offer-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--panel-text-secondary);
+}
+
+.offer-timestamp {
+  font-size: 0.8rem;
+  color: var(--panel-text-secondary);
+  white-space: nowrap;
+}
+
+.offer-status {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-pending {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.status-accepted {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-declined, .status-cancelled {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.status-default {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--panel-text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.offer-item-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.offer-amount, .offer-original-price {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.offer-amount .label, .offer-original-price .label {
+  font-size: 0.9rem;
+  color: var(--panel-text-secondary);
+}
+
+.offer-amount .value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--panel-text);
+}
+
+.offer-original-price .value {
+  font-size: 0.9rem;
+  color: var(--panel-text-secondary);
+  text-decoration: line-through;
+}
+
+/* Empty and error states */
+.trade-panel-empty-state, .trade-panel-error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--panel-text-secondary);
+  height: 100%;
+  min-height: 300px;
+}
+
+.trade-panel-empty-state svg, .trade-panel-error-state svg {
+  color: var(--panel-text-secondary);
+  opacity: 0.7;
+  margin-bottom: 16px;
+}
+
+.trade-panel-empty-state h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--panel-text);
+}
+
+.trade-panel-empty-state p, .trade-panel-error-state p {
+  font-size: 0.9rem;
+  max-width: 280px;
+  line-height: 1.5;
+}
+
+.trade-panel-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  min-height: 300px;
+}
+
+.trade-panel-loading .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(124, 58, 237, 0.3);
+  border-radius: 50%;
+  border-top-color: var(--panel-accent);
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+.trade-panel-loading p {
+  color: var(--panel-text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Button variants */
+.trade-panel-button-primary {
+  background: var(--panel-accent);
+  color: white;
+}
+
+.trade-panel-button-primary:hover:not(:disabled) {
+  background: var(--panel-accent-hover);
+}
+
+.trade-panel-button-secondary {
+  background: var(--panel-button-secondary);
+  color: white;
+}
+
+.trade-panel-button-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.trade-panel-button-danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.trade-panel-button-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 } 

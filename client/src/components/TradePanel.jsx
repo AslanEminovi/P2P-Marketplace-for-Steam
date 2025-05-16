@@ -58,7 +58,7 @@ const TradePanel = ({
   isOpen, 
   onClose, 
   item, 
-  action, // 'buy', 'sell', 'offer', etc.
+  action, // 'buy', 'sell', 'offer', 'offers', etc.
   onComplete
 }) => {
   const [loading, setLoading] = useState(false);
@@ -72,6 +72,10 @@ const TradePanel = ({
   const [processingStage, setProcessingStage] = useState(0); // 0: initial, 1: processing, 2: success
   const [userProfile, setUserProfile] = useState(null);
   const [fetchingProfile, setFetchingProfile] = useState(false);
+  // State for managing offers list
+  const [offers, setOffers] = useState([]);
+  const [fetchingOffers, setFetchingOffers] = useState(false);
+  const [cancelingOffer, setCancelingOffer] = useState(null);
   const panelRef = useRef(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -80,8 +84,11 @@ const TradePanel = ({
   useEffect(() => {
     if (isOpen) {
       fetchUserProfile();
+      if (action === 'offers') {
+        fetchOffers();
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, action]);
 
   // Fetch user profile to get trade URL
   const fetchUserProfile = async () => {
@@ -105,16 +112,37 @@ const TradePanel = ({
     }
   };
 
+  // Fetch offers made by the user
+  const fetchOffers = async () => {
+    try {
+      setFetchingOffers(true);
+      setError(null);
+      const response = await axios.get(`${API_URL}/offers/user`, {
+        withCredentials: true
+      });
+      
+      setOffers(response.data.offers || []);
+    } catch (err) {
+      console.error('Error fetching offers:', err);
+      setError('Failed to load your offers. Please try again.');
+    } finally {
+      setFetchingOffers(false);
+    }
+  };
+
   // Reset state when panel opens
   useEffect(() => {
-    if (isOpen && item) {
+    if (isOpen) {
       setError(null);
       setSuccess(null);
       setConfirmationStep(false);
       setProcessingStage(0);
-      setOfferAmount(item.price ? item.price.toString() : '');
+      
+      if (item && action !== 'offers') {
+        setOfferAmount(item.price ? item.price.toString() : '');
+      }
     }
-  }, [isOpen, item]);
+  }, [isOpen, item, action]);
 
   // Close on escape key
   useEffect(() => {
@@ -124,13 +152,12 @@ const TradePanel = ({
       }
     };
     window.addEventListener('keydown', handleEsc);
-    
     return () => {
       window.removeEventListener('keydown', handleEsc);
     };
   }, [onClose]);
 
-  // Close when clicking outside the panel
+  // Close panel when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (panelRef.current && !panelRef.current.contains(event.target)) {
@@ -141,20 +168,102 @@ const TradePanel = ({
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen, onClose]);
 
-  // Validate trade URL format
-  const validateTradeUrl = (url) => {
-    if (!url) return false;
+  // Handle canceling a pending offer
+  const handleCancelOffer = async (offerId) => {
+    try {
+      setCancelingOffer(offerId);
+      setError(null);
+      
+      const response = await axios.put(
+        `${API_URL}/offers/${offerId}/cancel`,
+        {},
+        { withCredentials: true }
+      );
+      
+      // Update the local state to reflect the cancellation
+      setOffers(prevOffers => 
+        prevOffers.map(offer => 
+          offer._id === offerId 
+            ? { ...offer, status: 'cancelled' } 
+            : offer
+        )
+      );
+      
+      if (window.showNotification) {
+        window.showNotification(
+          'Offer Cancelled',
+          'Your offer has been cancelled successfully.',
+          'INFO'
+        );
+      }
+    } catch (err) {
+      console.error('Error cancelling offer:', err);
+      setError(err.response?.data?.error || 'Failed to cancel offer');
+    } finally {
+      setCancelingOffer(null);
+    }
+  };
+
+  // Format date for better readability
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     
-    // Improved validation for Steam trade URLs
-    // Must contain the correct domain and required parameters
-    const steamTradeUrlRegex = /https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=[0-9]+&token=[a-zA-Z0-9_-]+/;
-    return steamTradeUrlRegex.test(url);
+    if (diffDays === 0) {
+      return 'Today at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (diffDays === 1) {
+      return 'Yesterday at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (diffDays < 7) {
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      return days[date.getDay()] + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else {
+      return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+  };
+
+  // Get CSS class for offer status
+  const getStatusClass = (status) => {
+    switch (status.toLowerCase()) {
+      case 'accepted':
+        return 'status-accepted';
+      case 'pending':
+        return 'status-pending';
+      case 'declined':
+      case 'cancelled':
+        return 'status-declined';
+      default:
+        return 'status-default';
+    }
+  };
+
+  // Helper to get status text
+  const getStatusText = (status) => {
+    switch (status.toLowerCase()) {
+      case 'accepted':
+        return 'Accepted';
+      case 'pending':
+        return 'Pending';
+      case 'declined':
+        return 'Declined';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return status;
+    }
+  };
+
+  // Helper to validate trade URL
+  const validateTradeUrl = (url) => {
+    // Basic validation for Steam trade URL format
+    return url.includes('steamcommunity.com/tradeoffer/new');
   };
 
   // Handle buy item
@@ -479,6 +588,8 @@ const TradePanel = ({
         return confirmationStep ? t('common.confirm') : t('tradePanel.buyNow');
       case 'offer':
         return t('tradePanel.makeOffer');
+      case 'offers':
+        return t('tradePanel.your_offers');
       default:
         return t('tradePanel.title');
     }
@@ -562,8 +673,106 @@ const TradePanel = ({
     }
   };
 
+  // Render offers list view
+  const renderOffersView = () => {
+    if (fetchingOffers) {
+      return (
+        <div className="trade-panel-loading">
+          <div className="spinner"></div>
+          <p>Loading your offers...</p>
+        </div>
+      );
+    }
+    
+    if (error) {
+      return (
+        <div className="trade-panel-error-state">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <p>{error}</p>
+          <button className="trade-panel-button" onClick={fetchOffers}>Try Again</button>
+        </div>
+      );
+    }
+    
+    if (offers.length === 0) {
+      return (
+        <div className="trade-panel-empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+            <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+          </svg>
+          <h3>No Offers Found</h3>
+          <p>You don't have any offers at the moment. Browse the marketplace to make offers on items.</p>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="trade-panel-offers-list">
+        {offers.map((offer) => (
+          <div key={offer._id} className="trade-panel-offer-item">
+            <div className="offer-item-header">
+              <div className="offer-item-img">
+                {offer.itemImage ? (
+                  <img src={offer.itemImage} alt={offer.itemName} />
+                ) : (
+                  <div className="placeholder-img"></div>
+                )}
+              </div>
+              <div className="offer-item-details">
+                <h4 className="offer-item-name">{offer.itemName || 'Unknown Item'}</h4>
+                <div className="offer-item-meta">
+                  <span className="offer-timestamp">{formatDate(offer.createdAt)}</span>
+                  <span className={`offer-status ${getStatusClass(offer.status)}`}>
+                    {getStatusText(offer.status)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="offer-item-content">
+              <div className="offer-amount">
+                <span className="label">Your Offer:</span>
+                <span className="value">{formatCurrency(offer.amount, offer.currency)}</span>
+              </div>
+              {offer.originalPrice && (
+                <div className="offer-original-price">
+                  <span className="label">Listed Price:</span>
+                  <span className="value">{formatCurrency(offer.originalPrice, offer.currency)}</span>
+                </div>
+              )}
+              {offer.status === 'pending' && (
+                <button 
+                  className="trade-panel-button trade-panel-button-danger"
+                  onClick={() => handleCancelOffer(offer._id)}
+                  disabled={cancelingOffer === offer._id}
+                >
+                  {cancelingOffer === offer._id ? 'Cancelling...' : 'Cancel Offer'}
+                </button>
+              )}
+              {offer.status === 'accepted' && offer.tradeId && (
+                <button 
+                  className="trade-panel-button trade-panel-button-primary"
+                  onClick={() => navigate(`/trades/${offer.tradeId}`)}
+                >
+                  View Trade
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   // Render content based on action and state
   const renderContent = () => {
+    if (action === 'offers') {
+      return renderOffersView();
+    }
     // If trade was successful, show success message - now handled by processing stage
     if (processingStage > 0) {
       return renderProcessingStage();
@@ -1129,6 +1338,47 @@ const TradePanel = ({
       );
     }
     
+    // Offers flow - initial
+    if (action === 'offers' && !confirmationStep) {
+      return (
+        <>
+          <button 
+            className="trade-panel-button trade-panel-button-secondary"
+            onClick={onClose}
+          >
+            Close
+          </button>
+          <button 
+            className="trade-panel-button trade-panel-button-primary"
+            onClick={fetchOffers}
+          >
+            {fetchingOffers ? 'Loading...' : 'Refresh Offers'}
+          </button>
+        </>
+      );
+    }
+    
+    // Offers flow - confirmation
+    if (action === 'offers' && confirmationStep) {
+      return (
+        <>
+          <button 
+            className="trade-panel-button trade-panel-button-secondary"
+            onClick={() => setConfirmationStep(false)}
+            disabled={loading}
+          >
+            Back
+          </button>
+          <button 
+            className="trade-panel-button trade-panel-button-primary"
+            onClick={fetchOffers}
+          >
+            {fetchingOffers ? 'Loading...' : 'Refresh Offers'}
+          </button>
+        </>
+      );
+    }
+    
     // Default
     return (
       <button 
@@ -1172,7 +1422,12 @@ const TradePanel = ({
               exit="exit"
             >
               {/* Header */}
-              <motion.div className="trade-panel-header">
+              <motion.div
+                className="trade-panel-header"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
+              >
                 <div className="trade-panel-title">
                   {action === 'buy' && (
                     <>
@@ -1181,7 +1436,7 @@ const TradePanel = ({
                         <circle cx="20" cy="21" r="1"></circle>
                         <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
                       </svg>
-                      <span>Buy Item</span>
+                      <span>{t('trade.buy_item')}</span>
                     </>
                   )}
                   
@@ -1191,22 +1446,17 @@ const TradePanel = ({
                         <line x1="12" y1="1" x2="12" y2="23"></line>
                         <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                       </svg>
-                      <span>Make Offer</span>
+                      <span>{t('trade.make_offer')}</span>
                     </>
                   )}
                   
-                  {action === 'sell' && (
+                  {action === 'offers' && (
                     <>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 1v22"></path>
-                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                       </svg>
-                      <span>Sell Item</span>
+                      <span>{t('trade.your_offers')}</span>
                     </>
-                  )}
-                  
-                  {confirmationStep && (
-                    <span className="trade-panel-badge badge-offer">Confirmation</span>
                   )}
                 </div>
                 

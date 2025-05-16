@@ -12,6 +12,7 @@ import LiveActivityFeed from './components/LiveActivityFeed';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import SteamRegistrationModal from './components/SteamRegistrationModal';
 import TradeTrackingPanelManager from './components/TradeTrackingPanelManager';
+import TradePanel from './components/TradePanel';
 
 // Pages
 import Home from './pages/Home';
@@ -104,6 +105,9 @@ function AppContent() {
   const navigate = useNavigate();
   const [userState, setUserState] = useState(null);
   const [loadingState, setLoadingState] = useState(true);
+  const [tradePanelOpen, setTradePanelOpen] = useState(false);
+  const [tradePanelAction, setTradePanelAction] = useState(null);
+  const [tradePanelItem, setTradePanelItem] = useState(null);
 
   // Function to show a notification
   window.showNotification = (title, message, type = 'INFO', timeout = 5000) => {
@@ -382,6 +386,18 @@ function AppContent() {
     }
   };
 
+  // Function to open trade panel in offers mode
+  const openOffersPanel = () => {
+    setTradePanelItem(null);
+    setTradePanelAction('offers');
+    setTradePanelOpen(true);
+  };
+
+  // Function to close trade panel
+  const closeTradePanelHandler = () => {
+    setTradePanelOpen(false);
+  };
+
   return (
     <PageWrapper>
       <ScrollToTop />
@@ -395,7 +411,7 @@ function AppContent() {
       </div>
       <div className="app-container">
         <Toaster position="top-right" />
-        <Navbar user={user} onLogout={handleLogout} />
+        <Navbar user={user} onLogout={handleLogout} openOffersPanel={openOffersPanel} />
         <main className="main-content">
           <Routes>
             <Route path="/" element={<Home user={user} />} />
@@ -452,6 +468,18 @@ function AppContent() {
       
       {/* Trade Tracking Panel Manager */}
       <TradeTrackingPanelManager />
+
+      {/* Trade Panel */}
+      <TradePanel
+        isOpen={tradePanelOpen}
+        onClose={closeTradePanelHandler}
+        item={tradePanelItem}
+        action={tradePanelAction}
+        onComplete={(data) => {
+          // Handle completion (e.g., show notification)
+          setTradePanelOpen(false);
+        }}
+      />
     </PageWrapper>
   );
 }

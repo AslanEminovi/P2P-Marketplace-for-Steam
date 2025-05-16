@@ -29,4 +29,10 @@ router.post("/steam/login-secure", offerController.updateSteamLoginSecure);
 router.post("/steam/trade-url", offerController.updateTradeUrl);
 router.get("/steam/trade-offers", offerController.checkTradeOffers);
 
+// Get all offers for the current user
+router.get("/user", offerController.getUserOffers);
+
+// Cancel a pending offer
+router.put("/:offerId/cancel", offerController.cancelOffer);
+
 module.exports = router;
