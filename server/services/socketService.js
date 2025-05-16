@@ -24,10 +24,14 @@ const REDIS_CHANNEL_NOTIFICATIONS = "notifications";
 const REDIS_CHANNEL_USER_STATUS = "user_status";
 const REDIS_CHANNEL_MARKET_UPDATE = "market_update";
 const REDIS_CHANNEL_TRADE_UPDATE = "trade_update";
+const REDIS_CHANNEL_OFFER_UPDATE = "offer_update"; // New channel for offer updates
 
 // Check if Redis is enabled
 let isRedisEnabled =
   !!process.env.REDIS_URL && process.env.USE_REDIS !== "false";
+
+// Track connected users
+const connectedUsers = new Map();
 
 /**
  * Initialize the socket service with the given io instance
@@ -53,6 +57,36 @@ const init = async (ioInstance) => {
     // Set up socket connection handler
     io.on("connection", (socket) => {
       console.log(`[socketService] New socket connection: ${socket.id}`);
+
+      // Handle authentication to track users
+      socket.on("authenticate", (token) => {
+        authenticateAndTrackUser(socket, token);
+      });
+
+      // Track disconnection
+      socket.on("disconnect", () => {
+        handleSocketDisconnect(socket);
+      });
+
+      // Handle direct trade panel open request
+      socket.on("openTradePanel", (options) => {
+        if (socket.userId) {
+          // Broadcast to all sockets of this user
+          const userSocketIds = [...connectedUsers.entries()]
+            .filter(([_, id]) => id === socket.userId)
+            .map(([socketId]) => socketId);
+
+          userSocketIds.forEach((socketId) => {
+            if (socketId !== socket.id) {
+              // Don't send back to same socket
+              const targetSocket = io.sockets.sockets.get(socketId);
+              if (targetSocket) {
+                targetSocket.emit("openTradePanel", options);
+              }
+            }
+          });
+        }
+      });
 
       // Let the UserStatusManager handle the connection
       userStatusManager.handleConnection(socket);
@@ -544,119 +578,141 @@ const emitUserActivity = (activity) => {
 };
 
 /**
+ * Notify a user about an offer-related event
+ * @param {string} userId - The user ID to notify
+ * @param {Object} offerData - The offer data
+ */
+const notifyOfferUpdate = (userId, offerData) => {
+  try {
+    if (!userId || !offerData) {
+      console.error(
+        "[socketService] Missing userId or offerData for notifyOfferUpdate"
+      );
+      return;
+    }
+
+    console.log(
+      `[socketService] Sending offer update to user ${userId}:`,
+      offerData.type
+    );
+
+    // First, build the emit data
+    const emitData = {
+      ...offerData,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Find all sockets for this user
+    const userSocketIds = [...connectedUsers.entries()]
+      .filter(([_, id]) => id === userId)
+      .map(([socketId]) => socketId);
+
+    if (userSocketIds.length > 0) {
+      // Emit directly to each socket
+      userSocketIds.forEach((socketId) => {
+        const socket = io.sockets.sockets.get(socketId);
+        if (socket) {
+          console.log(
+            `[socketService] Emitting offer_update to socket ${socketId} for user ${userId}`
+          );
+          socket.emit("offer_update", emitData);
+        }
+      });
+    } else {
+      console.log(
+        `[socketService] User ${userId} not connected, can't send offer_update`
+      );
+    }
+
+    // If Redis is enabled, also publish to the offer_update channel
+    if (isRedisEnabled && pubClient) {
+      pubClient.publish(
+        REDIS_CHANNEL_OFFER_UPDATE,
+        JSON.stringify({
+          userId,
+          data: emitData,
+        })
+      );
+    }
+  } catch (error) {
+    console.error("[socketService] Error in notifyOfferUpdate:", error);
+  }
+};
+
+/**
  * Send a notification to a specific user
- * @param {string} userId - The user ID to send the notification to
- * @param {Object} notification - The notification object
+ * @param {string} userId - The user ID to send notification to
+ * @param {Object} notification - The notification data
  */
 const sendNotification = (userId, notification) => {
-  if (!userId || !notification) {
-    console.warn("Invalid userId or notification");
-    return;
-  }
-
-  // Add unique ID and timestamp if not present
-  const enrichedNotification = {
-    ...notification,
-    _id: notification._id || new mongoose.Types.ObjectId().toString(), // Generate a unique ID
-    timestamp: notification.timestamp || new Date().toISOString(),
-    createdAt: notification.createdAt || new Date(),
-  };
-
-  // Store the notification in the database even if socket delivery fails
   try {
-    // Add to user's notifications array in database
-    // Use findOneAndUpdate with addToSet to prevent duplicates
-    const User = require("../models/User");
-
-    // Check if a similar notification already exists within the last minute
-    // to prevent duplicates from different triggers
-    User.findById(userId)
-      .select("notifications")
-      .then((user) => {
-        if (!user) return;
-
-        // Look for existing similar notifications in the last 1 minute
-        const lastMinute = new Date(Date.now() - 60 * 1000);
-        const similarExists = user.notifications.some(
-          (n) =>
-            n.title === enrichedNotification.title &&
-            n.message === enrichedNotification.message &&
-            new Date(n.createdAt) > lastMinute
-        );
-
-        if (similarExists) {
-          console.log(
-            `Skipping duplicate notification for user ${userId}: ${enrichedNotification.title}`
-          );
-          return;
-        }
-
-        // If no duplicate exists, add the notification
-        User.findByIdAndUpdate(
-          userId,
-          {
-            $push: {
-              notifications: {
-                $each: [enrichedNotification],
-                $position: 0, // Add at the beginning of the array
-              },
-            },
-          },
-          { new: true }
-        ).catch((err) =>
-          console.error("Failed to save notification to database:", err)
-        );
-      })
-      .catch((err) =>
-        console.error("Error checking for existing notifications:", err)
+    if (!userId || !notification) {
+      console.error(
+        "[socketService] Missing userId or notification for sendNotification"
       );
-  } catch (dbError) {
-    console.error("Error saving notification to database:", dbError);
-  }
+      return;
+    }
 
-  // Use Redis for cross-server notifications if enabled
-  if (isRedisEnabled && pubClient) {
-    // Publish notification to Redis channel
-    pubClient
-      .publish(
+    // First check if this is specifically an offer-related notification
+    if (
+      notification.type === "offer" ||
+      notification.title?.toLowerCase().includes("offer") ||
+      (notification.data &&
+        notification.data.type &&
+        (notification.data.type.includes("offer") ||
+          notification.data.type === "counter_offer"))
+    ) {
+      console.log(
+        `[socketService] Processing special offer notification for user ${userId}`
+      );
+
+      // If it's an offer notification, also send it through the offer_update channel
+      notifyOfferUpdate(userId, {
+        type: notification.data?.type || "offer_update",
+        title: notification.title || "Offer Update",
+        message: notification.message || "Your offer status has been updated",
+        itemId: notification.relatedItemId || notification.data?.itemId,
+        tradeId: notification.relatedTradeId || notification.data?.tradeId,
+        offerId: notification.data?.offerId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Find all sockets for this user
+    const userSocketIds = [...connectedUsers.entries()]
+      .filter(([_, id]) => id === userId)
+      .map(([socketId]) => socketId);
+
+    if (userSocketIds.length > 0) {
+      // Emit directly to each socket
+      userSocketIds.forEach((socketId) => {
+        const socket = io.sockets.sockets.get(socketId);
+        if (socket) {
+          console.log(
+            `[socketService] Emitting notification to socket ${socketId} for user ${userId}`
+          );
+          socket.emit("notification", notification);
+        }
+      });
+    } else {
+      console.log(
+        `[socketService] User ${userId} not connected, can't send notification`
+      );
+    }
+
+    // If Redis is enabled, also publish to the notifications channel
+    if (isRedisEnabled && pubClient) {
+      pubClient.publish(
         REDIS_CHANNEL_NOTIFICATIONS,
         JSON.stringify({
           userId,
-          notification: enrichedNotification,
+          notification,
         })
-      )
-      .catch((err) =>
-        console.error("Error publishing notification to Redis:", err)
       );
-  }
-
-  // Send directly to any sockets for this user on this server
-  if (io) {
-    try {
-      // Find all sockets for this user
-      const userSockets = Array.from(io.sockets.sockets.values()).filter(
-        (socket) => socket.userId === userId
-      );
-
-      if (userSockets.length > 0) {
-        // Send to all user's sockets
-        userSockets.forEach((socket) => {
-          socket.emit("notification", enrichedNotification);
-        });
-        return true; // Successfully sent notification
-      } else {
-        console.log(
-          `No active sockets found for user ${userId}, notification stored for later delivery`
-        );
-        return false;
-      }
-    } catch (err) {
-      console.error("Error sending notification:", err);
-      return false;
     }
+  } catch (error) {
+    console.error("[socketService] Error in sendNotification:", error);
   }
-
-  return false;
 };
 
 /**
@@ -909,6 +965,53 @@ const startPeriodicStatusBroadcasts = () => {
   }, 15000); // Every 15 seconds (reduced from 30 seconds)
 };
 
+// Enhanced authentication to track connected users
+const authenticateAndTrackUser = (socket, token) => {
+  try {
+    if (!token) {
+      console.log(
+        `[socketService] No auth token provided for socket ${socket.id}`
+      );
+      return false;
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (!decoded || !decoded.id) {
+      console.error(`[socketService] Invalid token for socket ${socket.id}`);
+      return false;
+    }
+
+    const userId = decoded.id;
+
+    // Store the socket and user association
+    socket.userId = userId;
+    connectedUsers.set(socket.id, userId);
+
+    console.log(
+      `[socketService] User ${userId} authenticated for socket ${socket.id}`
+    );
+    return true;
+  } catch (error) {
+    console.error(`[socketService] Auth error for socket ${socket.id}:`, error);
+    return false;
+  }
+};
+
+// Track socket disconnection
+const handleSocketDisconnect = (socket) => {
+  try {
+    if (socket.id) {
+      connectedUsers.delete(socket.id);
+      console.log(
+        `[socketService] Socket ${socket.id} disconnected and removed from tracking`
+      );
+    }
+  } catch (error) {
+    console.error(`[socketService] Error in handleSocketDisconnect:`, error);
+  }
+};
+
 module.exports = {
   init,
   broadcastStats,
@@ -921,4 +1024,6 @@ module.exports = {
   emitUserActivity,
   sendNotification,
   broadcastUserStatusChange,
+  notifyOfferUpdate,
+  notifyUser: sendNotification, // Alias for backward compatibility
 };

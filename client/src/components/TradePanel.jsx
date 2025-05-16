@@ -11,7 +11,21 @@ import { FaExchangeAlt, FaInbox, FaPaperPlane, FaHistory, FaComment, FaFilter, F
 let socket;
 if (!socket && window.io) {
   socket = window.io(API_URL);
+  console.log('Socket connection initialized for TradePanel');
 }
+
+// Global function to open the trade panel with specific parameters
+// This will be attached to the window object for global access
+window.openTradePanel = (options) => {
+  // This function will be implemented by the main app to open the trade panel
+  // For now, we'll log the request
+  console.log('Open trade panel request:', options);
+  if (window.dispatchEvent) {
+    // Create a custom event with the options
+    const event = new CustomEvent('openTradePanel', { detail: options });
+    window.dispatchEvent(event);
+  }
+};
 
 // Animation variants
 const backdropVariants = {
@@ -110,6 +124,14 @@ const TradePanel = ({
         fetchSentOffers();
         fetchReceivedOffers();
         fetchTradeHistory();
+        
+        // Check for activeTab in localStorage (set by App.jsx)
+        const savedActiveTab = localStorage.getItem('tradePanelActiveTab');
+        if (savedActiveTab) {
+          setActiveOffersTab(savedActiveTab);
+          // Clear it from localStorage after using it
+          localStorage.removeItem('tradePanelActiveTab');
+        }
       } else if (action === 'offer' && item?._id) {
         // Only check for existing offers if we're making a new offer
         fetchSentOffers();
@@ -366,7 +388,22 @@ const TradePanel = ({
     }
   };
 
-  // Handle accepting an offer
+  // Handle acceptOffer success - navigate to trade page if needed
+  const [acceptedTradeId, setAcceptedTradeId] = useState(null);
+  
+  useEffect(() => {
+    if (acceptedTradeId) {
+      // Set a brief delay to let the user see the success message
+      const timer = setTimeout(() => {
+        navigate(`/trades/${acceptedTradeId}`);
+        onClose();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [acceptedTradeId, navigate]);
+  
+  // Handle accept offer
   const handleAcceptOffer = async (itemId, offerId) => {
     try {
       setLoading(true);
@@ -379,10 +416,10 @@ const TradePanel = ({
       );
       
       if (response.data.success) {
-        // Set success message
+        // Show success message
         setSuccess(response.data.message || "Offer accepted successfully!");
         
-        // Update the local state
+        // Update local state
         setReceivedOffers(prevOffers => 
           prevOffers.filter(offer => offer._id !== offerId)
         );
@@ -391,34 +428,20 @@ const TradePanel = ({
         if (window.showNotification) {
           window.showNotification(
             'Offer Accepted',
-            'You have accepted the offer. The trade process has begun.',
+            'You accepted an offer. Go to the trades page to complete the transaction.',
             'SUCCESS'
           );
         }
         
-        // Show the trade details button
-        setTradeData({
-          tradeId: response.data.tradeId
-        });
-        
-        // Show success view
+        // Set the processing stage to success
         setProcessingStage(2);
         
-        // Remove automatic redirection after 3 seconds
-        // Instead, we'll show a button for users to manually navigate
+        // Set the tradeId for redirection
+        setAcceptedTradeId(response.data.tradeId);
       }
     } catch (err) {
       console.error('Error accepting offer:', err);
       setError(err.response?.data?.error || 'Failed to accept offer');
-      
-      // Show error notification
-      if (window.showNotification) {
-        window.showNotification(
-          'Error',
-          err.response?.data?.error || 'Failed to accept offer',
-          'ERROR'
-        );
-      }
     } finally {
       setLoading(false);
     }
@@ -1842,12 +1865,25 @@ const TradePanel = ({
   // Add socket event listeners for real-time updates
   useEffect(() => {
     if (socket && isOpen) {
-      // Listen for offer updates
+      console.log('Setting up socket event listeners for TradePanel');
+      
+      // Listen for offer updates (more specific than before)
       const handleOfferUpdate = (data) => {
+        console.log('Offer update received:', data);
+        
+        // Check if this update is relevant to the current view
         if (data.type === 'offer_update') {
           // Refresh offers when an update is received
           fetchSentOffers();
           fetchReceivedOffers();
+          
+          // If we're looking at a specific item and it got updated
+          if (item && item._id === data.itemId) {
+            // Auto-refresh the item data
+            if (onComplete) {
+              onComplete({refresh: true});
+            }
+          }
           
           // Show notification about the update
           if (window.showNotification && data.message) {
@@ -1857,18 +1893,88 @@ const TradePanel = ({
               data.notificationType || 'INFO'
             );
           }
+        } else if (data.type === 'new_offer_received' && action !== 'offers') {
+          // Automatically switch to the offers tab if a new offer is received
+          // and we're not already on the offers view
+          setActiveOffersTab('received');
+          
+          // Show a notification that will encourage opening the trade panel
+          if (window.showNotification) {
+            window.showNotification(
+              'New Offer Received',
+              'You received a new offer. Click to view details.',
+              'INFO',
+              () => {
+                // This callback will run when the notification is clicked
+                window.openTradePanel({action: 'offers', activeTab: 'received'});
+              }
+            );
+          }
+        } else if (data.type === 'offer_accepted') {
+          // Update UI if an offer was accepted
+          fetchSentOffers();
+          
+          // Show a notification with a direct link to the trade
+          if (window.showNotification && data.tradeId) {
+            window.showNotification(
+              'Offer Accepted',
+              'Your offer has been accepted. Go to the trade page to complete the transaction.',
+              'SUCCESS',
+              () => {
+                // Navigate to the trade page when clicked
+                navigate(`/trades/${data.tradeId}`);
+                onClose();
+              }
+            );
+          }
+        } else if (data.type === 'offer_declined' || data.type === 'offer_cancelled') {
+          // Update UI if an offer was declined or cancelled
+          fetchSentOffers();
+          fetchReceivedOffers();
+          
+          // Show notification
+          if (window.showNotification) {
+            window.showNotification(
+              data.type === 'offer_declined' ? 'Offer Declined' : 'Offer Cancelled',
+              data.message || 'An offer status has been updated.',
+              'INFO'
+            );
+          }
+        } else if (data.type === 'counter_offer') {
+          // Update UI if a counter offer was received
+          fetchReceivedOffers();
+          
+          // Switch to the received tab
+          setActiveOffersTab('received');
+          
+          // Show notification
+          if (window.showNotification) {
+            window.showNotification(
+              'Counter Offer Received',
+              data.message || 'You received a counter offer.',
+              'INFO',
+              () => {
+                // This callback will run when the notification is clicked
+                window.openTradePanel({action: 'offers', activeTab: 'received'});
+              }
+            );
+          }
         }
       };
       
       // Register listeners
       socket.on('offer_update', handleOfferUpdate);
+      socket.on('new_offer', handleOfferUpdate);
+      socket.on('counter_offer', handleOfferUpdate);
       
       // Clean up on unmount
       return () => {
         socket.off('offer_update', handleOfferUpdate);
+        socket.off('new_offer', handleOfferUpdate);
+        socket.off('counter_offer', handleOfferUpdate);
       };
     }
-  }, [isOpen]);
+  }, [isOpen, item, action, navigate, onClose, onComplete]);
 
   // Prepare counter offer
   const prepareCounterOffer = (itemId, offerId, originalAmount, itemName) => {

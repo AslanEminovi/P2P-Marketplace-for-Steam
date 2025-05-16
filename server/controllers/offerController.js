@@ -1,6 +1,8 @@
 const Item = require("../models/Item");
 const User = require("../models/User");
 const mongoose = require("mongoose");
+const socketService = require("../services/socketService");
+const notificationService = require("../services/notificationService");
 
 // POST /offers/:itemId
 exports.createOffer = async (req, res) => {
@@ -68,26 +70,58 @@ exports.createOffer = async (req, res) => {
     item.offers.push(newOffer);
     await item.save();
 
+    // Get the new offer ID
+    const offerId = item.offers[item.offers.length - 1]._id;
+
+    // Look up buyer info for the notification
+    const buyer = await User.findById(buyerId).select("displayName avatar");
+
     // Add notification for item owner
-    const owner = await User.findById(item.owner._id);
-    if (owner) {
-      owner.notifications.push({
-        type: "offer",
-        title: "New Offer Received",
-        message: `You received a new offer of ${offerAmount} ${
-          offerCurrency || "USD"
-        } for your ${item.marketHashName}`,
-        link: `/marketplace/item/${item._id}`,
-        relatedItemId: item._id,
-        read: false,
-      });
-      await owner.save();
-    }
+    const notificationForOwner = {
+      type: "offer",
+      title: "New Offer Received",
+      message: `You received a new offer of ${offerAmount} ${
+        offerCurrency || "USD"
+      } for your ${item.marketHashName}`,
+      link: `/marketplace/item/${item._id}`,
+      relatedItemId: item._id,
+      read: false,
+      data: {
+        type: "new_offer_received",
+        itemId: item._id,
+        offerId: offerId,
+        offerAmount: offerAmount,
+        offerCurrency: offerCurrency || "USD",
+        buyerName: buyer ? buyer.displayName : "A buyer",
+        itemName: item.marketHashName,
+      },
+    };
+
+    // Save notification to database and send real-time update
+    await notificationService.createNotification({
+      user: item.owner._id,
+      ...notificationForOwner,
+    });
+
+    // Use socket service to send a real-time update
+    socketService.notifyOfferUpdate(item.owner._id.toString(), {
+      type: "new_offer_received",
+      title: "New Offer Received",
+      message: `You received a new offer of ${offerAmount} ${
+        offerCurrency || "USD"
+      } for your ${item.marketHashName}`,
+      itemId: item._id.toString(),
+      offerId: offerId.toString(),
+      buyerId: buyerId.toString(),
+      buyerName: buyer ? buyer.displayName : "A buyer",
+      buyerAvatar: buyer ? buyer.avatar : null,
+      itemName: item.marketHashName,
+    });
 
     return res.status(201).json({
       success: true,
       message: "Offer submitted successfully",
-      offerId: item.offers[item.offers.length - 1]._id,
+      offerId: offerId,
     });
   } catch (err) {
     console.error("Offer error:", err);
@@ -190,130 +224,152 @@ exports.getSentOffers = async (req, res) => {
 exports.acceptOffer = async (req, res) => {
   try {
     const { itemId, offerId } = req.params;
+    const sellerId = req.user._id;
 
     // Find the item and verify ownership
-    const item = await Item.findById(itemId);
+    const item = await Item.findById(itemId).populate("offers.offeredBy");
     if (!item) {
       return res.status(404).json({ error: "Item not found." });
     }
 
-    if (item.owner.toString() !== req.user._id.toString()) {
+    if (item.owner.toString() !== sellerId.toString()) {
       return res.status(403).json({
         error: "You don't have permission to accept offers for this item.",
       });
     }
 
     // Find the specific offer
-    const offer = item.offers.id(offerId);
-    if (!offer) {
+    const offerIndex = item.offers.findIndex(
+      (o) => o._id.toString() === offerId
+    );
+    if (offerIndex === -1) {
       return res.status(404).json({ error: "Offer not found." });
     }
 
+    const offer = item.offers[offerIndex];
+
+    // Make sure offer is pending
     if (offer.status !== "pending") {
       return res.status(400).json({
-        error: `Offer cannot be accepted because it is ${offer.status}.`,
+        error: `Cannot accept an offer that is already ${offer.status}.`,
       });
     }
 
-    // Get the buyer
-    const buyer = await User.findById(offer.offeredBy);
-    if (!buyer) {
-      return res.status(404).json({ error: "Buyer not found." });
-    }
-
-    // Check buyer has enough balance
-    const requiredBalance =
-      offer.offerCurrency === "USD"
-        ? offer.offerAmount
-        : offer.offerAmount / (offer.offerRate || item.currencyRate);
-
-    // Get the seller
-    const seller = await User.findById(req.user._id);
-
-    // Create a new Trade document
+    // Create a trade record with the offer details
     const Trade = mongoose.model("Trade");
-    const trade = new Trade({
-      seller: seller._id,
-      buyer: buyer._id,
+
+    const newTrade = new Trade({
       item: item._id,
-      sellerSteamId: seller.steamId || "placeholder",
-      buyerSteamId: buyer.steamId || "placeholder",
-      assetId: item.assetId || "placeholder",
+      seller: sellerId,
+      buyer: offer.offeredBy,
       price: offer.offerAmount,
-      currency: offer.offerCurrency,
-      message: offer.message || `Offer accepted for ${item.marketHashName}`,
-      status: "pending",
-      // Store item details directly in the trade for data preservation
+      currency: offer.offerCurrency || "USD",
+      status: "awaiting_seller",
       itemName: item.marketHashName,
       itemImage: item.imageUrl,
       itemWear: item.wear,
       itemRarity: item.rarity,
+      assetId: item.assetId,
+      createdAt: new Date(),
+      statusHistory: [
+        {
+          status: "created",
+          timestamp: new Date(),
+          note: "Trade created from accepted offer",
+        },
+        {
+          status: "awaiting_seller",
+          timestamp: new Date(),
+          note: "Waiting for seller to initiate trade",
+        },
+      ],
     });
 
-    // Save the trade
-    await trade.save();
-    trade.addStatusHistory(
-      "pending",
-      "Trade created. Waiting for completion by users."
-    );
-    await trade.save();
+    await newTrade.save();
 
-    // Update offer status
+    // Update the offer status and add trade reference
     offer.status = "accepted";
+    offer.updatedAt = new Date();
+    offer.tradeId = newTrade._id;
 
-    // Update item status
-    item.isListed = false; // Remove from marketplace
-    item.tradeStatus = "pending";
-    await item.save();
+    // Mark all other offers as declined
+    item.offers.forEach((o, idx) => {
+      if (idx !== offerIndex && o.status === "pending") {
+        o.status = "declined";
+        o.updatedAt = new Date();
+        o.declinedReason = "Another offer was accepted";
 
-    // Set all other offers to declined
-    item.offers.forEach((otherOffer) => {
-      if (
-        otherOffer._id.toString() !== offerId &&
-        otherOffer.status === "pending"
-      ) {
-        otherOffer.status = "declined";
+        // Send real-time notification to the declined offer's buyer
+        socketService.notifyOfferUpdate(o.offeredBy.toString(), {
+          type: "offer_declined",
+          title: "Offer Declined",
+          message: `Your offer for ${item.marketHashName} was declined because another offer was accepted.`,
+          itemId: item._id.toString(),
+          offerId: o._id.toString(),
+          itemName: item.marketHashName,
+        });
       }
     });
 
+    // Mark item as no longer listed
+    item.isListed = false;
+    item.reservedBy = offer.offeredBy;
+    item.reservedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
     await item.save();
 
-    // Add trade to both users' trade history
-    await User.findByIdAndUpdate(seller._id, {
-      $push: { tradeHistory: trade._id },
-    });
+    // Get buyer info for the notification
+    const buyerId = offer.offeredBy._id || offer.offeredBy;
+    const buyer = await User.findById(buyerId);
 
-    await User.findByIdAndUpdate(buyer._id, {
-      $push: { tradeHistory: trade._id },
-    });
+    if (buyer) {
+      // Add notification for the buyer
+      const notificationForBuyer = {
+        type: "offer",
+        title: "Offer Accepted",
+        message: `Your offer of ${offer.offerAmount} ${
+          offer.offerCurrency || "USD"
+        } for ${
+          item.marketHashName
+        } has been accepted. Go to the trades page to complete the transaction.`,
+        link: `/trades/${newTrade._id}`,
+        relatedItemId: item._id,
+        relatedTradeId: newTrade._id,
+        read: false,
+        data: {
+          type: "offer_accepted",
+          itemId: item._id.toString(),
+          offerId: offerId,
+          tradeId: newTrade._id.toString(),
+          itemName: item.marketHashName,
+        },
+      };
 
-    // Add notification for the buyer
-    buyer.notifications.push({
-      type: "offer",
-      title: "Offer Accepted",
-      message: `Your offer of ${offer.offerAmount} ${offer.offerCurrency} for ${item.marketHashName} has been accepted. Go to the trades page to complete the transaction.`,
-      link: `/trades/${trade._id}`,
-      relatedItemId: item._id,
-      read: false,
-    });
-    await buyer.save();
+      await notificationService.createNotification({
+        user: buyerId,
+        ...notificationForBuyer,
+      });
 
-    // Add notification for the seller
-    seller.notifications.push({
-      type: "offer",
-      title: "You Accepted an Offer",
-      message: `You accepted an offer of ${offer.offerAmount} ${offer.offerCurrency} for your ${item.marketHashName}. Go to the trades page to complete the transaction.`,
-      link: `/trades/${trade._id}`,
-      relatedItemId: item._id,
-      read: false,
-    });
-    await seller.save();
+      // Send real-time notification
+      socketService.notifyOfferUpdate(buyerId.toString(), {
+        type: "offer_accepted",
+        title: "Offer Accepted",
+        message: `Your offer of ${offer.offerAmount} ${
+          offer.offerCurrency || "USD"
+        } for ${
+          item.marketHashName
+        } has been accepted. Go to the trades page to complete the transaction.`,
+        itemId: item._id.toString(),
+        offerId: offerId,
+        tradeId: newTrade._id.toString(),
+        itemName: item.marketHashName,
+      });
+    }
 
     return res.json({
       success: true,
-      message:
-        "Offer accepted successfully. Proceed to the trades page to complete the transaction.",
-      tradeId: trade._id,
+      message: "Offer accepted successfully.",
+      tradeId: newTrade._id,
     });
   } catch (err) {
     console.error("Accept offer error:", err);
@@ -325,89 +381,7 @@ exports.acceptOffer = async (req, res) => {
 exports.declineOffer = async (req, res) => {
   try {
     const { itemId, offerId } = req.params;
-
-    // Find the item
-    const item = await Item.findById(itemId);
-    if (!item) {
-      return res.status(404).json({ error: "Item not found." });
-    }
-
-    // Verify ownership or check if it's the offer creator
-    const isOwner = item.owner.toString() === req.user._id.toString();
-
-    // Find the specific offer
-    const offer = item.offers.id(offerId);
-    if (!offer) {
-      return res.status(404).json({ error: "Offer not found." });
-    }
-
-    const isOfferCreator =
-      offer.offeredBy.toString() === req.user._id.toString();
-
-    if (!isOwner && !isOfferCreator) {
-      return res
-        .status(403)
-        .json({ error: "You don't have permission to decline this offer." });
-    }
-
-    if (offer.status !== "pending") {
-      return res.status(400).json({
-        error: `Offer cannot be declined because it is ${offer.status}.`,
-      });
-    }
-
-    // Update offer status
-    offer.status = "declined";
-    await item.save();
-
-    // Add notification for the appropriate party
-    if (isOwner) {
-      // Notify the offer creator that their offer was declined
-      const offerer = await User.findById(offer.offeredBy);
-      if (offerer) {
-        offerer.notifications.push({
-          type: "offer",
-          title: "Offer Declined",
-          message: `Your offer of ${offer.offerAmount} ${offer.offerCurrency} for ${item.marketHashName} was declined`,
-          link: `/marketplace/item/${itemId}`,
-          relatedItemId: item._id,
-          read: false,
-        });
-        await offerer.save();
-      }
-    } else {
-      // Notify the item owner that the offer was withdrawn
-      const owner = await User.findById(item.owner);
-      if (owner) {
-        owner.notifications.push({
-          type: "offer",
-          title: "Offer Withdrawn",
-          message: `An offer of ${offer.offerAmount} ${offer.offerCurrency} for your ${item.marketHashName} was withdrawn`,
-          link: `/marketplace/item/${itemId}`,
-          relatedItemId: item._id,
-          read: false,
-        });
-        await owner.save();
-      }
-    }
-
-    return res.json({
-      success: true,
-      message: isOfferCreator
-        ? "Offer withdrawn successfully"
-        : "Offer declined successfully",
-    });
-  } catch (err) {
-    console.error("Decline offer error:", err);
-    return res.status(500).json({ error: "Failed to decline offer." });
-  }
-};
-
-// POST /offers/:itemId/:offerId/counterOffer
-exports.createCounterOffer = async (req, res) => {
-  try {
-    const { itemId, offerId } = req.params;
-    const { counterAmount, counterCurrency, counterRate, message } = req.body;
+    const userId = req.user._id;
 
     // Find the item
     const item = await Item.findById(itemId);
@@ -416,69 +390,198 @@ exports.createCounterOffer = async (req, res) => {
     }
 
     // Verify ownership
-    if (item.owner.toString() !== req.user._id.toString()) {
+    if (item.owner.toString() !== userId.toString()) {
       return res.status(403).json({
-        error:
-          "You don't have permission to make counter offers for this item.",
+        error: "You don't have permission to decline offers for this item.",
       });
     }
 
     // Find the specific offer
-    const originalOffer = item.offers.id(offerId);
-    if (!originalOffer) {
-      return res.status(404).json({ error: "Original offer not found." });
+    const offerIndex = item.offers.findIndex(
+      (o) => o._id.toString() === offerId
+    );
+    if (offerIndex === -1) {
+      return res.status(404).json({ error: "Offer not found." });
     }
 
-    if (originalOffer.status !== "pending") {
+    const offer = item.offers[offerIndex];
+
+    // Make sure offer is pending
+    if (offer.status !== "pending") {
       return res.status(400).json({
-        error: `Cannot counter an offer that is ${originalOffer.status}.`,
+        error: `Cannot decline an offer that is already ${offer.status}.`,
       });
     }
 
-    // Update original offer status to counter-offered
-    originalOffer.status = "declined";
+    // Update offer status
+    offer.status = "declined";
+    offer.updatedAt = new Date();
+    offer.declinedReason = req.body.reason || "Declined by seller";
 
-    // Create new counter offer
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 48);
+    await item.save();
 
+    // Send real-time notification to the buyer
+    const buyerId = offer.offeredBy.toString();
+
+    socketService.notifyOfferUpdate(buyerId, {
+      type: "offer_declined",
+      title: "Offer Declined",
+      message: `Your offer for ${item.marketHashName} was declined by the seller.`,
+      itemId: item._id.toString(),
+      offerId: offerId,
+      reason: offer.declinedReason,
+      itemName: item.marketHashName,
+    });
+
+    // Add notification for the buyer via database as well
+    const notificationForBuyer = {
+      type: "offer",
+      title: "Offer Declined",
+      message: `Your offer for ${item.marketHashName} was declined by the seller.`,
+      link: `/marketplace/item/${item._id}`,
+      relatedItemId: item._id,
+      read: false,
+      data: {
+        type: "offer_declined",
+        itemId: item._id,
+        offerId: offerId,
+        reason: offer.declinedReason,
+      },
+    };
+
+    await notificationService.createNotification({
+      user: buyerId,
+      ...notificationForBuyer,
+    });
+
+    return res.json({
+      success: true,
+      message: "Offer declined successfully.",
+    });
+  } catch (err) {
+    console.error("Decline offer error:", err);
+    return res.status(500).json({ error: "Failed to decline offer." });
+  }
+};
+
+// POST /offers/:itemId/:offerId/counterOffer
+exports.submitCounterOffer = async (req, res) => {
+  try {
+    const { itemId, offerId } = req.params;
+    const { counterAmount, counterCurrency, message } = req.body;
+    const userId = req.user._id;
+
+    // Find the item
+    const item = await Item.findById(itemId);
+    if (!item) {
+      return res.status(404).json({ error: "Item not found." });
+    }
+
+    // Verify that this user can counter this offer (must be either buyer or seller)
+    const isOwner = item.owner.toString() === userId.toString();
+    const offer = item.offers.find((o) => o._id.toString() === offerId);
+
+    if (!offer) {
+      return res.status(404).json({ error: "Offer not found." });
+    }
+
+    const isBuyer = offer.offeredBy.toString() === userId.toString();
+
+    if (!isOwner && !isBuyer) {
+      return res.status(403).json({
+        error:
+          "You don't have permission to make a counter offer for this item.",
+      });
+    }
+
+    // Make sure offer is pending
+    if (offer.status !== "pending") {
+      return res.status(400).json({
+        error: `Cannot counter an offer that is already ${offer.status}.`,
+      });
+    }
+
+    // Create a new counter offer
     const counterOffer = {
-      offeredBy: req.user._id, // The seller is making the counter offer
+      offeredBy: userId,
       offerAmount: counterAmount,
-      offerCurrency: counterCurrency || "USD",
-      offerRate:
-        counterRate || (counterCurrency === "GEL" ? item.currencyRate : null),
+      offerCurrency: counterCurrency || offer.offerCurrency || "USD",
       message: message || `Counter offer for ${item.marketHashName}`,
       createdAt: new Date(),
-      expiresAt: expiresAt,
+      expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 hours
       status: "pending",
       isCounterOffer: true,
       originalOfferId: offerId,
     };
 
+    // Add counter offer to the item
     item.offers.push(counterOffer);
+
+    // Update the original offer to indicate it was countered
+    offer.status = "countered";
+    offer.updatedAt = new Date();
+    offer.counterOfferId = counterOffer._id;
+
     await item.save();
 
-    // Add notification for the original offerer
-    const offerer = await User.findById(originalOffer.offeredBy);
-    if (offerer) {
-      offerer.notifications.push({
-        type: "offer",
-        title: "Counter Offer Received",
-        message: `You received a counter offer of ${counterAmount} ${
-          counterCurrency || "USD"
-        } for ${item.marketHashName}`,
-        link: `/marketplace/item/${itemId}`,
-        relatedItemId: item._id,
-        read: false,
-      });
-      await offerer.save();
-    }
+    // Get the recipient ID (the other party in the transaction)
+    const recipientId = isOwner
+      ? offer.offeredBy.toString()
+      : item.owner.toString();
 
-    return res.status(201).json({
+    // Get names for the notification
+    const sender = await User.findById(userId).select("displayName");
+    const senderName = sender
+      ? sender.displayName
+      : isOwner
+      ? "The seller"
+      : "The buyer";
+
+    // Send real-time notification to the recipient
+    socketService.notifyOfferUpdate(recipientId, {
+      type: "counter_offer",
+      title: "Counter Offer Received",
+      message: `${senderName} has made a counter offer of ${counterAmount} ${
+        counterCurrency || "USD"
+      } for ${item.marketHashName}.`,
+      itemId: item._id.toString(),
+      offerId: counterOffer._id.toString(),
+      originalOfferId: offerId,
+      senderName: senderName,
+      itemName: item.marketHashName,
+      counterAmount: counterAmount,
+      counterCurrency: counterCurrency || "USD",
+    });
+
+    // Add notification via database as well
+    const notificationForRecipient = {
+      type: "offer",
+      title: "Counter Offer Received",
+      message: `${senderName} has made a counter offer of ${counterAmount} ${
+        counterCurrency || "USD"
+      } for ${item.marketHashName}.`,
+      link: `/marketplace/item/${item._id}`,
+      relatedItemId: item._id,
+      read: false,
+      data: {
+        type: "counter_offer",
+        itemId: item._id,
+        offerId: counterOffer._id,
+        originalOfferId: offerId,
+        counterAmount: counterAmount,
+        counterCurrency: counterCurrency || "USD",
+      },
+    };
+
+    await notificationService.createNotification({
+      user: recipientId,
+      ...notificationForRecipient,
+    });
+
+    return res.json({
       success: true,
-      message: "Counter offer submitted successfully",
-      offerId: item.offers[item.offers.length - 1]._id,
+      message: "Counter offer submitted successfully.",
+      counterOfferId: counterOffer._id,
     });
   } catch (err) {
     console.error("Counter offer error:", err);
@@ -687,21 +790,35 @@ exports.cancelOffer = async (req, res) => {
     // Save the item
     await item.save();
 
-    // Add notification for the seller
-    const User = mongoose.model("User");
-    const seller = await User.findById(item.owner);
+    // Send real-time notification to the seller
+    socketService.notifyOfferUpdate(item.owner.toString(), {
+      type: "offer_cancelled",
+      title: "Offer Cancelled",
+      message: `An offer on your item ${item.marketHashName} was cancelled by the buyer.`,
+      itemId: item._id.toString(),
+      offerId: offerId,
+      itemName: item.marketHashName,
+    });
 
-    if (seller) {
-      seller.notifications.push({
-        type: "offer",
-        title: "Offer Cancelled",
-        message: `An offer on your item ${item.marketHashName} was cancelled by the buyer.`,
-        link: `/marketplace/item/${item._id}`,
-        relatedItemId: item._id,
-        read: false,
-      });
-      await seller.save();
-    }
+    // Add notification via database as well
+    const notificationForSeller = {
+      type: "offer",
+      title: "Offer Cancelled",
+      message: `An offer on your item ${item.marketHashName} was cancelled by the buyer.`,
+      link: `/marketplace/item/${item._id}`,
+      relatedItemId: item._id,
+      read: false,
+      data: {
+        type: "offer_cancelled",
+        itemId: item._id,
+        offerId: offerId,
+      },
+    };
+
+    await notificationService.createNotification({
+      user: item.owner.toString(),
+      ...notificationForSeller,
+    });
 
     return res.json({
       success: true,

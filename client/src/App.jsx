@@ -122,6 +122,83 @@ function AppContent() {
     setNotifications(prev => prev.filter(notification => notification.id !== id));
   };
 
+  // Function to handle opening the TradePanel programmatically from anywhere
+  const openTradePanel = (options = {}) => {
+    console.log('Opening TradePanel with options:', options);
+    
+    // Set the appropriate state based on options
+    setTradePanelItem(options.item || null);
+    setTradePanelAction(options.action || 'offers');
+    
+    // If there's a specific tab to focus on, store it for the TradePanel
+    if (options.activeTab) {
+      localStorage.setItem('tradePanelActiveTab', options.activeTab);
+    }
+    
+    // Open the panel
+    setTradePanelOpen(true);
+  };
+  
+  // Attach the function to the window object to allow global access
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.openTradePanel = openTradePanel;
+      
+      // Also listen for custom events to open the panel
+      const handleOpenTradePanelEvent = (event) => {
+        if (event.detail) {
+          openTradePanel(event.detail);
+        }
+      };
+      
+      window.addEventListener('openTradePanel', handleOpenTradePanelEvent);
+      
+      return () => {
+        // Clean up
+        delete window.openTradePanel;
+        window.removeEventListener('openTradePanel', handleOpenTradePanelEvent);
+      };
+    }
+  }, []);
+  
+  // Listen for socket events that should trigger the trade panel to open
+  useEffect(() => {
+    if (socketService.isConnected() && isAuthenticated) {
+      const handleOfferUpdate = (data) => {
+        console.log('Socket offer update received in App:', data);
+        
+        // Automatically open the trade panel for new offers if it's not already open
+        if (data.type === 'new_offer_received' && !tradePanelOpen) {
+          // Show notification first
+          window.showNotification(
+            'New Offer Received',
+            `You received a new offer for ${data.itemName || 'an item'}`,
+            'INFO',
+            10000, // longer timeout
+            () => openTradePanel({ action: 'offers', activeTab: 'received' })
+          );
+        }
+        
+        // For counter offers, also show a notification with option to open panel
+        if (data.type === 'counter_offer') {
+          window.showNotification(
+            'Counter Offer Received',
+            `${data.senderName || 'Someone'} has made a counter offer of ${data.counterAmount} ${data.counterCurrency || 'USD'}`,
+            'INFO',
+            10000,
+            () => openTradePanel({ action: 'offers', activeTab: 'received' })
+          );
+        }
+      };
+      
+      socketService.on('offer_update', handleOfferUpdate);
+      
+      return () => {
+        socketService.off('offer_update', handleOfferUpdate);
+      };
+    }
+  }, [socketService, isAuthenticated, tradePanelOpen]);
+
   // Setup Axios interceptors
   useEffect(() => {
     // Request interceptor for API calls
@@ -386,13 +463,6 @@ function AppContent() {
     }
   };
 
-  // Function to open trade panel in offers mode
-  const openOffersPanel = () => {
-    setTradePanelItem(null);
-    setTradePanelAction('offers');
-    setTradePanelOpen(true);
-  };
-
   // Function to close trade panel
   const closeTradePanelHandler = () => {
     setTradePanelOpen(false);
@@ -411,7 +481,7 @@ function AppContent() {
       </div>
       <div className="app-container">
         <Toaster position="top-right" />
-        <Navbar user={user} onLogout={handleLogout} openOffersPanel={openOffersPanel} />
+        <Navbar user={user} onLogout={handleLogout} openOffersPanel={openTradePanel} />
         <main className="main-content">
           <Routes>
             <Route path="/" element={<Home user={user} />} />

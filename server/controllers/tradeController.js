@@ -67,6 +67,15 @@ exports.getTradeDetails = async (req, res) => {
       `[TradeController] Fetching trade details for ID: ${tradeId}, requested by user: ${userId}`
     );
 
+    // Validate the trade ID format
+    if (!mongoose.Types.ObjectId.isValid(tradeId)) {
+      console.log(`[TradeController] Invalid trade ID format: ${tradeId}`);
+      return res.status(400).json({
+        error: "Invalid trade ID format",
+        message: "The provided trade ID is not in a valid format.",
+      });
+    }
+
     // Use enhanced trade service if Redis is enabled
     if (enhancedTradeService.isRedisEnabled) {
       console.log(
@@ -78,8 +87,37 @@ exports.getTradeDetails = async (req, res) => {
       // Check if trade exists
       if (!trade) {
         console.log(`[TradeController] Trade ${tradeId} not found in Redis`);
-        return res.status(404).json({
-          error: "Trade not found",
+        // Try to find in database directly as a fallback
+        const dbTrade = await Trade.findById(tradeId);
+
+        if (!dbTrade) {
+          return res.status(404).json({
+            error: "Trade not found",
+            message:
+              "The requested trade could not be found. It may have been canceled or expired.",
+            redirectTo: "/trades", // Suggest redirecting to the trades list
+          });
+        }
+
+        // If found in DB but not Redis, check permissions
+        if (
+          dbTrade.buyer.toString() !== userId &&
+          dbTrade.seller.toString() !== userId
+        ) {
+          console.log(
+            `[TradeController] User ${userId} not authorized to view trade ${tradeId}`
+          );
+          return res.status(403).json({
+            error: "Unauthorized",
+            message: "You don't have permission to view this trade.",
+            redirectTo: "/trades",
+          });
+        }
+
+        // Return the DB trade data since it exists and user has permission
+        return res.json({
+          success: true,
+          trade: dbTrade,
         });
       }
 
@@ -92,7 +130,9 @@ exports.getTradeDetails = async (req, res) => {
           `[TradeController] User ${userId} not authorized to view trade ${tradeId}`
         );
         return res.status(403).json({
-          error: "You are not authorized to view this trade",
+          error: "Unauthorized",
+          message: "You don't have permission to view this trade.",
+          redirectTo: "/trades", // Suggest redirecting to the trades list
         });
       }
 
@@ -102,7 +142,7 @@ exports.getTradeDetails = async (req, res) => {
       });
     }
 
-    // Original implementation (unchanged)
+    // Original implementation with improved logging and error handling
     // Find the trade and populate related data
     const trade = await Trade.findById(tradeId)
       .populate("item")
@@ -111,7 +151,12 @@ exports.getTradeDetails = async (req, res) => {
 
     if (!trade) {
       console.log(`[TradeController] Trade ${tradeId} not found in database`);
-      return res.status(404).json({ error: "Trade not found" });
+      return res.status(404).json({
+        error: "Trade not found",
+        message:
+          "The requested trade could not be found. It may have been canceled or expired.",
+        redirectTo: "/trades", // Suggest redirecting to the trades list
+      });
     }
 
     console.log(`[TradeController] Found trade ${tradeId}, checking permissions:
@@ -127,9 +172,11 @@ exports.getTradeDetails = async (req, res) => {
       console.log(
         `[TradeController] User ${userId} not authorized to view trade ${tradeId}`
       );
-      return res
-        .status(403)
-        .json({ error: "You don't have permission to view this trade" });
+      return res.status(403).json({
+        error: "Unauthorized",
+        message: "You don't have permission to view this trade.",
+        redirectTo: "/trades", // Suggest redirecting to the trades list
+      });
     }
 
     // Add flag to indicate if user is buyer or seller
@@ -151,12 +198,18 @@ exports.getTradeDetails = async (req, res) => {
       };
     }
 
+    // Log successful retrieval
+    console.log(
+      `[TradeController] Successfully retrieved trade ${tradeId} for user ${userId}`
+    );
+
     return res.json(result);
   } catch (error) {
     console.error(`Error fetching trade ${req.params.tradeId}:`, error);
     return res.status(500).json({
       error: "Failed to fetch trade details",
       details: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 };
