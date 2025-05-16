@@ -3,7 +3,6 @@ import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import socketService from './services/socketService';
 import { Toaster } from 'react-hot-toast';
-import toast from 'react-hot-toast';
 import AdminTools from './pages/AdminTools';
 import { css } from '@emotion/react';
 import Navbar from './components/Navbar';
@@ -48,8 +47,8 @@ import apiClient, { fetchUserDetails } from './services/axiosConfig';
 import './components/TradeSidePanel.css';
 import { useDispatch, useSelector } from 'react-redux';
 
-// Import the socket listeners initializer
-import { initializeSocketListeners } from './redux/store';
+// Import fetchStats
+import { fetchStats } from './redux/slices/statsSlice';
 
 // Auth-protected route component
 const ProtectedRoute = ({ children }) => {
@@ -121,15 +120,6 @@ function AppContent() {
     const id = Date.now().toString();
     const notification = { id, title, message, type, timeout };
     setNotifications(prev => [...prev, notification]);
-    
-    // Also show as toast notification for immediate visibility
-    toast[type.toLowerCase() === 'error' ? 'error' : 
-          type.toLowerCase() === 'success' ? 'success' : 'info'](title, {
-      description: message,
-      duration: timeout,
-      position: 'top-center'
-    });
-    
     return id;
   };
 
@@ -206,39 +196,30 @@ function AppContent() {
       }
     );
 
-    // Initialize socket service (only once)
-    if (!socketService.isConnected()) {
+    // Initialize socket connection
+    if (!socketService.isConnected) {
       socketService.init();
-      
-      // If we have a token, connect the socket
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        socketService.connect(token);
-      }
-      
-      // Initialize socket listeners for Redux
-      initializeSocketListeners();
     }
 
-    // Cleanup interceptors on component unmount
+    // Cleanup function to remove interceptors when component unmounts
     return () => {
       axios.interceptors.request.eject(requestInterceptor);
       axios.interceptors.response.eject(responseInterceptor);
     };
-  }, []); // Empty dependency array - run once on mount
+  }, []);
 
-  // Setup socket connection status handler
+  // Handle socket connection status
   useEffect(() => {
     // Add socket connection handlers
     socketService.onConnected(() => {
       setSocketConnected(true);
       console.log('Socket connected');
       
-      // Test toast notification
-      toast.success('Socket connection established', {
-        icon: '🔌',
-        duration: 2000
-      });
+      // Remove the toast notification that shows on socket connection
+      // toast.success('Socket connection established', {
+      //   icon: '🔌',
+      //   duration: 2000
+      // });
     });
     
     socketService.onDisconnected(() => {
@@ -261,10 +242,32 @@ function AppContent() {
     };
   }, [isAuthenticated, socketConnected]);
 
+  // Add window unload handler
+  useEffect(() => {
+    const handleUnload = () => {
+      window.isUnloading = true;
+      socketService.disconnect();
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, []);
+
   // Handle logout
   const handleLogout = async () => {
+    if (socketService.isConnected()) {
+      socketService.disconnect();
+    }
+    
     await logout();
+    
+    // Force navigation to homepage
     navigate('/');
+    
+    // Show confirmation toast
+    toast.success('You have been logged out', { duration: 2000 });
   };
 
   // Refresh wallet balance (Used by Wallet and Profile pages)
@@ -379,6 +382,21 @@ function AppContent() {
     }
   };
 
+  // Add a new useEffect to fetch stats on app load
+  useEffect(() => {
+    // Fetch global stats for all users
+    dispatch(fetchStats());
+    
+    // Refresh stats periodically
+    const statsInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        dispatch(fetchStats());
+      }
+    }, 60000); // Every minute
+    
+    return () => clearInterval(statsInterval);
+  }, [dispatch]);
+
   return (
     <PageWrapper>
       <ScrollToTop />
@@ -391,33 +409,7 @@ function AppContent() {
         )}
       </div>
       <div className="app-container">
-        {/* Configure Toaster with consistent styling for all notifications */}
-        <Toaster 
-          position="top-center"
-          toastOptions={{
-            success: {
-              duration: 5000,
-              style: {
-                background: 'rgba(22, 101, 52, 0.9)',
-                color: '#fff',
-              },
-            },
-            error: {
-              duration: 6000,
-              style: {
-                background: 'rgba(153, 27, 27, 0.9)',
-                color: '#fff',
-              },
-            },
-            info: {
-              duration: 4000,
-              style: {
-                background: 'rgba(30, 64, 175, 0.9)',
-                color: '#fff',
-              },
-            },
-          }}
-        />
+        <Toaster position="top-right" />
         <Navbar user={user} onLogout={handleLogout} />
         <main className="main-content">
           <Routes>
@@ -475,9 +467,6 @@ function AppContent() {
       
       {/* Global trade side panel manager */}
       <TradeSidePanelManager />
-      
-      {/* Socket connection indicator */}
-      <SocketConnectionIndicator connected={socketConnected} />
     </PageWrapper>
   );
 }

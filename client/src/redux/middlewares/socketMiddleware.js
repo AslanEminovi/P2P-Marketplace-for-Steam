@@ -11,7 +11,6 @@ import {
   fetchTradeHistoryAsync,
   setSellerTradeOffer,
 } from "../slices/tradesSlice";
-import toast from "react-hot-toast";
 
 // Socket middleware to connect Socket.io events with Redux
 const socketMiddleware = (store) => {
@@ -122,12 +121,7 @@ const socketMiddleware = (store) => {
 
 // Set up socket event listeners that dispatch Redux actions
 export const setupSocketListeners = (store) => {
-  if (!socketService || !socketService.isConnected()) {
-    console.warn(
-      "[socketMiddleware] Socket service not initialized, skipping listener setup"
-    );
-    return;
-  }
+  if (!socketService) return;
 
   // Listen for socket events once connected
   socketService.onConnected(() => {
@@ -160,24 +154,6 @@ export const setupSocketListeners = (store) => {
       console.log("[socketMiddleware] Received notification:", notification);
       store.dispatch(addNotification(notification));
 
-      // Show toast notification for important events
-      if (
-        notification.type?.toLowerCase() === "trade" ||
-        notification.title?.toLowerCase().includes("offer") ||
-        notification.title?.toLowerCase().includes("trade")
-      ) {
-        toast(notification.title, {
-          description: notification.message,
-          icon: "💰",
-          position: "top-center",
-          duration: 5000,
-        });
-      } else {
-        console.log(
-          "[socketMiddleware] Notification did not match toast criteria"
-        );
-      }
-
       // If notification is trade-related, refresh relevant trade data
       if (notification.type === "trade" && notification.link) {
         // Extract trade ID from link (format: /trades/:id)
@@ -190,11 +166,6 @@ export const setupSocketListeners = (store) => {
           setTimeout(() => {
             store.dispatch(fetchActiveTradesAsync());
           }, 1000);
-        } else {
-          console.warn(
-            "[socketMiddleware] Could not extract tradeId from notification link",
-            notification.link
-          );
         }
       }
     });
@@ -252,14 +223,6 @@ export const setupSocketListeners = (store) => {
                 update.item?.name || "an item"
               }`;
               notificationType = "INFO";
-
-              // Open the trade panel for sellers
-              store.dispatch(
-                setSellerTradeOffer({
-                  tradeId: update.tradeId || update._id,
-                  role: "seller",
-                })
-              );
             }
             break;
 
@@ -270,6 +233,10 @@ export const setupSocketListeners = (store) => {
                 update.item?.name || "an item"
               } has been accepted`;
               notificationType = "SUCCESS";
+            } else if (update.seller && update.seller._id === currentUser._id) {
+              notificationTitle = "Action Required";
+              notificationMessage = `Please send the item to complete the trade`;
+              notificationType = "WARNING";
             }
             break;
 
@@ -305,7 +272,6 @@ export const setupSocketListeners = (store) => {
 
         // Show notification if we have a title and message
         if (notificationTitle && notificationMessage) {
-          // Add a notification to the notifications panel
           store.dispatch(
             addNotification({
               id: Date.now(),
@@ -317,29 +283,6 @@ export const setupSocketListeners = (store) => {
               createdAt: new Date().toISOString(),
             })
           );
-
-          // Also show a toast notification to immediately alert the user
-          toast[
-            notificationType === "ERROR"
-              ? "error"
-              : notificationType === "SUCCESS"
-              ? "success"
-              : notificationType === "WARNING"
-              ? "custom"
-              : "info"
-          ](notificationTitle, {
-            description: notificationMessage,
-            position: "top-center",
-            duration: 5000,
-            icon:
-              notificationType === "ERROR"
-                ? "❌"
-                : notificationType === "SUCCESS"
-                ? "✅"
-                : notificationType === "WARNING"
-                ? "⚠️"
-                : "💬",
-          });
         }
       }
 
@@ -372,175 +315,39 @@ export const setupSocketListeners = (store) => {
       const state = store.getState();
       const currentUser = state.auth.user;
 
-      if (!currentUser) {
-        console.warn(
-          "[socketMiddleware] No current user in state, ignoring offer"
-        );
-        toast.error("Trade offer ignored: No user logged in.", {
-          position: "top-center",
-        });
-        return;
-      }
-      if (currentUser._id !== offerData.sellerId) {
+      if (!currentUser || currentUser._id !== offerData.sellerId) {
         console.log(
-          `[socketMiddleware] Trade offer not for this user (user: ${currentUser._id}, seller: ${offerData.sellerId}), ignoring`
+          "[socketMiddleware] Trade offer not for this user, ignoring"
         );
-        toast.error("Trade offer ignored: Not for this user.", {
-          position: "top-center",
-        });
         return;
       }
 
       // Fetch trade details to ensure we have complete data
       store.dispatch(fetchTradeDetails(offerData.tradeId));
-      console.log(
-        "[socketMiddleware] Dispatched fetchTradeDetails for offer",
-        offerData.tradeId
-      );
 
       // Ensure there's a notification for this trade offer
-      const notification = {
-        id: Date.now(),
-        title: "New Trade Offer",
-        message: `You received a new offer for ${
-          offerData.itemName || "an item"
-        }`,
-        type: "TRADE",
-        link: `/trades/${offerData.tradeId}`,
-        read: false,
-        createdAt: new Date().toISOString(),
-      };
-
-      // Add to notification center
-      store.dispatch(addNotification(notification));
-      console.log(
-        "[socketMiddleware] Dispatched addNotification for trade offer"
+      store.dispatch(
+        addNotification({
+          id: Date.now(),
+          title: "New Trade Offer",
+          message: `You received a new offer for ${
+            offerData.itemName || "an item"
+          }`,
+          type: "INFO",
+          link: `/trades/${offerData.tradeId}`,
+          read: false,
+          createdAt: new Date().toISOString(),
+        })
       );
 
-      // Also show a toast notification immediately
-      toast.success(notification.title, {
-        description: notification.message,
-        position: "top-center",
-        duration: 6000, // Longer duration for visibility
-        icon: "💰",
-      });
-
       // Dispatch event to notify app that a seller trade offer arrived
-      // This will be handled by TradeSidePanelManager to open the trade panel
+      // This will be handled by App.jsx to open the trade panel
       store.dispatch(
         setSellerTradeOffer({
           tradeId: offerData.tradeId,
           role: "seller",
         })
       );
-      console.log(
-        "[socketMiddleware] Dispatched setSellerTradeOffer for tradeId",
-        offerData.tradeId
-      );
-    });
-
-    // Also listen for newTradeOffer events
-    socketService.socket.on("newTradeOffer", (offerData) => {
-      console.log(
-        "[socketMiddleware] Received new trade offer event:",
-        offerData
-      );
-
-      // Get current user
-      const state = store.getState();
-      const currentUser = state.auth.user;
-
-      if (!currentUser) {
-        console.warn(
-          "[socketMiddleware] No current user in state, ignoring newTradeOffer"
-        );
-        toast.error("Offer event ignored: No user logged in.", {
-          position: "top-center",
-        });
-        return;
-      }
-
-      // Check if this user is involved
-      const isSeller = offerData.sellerId === currentUser._id;
-      const isBuyer = offerData.buyerId === currentUser._id;
-
-      if (!isSeller && !isBuyer) {
-        console.log("[socketMiddleware] Offer not for this user, ignoring");
-        toast.error("Offer event ignored: Not for this user.", {
-          position: "top-center",
-        });
-        return;
-      }
-
-      // Show different notifications/actions based on role
-      if (isSeller) {
-        // For seller - show notification and open trade panel
-        const notification = {
-          id: Date.now(),
-          title: "New Offer Received",
-          message: `${offerData.buyerName || "A buyer"} wants to buy your ${
-            offerData.itemName || "item"
-          }`,
-          type: "TRADE",
-          link: `/trades/${offerData.tradeId}`,
-          read: false,
-          createdAt: new Date().toISOString(),
-        };
-
-        store.dispatch(addNotification(notification));
-        console.log(
-          "[socketMiddleware] Dispatched addNotification for newTradeOffer"
-        );
-
-        // Show toast
-        toast.success("New trade offer!", {
-          description: notification.message,
-          position: "top-center",
-          duration: 6000, // Longer duration for visibility
-          icon: "💰",
-        });
-
-        // Always dispatch setSellerTradeOffer AFTER showing the toast
-        // to ensure the trade panel opens properly
-        setTimeout(() => {
-          store.dispatch(
-            setSellerTradeOffer({
-              tradeId: offerData.tradeId,
-              role: "seller",
-            })
-          );
-          console.log(
-            "[socketMiddleware] Dispatched setSellerTradeOffer for newTradeOffer",
-            offerData.tradeId
-          );
-        }, 300); // Short delay to ensure toast is shown first
-      } else if (isBuyer) {
-        // For buyer - just show notification
-        const notification = {
-          id: Date.now(),
-          title: "Offer Sent",
-          message: `Your offer for ${
-            offerData.itemName || "an item"
-          } was sent to the seller`,
-          type: "INFO",
-          link: `/trades/${offerData.tradeId}`,
-          read: false,
-          createdAt: new Date().toISOString(),
-        };
-
-        store.dispatch(addNotification(notification));
-        console.log(
-          "[socketMiddleware] Dispatched addNotification for buyer newTradeOffer"
-        );
-
-        // Show toast
-        toast.success("Offer sent successfully!", {
-          description: notification.message,
-          position: "top-center",
-          duration: 5000,
-          icon: "📨",
-        });
-      }
     });
   });
 };
