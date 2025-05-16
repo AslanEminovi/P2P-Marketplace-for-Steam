@@ -216,11 +216,16 @@ const TradePanel = ({
           );
         }
         
-        // Automatically navigate to trade page after successful purchase
-        // Reduce the delay to make it more responsive
+        // Open the trade tracking panel instead of redirecting
         setTimeout(() => {
           if (response.data.tradeId) {
-            navigate(`/trades/${response.data.tradeId}`);
+            // If the trade tracking panel is available, open it
+            if (window.openTradeTrackingPanel) {
+              window.openTradeTrackingPanel(response.data.tradeId, 'buyer');
+            } else {
+              // Fallback to navigation
+              navigate(`/trades/${response.data.tradeId}`);
+            }
           }
         }, 2000);
         
@@ -369,6 +374,16 @@ const TradePanel = ({
             'SUCCESS'
           );
         }
+        
+        // Open the trade tracking panel
+        setTimeout(() => {
+          if (response.data.tradeId) {
+            // If the trade tracking panel is available, open it
+            if (window.openTradeTrackingPanel) {
+              window.openTradeTrackingPanel(response.data.tradeId, 'buyer');
+            }
+          }
+        }, 1500);
         
       } catch (err) {
         console.error('Error making offer:', err);

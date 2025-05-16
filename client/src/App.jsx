@@ -11,6 +11,7 @@ import SocketConnectionIndicator from './components/SocketConnectionIndicator';
 import LiveActivityFeed from './components/LiveActivityFeed';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import SteamRegistrationModal from './components/SteamRegistrationModal';
+import TradeTrackingPanelManager from './components/TradeTrackingPanelManager';
 
 // Pages
 import Home from './pages/Home';
@@ -448,6 +449,9 @@ function AppContent() {
           onComplete={handleRegistrationComplete}
         />
       )}
+      
+      {/* Trade Tracking Panel Manager */}
+      <TradeTrackingPanelManager />
     </PageWrapper>
   );
 }
