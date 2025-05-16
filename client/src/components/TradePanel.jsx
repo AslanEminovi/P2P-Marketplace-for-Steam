@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../utils/languageUtils';
 import { formatCurrency, API_URL } from '../config/constants';
 import '../styles/TradePanel.css';
+import { FaExchangeAlt } from 'react-icons/fa';
 
 // Animation variants
 const backdropVariants = {
@@ -84,11 +85,29 @@ const TradePanel = ({
   useEffect(() => {
     if (isOpen) {
       fetchUserProfile();
-      if (action === 'offers') {
-        fetchOffers();
+      
+      // Always fetch offers when panel opens to check for existing offers
+      fetchOffers();
+    }
+  }, [isOpen, action, item?._id]);
+
+  // Before making an offer, check if we already have a pending offer for this item
+  useEffect(() => {
+    if (isOpen && action === 'offer' && item?._id && offers.length > 0 && !fetchingOffers) {
+      const existingOffer = offers.find(
+        offer => offer.itemId === item._id && offer.status.toLowerCase() === 'pending'
+      );
+      
+      if (existingOffer) {
+        setError(`You already have a pending offer for this item. Cancel it before making a new offer.`);
+      } else {
+        // Clear the error if there's no existing offer
+        if (error === `You already have a pending offer for this item. Cancel it before making a new offer.`) {
+          setError(null);
+        }
       }
     }
-  }, [isOpen, action]);
+  }, [isOpen, action, item?._id, offers, fetchingOffers, error]);
 
   // Fetch user profile to get trade URL
   const fetchUserProfile = async () => {
@@ -121,7 +140,23 @@ const TradePanel = ({
         withCredentials: true
       });
       
-      setOffers(response.data.offers || []);
+      // Check if we have offers data
+      if (response.data.offers && Array.isArray(response.data.offers)) {
+        setOffers(response.data.offers);
+        
+        // If we're in offer mode and have an item, check if there's a pending offer for it
+        if (action === 'offer' && item && item._id) {
+          const existingOffer = response.data.offers.find(
+            offer => offer.itemId === item._id && offer.status.toLowerCase() === 'pending'
+          );
+          
+          if (existingOffer) {
+            setError(`You already have a pending offer for this item. Cancel it before making a new offer.`);
+          }
+        }
+      } else {
+        setOffers([]);
+      }
     } catch (err) {
       console.error('Error fetching offers:', err);
       setError('Failed to load your offers. Please try again.');
@@ -701,9 +736,7 @@ const TradePanel = ({
     if (offers.length === 0) {
       return (
         <div className="trade-panel-empty-state">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 0C1.46 6.7 1.33 10.28 4 13l8 8 8-8c2.67-2.72 2.54-6.3.42-8.42z"></path>
-          </svg>
+          <FaExchangeAlt size={40} style={{ color: 'var(--panel-text-secondary)', opacity: 0.7, marginBottom: '16px' }} />
           <h3>No Offers Found</h3>
           <p>You don't have any offers at the moment. Browse the marketplace to make offers on items.</p>
         </div>
@@ -1465,10 +1498,8 @@ const TradePanel = ({
                   
                   {action === 'offers' && (
                     <>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                      </svg>
-                      <span>{t('trade.your_offers')}</span>
+                      <FaExchangeAlt size={20} color="var(--panel-accent)" />
+                      <span>My Offers</span>
                     </>
                   )}
                 </div>

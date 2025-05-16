@@ -375,9 +375,7 @@ const Navbar = ({ user, onLogout, openOffersPanel }) => {
                     title="Your Offers"
                   >
                     <div className="icon-container">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 0C1.46 6.7 1.33 10.28 4 13l8 8 8-8c2.67-2.72 2.54-6.3.42-8.42z"></path>
-                      </svg>
+                      <FaExchangeAlt size={20} />
                       {pendingTradesCount > 0 && (
                         <span className="badge">{pendingTradesCount}</span>
                       )}
@@ -496,19 +494,6 @@ const Navbar = ({ user, onLogout, openOffersPanel }) => {
                             </svg>
                             My Profile
                           </NavLink>
-                          
-                          <button 
-                            className="dropdown-menu-item button-style"
-                            onClick={() => {
-                              setDropdownOpen(false);
-                              openOffersPanel();
-                            }}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 0C1.46 6.7 1.33 10.28 4 13l8 8 8-8c2.67-2.72 2.54-6.3.42-8.42z"></path>
-                            </svg>
-                            My Offers
-                          </button>
                           
                           <NavLink to="/inventory" className="dropdown-menu-item" onClick={() => setDropdownOpen(false)}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -680,9 +665,7 @@ const Navbar = ({ user, onLogout, openOffersPanel }) => {
                     setMobileOpen(false); // Close mobile menu
                   }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 0C1.46 6.7 1.33 10.28 4 13l8 8 8-8c2.67-2.72 2.54-6.3.42-8.42z"></path>
-                  </svg>
+                  <FaExchangeAlt size={20} />
                   My Offers
                 </button>
               </>
