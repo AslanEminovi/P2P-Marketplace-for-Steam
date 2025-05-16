@@ -136,17 +136,31 @@ const TradePanel = ({
     try {
       setFetchingOffers(true);
       setError(null);
-      const response = await axios.get(`${API_URL}/offers/user`, {
+      const response = await axios.get(`${API_URL}/offers/sent`, {
         withCredentials: true
       });
       
-      // Check if we have offers data
-      if (response.data.offers && Array.isArray(response.data.offers)) {
-        setOffers(response.data.offers);
+      if (Array.isArray(response.data)) {
+        // Map the response to a consistent format
+        const formattedOffers = response.data.map(offer => ({
+          _id: offer.offerId,
+          itemId: offer.itemId,
+          itemName: offer.itemName || 'Unknown Item',
+          itemImage: offer.itemImage,
+          owner: offer.owner,
+          amount: offer.offerAmount,
+          currency: offer.offerCurrency || 'USD',
+          originalPrice: offer.originalPrice,
+          status: offer.status,
+          createdAt: offer.createdAt,
+          tradeId: offer.tradeId
+        }));
+        
+        setOffers(formattedOffers);
         
         // If we're in offer mode and have an item, check if there's a pending offer for it
         if (action === 'offer' && item && item._id) {
-          const existingOffer = response.data.offers.find(
+          const existingOffer = formattedOffers.find(
             offer => offer.itemId === item._id && offer.status.toLowerCase() === 'pending'
           );
           
@@ -733,7 +747,7 @@ const TradePanel = ({
       );
     }
     
-    if (offers.length === 0) {
+    if (!offers || offers.length === 0) {
       return (
         <div className="trade-panel-empty-state">
           <FaExchangeAlt size={40} style={{ color: 'var(--panel-text-secondary)', opacity: 0.7, marginBottom: '16px' }} />
@@ -746,15 +760,15 @@ const TradePanel = ({
     // Sort offers by status: pending first, then accepted, then others
     const sortedOffers = [...offers].sort((a, b) => {
       const statusOrder = { 'pending': 0, 'accepted': 1 };
-      const statusA = statusOrder[a.status.toLowerCase()] ?? 2;
-      const statusB = statusOrder[b.status.toLowerCase()] ?? 2;
+      const statusA = statusOrder[a.status?.toLowerCase()] ?? 2;
+      const statusB = statusOrder[b.status?.toLowerCase()] ?? 2;
       
       if (statusA !== statusB) {
         return statusA - statusB;
       }
       
       // If status is the same, sort by date (newest first)
-      return new Date(b.createdAt) - new Date(a.createdAt);
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
     });
     
     return (
@@ -772,9 +786,9 @@ const TradePanel = ({
               <div className="offer-item-details">
                 <h4 className="offer-item-name">{offer.itemName || 'Unknown Item'}</h4>
                 <div className="offer-item-meta">
-                  <span className="offer-timestamp">{formatDate(offer.createdAt)}</span>
-                  <span className={`offer-status ${getStatusClass(offer.status)}`}>
-                    {getStatusText(offer.status)}
+                  <span className="offer-timestamp">{offer.createdAt ? formatDate(offer.createdAt) : 'Unknown date'}</span>
+                  <span className={`offer-status ${getStatusClass(offer.status || 'unknown')}`}>
+                    {getStatusText(offer.status || 'unknown')}
                   </span>
                 </div>
               </div>
@@ -782,15 +796,21 @@ const TradePanel = ({
             <div className="offer-item-content">
               <div className="offer-amount">
                 <span className="label">Your Offer:</span>
-                <span className="value">{formatCurrency(offer.amount, offer.currency)}</span>
+                <span className="value">{formatCurrency(offer.amount || 0, offer.currency || 'USD')}</span>
               </div>
               {offer.originalPrice && (
                 <div className="offer-original-price">
                   <span className="label">Listed Price:</span>
-                  <span className="value">{formatCurrency(offer.originalPrice, offer.currency)}</span>
+                  <span className="value">{formatCurrency(offer.originalPrice, offer.currency || 'USD')}</span>
                 </div>
               )}
-              {offer.status === 'pending' && (
+              {offer.owner && (
+                <div className="offer-owner">
+                  <span className="label">Seller:</span>
+                  <span className="value">{offer.owner.displayName || 'Unknown'}</span>
+                </div>
+              )}
+              {offer.status?.toLowerCase() === 'pending' && (
                 <button 
                   className="trade-panel-button trade-panel-button-danger"
                   onClick={() => handleCancelOffer(offer._id)}
@@ -799,7 +819,7 @@ const TradePanel = ({
                   {cancelingOffer === offer._id ? 'Cancelling...' : 'Cancel Offer'}
                 </button>
               )}
-              {offer.status === 'accepted' && offer.tradeId && (
+              {offer.status?.toLowerCase() === 'accepted' && offer.tradeId && (
                 <button 
                   className="trade-panel-button trade-panel-button-primary"
                   onClick={() => navigate(`/trades/${offer.tradeId}`)}

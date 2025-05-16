@@ -869,14 +869,14 @@
   gap: 8px;
 }
 
-.offer-amount, .offer-original-price {
+.offer-amount, .offer-original-price, .offer-owner {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 6px 0;
 }
 
-.offer-amount .label, .offer-original-price .label {
+.offer-amount .label, .offer-original-price .label, .offer-owner .label {
   font-size: 0.9rem;
   color: var(--panel-text-secondary);
 }
@@ -891,6 +891,12 @@
   font-size: 0.9rem;
   color: var(--panel-text-secondary);
   text-decoration: line-through;
+}
+
+.offer-owner .value {
+  font-size: 0.9rem;
+  color: var(--panel-text);
+  font-weight: 500;
 }
 
 /* Empty and error states */

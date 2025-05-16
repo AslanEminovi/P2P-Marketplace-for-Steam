@@ -625,25 +625,35 @@ exports.getUserOffers = async (req, res) => {
     // Find all items where the user has made an offer
     const Item = mongoose.model("Item");
     const items = await Item.find({
-      "offers.user": userId,
-    });
+      "offers.offeredBy": userId,
+    }).populate("owner");
 
     // Extract the offers this user has made from all items
     const userOffers = [];
 
     items.forEach((item) => {
       item.offers.forEach((offer) => {
-        if (offer.user.toString() === userId.toString()) {
+        if (
+          offer.offeredBy &&
+          offer.offeredBy.toString() === userId.toString()
+        ) {
           userOffers.push({
             _id: offer._id,
             itemId: item._id,
-            itemName: item.marketHashName,
+            itemName: item.marketHashName || "Unknown Item",
             itemImage: item.imageUrl,
+            owner: item.owner
+              ? {
+                  displayName: item.owner.displayName || "Unknown User",
+                  avatar: item.owner.avatar,
+                }
+              : null,
             amount: offer.offerAmount,
-            currency: offer.offerCurrency,
+            currency: offer.offerCurrency || "USD",
             originalPrice: item.price,
             status: offer.status,
             createdAt: offer.createdAt,
+            updatedAt: offer.updatedAt,
             tradeId: offer.tradeId, // If an offer was accepted, it might have a trade ID
           });
         }
@@ -685,7 +695,7 @@ exports.cancelOffer = async (req, res) => {
     }
 
     // Verify the offer belongs to the user
-    if (offer.user.toString() !== userId.toString()) {
+    if (offer.offeredBy.toString() !== userId.toString()) {
       return res
         .status(403)
         .json({ error: "You do not have permission to cancel this offer." });
@@ -701,6 +711,9 @@ exports.cancelOffer = async (req, res) => {
 
     // Update the offer status
     offer.status = "cancelled";
+
+    // Add updatedAt timestamp
+    offer.updatedAt = new Date();
 
     // Save the item
     await item.save();
