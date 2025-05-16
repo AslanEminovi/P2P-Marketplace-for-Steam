@@ -356,6 +356,62 @@
   line-height: 1.6;
 }
 
+/* New processing container styles */
+.processing-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.processing-animation {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--panel-border);
+}
+
+.processing-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(124, 58, 237, 0.3);
+  border-radius: 50%;
+  border-top-color: var(--panel-accent);
+  animation: spin 1s linear infinite;
+}
+
+/* New success container styles */
+.success-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  margin-bottom: 24px;
+  font-size: 40px;
+  color: var(--panel-success);
+  background: rgba(16, 185, 129, 0.1);
+  border: 2px solid rgba(16, 185, 129, 0.3);
+  border-radius: 50%;
+  animation: success-pulse 2s infinite;
+}
+
 .spinner {
   width: 40px;
   height: 40px;
@@ -368,6 +424,42 @@
 .success-icon {
   color: var(--panel-success);
   animation: success-pulse 2s infinite;
+}
+
+/* Trade actions and button styling */
+.trade-actions {
+  margin-top: 30px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trade-button {
+  padding: 16px 20px;
+  font-size: 1rem;
+  border-radius: 8px;
+  background: var(--panel-accent);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
+}
+
+.trade-button:hover {
+  background: var(--panel-accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+}
+
+.button-icon {
+  font-size: 18px;
 }
 
 @keyframes spin {
@@ -388,6 +480,7 @@
   gap: 10px;
 }
 
+/* Restore the original button styling for other components */
 .trade-panel-button {
   flex: 1;
   padding: 12px 16px;
@@ -733,10 +826,6 @@
 
 .w-full {
   width: 100%;
-}
-
-.trade-actions {
-  margin-top: 1.5rem;
 }
 
 /* For use with color utilities */

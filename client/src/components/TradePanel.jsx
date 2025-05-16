@@ -404,13 +404,8 @@ const TradePanel = ({
         // Show success view
         setProcessingStage(2);
         
-        // Auto-redirect after 3 seconds
-        setTimeout(() => {
-          if (response.data.tradeId) {
-            navigate(`/trades/${response.data.tradeId}`);
-            onClose();
-          }
-        }, 3000);
+        // Remove automatic redirection after 3 seconds
+        // Instead, we'll show a button for users to manually navigate
       }
     } catch (err) {
       console.error('Error accepting offer:', err);
@@ -851,76 +846,40 @@ const TradePanel = ({
   // Render the current processing stage (loading, success, etc.)
   const renderProcessingStage = () => {
     switch (processingStage) {
-      // Processing (loading)
-      case 1:
+      case 0: // Initial
+        return null;
+      case 1: // Processing
         return (
-          <div className="trade-panel-processing">
-            <div className="processing-icon">
-              <div className="spinner"></div>
+          <div className="processing-container">
+            <div className="processing-animation">
+              <div className="processing-spinner"></div>
             </div>
-            <h3 className="processing-title">
-              {action === 'buy' ? 'Processing Purchase' : 'Submitting Offer'}
-            </h3>
-            <p className="processing-message">
-              {action === 'buy' 
-                ? "We're processing your purchase. This should only take a moment..." 
-                : "We're submitting your offer. This should only take a moment..."}
-            </p>
+            <h3>Processing your request...</h3>
+            <p>Please wait while we process your transaction.</p>
           </div>
         );
-      
-      // Success
-      case 2:
+      case 2: // Success
         return (
-          <div className="trade-panel-processing">
-            <div className="processing-icon">
-              <svg 
-                width="40" 
-                height="40" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                className="success-icon"
-              >
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-              </svg>
-            </div>
-            <h3 className="processing-title">
-              {action === 'buy' ? 'Purchase Successful!' : 'Offer Submitted!'}
-            </h3>
-            <p className="processing-message">
-              {action === 'buy' 
-                ? "Your purchase has been completed successfully. You'll receive a trade offer on Steam shortly." 
-                : "Your offer has been submitted successfully. The seller will be notified of your offer."}
-            </p>
-            
-            {tradeData && tradeData.tradeId && action === 'buy' && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                style={{ marginTop: '20px' }}
-              >
+          <div className="success-container">
+            <div className="success-icon">✓</div>
+            <h3>Success!</h3>
+            <p>{success}</p>
+            {tradeData && tradeData.tradeId && (
+              <div className="trade-actions">
                 <button 
-                  className="trade-panel-button trade-panel-button-primary"
-                  onClick={() => navigate(`/trades/${tradeData.tradeId}`)}
-                  style={{ width: '100%' }}
+                  className="primary-button trade-button"
+                  onClick={() => {
+                    navigate(`/trades/${tradeData.tradeId}`);
+                    onClose();
+                  }}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-                  </svg>
-                  <span>View Trade Details</span>
+                  <FaExchangeAlt className="button-icon" />
+                  Go to Trade Page to Complete Transaction
                 </button>
-              </motion.div>
+              </div>
             )}
           </div>
         );
-        
       default:
         return null;
     }
