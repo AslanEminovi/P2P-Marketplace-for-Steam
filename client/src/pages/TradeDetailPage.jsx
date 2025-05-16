@@ -9,6 +9,7 @@ const TradeDetailPage = () => {
   const { tradeId } = useParams();
   const navigate = useNavigate();
   const [error, setError] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
 
   // Handle error state and redirection
   useEffect(() => {
@@ -37,6 +38,12 @@ const TradeDetailPage = () => {
       }
     }
   }, [error, navigate]);
+
+  // Handle errors from the TradeDetails component
+  const handleTradeError = (errorData) => {
+    console.log('Trade error received from TradeDetails:', errorData);
+    setError(errorData);
+  };
 
   // Render error state with redirect option
   if (error) {
@@ -78,7 +85,11 @@ const TradeDetailPage = () => {
         </h1>
       </div>
 
-      <TradeDetails tradeId={tradeId} />
+      <TradeDetails 
+        tradeId={tradeId} 
+        onError={handleTradeError}
+        setLoading={setLoading}
+      />
     </div>
   );
 };

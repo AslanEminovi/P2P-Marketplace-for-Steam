@@ -504,17 +504,92 @@ const TradeDetails = ({ tradeId }) => {
     fetchCurrentUser();
   }, []);
 
-  // Load trade details from Redux
+  // Add proper loading and error handling for trade details
   useEffect(() => {
-    if (tradeId) {
-      dispatch(fetchTradeDetails(tradeId));
-    }
-    
-    // Cleanup function to reset current trade on unmount
-    return () => {
-      dispatch(resetCurrentTrade());
+    const fetchTradeDetails = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        console.log('Fetching trade details for ID:', tradeId);
+        const response = await axios.get(`${API_URL}/trades/${tradeId}`, {
+          withCredentials: true
+        });
+        
+        // Add a small delay to ensure trade data is fully available
+        setTimeout(() => {
+          console.log('Trade details received:', response.data);
+          setTrade(response.data);
+          setLoading(false);
+        }, 500);
+      } catch (err) {
+        console.error('Error fetching trade details:', err);
+        
+        // Extract error details from response
+        const errorData = err.response?.data || {
+          error: 'Error',
+          message: 'Failed to load trade details',
+          redirectUrl: '/trades'
+        };
+        
+        setError(errorData);
+        setLoading(false);
+        
+        // Propagate error to parent component
+        if (onError && typeof onError === 'function') {
+          onError(errorData);
+        }
+      }
     };
-  }, [tradeId, dispatch]);
+    
+    if (tradeId) {
+      // Add a small delay before fetching to ensure server has time to process
+      const timer = setTimeout(() => {
+        fetchTradeDetails();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [tradeId]);
+
+  // Retry mechanism if initial load fails
+  const handleRetryLoad = () => {
+    if (tradeId) {
+      setLoading(true);
+      setError(null);
+      
+      // Add a longer delay for retry attempts
+      setTimeout(async () => {
+        try {
+          console.log('Retrying trade details fetch for ID:', tradeId);
+          const response = await axios.get(`${API_URL}/trades/${tradeId}`, {
+            withCredentials: true
+          });
+          
+          console.log('Trade details received on retry:', response.data);
+          setTrade(response.data);
+          setLoading(false);
+        } catch (err) {
+          console.error('Error fetching trade details on retry:', err);
+          
+          // Extract error details from response
+          const errorData = err.response?.data || {
+            error: 'Error',
+            message: 'Failed to load trade details after retry',
+            redirectUrl: '/trades'
+          };
+          
+          setError(errorData);
+          setLoading(false);
+          
+          // Propagate error to parent component
+          if (onError && typeof onError === 'function') {
+            onError(errorData);
+          }
+        }
+      }, 1500);
+    }
+  };
 
   // Update user roles when trade or user changes
   useEffect(() => {
@@ -1090,11 +1165,11 @@ const TradeDetails = ({ tradeId }) => {
                   </svg>
             </div>
             <div className="trade-status-message-text">
-              {error}
+              {error.message}
               <button 
                 className="trade-action-button trade-action-button-secondary"
                 style={{ marginTop: '10px' }}
-                onClick={() => dispatch(fetchTradeDetails(tradeId))}
+                onClick={handleRetryLoad}
               >
                 Try Again
               </button>

@@ -231,6 +231,10 @@ exports.acceptOffer = async (req, res) => {
     const { itemId, offerId } = req.params;
     const sellerId = req.user._id;
 
+    console.log(
+      `[offerController] Processing offer acceptance: itemId=${itemId}, offerId=${offerId}`
+    );
+
     // Find the item and verify ownership
     const item = await Item.findById(itemId).populate("offers.offeredBy");
     if (!item) {
@@ -259,6 +263,10 @@ exports.acceptOffer = async (req, res) => {
         error: `Cannot accept an offer that is already ${offer.status}.`,
       });
     }
+
+    console.log(
+      `[offerController] Creating trade for accepted offer: ${offerId}`
+    );
 
     // Create a trade record with the offer details
     const Trade = mongoose.model("Trade");
@@ -290,12 +298,33 @@ exports.acceptOffer = async (req, res) => {
       ],
     });
 
-    await newTrade.save();
+    // Save the trade first and wait for it to complete
+    const savedTrade = await newTrade.save();
+
+    if (!savedTrade || !savedTrade._id) {
+      console.error(
+        `[offerController] Failed to create trade record for offer ${offerId}`
+      );
+      return res.status(500).json({ error: "Failed to create trade record." });
+    }
+
+    console.log(`[offerController] Trade created: ${savedTrade._id}`);
+
+    // Verify the trade was actually created
+    const verifyTrade = await Trade.findById(savedTrade._id);
+    if (!verifyTrade) {
+      console.error(
+        `[offerController] Trade verification failed for ID ${savedTrade._id}`
+      );
+      return res
+        .status(500)
+        .json({ error: "Trade record verification failed." });
+    }
 
     // Update the offer status and add trade reference
     offer.status = "accepted";
     offer.updatedAt = new Date();
-    offer.tradeId = newTrade._id;
+    offer.tradeId = savedTrade._id;
 
     // Mark all other offers as declined
     item.offers.forEach((o, idx) => {
@@ -321,6 +350,7 @@ exports.acceptOffer = async (req, res) => {
     item.reservedBy = offer.offeredBy;
     item.reservedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
+    // Save the updated item
     await item.save();
 
     // Get buyer info for the notification
@@ -337,15 +367,15 @@ exports.acceptOffer = async (req, res) => {
         } for ${
           item.marketHashName
         } has been accepted. Go to the trades page to complete the transaction.`,
-        link: `/trades/${newTrade._id}`,
+        link: `/trades/${savedTrade._id}`,
         relatedItemId: item._id,
-        relatedTradeId: newTrade._id,
+        relatedTradeId: savedTrade._id,
         read: false,
         data: {
           type: "offer_accepted",
           itemId: item._id.toString(),
           offerId: offerId,
-          tradeId: newTrade._id.toString(),
+          tradeId: savedTrade._id.toString(),
           itemName: item.marketHashName,
         },
       };
@@ -355,31 +385,34 @@ exports.acceptOffer = async (req, res) => {
         ...notificationForBuyer,
       });
 
-      // Send real-time notification
-      socketService.notifyOfferUpdate(buyerId.toString(), {
-        type: "offer_accepted",
-        title: "Offer Accepted",
-        message: `Your offer of ${offer.offerAmount} ${
-          offer.offerCurrency || "USD"
-        } for ${
-          item.marketHashName
-        } has been accepted. Go to the trades page to complete the transaction.`,
-        itemId: item._id.toString(),
-        offerId: offerId,
-        tradeId: newTrade._id.toString(),
-        itemName: item.marketHashName,
-        openTradePanel: true,
-        tradePanelOptions: {
-          action: "offers",
-          activeTab: "sent",
-        },
-      });
+      // Send real-time notification with slightly delayed delivery
+      // to ensure database operations are complete
+      setTimeout(() => {
+        socketService.notifyOfferUpdate(buyerId.toString(), {
+          type: "offer_accepted",
+          title: "Offer Accepted",
+          message: `Your offer of ${offer.offerAmount} ${
+            offer.offerCurrency || "USD"
+          } for ${
+            item.marketHashName
+          } has been accepted. Go to the trades page to complete the transaction.`,
+          itemId: item._id.toString(),
+          offerId: offerId,
+          tradeId: savedTrade._id.toString(),
+          itemName: item.marketHashName,
+          openTradePanel: true,
+          tradePanelOptions: {
+            action: "offers",
+            activeTab: "sent",
+          },
+        });
+      }, 500);
     }
 
     return res.json({
       success: true,
-      message: "Offer accepted successfully.",
-      tradeId: newTrade._id,
+      message: "Offer accepted successfully. Redirecting to trade details...",
+      tradeId: savedTrade._id,
     });
   } catch (err) {
     console.error("Accept offer error:", err);

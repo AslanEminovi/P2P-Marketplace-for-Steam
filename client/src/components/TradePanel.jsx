@@ -408,6 +408,7 @@ const TradePanel = ({
     try {
       setLoading(true);
       setError(null);
+      setProcessingStage(1); // Set to processing immediately
       
       const response = await axios.put(
         `${API_URL}/offers/${itemId}/${offerId}/accept`,
@@ -417,31 +418,38 @@ const TradePanel = ({
       
       if (response.data.success) {
         // Show success message
-        setSuccess(response.data.message || "Offer accepted successfully!");
+        setSuccess(response.data.message || "Offer accepted! Preparing trade details...");
         
         // Update local state
         setReceivedOffers(prevOffers => 
           prevOffers.filter(offer => offer._id !== offerId)
         );
         
-        // Show success notification
-        if (window.showNotification) {
-          window.showNotification(
-            'Offer Accepted',
-            'You accepted an offer. Go to the trades page to complete the transaction.',
-            'SUCCESS'
-          );
-        }
-        
         // Set the processing stage to success
-        setProcessingStage(2);
+        setProcessingStage(2); // Success
         
         // Set the tradeId for redirection
-        setAcceptedTradeId(response.data.tradeId);
+        if (response.data.tradeId) {
+          // Add a deliberate delay to ensure the trade record is fully created in the database
+          // before redirecting to the trade details page
+          setTimeout(() => {
+            setAcceptedTradeId(response.data.tradeId);
+            
+            // Show notification about next steps
+            if (window.showNotification) {
+              window.showNotification(
+                'Offer Accepted',
+                'Offer accepted successfully. You will now be redirected to complete the trading process.',
+                'SUCCESS'
+              );
+            }
+          }, 1500); // 1.5 second delay to ensure trade is created
+        }
       }
     } catch (err) {
       console.error('Error accepting offer:', err);
       setError(err.response?.data?.error || 'Failed to accept offer');
+      setProcessingStage(0); // Reset to initial state
     } finally {
       setLoading(false);
     }
