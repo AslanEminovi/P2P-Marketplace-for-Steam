@@ -1,7 +1,8 @@
 import io from "socket.io-client";
 import { API_URL } from "../config/constants";
 
-class SocketService {
+// Create singleton instance
+const socketService = new (class SocketService {
   constructor() {
     this.socket = null;
     this.connected = false;
@@ -31,9 +32,9 @@ class SocketService {
 
     // Setup tab visibility listener
     if (typeof document !== "undefined") {
-      document.addEventListener(
-        "visibilitychange",
-        this.handleVisibilityChange.bind(this)
+      // Use arrow function instead of bind
+      document.addEventListener("visibilitychange", () =>
+        this.handleVisibilityChange()
       );
     }
 
@@ -212,7 +213,7 @@ class SocketService {
         forceNew: true, // Force a new connection
       });
 
-      // Setup connection event handlers
+      // Setup connection event handlers using arrow functions instead of bind
       this.socket.on("connect", () => {
         console.log("[SocketService] Connected to socket server!");
         this.connected = true;
@@ -251,226 +252,181 @@ class SocketService {
         );
         this.connected = true;
 
-        // Re-establish all subscriptions
-        this.subscribeToUserStatuses();
+        if (this.connectedCallback) {
+          this.connectedCallback();
+        }
 
-        // Request fresh data
-        this.requestStatsUpdate();
-
-        // Start heartbeat
-        this.startHeartbeat();
-
-        // Send immediate heartbeat
-        this.sendHeartbeatNow();
+        // Re-register all event listeners
+        this.rebindEvents();
       });
 
+      // Add a disconnect handler
+      this.socket.on("disconnect", (reason) => {
+        console.log(`[SocketService] Disconnected: ${reason}`);
+        this.connected = false;
+
+        if (this.disconnectedCallback) {
+          this.disconnectedCallback();
+        }
+
+        // Stop heartbeats if disconnected
+        this.stopHeartbeat();
+
+        // If not user-initiated, try to reconnect
+        if (reason !== "io client disconnect") {
+          this.scheduleReconnect();
+        }
+      });
+
+      // Handle connection error
       this.socket.on("connect_error", (error) => {
         console.error("[SocketService] Connection error:", error.message);
-        console.error("[SocketService] Connection error details:", error);
         this.handleConnectionFailure();
       });
 
-      this.socket.on("disconnect", (reason) => {
-        console.log(
-          "[SocketService] Disconnected from socket server, reason:",
-          reason
-        );
-        this.connected = false;
+      // Handle connection timeout
+      this.socket.on("connect_timeout", (timeout) => {
+        console.error("[SocketService] Connection timeout:", timeout);
+        this.handleConnectionFailure();
+      });
 
-        // Stop heartbeat
-        this.stopHeartbeat();
-
-        // If this is an unexpected disconnect, try to reconnect
-        if (reason === "io server disconnect" || reason === "transport close") {
-          // The server closed the connection, so we need to manually reconnect
-          console.log(
-            "[SocketService] Server-initiated disconnect, reconnecting manually"
-          );
-          this.reconnect();
-        }
-
-        if (this.disconnectedCallback) {
-          this.disconnectedCallback(reason);
-        }
+      // Handle error events
+      this.socket.on("error", (error) => {
+        console.error("[SocketService] Socket error:", error);
       });
 
       return this.socket;
     } catch (error) {
-      console.error("[SocketService] Error during socket connection:", error);
+      console.error("[SocketService] Error creating socket:", error);
       this.handleConnectionFailure();
       return null;
     }
   }
 
+  // Disconnect from the socket server
   disconnect() {
     if (this.socket) {
       console.log("[SocketService] Disconnecting socket");
+
+      // Stop heartbeat
+      this.stopHeartbeat();
+
+      // Clear all event listeners
+      this.connectionEvents.clear();
+      this.events.clear();
+
       try {
+        // Disconnect the socket
         this.socket.disconnect();
-      } catch (err) {
-        console.error("[SocketService] Error during disconnect:", err);
+      } catch (error) {
+        console.error("[SocketService] Error disconnecting socket:", error);
       }
+
       this.socket = null;
       this.connected = false;
     }
 
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-
-    this.stopHeartbeat();
-
-    if (this.connectionCheckTimer) {
-      clearInterval(this.connectionCheckTimer);
-      this.connectionCheckTimer = null;
-    }
-
-    // Clean up resubscription intervals
-    Object.keys(this).forEach((key) => {
-      if (key.startsWith("resubscribe_") && this[key]) {
-        clearInterval(this[key]);
-        delete this[key];
-      }
-    });
+    return this;
   }
 
+  // Reconnect to the socket server
   reconnect() {
-    console.log("[SocketService] Manual reconnect requested");
+    console.log("[SocketService] Attempting to reconnect");
 
-    // Throttle reconnection attempts to prevent excessive requests
+    // Don't try to reconnect too frequently
     const now = Date.now();
-    if (now - this.lastConnectionAttempt < 3000) {
-      // 3 seconds throttle
-      console.log(
-        "[SocketService] Reconnect throttled - attempting too frequently"
-      );
+    if (now - this.lastConnectionAttempt < 2000) {
+      console.log("[SocketService] Reconnection throttled");
       return;
     }
 
-    // Always disconnect existing socket first to ensure a clean reconnection
-    if (this.socket) {
-      try {
-        console.log(
-          "[SocketService] Cleaning up existing socket connection before reconnect"
-        );
-        this.socket.disconnect();
-        this.socket = null;
-      } catch (error) {
-        console.error(
-          "[SocketService] Error during disconnect before reconnect:",
-          error
-        );
-      }
-    }
+    // Check if we have a token
+    const token =
+      localStorage.getItem("auth_token") || localStorage.getItem("token");
 
-    // Reset connection state
-    this.connected = false;
-
-    // Clear any existing reconnect timer
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-
-    // Reset reconnection parameters
-    this.reconnectAttempts = 0;
-    this.lastConnectionAttempt = now;
-
-    // Attempt to connect with current auth token
-    console.log(
-      "[SocketService] Attempting reconnection with fresh connection"
-    );
-    this.connect();
-
-    // Start heartbeat to maintain connection
-    this.startHeartbeat();
-  }
-
-  scheduleReconnect() {
-    // Don't schedule another reconnect if one is already pending
-    if (this.reconnectTimer) {
-      console.log("[SocketService] Reconnect already scheduled, skipping");
-      return;
-    }
-
-    // Calculate delay with exponential backoff up to 30 seconds
-    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+    // Increment reconnect counter
     this.reconnectAttempts++;
 
-    console.log(
-      `[SocketService] Scheduling reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`
-    );
-
-    this.reconnectTimer = setTimeout(() => {
-      console.log("[SocketService] Executing scheduled reconnect");
-      this.reconnectTimer = null;
-      this.connect();
-    }, delay);
-  }
-
-  handleConnectionFailure() {
-    console.log("[SocketService] Handling connection failure");
-    this.connected = false;
-
-    // If we've exceeded max attempts, notify the user
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error(
-        "[SocketService] Max reconnection attempts reached, giving up"
+    if (this.reconnectAttempts > this.maxReconnectAttempts) {
+      console.log(
+        `[SocketService] Max reconnection attempts (${this.maxReconnectAttempts}) reached, stopping`
       );
       return;
     }
 
+    // Just try to connect again
+    this.connect(token);
+  }
+
+  // Schedule a delayed reconnection attempt
+  scheduleReconnect() {
+    // Clear any existing timer
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
+
+    // Exponential backoff
+    const delay = Math.min(
+      this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts),
+      30000 // Max 30 seconds
+    );
+
+    console.log(`[SocketService] Scheduling reconnect in ${delay}ms`);
+
+    // Set new timer
+    this.reconnectTimer = setTimeout(() => this.reconnect(), delay);
+  }
+
+  // Handle connection failures
+  handleConnectionFailure() {
+    this.connected = false;
+    if (this.disconnectedCallback) {
+      this.disconnectedCallback();
+    }
+
+    // Schedule reconnect after a short delay
     this.scheduleReconnect();
   }
 
+  // Register a callback for connection establishment
   onConnected(callback) {
-    // Allow removing the callback by passing null
-    if (callback === null) {
-      this.connectedCallback = null;
-      return this;
-    }
+    this.connectedCallback = callback;
 
-    // Only set the callback if it's not already set to avoid duplicates
-    if (!this.connectedCallback || this.connectedCallback !== callback) {
-      this.connectedCallback = callback;
-
-      // If already connected, call the callback immediately but only do it once
-      if (this.connected && this.socket && this.socket.connected) {
-        // Use a delay to ensure we don't create infinite loops
-        setTimeout(() => {
-          if (this.connectedCallback === callback) {
-            callback();
-          }
-        }, 100);
-      }
+    // If already connected, call the callback immediately
+    if (this.isConnected()) {
+      setTimeout(() => {
+        if (callback && this.isConnected()) {
+          callback();
+        }
+      }, 0);
     }
 
     return this;
   }
 
+  // Register a callback for disconnection
   onDisconnected(callback) {
-    // Allow removing the callback by passing null
-    if (callback === null) {
-      this.disconnectedCallback = null;
-      return this;
-    }
-
-    // Only set the callback if it's not already set to avoid duplicates
-    if (!this.disconnectedCallback || this.disconnectedCallback !== callback) {
-      this.disconnectedCallback = callback;
-    }
+    this.disconnectedCallback = callback;
     return this;
   }
 
+  // Register a socket event handler
   on(event, callback) {
-    if (!this.events.has(event)) {
-      this.events.set(event, []);
+    if (!event || typeof callback !== "function") {
+      console.warn("[SocketService] Invalid event registration", {
+        event,
+        callback,
+      });
+      return this;
     }
 
-    this.events.get(event).push(callback);
+    // Store the callback in our events map
+    if (!this.events.has(event)) {
+      this.events.set(event, new Set());
+    }
+    this.events.get(event).add(callback);
 
-    // If socket exists, bind immediately
+    // Attach the handler if socket exists
     if (this.socket) {
       this.socket.on(event, callback);
     }
@@ -478,224 +434,171 @@ class SocketService {
     return this;
   }
 
+  // Remove a socket event handler
   off(event, callback) {
-    if (this.events.has(event)) {
-      const callbacks = this.events.get(event);
-      const index = callbacks.indexOf(callback);
+    if (!event) {
+      console.warn("[SocketService] Invalid event deregistration", {
+        event,
+        callback,
+      });
+      return this;
+    }
 
-      if (index !== -1) {
-        callbacks.splice(index, 1);
+    // Remove from our events map
+    if (this.events.has(event) && callback) {
+      this.events.get(event).delete(callback);
+    } else if (this.events.has(event)) {
+      // If no callback provided, clear all handlers for this event
+      this.events.delete(event);
+    }
 
-        if (this.socket) {
-          this.socket.off(event, callback);
-        }
-      }
-
-      if (callbacks.length === 0) {
-        this.events.delete(event);
-
-        // If unsubscribing from userStatusUpdate, clear any resubscription intervals
-        if (event === "userStatusUpdate") {
-          // Clean up all resubscription intervals
-          Object.keys(this).forEach((key) => {
-            if (key.startsWith("resubscribe_") && this[key]) {
-              clearInterval(this[key]);
-              delete this[key];
-            }
-          });
-        }
+    // Remove from socket if it exists
+    if (this.socket && this.socket.off) {
+      if (callback) {
+        this.socket.off(event, callback);
+      } else {
+        this.socket.off(event);
       }
     }
 
     return this;
   }
 
+  // Emit a socket event
   emit(event, data, callback) {
-    if (!this.socket || !this.connected) {
-      console.warn(
-        `[SocketService] Cannot emit '${event}' - socket not connected`
-      );
-      return false;
+    if (this.socket && this.isConnected()) {
+      this.socket.emit(event, data, callback);
+      return true;
     }
-
-    console.log(`[SocketService] Emitting event: ${event}`, data);
-    this.socket.emit(event, data, callback);
-    return true;
+    console.warn(
+      `[SocketService] Cannot emit '${event}': socket not connected`
+    );
+    return false;
   }
 
+  // Re-bind all event handlers after reconnection
   rebindEvents() {
-    // Re-attach all event listeners
+    if (!this.socket) return;
+
+    // Re-attach all event handlers from our maps
     this.events.forEach((callbacks, event) => {
       callbacks.forEach((callback) => {
-        console.log(`[SocketService] Rebinding event: ${event}`);
         this.socket.on(event, callback);
       });
     });
   }
 
+  // Check if socket is connected
   isConnected() {
-    return this.connected && this.socket && this.socket.connected;
+    return this.socket && this.socket.connected;
   }
 
-  /**
-   * Subscribe to user status updates for users we're interested in
-   */
+  // Subscribe to user status updates for all users in your subscribed list
   subscribeToUserStatuses() {
-    if (!this.isConnected()) {
-      console.log(
-        "[SocketService] Cannot subscribe to user statuses - not connected"
-      );
-      return;
-    }
+    if (!this.isConnected()) return false;
 
-    // If we have specific users in localStorage, subscribe to them
+    console.log("[SocketService] Subscribing to user statuses");
+
+    // Get user IDs from localStorage or an API call
+    let userIds = [];
     try {
-      const watchingUserIds = localStorage.getItem("watching_user_ids");
-      if (watchingUserIds) {
-        const userIds = JSON.parse(watchingUserIds);
-        console.log(
-          `[SocketService] Subscribing to ${userIds.length} user statuses`
-        );
-        userIds.forEach((userId) => {
-          this.subscribeToUserStatus(userId);
-        });
-      }
-
-      // Additionally, if the user is authenticated, always check their own status and connections
-      const authToken = localStorage.getItem("auth_token");
-      if (authToken) {
-        try {
-          // Get user ID from token (if available)
-          const tokenParts = authToken.split(".");
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]));
-            if (payload && payload.userId) {
-              console.log(
-                `[SocketService] Automatically subscribing to own user status: ${payload.userId}`
-              );
-              this.subscribeToUserStatus(payload.userId);
-
-              // Request an immediate stats update to refresh user counts
-              this.requestStatsUpdate();
-            }
-          }
-        } catch (tokenErr) {
-          console.error("[SocketService] Error parsing auth token:", tokenErr);
-        }
+      const savedUserIds = localStorage.getItem("watched_user_ids");
+      if (savedUserIds) {
+        userIds = JSON.parse(savedUserIds);
       }
     } catch (error) {
       console.error(
-        "[SocketService] Error subscribing to user statuses:",
+        "[SocketService] Error parsing watched user IDs from localStorage:",
         error
       );
     }
+
+    // If no stored IDs, just fetch relevant ones from server
+    if (!userIds || userIds.length === 0) {
+      // Just request all relevant statuses
+      this.emit("get_user_statuses", {});
+    } else {
+      // Subscribe to each user ID
+      userIds.forEach((userId) => {
+        this.subscribeToUserStatus(userId);
+      });
+    }
+
+    // Request current status for all users
+    this.emit("get_user_statuses", {
+      userIds,
+    });
+
+    return true;
   }
 
-  /**
-   * Subscribe to status updates for a specific user
-   * @param {string} userId User ID to subscribe to
-   * @returns {boolean} Success status
-   */
+  // Subscribe to updates for a specific user's status
   subscribeToUserStatus(userId) {
     if (!userId) {
       console.error(
-        "[SocketService] Cannot subscribe to null/undefined userId"
+        "[SocketService] Cannot subscribe to user status: userId is required"
       );
       return false;
     }
 
     if (!this.isConnected()) {
-      console.log(
-        `[SocketService] Cannot subscribe to user ${userId} - not connected`
+      console.warn(
+        "[SocketService] Cannot subscribe to user status: not connected"
       );
       return false;
     }
 
-    console.log(
-      `[SocketService] Subscribing to status updates for user ${userId}`
-    );
+    console.log(`[SocketService] Subscribing to user status: ${userId}`);
 
-    // Send the watch request to the server
-    this.socket.emit("watch_user_status", userId);
+    // Emit subscription request
+    this.emit("watch_user_status", {
+      userId,
+    });
 
-    // Also request immediate status update
-    this.socket.emit("request_user_status", userId);
-
-    // Store this subscription in localStorage for reconnection
+    // Also store this ID in localStorage for reconnection
     try {
-      const watchingUserIds = JSON.parse(
-        localStorage.getItem("watching_user_ids") || "[]"
-      );
+      const savedUserIds = localStorage.getItem("watched_user_ids");
+      let userIds = savedUserIds ? JSON.parse(savedUserIds) : [];
 
-      if (!watchingUserIds.includes(userId)) {
-        watchingUserIds.push(userId);
-        localStorage.setItem(
-          "watching_user_ids",
-          JSON.stringify(watchingUserIds)
-        );
-        console.log(
-          `[SocketService] Added user ${userId} to watched users list`
-        );
+      // Add if not already present
+      if (!userIds.includes(userId)) {
+        userIds.push(userId);
+        localStorage.setItem("watched_user_ids", JSON.stringify(userIds));
       }
     } catch (error) {
-      console.error("[SocketService] Error storing user subscription:", error);
+      console.error(
+        "[SocketService] Error updating watched user IDs in localStorage:",
+        error
+      );
     }
 
     return true;
   }
 
+  // Start sending heartbeat messages
   startHeartbeat() {
-    // Clear any existing heartbeat interval
+    // Clear existing interval if any
     this.stopHeartbeat();
 
-    // Set up new heartbeat interval
+    // Set up heartbeat interval
     this.heartbeatInterval = setInterval(() => {
-      if (this.isConnected()) {
-        // Always send heartbeat if connected, regardless of tab activity
-        // This maintains the user's online status as long as the tab is open
-        const isActive = this.isBrowserTabActive;
-        console.log(
-          `[SocketService] Sending heartbeat (tab active: ${isActive})`
-        );
-        this.socket.emit("heartbeat");
-
-        // Always send user_active to maintain connection and update last activity time
-        this.socket.emit("user_active");
-
-        // Request updated stats every 3rd heartbeat
-        if (Math.random() < 0.33) {
-          // ~33% chance each heartbeat
-          this.requestStatsUpdate();
-        }
-
-        // Only resend page info if tab is active to avoid polluting logs
-        if (this.isBrowserTabActive) {
-          this.emit("page_view", { page: this.currentPage });
-        }
-
-        // For debugging purposes, log the current socket ID
-        console.log("[SocketService] Current socket ID:", this.socket.id);
-      } else {
-        console.log(
-          "[SocketService] Socket disconnected, attempting to reconnect"
-        );
-        this.reconnect();
-      }
-    }, 15000); // Every 15 seconds regardless of tab state - more frequent heartbeat interval
+      this.sendHeartbeatNow();
+    }, this.heartbeatDelay);
   }
 
-  // Manually trigger a heartbeat
+  // Send a heartbeat immediately
   sendHeartbeatNow() {
-    if (this.isConnected()) {
-      console.log("[SocketService] Sending manual heartbeat");
-      this.socket.emit("heartbeat");
-      this.socket.emit("user_active");
-    } else {
-      console.log("[SocketService] Cannot send heartbeat - not connected");
-      this.reconnect();
-    }
+    if (!this.isConnected()) return;
+
+    // Send heartbeat with current tab visibility and page
+    this.emit("heartbeat", {
+      timestamp: Date.now(),
+      visible: this.isBrowserTabActive,
+      page: this.currentPage,
+    });
   }
 
+  // Stop sending heartbeats
   stopHeartbeat() {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
@@ -703,144 +606,116 @@ class SocketService {
     }
   }
 
-  // Method to update the current page and notify the server
+  // Set current page for analytics
   setCurrentPage(page) {
-    if (page !== this.currentPage) {
-      console.log(`[SocketService] User navigated to page: ${page}`);
-      this.currentPage = page;
+    this.currentPage = page || "other";
 
-      // Notify server if connected
-      if (this.isConnected()) {
-        this.emit("page_view", { page });
-      }
+    // Notify server about page change if connected
+    if (this.isConnected()) {
+      this.emit("page_view", { page: this.currentPage });
     }
+
     return this;
   }
 
-  // Method to get the current page
+  // Get current page
   getCurrentPage() {
     return this.currentPage;
   }
 
-  /**
-   * Subscribe to trade updates for a specific trade
-   * This allows real-time updates when a trade status changes
-   * @param {string} tradeId The ID of the trade to subscribe to
-   */
+  // Subscribe to trade updates for a specific trade ID
   subscribeToTradeUpdates(tradeId) {
-    if (!this.isConnected()) {
-      console.warn(
-        "[SocketService] Not connected, cannot subscribe to trade updates"
-      );
-      return;
-    }
+    if (!tradeId || !this.isConnected()) return false;
 
-    console.log(`[SocketService] Subscribing to updates for trade ${tradeId}`);
+    console.log(`[SocketService] Subscribing to trade updates: ${tradeId}`);
+
+    // Subscribe to trade-specific events
     this.emit("subscribe_trade", { tradeId });
+
+    return true;
   }
 
-  /**
-   * Unsubscribe from trade updates
-   * @param {string} tradeId The ID of the trade to unsubscribe from
-   */
+  // Unsubscribe from trade updates
   unsubscribeFromTradeUpdates(tradeId) {
-    if (!this.isConnected()) return;
+    if (!tradeId || !this.isConnected()) return false;
+
+    console.log(`[SocketService] Unsubscribing from trade updates: ${tradeId}`);
+
+    // Unsubscribe from trade-specific events
+    this.emit("unsubscribe_trade", { tradeId });
+
+    return true;
+  }
+
+  // Request a refresh of trade data
+  requestTradeRefresh(tradeId) {
+    if (!tradeId || !this.isConnected()) return false;
+
+    console.log(`[SocketService] Requesting trade refresh: ${tradeId}`);
+
+    // Ask server to send fresh trade data
+    this.emit("refresh_trade", { tradeId });
+
+    return true;
+  }
+
+  // Send a trade update to the server
+  sendTradeUpdate(tradeId, action, data = {}) {
+    if (!tradeId || !action || !this.isConnected()) return false;
 
     console.log(
-      `[SocketService] Unsubscribing from updates for trade ${tradeId}`
+      `[SocketService] Sending trade update: ${tradeId}, action: ${action}`
     );
-    this.emit("unsubscribe_trade", { tradeId });
-  }
 
-  /**
-   * Request a refresh of cached trade data
-   * Useful when we know there might be stale data in the Redis cache
-   * @param {string} tradeId The trade ID to refresh
-   */
-  requestTradeRefresh(tradeId) {
-    if (!this.isConnected()) return;
-
-    console.log(`[SocketService] Requesting refresh for trade ${tradeId}`);
-    this.emit("refresh_trade", { tradeId });
-  }
-
-  /**
-   * Send a trade update event to the server
-   * This will be broadcasted to all clients subscribed to this trade
-   * @param {string} tradeId The ID of the trade being updated
-   * @param {string} action The action being performed (e.g., 'accept', 'cancel')
-   * @param {Object} data Additional data for the update
-   */
-  sendTradeUpdate(tradeId, action, data = {}) {
-    if (!this.isConnected()) {
-      console.warn("[SocketService] Not connected, cannot send trade update");
-      return;
-    }
-
-    const updateData = {
+    // Send update to server
+    this.emit("trade_update", {
       tradeId,
       action,
       ...data,
       timestamp: new Date().toISOString(),
-    };
+    });
 
-    console.log(`[SocketService] Sending trade update for ${tradeId}:`, action);
-    this.emit("trade_update", updateData);
+    return true;
   }
 
-  /**
-   * Join a trade room to receive real-time updates about a specific trade
-   * @param {string} tradeId The ID of the trade to join
-   */
+  // Join a trade room for real-time updates
   joinTradeRoom(tradeId) {
-    if (!this.isConnected()) {
-      console.warn("[SocketService] Not connected, cannot join trade room");
-      return;
-    }
+    if (!tradeId || !this.isConnected()) return false;
 
-    console.log(`[SocketService] Joining trade room for ${tradeId}`);
+    console.log(`[SocketService] Joining trade room: ${tradeId}`);
+
+    // Join the room for this trade
     this.emit("join_trade_room", { tradeId });
+
+    return true;
   }
 
-  /**
-   * Leave a trade room when no longer interested in updates
-   * @param {string} tradeId The ID of the trade room to leave
-   */
+  // Leave a trade room
   leaveTradeRoom(tradeId) {
-    if (!this.isConnected()) return;
+    if (!tradeId || !this.isConnected()) return false;
 
-    console.log(`[SocketService] Leaving trade room for ${tradeId}`);
+    console.log(`[SocketService] Leaving trade room: ${tradeId}`);
+
+    // Leave the room for this trade
     this.emit("leave_trade_room", { tradeId });
+
+    return true;
   }
 
-  /**
-   * Request trade stats from the server
-   * This will trigger a stats_update event with the latest trade statistics
-   */
+  // Request trade statistics
   requestTradeStats() {
-    if (!this.isConnected()) {
-      console.warn("[SocketService] Not connected, cannot request trade stats");
-      return;
-    }
+    if (!this.isConnected()) return false;
 
-    console.log("[SocketService] Requesting trade statistics");
-    this.emit("request_trade_stats");
+    console.log(`[SocketService] Requesting trade stats`);
+
+    // Request trade statistics
+    this.emit("get_trade_stats");
+
+    return true;
   }
-}
+})();
 
-// Create a singleton instance - pre-declare but don't initialize yet
-let socketService;
-
-// Now create and initialize the socketService instance
-socketService = new SocketService();
-
-// Initialize at import time
-socketService.init();
-
-/**
- * Request status updates for a specific user
- * @param {string} userId - The user ID to watch
- */
+// Helper function to watch a user's status
 const watchUserStatus = function (userId) {
   if (!userId) {
     console.error(
@@ -849,53 +724,20 @@ const watchUserStatus = function (userId) {
     return false;
   }
 
-  // Attempt to reconnect if not connected
   if (!socketService.isConnected()) {
-    console.log(
-      `[socketService] Socket not connected, attempting to reconnect for watching ${userId}`
+    console.warn(
+      "[socketService] Cannot watch user status: socket not connected"
     );
-    socketService.reconnect();
-
-    // Schedule a retry after the reconnection attempt
-    setTimeout(() => {
-      if (socketService.isConnected()) {
-        console.log(
-          `[socketService] Successfully reconnected, now watching user ${userId}`
-        );
-        socketService.socket.emit("watch_user_status", userId);
-      } else {
-        console.warn(
-          `[socketService] Failed to reconnect for watching user ${userId}`
-        );
-      }
-    }, 1000);
-
     return false;
   }
 
-  console.log(`[socketService] Watching status updates for user ${userId}`);
-  socketService.socket.emit("watch_user_status", userId);
-
-  // Add to tracked users in local storage
-  try {
-    const watchedUsers = JSON.parse(
-      localStorage.getItem("watched_users") || "[]"
-    );
-    if (!watchedUsers.includes(userId)) {
-      watchedUsers.push(userId);
-      localStorage.setItem("watched_users", JSON.stringify(watchedUsers));
-    }
-  } catch (error) {
-    console.error("[socketService] Error tracking watched user:", error);
-  }
+  // Subscribe to this user's status updates
+  socketService.subscribeToUserStatus(userId);
 
   return true;
 };
 
-/**
- * Request a one-time status update for a user
- * @param {string} userId - The user ID to get status for
- */
+// Helper function to request a user's status immediately
 const requestUserStatus = function (userId) {
   if (!userId) {
     console.error(
@@ -906,95 +748,69 @@ const requestUserStatus = function (userId) {
 
   if (!socketService.isConnected()) {
     console.warn(
-      `[socketService] Socket not connected, cannot request status for user ${userId}`
+      "[socketService] Cannot request user status: socket not connected"
     );
-    socketService.reconnect();
     return false;
   }
 
-  console.log(
-    `[socketService] Requesting one-time status update for user ${userId}`
-  );
-  socketService.socket.emit("request_user_status", userId);
+  console.log(`[socketService] Requesting user status: ${userId}`);
+
+  // Request immediate status
+  socketService.emit("get_user_status", { userId });
+
   return true;
 };
 
-/**
- * Add a listener for user status updates
- * @param {Function} callback - Function to call when a status update is received
- */
+// Register a callback for user status updates
 const onUserStatusUpdate = function (callback) {
   if (!callback || typeof callback !== "function") {
     console.error("[socketService] Invalid callback for user status updates");
-    return false;
+    return () => {};
   }
 
-  // Add this listener to the socket
-  socketService.on("user_status_update", callback);
+  // Register event handler
+  const handler = (data) => {
+    callback(data);
+  };
 
-  // If socket is connected, resubscribe to all watched users to ensure updates
-  if (socketService.isConnected()) {
-    try {
-      const watchedUsers = JSON.parse(
-        localStorage.getItem("watched_users") || "[]"
-      );
-      watchedUsers.forEach((userId) => {
-        socketService.socket.emit("watch_user_status", userId);
-      });
-    } catch (error) {
-      console.error(
-        "[socketService] Error resubscribing to watched users:",
-        error
-      );
-    }
+  socketService.on("user_status_update", handler);
+
+  // Return cleanup function
+  return () => {
+    socketService.off("user_status_update", handler);
+  };
+};
+
+// Reconnect and resubscribe to all status tracking
+const reconnectStatusTracking = function () {
+  if (!socketService.isConnected()) {
+    console.log("[socketService] Reconnecting for status tracking");
+    socketService.reconnect();
   }
+
+  // Resubscribe to all user statuses
+  socketService.subscribeToUserStatuses();
 
   return true;
 };
 
-// Add a method to handle socket reconnections specifically for status tracking
-const reconnectStatusTracking = function () {
+// Function to notify sellers about new offers
+const notifySellerNewOffer = function (tradeData) {
   if (!socketService.isConnected()) {
-    socketService.reconnect();
+    console.log("[socketService] Cannot notify seller: socket not connected");
+    return false;
   }
 
-  // Resubscribe to all tracked users
-  setTimeout(() => {
-    if (socketService.isConnected()) {
-      try {
-        const watchedUsers = JSON.parse(
-          localStorage.getItem("watched_users") || "[]"
-        );
-        console.log(
-          `[socketService] Resubscribing to ${watchedUsers.length} watched users after reconnect`
-        );
-
-        watchedUsers.forEach((userId) => {
-          socketService.socket.emit("watch_user_status", userId);
-        });
-      } catch (error) {
-        console.error(
-          "[socketService] Error resubscribing to watched users:",
-          error
-        );
-      }
-    }
-  }, 1000);
-};
-
-/**
- * Emit an event to notify sellers about new trade offers
- */
-const notifySellerNewOffer = function (tradeData) {
-  if (!socketService || !socketService.isConnected()) {
-    console.log("[SocketService] Cannot notify seller: not connected");
-    return;
+  if (!tradeData || !tradeData.tradeId) {
+    console.error("[socketService] Invalid trade data for seller notification");
+    return false;
   }
 
   console.log(
-    "[SocketService] Notifying seller about new trade offer:",
+    "[socketService] Notifying seller of new trade offer:",
     tradeData.tradeId
   );
+
   socketService.socket.emit("seller_trade_offer", {
     tradeId: tradeData.tradeId,
     sellerId: tradeData.sellerId || tradeData.seller?._id,
@@ -1005,196 +821,71 @@ const notifySellerNewOffer = function (tradeData) {
     buyerName: tradeData.buyer?.username || "a buyer",
     createdAt: tradeData.createdAt || new Date().toISOString(),
   });
+
+  return true;
 };
 
-/**
- * Register a callback to handle seller trade offer events
- */
+// Register callback for seller trade offers
 const onSellerTradeOffer = function (callback) {
-  if (!socketService) {
+  if (!socketService.isConnected()) {
     console.log(
-      "[SocketService] Cannot register seller offer callback: socket not initialized"
+      "[socketService] Cannot register seller offer callback: socket not initialized"
     );
     return () => {};
   }
 
   const handler = (data) => {
-    console.log("[SocketService] Received seller trade offer:", data);
+    console.log("[socketService] Received seller trade offer:", data);
     if (callback) {
       callback(data);
     }
   };
 
-  socketService.socket.on("seller_trade_offer", handler);
+  socketService.on("seller_trade_offer", handler);
 
   // Return cleanup function
   return () => {
-    socketService.socket.off("seller_trade_offer", handler);
+    socketService.off("seller_trade_offer", handler);
   };
 };
 
-// Export the singleton instance directly along with all necessary methods
+// Export service with all methods
 export default {
-  // Socket property directly exposed
+  init: () => socketService.init(),
+  // Properly expose socket as a getter property to ensure it's always current
   get socket() {
     return socketService.socket;
   },
-
-  // Core methods
-  connect: (...args) => socketService.connect(...args),
+  connect: (token) => socketService.connect(token),
   disconnect: () => socketService.disconnect(),
   isConnected: () => socketService.isConnected(),
-  onConnected: (...args) => socketService.onConnected(...args),
-  onDisconnected: (...args) => socketService.onDisconnected(...args),
-  on: (...args) => socketService.on(...args),
-  off: (...args) => socketService.off(...args),
-  emit: (...args) => socketService.emit(...args),
-  setCurrentPage: (...args) => socketService.setCurrentPage(...args),
+  onConnected: (callback) => socketService.onConnected(callback),
+  onDisconnected: (callback) => socketService.onDisconnected(callback),
+  on: (event, callback) => socketService.on(event, callback),
+  off: (event, callback) => socketService.off(event, callback),
+  emit: (event, data, callback) => socketService.emit(event, data, callback),
+  setCurrentPage: (page) => socketService.setCurrentPage(page),
+  getCurrentPage: () => socketService.getCurrentPage(),
   requestStatsUpdate: () => socketService.requestStatsUpdate(),
   reconnect: () => socketService.reconnect(),
 
-  // Additional functions
+  // Trade-related methods
+  subscribeToTradeUpdates: (tradeId) =>
+    socketService.subscribeToTradeUpdates(tradeId),
+  unsubscribeFromTradeUpdates: (tradeId) =>
+    socketService.unsubscribeFromTradeUpdates(tradeId),
+  requestTradeRefresh: (tradeId) => socketService.requestTradeRefresh(tradeId),
+  sendTradeUpdate: (tradeId, action, data) =>
+    socketService.sendTradeUpdate(tradeId, action, data),
+  joinTradeRoom: (tradeId) => socketService.joinTradeRoom(tradeId),
+  leaveTradeRoom: (tradeId) => socketService.leaveTradeRoom(tradeId),
+  requestTradeStats: () => socketService.requestTradeStats(),
+
+  // Helper functions
   notifySellerNewOffer,
   onSellerTradeOffer,
   watchUserStatus,
   requestUserStatus,
   onUserStatusUpdate,
   reconnectStatusTracking,
-
-  // Add trade-related methods
-  subscribeToTradeUpdates: (...args) =>
-    socketService.subscribeToTradeUpdates(...args),
-  unsubscribeFromTradeUpdates: (...args) =>
-    socketService.unsubscribeFromTradeUpdates(...args),
-  requestTradeRefresh: (...args) => socketService.requestTradeRefresh(...args),
-  sendTradeUpdate: (...args) => socketService.sendTradeUpdate(...args),
-  joinTradeRoom: (...args) => socketService.joinTradeRoom(...args),
-  leaveTradeRoom: (...args) => socketService.leaveTradeRoom(...args),
-  requestTradeStats: () => socketService.requestTradeStats(),
 };
-
-// Add handlers for user status updates and browser close events
-
-// Configure both beforeunload and unload events for maximum reliability
-// These events can be unreliable, so we implement multiple approaches
-window.addEventListener("beforeunload", (event) => {
-  if (socketService.isConnected()) {
-    console.log(
-      "[SocketService] Browser tab/window closing detected (beforeunload)"
-    );
-
-    try {
-      // Try to send a synchronous message - this is more reliable for tab closure detection
-      const closeNotification = {
-        reason: "beforeunload",
-        timestamp: Date.now(),
-        socketId: socketService.socket.id,
-      };
-
-      // Use synchronous XHR as a backup - Socket.io might not have time to send
-      // This is more reliable than socket when tab is closing
-      if (navigator.sendBeacon) {
-        const beaconUrl = `${API_URL}/api/user/closing`;
-        const blob = new Blob([JSON.stringify(closeNotification)], {
-          type: "application/json",
-        });
-        navigator.sendBeacon(beaconUrl, blob);
-        console.log("[SocketService] Sent closing beacon");
-      }
-
-      // Also try via socket.io
-      socketService.socket.emit("browser_closing", closeNotification);
-
-      // Small delay to allow message to be sent
-      const start = Date.now();
-      while (Date.now() - start < 50) {
-        // Small delay loop
-      }
-    } catch (error) {
-      console.error(
-        "[SocketService] Error during tab close notification:",
-        error
-      );
-    }
-  }
-});
-
-// Also listen for the unload event as a backup
-window.addEventListener("unload", (event) => {
-  if (socketService.isConnected()) {
-    console.log("[SocketService] Browser tab/window closing detected (unload)");
-
-    try {
-      const closeNotification = {
-        reason: "unload",
-        timestamp: Date.now(),
-        socketId: socketService.socket.id,
-      };
-
-      // Use beacon API for more reliable delivery during page unload
-      if (navigator.sendBeacon) {
-        const beaconUrl = `${API_URL}/api/user/closing`;
-        const blob = new Blob([JSON.stringify(closeNotification)], {
-          type: "application/json",
-        });
-        navigator.sendBeacon(beaconUrl, blob);
-      }
-
-      // Try socket.io as well, but it's less reliable during unload
-      socketService.socket.emit("browser_closing", closeNotification);
-    } catch (error) {
-      // Can't do much with errors during unload
-    }
-  }
-});
-
-// Handle close events using the page visibility API as a fallback
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") {
-    console.log(
-      "[SocketService] Tab visibility hidden - user may be switching tabs"
-    );
-
-    // Send a user activity ping to maintain connection
-    if (socketService.isConnected()) {
-      socketService.socket.emit("user_active");
-    }
-
-    // Set a timeout to detect if this is likely a tab close vs tab switch
-    // If the visibility doesn't return to "visible" within a short time, it might be a closure
-    if (!socketService.visibilityTimeout) {
-      socketService.visibilityTimeout = setTimeout(() => {
-        // If tab is still hidden after timeout, it might be closed
-        if (
-          document.visibilityState === "hidden" &&
-          socketService.isConnected()
-        ) {
-          console.log(
-            "[SocketService] Tab still hidden after timeout - might be closed"
-          );
-          // But we don't disconnect - we keep the connection and let the server-side timeout handle it
-        }
-        socketService.visibilityTimeout = null;
-      }, 15000); // 15 seconds
-    }
-  } else if (document.visibilityState === "visible") {
-    // Tab is visible again, clear any timeout
-    if (socketService.visibilityTimeout) {
-      clearTimeout(socketService.visibilityTimeout);
-      socketService.visibilityTimeout = null;
-    }
-
-    // Send heartbeat to confirm activity
-    if (socketService.isConnected()) {
-      socketService.sendHeartbeatNow();
-    }
-  }
-});
-
-// Handle pings from server
-if (socketService.socket) {
-  socketService.socket.on("ping", (data) => {
-    // Respond with a pong to keep the connection alive
-    socketService.socket.emit("pong", { timestamp: Date.now() });
-  });
-}

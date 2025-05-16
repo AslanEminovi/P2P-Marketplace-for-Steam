@@ -815,9 +815,9 @@ const TradeDetails = ({ tradeId }) => {
               `Asset ID ${response.assetId} has been withdrawn from seller's inventory. You can confirm receipt.`,
               'SUCCESS'
             );
-          }
-        } else {
-          setCanConfirmReceived(false);
+        }
+      } else {
+        setCanConfirmReceived(false);
           
           if (response.error) {
             setError('Error checking seller\'s inventory: ' + response.error);

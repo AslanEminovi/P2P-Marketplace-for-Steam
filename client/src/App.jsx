@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import socketService from './services/socketService';
 import { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import AdminTools from './pages/AdminTools';
 import { css } from '@emotion/react';
 import Navbar from './components/Navbar';
@@ -46,6 +47,9 @@ import apiClient, { fetchUserDetails } from './services/axiosConfig';
 // Import styles for trade panels
 import './components/TradeSidePanel.css';
 import { useDispatch, useSelector } from 'react-redux';
+
+// Import the socket listeners initializer
+import { initializeSocketListeners } from './redux/store';
 
 // Auth-protected route component
 const ProtectedRoute = ({ children }) => {
@@ -117,6 +121,15 @@ function AppContent() {
     const id = Date.now().toString();
     const notification = { id, title, message, type, timeout };
     setNotifications(prev => [...prev, notification]);
+    
+    // Also show as toast notification for immediate visibility
+    toast[type.toLowerCase() === 'error' ? 'error' : 
+          type.toLowerCase() === 'success' ? 'success' : 'info'](title, {
+      description: message,
+      duration: timeout,
+      position: 'top-center'
+    });
+    
     return id;
   };
 
@@ -193,83 +206,60 @@ function AppContent() {
       }
     );
 
-    // Initialize socket connection
-    if (!socketService.isConnected) {
+    // Initialize socket service (only once)
+    if (!socketService.isConnected()) {
       socketService.init();
+      
+      // If we have a token, connect the socket
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        socketService.connect(token);
+      }
+      
+      // Initialize socket listeners for Redux
+      initializeSocketListeners();
     }
 
-    // Cleanup function to remove interceptors when component unmounts
+    // Cleanup interceptors on component unmount
     return () => {
       axios.interceptors.request.eject(requestInterceptor);
       axios.interceptors.response.eject(responseInterceptor);
     };
-  }, []);
+  }, []); // Empty dependency array - run once on mount
 
-  // Handle socket connection status
+  // Setup socket connection status handler
   useEffect(() => {
-    const handleConnectionStatus = (status) => {
-      console.log('Socket connection status update:', status);
-      setSocketConnected(status.connected);
-
-      // Only show connection indicator when disconnected
-      if (!status.connected && !status.connecting) {
-        setShowConnectionIndicator(true);
-      } else if (status.connected) {
-        // Hide indicator after a delay when connected
-        setTimeout(() => {
-          setShowConnectionIndicator(false);
-        }, 3000);
+    // Add socket connection handlers
+    socketService.onConnected(() => {
+      setSocketConnected(true);
+      console.log('Socket connected');
+      
+      // Test toast notification
+      toast.success('Socket connection established', {
+        icon: '🔌',
+        duration: 2000
+      });
+    });
+    
+    socketService.onDisconnected(() => {
+      setSocketConnected(false);
+      console.log('Socket disconnected');
+    });
+    
+    // Connect if authenticated and not already connected
+    if (isAuthenticated && !socketConnected) {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        socketService.connect(token);
       }
-    };
-
-    // Set up socket notification listener
-    const handleNotification = (data) => {
-      if (data && data.title && data.message) {
-        window.showNotification(
-          data.title,
-          data.message,
-          data.type || 'INFO',
-          data.timeout || 5000
-        );
-      }
-    };
-
-    // Register listeners
-    socketService.on('connection_status', handleConnectionStatus);
-    socketService.on('notification', handleNotification);
-
-    // Initial connection if needed
-    if (!socketService.isConnected()) {
-      // Add a small delay before initial connection to prevent race conditions
-      setTimeout(() => {
-        socketService.connect();
-      }, 100);
     }
-
-    // Cleanup on unmount
+    
+    // Cleanup socket listeners on unmount
     return () => {
-      socketService.off('connection_status', handleConnectionStatus);
-      socketService.off('notification', handleNotification);
-      // Don't disconnect on unmount as it might be a route change
-      // Only disconnect if the app is actually being closed
-      if (window.isUnloading) {
-        socketService.disconnect();
-      }
+      socketService.onConnected(null);
+      socketService.onDisconnected(null);
     };
-  }, []);
-
-  // Add window unload handler
-  useEffect(() => {
-    const handleUnload = () => {
-      window.isUnloading = true;
-      socketService.disconnect();
-    };
-
-    window.addEventListener('beforeunload', handleUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleUnload);
-    };
-  }, []);
+  }, [isAuthenticated, socketConnected]);
 
   // Handle logout
   const handleLogout = async () => {
@@ -401,7 +391,33 @@ function AppContent() {
         )}
       </div>
       <div className="app-container">
-        <Toaster position="top-right" />
+        {/* Configure Toaster with consistent styling for all notifications */}
+        <Toaster 
+          position="top-center"
+          toastOptions={{
+            success: {
+              duration: 5000,
+              style: {
+                background: 'rgba(22, 101, 52, 0.9)',
+                color: '#fff',
+              },
+            },
+            error: {
+              duration: 6000,
+              style: {
+                background: 'rgba(153, 27, 27, 0.9)',
+                color: '#fff',
+              },
+            },
+            info: {
+              duration: 4000,
+              style: {
+                background: 'rgba(30, 64, 175, 0.9)',
+                color: '#fff',
+              },
+            },
+          }}
+        />
         <Navbar user={user} onLogout={handleLogout} />
         <main className="main-content">
           <Routes>
@@ -459,6 +475,9 @@ function AppContent() {
       
       {/* Global trade side panel manager */}
       <TradeSidePanelManager />
+      
+      {/* Socket connection indicator */}
+      <SocketConnectionIndicator connected={socketConnected} />
     </PageWrapper>
   );
 }

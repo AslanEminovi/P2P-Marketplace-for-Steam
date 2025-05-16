@@ -50,7 +50,19 @@ export const store = configureStore({
   devTools: process.env.NODE_ENV !== "production",
 });
 
-// Set up socket listeners to dispatch Redux actions
-setupSocketListeners(store);
+// Create a function to set up the socket listeners after the store is fully initialized
+export const initializeSocketListeners = () => {
+  // Set up socket listeners with a small delay to ensure store is ready
+  setTimeout(() => {
+    setupSocketListeners(store);
+  }, 500);
+};
+
+// Setup socket listeners when the app loads
+// The short delay ensures that auth state is already rehydrated
+setTimeout(() => {
+  setupSocketListeners(store);
+  console.log("[store] Socket listeners initialized");
+}, 1000);
 
 export const persistor = persistStore(store);
