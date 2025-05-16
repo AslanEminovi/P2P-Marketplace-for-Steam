@@ -167,9 +167,39 @@ function AppContent() {
       const handleOfferUpdate = (data) => {
         console.log('Socket offer update received in App:', data);
         
-        // Automatically open the trade panel for new offers if it's not already open
+        // Enhanced auto-open logic for trade panel
+        if (data.openTradePanel === true && data.tradePanelOptions) {
+          console.log('Auto-opening trade panel from notification:', data.tradePanelOptions);
+          
+          // Small delay to ensure UI is ready
+          setTimeout(() => {
+            openTradePanel(data.tradePanelOptions);
+          }, 300);
+          
+          // Also show notification
+          let notificationMessage = data.message;
+          let notificationTitle = data.title || 'Offer Update';
+          let notificationType = 'INFO';
+          
+          if (data.type === 'offer_accepted') {
+            notificationType = 'SUCCESS';
+          } else if (data.type === 'offer_declined' || data.type === 'offer_cancelled') {
+            notificationType = 'WARNING';
+          }
+          
+          window.showNotification(
+            notificationTitle,
+            notificationMessage,
+            notificationType,
+            10000 // longer timeout
+          );
+          
+          return; // Skip other notification logic since we're handling it here
+        }
+        
+        // Original notification logic for events that don't auto-open the panel
         if (data.type === 'new_offer_received' && !tradePanelOpen) {
-          // Show notification first
+          // Show notification with click handler to open panel
           window.showNotification(
             'New Offer Received',
             `You received a new offer for ${data.itemName || 'an item'}`,
@@ -179,7 +209,6 @@ function AppContent() {
           );
         }
         
-        // For counter offers, also show a notification with option to open panel
         if (data.type === 'counter_offer') {
           window.showNotification(
             'Counter Offer Received',
@@ -187,6 +216,16 @@ function AppContent() {
             'INFO',
             10000,
             () => openTradePanel({ action: 'offers', activeTab: 'received' })
+          );
+        }
+        
+        if (data.type === 'offer_accepted' && data.tradeId) {
+          window.showNotification(
+            'Offer Accepted',
+            `Your offer has been accepted. Go to the trades page to complete the transaction.`,
+            'SUCCESS',
+            10000,
+            () => navigate(`/trades/${data.tradeId}`)
           );
         }
       };
@@ -197,7 +236,7 @@ function AppContent() {
         socketService.off('offer_update', handleOfferUpdate);
       };
     }
-  }, [socketService, isAuthenticated, tradePanelOpen]);
+  }, [socketService, isAuthenticated, tradePanelOpen, navigate]);
 
   // Setup Axios interceptors
   useEffect(() => {

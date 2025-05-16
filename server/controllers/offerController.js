@@ -116,6 +116,11 @@ exports.createOffer = async (req, res) => {
       buyerName: buyer ? buyer.displayName : "A buyer",
       buyerAvatar: buyer ? buyer.avatar : null,
       itemName: item.marketHashName,
+      openTradePanel: true,
+      tradePanelOptions: {
+        action: "offers",
+        activeTab: "received",
+      },
     });
 
     return res.status(201).json({
@@ -363,6 +368,11 @@ exports.acceptOffer = async (req, res) => {
         offerId: offerId,
         tradeId: newTrade._id.toString(),
         itemName: item.marketHashName,
+        openTradePanel: true,
+        tradePanelOptions: {
+          action: "offers",
+          activeTab: "sent",
+        },
       });
     }
 
@@ -551,6 +561,11 @@ exports.submitCounterOffer = async (req, res) => {
       itemName: item.marketHashName,
       counterAmount: counterAmount,
       counterCurrency: counterCurrency || "USD",
+      openTradePanel: true,
+      tradePanelOptions: {
+        action: "offers",
+        activeTab: isOwner ? "sent" : "received",
+      },
     });
 
     // Add notification via database as well

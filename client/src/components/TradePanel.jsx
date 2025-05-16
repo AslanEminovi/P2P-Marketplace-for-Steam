@@ -1867,114 +1867,99 @@ const TradePanel = ({
     if (socket && isOpen) {
       console.log('Setting up socket event listeners for TradePanel');
       
-      // Listen for offer updates (more specific than before)
-      const handleOfferUpdate = (data) => {
-        console.log('Offer update received:', data);
+      // Improved event handler for real-time trade panel updates
+      const handleTradePanelUpdate = (data) => {
+        console.log('TradePanel update received:', data);
         
-        // Check if this update is relevant to the current view
-        if (data.type === 'offer_update') {
-          // Refresh offers when an update is received
-          fetchSentOffers();
-          fetchReceivedOffers();
+        // Force immediate refresh of the appropriate section based on update type
+        if (data.type === 'offer_update' || data.type === 'new_offer_received' || 
+            data.type === 'offer_accepted' || data.type === 'offer_declined' || 
+            data.type === 'offer_cancelled' || data.type === 'counter_offer') {
           
-          // If we're looking at a specific item and it got updated
-          if (item && item._id === data.itemId) {
-            // Auto-refresh the item data
-            if (onComplete) {
-              onComplete({refresh: true});
+          // Immediately refresh the correct data
+          if (activeOffersTab === 'sent' || data.type === 'offer_accepted' || 
+              data.type === 'offer_declined' || data.type === 'counter_offer') {
+            fetchSentOffers();
+          }
+          
+          if (activeOffersTab === 'received' || data.type === 'new_offer_received') {
+            fetchReceivedOffers();
+          }
+          
+          // If the update indicates an offer was accepted, handle the redirect logic
+          if (data.type === 'offer_accepted' && data.tradeId) {
+            setAcceptedTradeId(data.tradeId);
+          }
+          
+          // Auto-switch to the relevant tab based on update type
+          if (data.type === 'new_offer_received' && activeOffersTab !== 'received') {
+            setActiveOffersTab('received');
+          } else if (data.type === 'counter_offer' && activeOffersTab !== 'received') {
+            setActiveOffersTab('received');
+          }
+          
+          // Show visual feedback for the update
+          const feedback = document.createElement('div');
+          feedback.className = 'trade-panel-update-feedback';
+          feedback.textContent = 'Real-time update received';
+          document.body.appendChild(feedback);
+          
+          // Remove the feedback element after animation
+          setTimeout(() => {
+            if (feedback.parentNode) {
+              document.body.removeChild(feedback);
             }
-          }
-          
-          // Show notification about the update
-          if (window.showNotification && data.message) {
-            window.showNotification(
-              data.title || 'Offer Update',
-              data.message,
-              data.notificationType || 'INFO'
-            );
-          }
-        } else if (data.type === 'new_offer_received' && action !== 'offers') {
-          // Automatically switch to the offers tab if a new offer is received
-          // and we're not already on the offers view
-          setActiveOffersTab('received');
-          
-          // Show a notification that will encourage opening the trade panel
-          if (window.showNotification) {
-            window.showNotification(
-              'New Offer Received',
-              'You received a new offer. Click to view details.',
-              'INFO',
-              () => {
-                // This callback will run when the notification is clicked
-                window.openTradePanel({action: 'offers', activeTab: 'received'});
-              }
-            );
-          }
-        } else if (data.type === 'offer_accepted') {
-          // Update UI if an offer was accepted
-          fetchSentOffers();
-          
-          // Show a notification with a direct link to the trade
-          if (window.showNotification && data.tradeId) {
-            window.showNotification(
-              'Offer Accepted',
-              'Your offer has been accepted. Go to the trade page to complete the transaction.',
-              'SUCCESS',
-              () => {
-                // Navigate to the trade page when clicked
-                navigate(`/trades/${data.tradeId}`);
-                onClose();
-              }
-            );
-          }
-        } else if (data.type === 'offer_declined' || data.type === 'offer_cancelled') {
-          // Update UI if an offer was declined or cancelled
-          fetchSentOffers();
-          fetchReceivedOffers();
-          
-          // Show notification
-          if (window.showNotification) {
-            window.showNotification(
-              data.type === 'offer_declined' ? 'Offer Declined' : 'Offer Cancelled',
-              data.message || 'An offer status has been updated.',
-              'INFO'
-            );
-          }
-        } else if (data.type === 'counter_offer') {
-          // Update UI if a counter offer was received
-          fetchReceivedOffers();
-          
-          // Switch to the received tab
-          setActiveOffersTab('received');
-          
-          // Show notification
-          if (window.showNotification) {
-            window.showNotification(
-              'Counter Offer Received',
-              data.message || 'You received a counter offer.',
-              'INFO',
-              () => {
-                // This callback will run when the notification is clicked
-                window.openTradePanel({action: 'offers', activeTab: 'received'});
-              }
-            );
-          }
+          }, 2000);
         }
       };
       
       // Register listeners
-      socket.on('offer_update', handleOfferUpdate);
-      socket.on('new_offer', handleOfferUpdate);
-      socket.on('counter_offer', handleOfferUpdate);
+      socket.on('offer_update', handleTradePanelUpdate);
+      socket.on('new_offer', handleTradePanelUpdate);
+      socket.on('counter_offer', handleTradePanelUpdate);
+      socket.on('trade_update', handleTradePanelUpdate);
       
       // Clean up on unmount
       return () => {
-        socket.off('offer_update', handleOfferUpdate);
-        socket.off('new_offer', handleOfferUpdate);
-        socket.off('counter_offer', handleOfferUpdate);
+        socket.off('offer_update', handleTradePanelUpdate);
+        socket.off('new_offer', handleTradePanelUpdate);
+        socket.off('counter_offer', handleTradePanelUpdate);
+        socket.off('trade_update', handleTradePanelUpdate);
       };
     }
-  }, [isOpen, item, action, navigate, onClose, onComplete]);
+  }, [isOpen, activeOffersTab, fetchSentOffers, fetchReceivedOffers]);
+
+  // Add CSS for visual feedback
+  useEffect(() => {
+    // Add CSS for the visual feedback
+    const style = document.createElement('style');
+    style.textContent = `
+      .trade-panel-update-feedback {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(56, 189, 248, 0.9);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 8px;
+        z-index: 10000;
+        animation: fadeInOut 2s ease-in-out;
+        pointer-events: none;
+      }
+      
+      @keyframes fadeInOut {
+        0% { opacity: 0; transform: translateY(-10px); }
+        10% { opacity: 1; transform: translateY(0); }
+        90% { opacity: 1; transform: translateY(0); }
+        100% { opacity: 0; transform: translateY(-10px); }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 
   // Prepare counter offer
   const prepareCounterOffer = (itemId, offerId, originalAmount, itemName) => {

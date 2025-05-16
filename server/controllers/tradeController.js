@@ -73,6 +73,7 @@ exports.getTradeDetails = async (req, res) => {
       return res.status(400).json({
         error: "Invalid trade ID format",
         message: "The provided trade ID is not in a valid format.",
+        redirectUrl: "/trades", // Add redirect URL for client to handle
       });
     }
 
@@ -86,130 +87,121 @@ exports.getTradeDetails = async (req, res) => {
 
       // Check if trade exists
       if (!trade) {
-        console.log(`[TradeController] Trade ${tradeId} not found in Redis`);
-        // Try to find in database directly as a fallback
-        const dbTrade = await Trade.findById(tradeId);
-
-        if (!dbTrade) {
-          return res.status(404).json({
-            error: "Trade not found",
-            message:
-              "The requested trade could not be found. It may have been canceled or expired.",
-            redirectTo: "/trades", // Suggest redirecting to the trades list
-          });
-        }
-
-        // If found in DB but not Redis, check permissions
-        if (
-          dbTrade.buyer.toString() !== userId &&
-          dbTrade.seller.toString() !== userId
-        ) {
-          console.log(
-            `[TradeController] User ${userId} not authorized to view trade ${tradeId}`
-          );
-          return res.status(403).json({
-            error: "Unauthorized",
-            message: "You don't have permission to view this trade.",
-            redirectTo: "/trades",
-          });
-        }
-
-        // Return the DB trade data since it exists and user has permission
-        return res.json({
-          success: true,
-          trade: dbTrade,
+        console.log(`[TradeController] Trade not found with ID: ${tradeId}`);
+        return res.status(404).json({
+          error: "Trade not found",
+          message: "The requested trade could not be found.",
+          redirectUrl: "/trades", // Add redirect URL for client to handle
         });
       }
 
       // Check if user is authorized to view this trade
-      if (
-        trade.buyer.toString() !== userId &&
-        trade.seller.toString() !== userId
-      ) {
+      const userIsInvolved =
+        trade.buyer.toString() === userId || trade.seller.toString() === userId;
+
+      if (!userIsInvolved) {
         console.log(
-          `[TradeController] User ${userId} not authorized to view trade ${tradeId}`
+          `[TradeController] Unauthorized access attempt to trade ${tradeId} by user ${userId}`
         );
         return res.status(403).json({
           error: "Unauthorized",
           message: "You don't have permission to view this trade.",
-          redirectTo: "/trades", // Suggest redirecting to the trades list
+          redirectUrl: "/trades", // Add redirect URL for client to handle
         });
       }
 
-      return res.json({
-        success: true,
-        trade,
+      // If we reach here, all checks have passed - return the trade details
+      console.log(`[TradeController] Successfully retrieved trade ${tradeId}`);
+
+      // Notify the other party that this user is viewing the trade details
+      const otherPartyId =
+        trade.buyer.toString() === userId
+          ? trade.seller.toString()
+          : trade.buyer.toString();
+
+      // Use socket service to notify the other party
+      socketService.sendNotification(otherPartyId, {
+        type: "trade_view",
+        title: "Trade Being Viewed",
+        message: `The other party is currently viewing trade details for ${trade.itemName}.`,
+        link: `/trades/${tradeId}`,
+        relatedTradeId: tradeId,
+        data: {
+          type: "trade_view",
+          tradeId: tradeId,
+          viewedBy: userId,
+          viewerRole: trade.buyer.toString() === userId ? "buyer" : "seller",
+          timestamp: new Date(),
+        },
       });
-    }
 
-    // Original implementation with improved logging and error handling
-    // Find the trade and populate related data
-    const trade = await Trade.findById(tradeId)
-      .populate("item")
-      .populate("buyer", "displayName avatar steamId tradeUrl")
-      .populate("seller", "displayName avatar steamId tradeUrl");
-
-    if (!trade) {
-      console.log(`[TradeController] Trade ${tradeId} not found in database`);
-      return res.status(404).json({
-        error: "Trade not found",
-        message:
-          "The requested trade could not be found. It may have been canceled or expired.",
-        redirectTo: "/trades", // Suggest redirecting to the trades list
-      });
-    }
-
-    console.log(`[TradeController] Found trade ${tradeId}, checking permissions:
-      - Buyer: ${trade.buyer ? trade.buyer._id : "undefined"} 
-      - Seller: ${trade.seller ? trade.seller._id : "undefined"}
-      - Requesting User: ${userId}`);
-
-    // Verify the user is part of this trade
-    const buyerIdStr = trade.buyer ? trade.buyer._id.toString() : undefined;
-    const sellerIdStr = trade.seller ? trade.seller._id.toString() : undefined;
-
-    if (buyerIdStr !== userId && sellerIdStr !== userId) {
+      return res.json(trade);
+    } else {
+      // Standard service when Redis is not available
       console.log(
-        `[TradeController] User ${userId} not authorized to view trade ${tradeId}`
+        `[TradeController] Using standard service for trade details ${tradeId}`
       );
-      return res.status(403).json({
-        error: "Unauthorized",
-        message: "You don't have permission to view this trade.",
-        redirectTo: "/trades", // Suggest redirecting to the trades list
+
+      const tradeService = require("../services/tradeService");
+      const trade = await tradeService.getTradeById(tradeId);
+
+      if (!trade) {
+        console.log(`[TradeController] Trade not found with ID: ${tradeId}`);
+        return res.status(404).json({
+          error: "Trade not found",
+          message: "The requested trade could not be found.",
+          redirectUrl: "/trades", // Add redirect URL for client to handle
+        });
+      }
+
+      // Check user authorization
+      const userIsInvolved =
+        trade.buyer.toString() === userId || trade.seller.toString() === userId;
+
+      if (!userIsInvolved) {
+        console.log(
+          `[TradeController] Unauthorized access attempt to trade ${tradeId} by user ${userId}`
+        );
+        return res.status(403).json({
+          error: "Unauthorized",
+          message: "You don't have permission to view this trade.",
+          redirectUrl: "/trades", // Add redirect URL for client to handle
+        });
+      }
+
+      console.log(`[TradeController] Successfully retrieved trade ${tradeId}`);
+
+      // Notify the other party that this user is viewing the trade details
+      const otherPartyId =
+        trade.buyer.toString() === userId
+          ? trade.seller.toString()
+          : trade.buyer.toString();
+
+      // Use socket service to notify the other party
+      socketService.sendNotification(otherPartyId, {
+        type: "trade_view",
+        title: "Trade Being Viewed",
+        message: `The other party is currently viewing trade details for ${trade.itemName}.`,
+        link: `/trades/${tradeId}`,
+        relatedTradeId: tradeId,
+        data: {
+          type: "trade_view",
+          tradeId: tradeId,
+          viewedBy: userId,
+          viewerRole: trade.buyer.toString() === userId ? "buyer" : "seller",
+          timestamp: new Date(),
+        },
       });
+
+      return res.json(trade);
     }
-
-    // Add flag to indicate if user is buyer or seller
-    const result = trade.toObject();
-    result.isUserBuyer = buyerIdStr === userId;
-    result.isUserSeller = sellerIdStr === userId;
-
-    // Handle missing item case - create a placeholder with stored details
-    if (!result.item || Object.keys(result.item).length === 0) {
-      // Use stored item details if available
-      result.item = {
-        marketHashName: result.itemName || "Unknown Item",
-        imageUrl:
-          result.itemImage ||
-          "https://community.cloudflare.steamstatic.com/economy/image/fWFc82js0fmoRAP-qOIPu5THSWqfSmTELLqcUywGkijVjZULUrsm1j-9xgEGegouTxTgsSxQt5M1V_eNC-VZzY89ssYDjGIzw1B_Z7PlMmQzJVGaVaUJC_Q7-Q28UiRh7pQ7VoLj9ewDKw_us4PAN7coOopJTMDWXvSGMF_860g60agOe8ONpyK-i3vuaGgCUg25_ToQnOKE6bBunMsoYhg/360fx360f",
-        wear: result.itemWear || "Unknown",
-        rarity: result.itemRarity || "Unknown",
-        assetId: result.assetId || "Unknown",
-      };
-    }
-
-    // Log successful retrieval
-    console.log(
-      `[TradeController] Successfully retrieved trade ${tradeId} for user ${userId}`
-    );
-
-    return res.json(result);
   } catch (error) {
-    console.error(`Error fetching trade ${req.params.tradeId}:`, error);
+    console.error(`[TradeController] Error fetching trade details:`, error);
     return res.status(500).json({
-      error: "Failed to fetch trade details",
-      details: error.message,
-      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      error: "Server error",
+      message:
+        "An error occurred while fetching trade details. Please try again later.",
+      redirectUrl: "/trades", // Add redirect URL for client to handle
     });
   }
 };
