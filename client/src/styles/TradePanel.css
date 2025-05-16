@@ -1116,4 +1116,165 @@
   .trade-panel-actions {
     padding: 10px;
   }
+}
+
+/* Counter offer modal */
+.trade-panel-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 20000;
+}
+
+.trade-panel-modal {
+  background: var(--panel-bg-gradient);
+  width: 90%;
+  max-width: 450px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--panel-border);
+}
+
+.trade-panel-modal-header {
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--panel-border);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.trade-panel-modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--panel-text);
+}
+
+.trade-panel-modal-content {
+  padding: 20px;
+  flex: 1;
+}
+
+.trade-panel-modal-actions {
+  display: flex;
+  gap: 10px;
+  padding: 16px;
+  border-top: 1px solid var(--panel-border);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Three-button layout for offer actions */
+.offer-action-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.offer-action-buttons .trade-panel-button:first-child {
+  grid-column: 1 / span 2;
+}
+
+/* Add chat/message system styling */
+.trade-panel-chat {
+  display: flex;
+  flex-direction: column;
+  height: 200px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--panel-border);
+  margin-top: 16px;
+  overflow: hidden;
+}
+
+.trade-panel-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trade-panel-chat-input {
+  display: flex;
+  padding: 8px;
+  border-top: 1px solid var(--panel-border);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.trade-panel-chat-input input {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--panel-input-bg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: var(--panel-text);
+  font-size: 0.9rem;
+}
+
+.trade-panel-chat-input button {
+  margin-left: 8px;
+  padding: 8px 12px;
+  background: var(--panel-accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.chat-message {
+  padding: 8px 12px;
+  border-radius: 8px;
+  max-width: 80%;
+}
+
+.chat-message.sent {
+  align-self: flex-end;
+  background: var(--panel-accent);
+  color: white;
+}
+
+.chat-message.received {
+  align-self: flex-start;
+  background: var(--panel-card-bg);
+  color: var(--panel-text);
+  border: 1px solid var(--panel-border);
+}
+
+/* Filter buttons */
+.trade-panel-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.filter-button {
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: var(--panel-card-bg);
+  border: 1px solid var(--panel-border);
+  color: var(--panel-text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-button.active {
+  background: var(--panel-accent);
+  color: white;
+  border-color: var(--panel-accent);
 } 

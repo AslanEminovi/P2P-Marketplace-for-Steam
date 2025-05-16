@@ -227,125 +227,94 @@ exports.acceptOffer = async (req, res) => {
         ? offer.offerAmount
         : offer.offerAmount / (offer.offerRate || item.currencyRate);
 
-    // Get the seller with steamLoginSecure for the Steam API
-    const seller = await User.findById(req.user._id).select(
-      "+steamLoginSecure"
+    // Get the seller
+    const seller = await User.findById(req.user._id);
+
+    // Create a new Trade document
+    const Trade = mongoose.model("Trade");
+    const trade = new Trade({
+      seller: seller._id,
+      buyer: buyer._id,
+      item: item._id,
+      sellerSteamId: seller.steamId || "placeholder",
+      buyerSteamId: buyer.steamId || "placeholder",
+      assetId: item.assetId || "placeholder",
+      price: offer.offerAmount,
+      currency: offer.offerCurrency,
+      message: offer.message || `Offer accepted for ${item.marketHashName}`,
+      status: "pending",
+      // Store item details directly in the trade for data preservation
+      itemName: item.marketHashName,
+      itemImage: item.imageUrl,
+      itemWear: item.wear,
+      itemRarity: item.rarity,
+    });
+
+    // Save the trade
+    await trade.save();
+    trade.addStatusHistory(
+      "pending",
+      "Trade created. Waiting for completion by users."
     );
+    await trade.save();
 
-    if (!seller.steamLoginSecure) {
-      return res.status(400).json({
-        error:
-          "You need to re-authenticate with Steam to accept offers. Please update your Steam login secure token.",
-      });
-    }
+    // Update offer status
+    offer.status = "accepted";
 
-    if (!seller.tradeUrl) {
-      return res.status(400).json({
-        error: "You need to set up your trade URL before accepting offers.",
-      });
-    }
+    // Update item status
+    item.isListed = false; // Remove from marketplace
+    item.tradeStatus = "pending";
+    await item.save();
 
-    if (!item.assetId) {
-      return res.status(400).json({
-        error: "This item doesn't have a valid Asset ID for trading.",
-      });
-    }
+    // Set all other offers to declined
+    item.offers.forEach((otherOffer) => {
+      if (
+        otherOffer._id.toString() !== offerId &&
+        otherOffer.status === "pending"
+      ) {
+        otherOffer.status = "declined";
+      }
+    });
 
-    try {
-      // Create a new Trade document
-      const Trade = mongoose.model("Trade");
-      const trade = new Trade({
-        seller: seller._id,
-        buyer: buyer._id,
-        item: item._id,
-        sellerSteamId: seller.steamId,
-        buyerSteamId: buyer.steamId,
-        assetId: item.assetId,
-        price: offer.offerAmount,
-        currency: offer.offerCurrency,
-        message: offer.message || `Offer accepted for ${item.marketHashName}`,
-        status: "created",
-        // Store item details directly in the trade for data preservation
-        itemName: item.marketHashName,
-        itemImage: item.imageUrl,
-        itemWear: item.wear,
-        itemRarity: item.rarity,
-      });
+    await item.save();
 
-      // Save it to get an ID
-      await trade.save();
+    // Add trade to both users' trade history
+    await User.findByIdAndUpdate(seller._id, {
+      $push: { tradeHistory: trade._id },
+    });
 
-      // Create Steam trade offer
-      const steamApiService = require("../services/steamApiService");
-      const steamOffer = await steamApiService.createTradeOffer(
-        seller.steamLoginSecure,
-        buyer.steamId,
-        buyer.tradeUrl,
-        item.assetId, // item from seller
-        "", // no items from buyer
-        `CS2 Marketplace Georgia - ${offer.offerAmount} ${offer.offerCurrency}`
-      );
+    await User.findByIdAndUpdate(buyer._id, {
+      $push: { tradeHistory: trade._id },
+    });
 
-      // Update trade with Steam trade offer ID
-      trade.tradeOfferId = steamOffer.tradeofferid;
-      trade.status = "pending";
-      trade.addStatusHistory("pending", "Steam trade offer created");
-      await trade.save();
+    // Add notification for the buyer
+    buyer.notifications.push({
+      type: "offer",
+      title: "Offer Accepted",
+      message: `Your offer of ${offer.offerAmount} ${offer.offerCurrency} for ${item.marketHashName} has been accepted. Go to the trades page to complete the transaction.`,
+      link: `/trades/${trade._id}`,
+      relatedItemId: item._id,
+      read: false,
+    });
+    await buyer.save();
 
-      // Update offer status
-      offer.status = "accepted";
+    // Add notification for the seller
+    seller.notifications.push({
+      type: "offer",
+      title: "You Accepted an Offer",
+      message: `You accepted an offer of ${offer.offerAmount} ${offer.offerCurrency} for your ${item.marketHashName}. Go to the trades page to complete the transaction.`,
+      link: `/trades/${trade._id}`,
+      relatedItemId: item._id,
+      read: false,
+    });
+    await seller.save();
 
-      // Update item status
-      item.isListed = false; // Remove from marketplace
-      item.tradeStatus = "pending";
-      item.tradeOfferId = steamOffer.tradeofferid;
-
-      // Set all other offers to declined
-      item.offers.forEach((otherOffer) => {
-        if (
-          otherOffer._id.toString() !== offerId &&
-          otherOffer.status === "pending"
-        ) {
-          otherOffer.status = "declined";
-        }
-      });
-
-      await item.save();
-
-      // Add trade to both users' trade history
-      await User.findByIdAndUpdate(seller._id, {
-        $push: { tradeHistory: trade._id },
-      });
-
-      await User.findByIdAndUpdate(buyer._id, {
-        $push: { tradeHistory: trade._id },
-      });
-
-      // Add notification for the buyer
-      buyer.notifications.push({
-        type: "offer",
-        title: "Offer Accepted",
-        message: `Your offer of ${offer.offerAmount} ${offer.offerCurrency} for ${item.marketHashName} has been accepted. Check your Steam trade offers.`,
-        link: `/trades/${trade._id}`,
-        relatedItemId: item._id,
-        read: false,
-      });
-      await buyer.save();
-
-      return res.json({
-        success: true,
-        message:
-          "Offer accepted successfully. A Steam trade offer has been sent.",
-        tradeId: trade._id,
-        tradeOfferId: steamOffer.tradeofferid,
-      });
-    } catch (steamError) {
-      console.error("Steam API error:", steamError);
-      return res.status(500).json({
-        error: "Failed to create Steam trade offer",
-        details: steamError.message || "Steam API error",
-      });
-    }
+    return res.json({
+      success: true,
+      message:
+        "Offer accepted successfully. Proceed to the trades page to complete the transaction.",
+      tradeId: trade._id,
+    });
   } catch (err) {
     console.error("Accept offer error:", err);
     return res.status(500).json({ error: "Failed to accept offer." });

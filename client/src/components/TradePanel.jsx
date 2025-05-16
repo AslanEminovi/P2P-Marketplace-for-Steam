@@ -5,7 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../utils/languageUtils';
 import { formatCurrency, API_URL } from '../config/constants';
 import '../styles/TradePanel.css';
-import { FaExchangeAlt, FaInbox, FaPaperPlane } from 'react-icons/fa';
+import { FaExchangeAlt, FaInbox, FaPaperPlane, FaHistory, FaComment, FaFilter, FaSteam } from 'react-icons/fa';
+
+// Add a socket connection for real-time updates if not already connected
+let socket;
+if (!socket && window.io) {
+  socket = window.io(API_URL);
+}
 
 // Animation variants
 const backdropVariants = {
@@ -77,10 +83,18 @@ const TradePanel = ({
   // State for managing offers list
   const [sentOffers, setSentOffers] = useState([]);
   const [receivedOffers, setReceivedOffers] = useState([]);
+  const [tradeHistory, setTradeHistory] = useState([]);
   const [fetchingSentOffers, setFetchingSentOffers] = useState(false);
   const [fetchingReceivedOffers, setFetchingReceivedOffers] = useState(false);
+  const [fetchingTradeHistory, setFetchingTradeHistory] = useState(false);
   const [cancelingOffer, setCancelingOffer] = useState(null);
-  const [activeOffersTab, setActiveOffersTab] = useState('sent'); // 'sent' or 'received'
+  const [activeOffersTab, setActiveOffersTab] = useState('sent'); // 'sent', 'received', or 'history'
+  
+  // Handle counter-offer
+  const [counterOfferItem, setCounterOfferItem] = useState(null);
+  const [counterOfferAmount, setCounterOfferAmount] = useState('');
+  const [showCounterOfferModal, setShowCounterOfferModal] = useState(false);
+  const [counterOfferOriginalId, setCounterOfferOriginalId] = useState(null);
   
   const panelRef = useRef(null);
   const navigate = useNavigate();
@@ -95,6 +109,7 @@ const TradePanel = ({
       if (action === 'offers') {
         fetchSentOffers();
         fetchReceivedOffers();
+        fetchTradeHistory();
       } else if (action === 'offer' && item?._id) {
         // Only check for existing offers if we're making a new offer
         fetchSentOffers();
@@ -225,6 +240,27 @@ const TradePanel = ({
     }
   };
 
+  // Fetch trade history
+  const fetchTradeHistory = async () => {
+    try {
+      setFetchingTradeHistory(true);
+      const response = await axios.get(`${API_URL}/trades/history`, {
+        withCredentials: true
+      });
+      
+      if (Array.isArray(response.data)) {
+        setTradeHistory(response.data);
+      } else {
+        setTradeHistory([]);
+      }
+    } catch (err) {
+      console.error('Error fetching trade history:', err);
+      // Don't set global error for this one
+    } finally {
+      setFetchingTradeHistory(false);
+    }
+  };
+
   // Reset state when panel opens
   useEffect(() => {
     if (isOpen) {
@@ -334,6 +370,7 @@ const TradePanel = ({
   const handleAcceptOffer = async (itemId, offerId) => {
     try {
       setLoading(true);
+      setError(null);
       
       const response = await axios.put(
         `${API_URL}/offers/${itemId}/${offerId}/accept`,
@@ -342,6 +379,9 @@ const TradePanel = ({
       );
       
       if (response.data.success) {
+        // Set success message
+        setSuccess(response.data.message || "Offer accepted successfully!");
+        
         // Update the local state
         setReceivedOffers(prevOffers => 
           prevOffers.filter(offer => offer._id !== offerId)
@@ -356,15 +396,34 @@ const TradePanel = ({
           );
         }
         
-        // Redirect to trade page if available
-        if (response.data.tradeId) {
-          navigate(`/trades/${response.data.tradeId}`);
-          onClose();
-        }
+        // Show the trade details button
+        setTradeData({
+          tradeId: response.data.tradeId
+        });
+        
+        // Show success view
+        setProcessingStage(2);
+        
+        // Auto-redirect after 3 seconds
+        setTimeout(() => {
+          if (response.data.tradeId) {
+            navigate(`/trades/${response.data.tradeId}`);
+            onClose();
+          }
+        }, 3000);
       }
     } catch (err) {
       console.error('Error accepting offer:', err);
       setError(err.response?.data?.error || 'Failed to accept offer');
+      
+      // Show error notification
+      if (window.showNotification) {
+        window.showNotification(
+          'Error',
+          err.response?.data?.error || 'Failed to accept offer',
+          'ERROR'
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -896,6 +955,18 @@ const TradePanel = ({
             </span>
           )}
         </button>
+        <button 
+          className={`trade-panel-tab ${activeOffersTab === 'history' ? 'active' : ''}`}
+          onClick={() => setActiveOffersTab('history')}
+        >
+          <FaHistory size={16} />
+          <span>Trade History</span>
+          {tradeHistory.length > 0 && (
+            <span className="trade-panel-tab-badge">
+              {tradeHistory.length}
+            </span>
+          )}
+        </button>
       </div>
     );
 
@@ -1104,12 +1175,79 @@ const TradePanel = ({
                       {loading ? 'Processing...' : 'Accept Offer'}
                     </button>
                     <button 
+                      className="trade-panel-button trade-panel-button-secondary"
+                      onClick={() => prepareCounterOffer(
+                        offer.itemId, 
+                        offer._id, 
+                        offer.amount, 
+                        offer.itemName
+                      )}
+                      disabled={loading}
+                    >
+                      Counter
+                    </button>
+                    <button 
                       className="trade-panel-button trade-panel-button-danger"
                       onClick={() => handleDeclineOffer(offer.itemId, offer._id)}
                       disabled={loading}
                     >
-                      {loading ? 'Processing...' : 'Decline'}
+                      Decline
                     </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      );
+    }
+    
+    // Trade history view
+    if (activeOffersTab === 'history') {
+      if (!tradeHistory || tradeHistory.length === 0) {
+        return (
+          <>
+            {tabs}
+            <div className="trade-panel-empty-state">
+              <FaHistory size={40} style={{ color: 'var(--panel-text-secondary)', opacity: 0.7, marginBottom: '16px' }} />
+              <h3>No Trade History</h3>
+              <p>You haven't completed any trades yet.</p>
+            </div>
+          </>
+        );
+      }
+      
+      return (
+        <>
+          {tabs}
+          <div className="trade-panel-offers-list">
+            {tradeHistory.map((trade) => (
+              <div key={trade.tradeId} className="trade-panel-offer-item">
+                <div className="offer-item-header">
+                  <div className="offer-item-img">
+                    {trade.itemImage && (
+                      <img src={trade.itemImage} alt={trade.itemName} />
+                    )}
+                  </div>
+                  <div className="offer-item-details">
+                    <h4 className="offer-item-name">{trade.itemName || 'Unknown Item'}</h4>
+                    <div className="offer-item-meta">
+                      <span className="offer-timestamp">{trade.completedAt ? formatDate(trade.completedAt) : 'Unknown date'}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="offer-item-content">
+                  <div className="offer-amount">
+                    <span className="label">Trade ID:</span>
+                    <span className="value">{trade.tradeId}</span>
+                  </div>
+                  <div className="offer-amount">
+                    <span className="label">Status:</span>
+                    <span className="value">{trade.status}</span>
+                  </div>
+                  <div className="offer-amount">
+                    <span className="label">Amount:</span>
+                    <span className="value">{formatCurrency(trade.amount, trade.currency || 'USD')}</span>
                   </div>
                 </div>
               </div>
@@ -1742,6 +1880,147 @@ const TradePanel = ({
     );
   };
 
+  // Add socket event listeners for real-time updates
+  useEffect(() => {
+    if (socket && isOpen) {
+      // Listen for offer updates
+      const handleOfferUpdate = (data) => {
+        if (data.type === 'offer_update') {
+          // Refresh offers when an update is received
+          fetchSentOffers();
+          fetchReceivedOffers();
+          
+          // Show notification about the update
+          if (window.showNotification && data.message) {
+            window.showNotification(
+              data.title || 'Offer Update',
+              data.message,
+              data.notificationType || 'INFO'
+            );
+          }
+        }
+      };
+      
+      // Register listeners
+      socket.on('offer_update', handleOfferUpdate);
+      
+      // Clean up on unmount
+      return () => {
+        socket.off('offer_update', handleOfferUpdate);
+      };
+    }
+  }, [isOpen]);
+
+  // Prepare counter offer
+  const prepareCounterOffer = (itemId, offerId, originalAmount, itemName) => {
+    setCounterOfferItem({
+      _id: itemId,
+      name: itemName,
+      originalOffer: originalAmount
+    });
+    setCounterOfferAmount(originalAmount);
+    setCounterOfferOriginalId(offerId);
+    setShowCounterOfferModal(true);
+  };
+
+  // Submit counter offer
+  const submitCounterOffer = async () => {
+    if (!counterOfferItem || !counterOfferAmount) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await axios.post(
+        `${API_URL}/offers/${counterOfferItem._id}/${counterOfferOriginalId}/counterOffer`,
+        {
+          counterAmount: parseFloat(counterOfferAmount),
+          counterCurrency: 'USD',
+          message: `Counter offer for ${counterOfferItem.name}`
+        },
+        { withCredentials: true }
+      );
+      
+      if (response.data.success) {
+        // Close modal and refresh offers
+        setShowCounterOfferModal(false);
+        fetchReceivedOffers();
+        
+        // Show success notification
+        if (window.showNotification) {
+          window.showNotification(
+            'Counter Offer Sent',
+            'Your counter offer has been sent successfully.',
+            'SUCCESS'
+          );
+        }
+      }
+    } catch (err) {
+      console.error('Error sending counter offer:', err);
+      setError(err.response?.data?.error || 'Failed to send counter offer');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Render counter offer modal
+  const renderCounterOfferModal = () => {
+    if (!showCounterOfferModal || !counterOfferItem) return null;
+    
+    return (
+      <div className="trade-panel-modal-backdrop">
+        <div className="trade-panel-modal">
+          <div className="trade-panel-modal-header">
+            <h3>Counter Offer</h3>
+            <button 
+              className="trade-panel-close-btn"
+              onClick={() => setShowCounterOfferModal(false)}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          <div className="trade-panel-modal-content">
+            <p>Original offer: ${counterOfferItem.originalOffer}</p>
+            <div className="trade-panel-form-group">
+              <label className="trade-panel-label" htmlFor="counterOfferAmount">
+                Your Counter Offer Amount
+              </label>
+              <input
+                id="counterOfferAmount"
+                className="trade-panel-input"
+                type="number"
+                value={counterOfferAmount}
+                onChange={(e) => setCounterOfferAmount(e.target.value)}
+                placeholder="0.00"
+                min="0.01"
+                step="0.01"
+              />
+            </div>
+          </div>
+          <div className="trade-panel-modal-actions">
+            <button 
+              className="trade-panel-button trade-panel-button-secondary"
+              onClick={() => setShowCounterOfferModal(false)}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button 
+              className="trade-panel-button trade-panel-button-primary"
+              onClick={submitCounterOffer}
+              disabled={loading || !counterOfferAmount}
+            >
+              {loading ? 'Sending...' : 'Send Counter Offer'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Main component render
   return (
     <AnimatePresence>
@@ -1854,6 +2133,9 @@ const TradePanel = ({
               </motion.div>
             </motion.div>
           </motion.div>
+
+          {/* Counter offer modal */}
+          {renderCounterOfferModal()}
         </>
       )}
     </AnimatePresence>
