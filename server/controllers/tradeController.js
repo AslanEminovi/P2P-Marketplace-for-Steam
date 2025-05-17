@@ -1569,23 +1569,37 @@ exports.getTradeStats = async (req, res) => {
 
 // Export controller functions for creating a trade
 exports.createTrade = async (req, res) => {
+  // Start a mongoose session for transaction
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { itemId, price, message } = req.body;
     const buyerId = req.user._id;
 
+    console.log(
+      `[TradeController] Creating trade for item ${itemId} by user ${buyerId}`
+    );
+
     // Validate required fields
     if (!itemId) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ error: "Item ID is required" });
     }
 
     // Get the item to check availability and get seller ID
-    const item = await Item.findById(itemId);
+    const item = await Item.findById(itemId).populate("owner").session(session);
 
     if (!item) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({ error: "Item not found" });
     }
 
     if (!item.isAvailable) {
+      await session.abortTransaction();
+      session.endSession();
       return res
         .status(400)
         .json({ error: "This item is no longer available for purchase" });
@@ -1608,11 +1622,49 @@ exports.createTrade = async (req, res) => {
     // Create the trade using trade service
     const newTrade = await tradeService.createTrade(tradeData);
 
+    // Double check the trade was created properly
+    const verifyTrade = await Trade.findById(newTrade._id);
+
+    if (!verifyTrade) {
+      console.error(
+        `[TradeController] Failed to verify trade after creation: ${newTrade._id}`
+      );
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(500).json({
+        error: "Failed to create trade - verification failed",
+        details: "The trade couldn't be verified after creation.",
+      });
+    }
+
     // Mark the item as reserved
     item.isAvailable = false;
     item.reservedBy = buyerId;
     item.reservedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-    await item.save();
+    await item.save({ session });
+
+    // Make sure Redis cache is updated (if using Redis)
+    if (enhancedTradeService.isRedisEnabled) {
+      try {
+        await enhancedTradeService.refreshTradeCache(newTrade._id);
+        console.log(
+          `[TradeController] Redis cache updated for trade ${newTrade._id}`
+        );
+      } catch (cacheError) {
+        console.error(
+          `[TradeController] Failed to update Redis cache: ${cacheError.message}`
+        );
+        // Continue with the response even if cache update fails
+      }
+    }
+
+    // Commit the transaction only after verifying the trade exists
+    await session.commitTransaction();
+    session.endSession();
+
+    console.log(
+      `[TradeController] Trade created successfully: ${newTrade._id}`
+    );
 
     return res.status(201).json({
       success: true,
@@ -1622,6 +1674,15 @@ exports.createTrade = async (req, res) => {
     });
   } catch (error) {
     console.error("Create trade error:", error);
+
+    // Ensure the transaction is aborted
+    try {
+      await session.abortTransaction();
+    } catch (abortError) {
+      console.error("Error aborting transaction:", abortError);
+    }
+    session.endSession();
+
     return res.status(500).json({
       error: "Failed to create trade",
       details: error.message,

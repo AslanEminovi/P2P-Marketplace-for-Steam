@@ -477,9 +477,42 @@ exports.buyItem = async (req, res) => {
         { session }
       );
 
+      // Verify the trade was created successfully
+      const verifyTrade = await Trade.findById(trade._id).session(session);
+      if (!verifyTrade) {
+        console.error(
+          `[MarketplaceController] Trade creation verification failed for ${trade._id}`
+        );
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(500).json({
+          error: "Failed to create trade - verification error",
+          details: "The trade could not be verified after creation",
+        });
+      }
+
       // Commit the transaction
       await session.commitTransaction();
       session.endSession();
+
+      // Make sure Redis cache is updated (if available)
+      try {
+        if (require("../services/enhancedTradeService").isRedisEnabled) {
+          await require("../services/enhancedTradeService").refreshTradeCache(
+            trade._id
+          );
+        }
+      } catch (cacheError) {
+        console.error(
+          `[MarketplaceController] Redis cache update failed: ${cacheError.message}`
+        );
+        // Continue with response anyway - this isn't critical
+      }
+
+      // Log successful trade creation
+      console.log(
+        `[MarketplaceController] Trade ${trade._id} created successfully for item ${item._id}`
+      );
 
       // Send real-time notifications via WebSocket after transaction commits
       socketService.sendNotification(buyer._id.toString(), buyerNotification);
@@ -497,43 +530,31 @@ exports.buyItem = async (req, res) => {
             marketHashName: item.marketHashName,
             imageUrl: item.imageUrl,
             wear: item.wear,
-            rarity: item.rarity,
           },
           price: price,
-          currency: useCurrency,
+          timeCreated: new Date(),
         }
       );
 
-      // Send market update about item being unavailable
-      socketService.sendMarketUpdate({
-        type: "item_sold",
-        item: {
-          _id: item._id,
-          marketHashName: item.marketHashName,
-        },
-      });
+      // Clear marketplace cache since an item was purchased
+      await clearMarketplaceCache();
 
-      // Update marketplace cache
-      if (marketItemsCache.timestamp > 0) {
-        console.log("Invalidating marketplace cache due to item purchase");
-        marketItemsCache.timestamp = 0;
-      }
-
-      // Emit socket event for item sale
+      // Emit marketplace update via Socket.IO
       socketService.emitMarketActivity({
-        type: "sale",
+        type: "purchase",
+        itemId: item._id,
         itemName: item.marketHashName,
         price: item.price,
-        user: buyer.username || buyer.steamName || "A user",
         timestamp: new Date().toISOString(),
       });
 
-      return res.json({
+      // Return success response with trade details
+      return res.status(200).json({
         success: true,
-        message:
-          "Purchase request sent to seller. You will be notified when they respond.",
+        message: "Purchase request sent successfully",
         tradeId: trade._id,
-        buyerTradeUrl: buyer.tradeUrl,
+        status: trade.status,
+        itemName: item.marketHashName,
       });
     } catch (error) {
       console.error("Trade error:", error);
