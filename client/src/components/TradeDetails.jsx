@@ -443,15 +443,16 @@ const TradeHeader = ({ trade, userRoles }) => {
   );
 };
 
-const TradeDetails = ({ tradeId }) => {
+const TradeDetails = ({ tradeId, onError, setLoadingParent }) => {
   // Redux hooks
   const dispatch = useDispatch();
   const trade = useSelector(selectCurrentTrade);
-  const loading = useSelector(selectTradeDetailsLoading);
   const reduxError = useSelector(selectTradesError);
   const currentUser = useSelector(state => state.auth.user);
 
   // Local UI state
+  const [loading, setLoading] = useState(false);
+  const [tradeData, setTrade] = useState(null);
   const [steamOfferUrl, setSteamOfferUrl] = useState('');
   const [cancelReason, setCancelReason] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
@@ -503,6 +504,18 @@ const TradeDetails = ({ tradeId }) => {
     
     fetchCurrentUser();
   }, []);
+
+  // Load trade details
+  useEffect(() => {
+    if (tradeId) {
+      dispatch(fetchTradeDetails(tradeId));
+    }
+    
+    // Cleanup function to reset current trade on unmount
+    return () => {
+      dispatch(resetCurrentTrade());
+    };
+  }, [tradeId, dispatch]);
 
   // Add proper loading and error handling for trade details
   useEffect(() => {
