@@ -599,23 +599,90 @@ const TradePanel = ({
         if (window.showNotification) {
           window.showNotification(
             'Purchase Successful',
-            'Your purchase has been processed successfully. Redirecting to trade page...',
+            'Your purchase has been processed successfully. Preparing trade details...',
             'SUCCESS'
           );
         }
         
-        // Open the trade tracking panel instead of redirecting
-        setTimeout(() => {
-          if (response.data.tradeId) {
-            // If the trade tracking panel is available, open it
-            if (window.openTradeTrackingPanel) {
-              window.openTradeTrackingPanel(response.data.tradeId, 'buyer');
-            } else {
-              // Fallback to navigation
-              navigate(`/trades/${response.data.tradeId}`);
-            }
+        // Wait for trade to be fully created on the server before redirecting
+        // Add a delay to ensure database persistence completes and cache is updated
+        if (response.data.tradeId) {
+          const tradeId = response.data.tradeId;
+          
+          // Show processing message
+          if (window.showNotification) {
+            window.showNotification(
+              'Processing Trade',
+              'Setting up your trade details. Please wait...',
+              'INFO'
+            );
           }
-        }, 2000);
+          
+          // Wait to ensure the trade is created and persisted
+          setTimeout(async () => {
+            try {
+              // Verify trade exists by making a request to fetch it
+              const verifyResponse = await axios.get(
+                `${API_URL}/trades/${tradeId}`, 
+                { withCredentials: true }
+              );
+              
+              if (verifyResponse.data) {
+                console.log('Trade verified, navigating to trade details:', tradeId);
+                
+                // If the trade tracking panel is available, open it
+                if (window.openTradeTrackingPanel) {
+                  window.openTradeTrackingPanel(tradeId, 'buyer');
+                } else {
+                  // Fallback to navigation with additional retry logic
+                  navigate(`/trades/${tradeId}`);
+                }
+              } else {
+                throw new Error('Trade verification failed');
+              }
+            } catch (verifyError) {
+              console.error('Error verifying trade:', verifyError);
+              
+              // Try one more time after a longer delay
+              setTimeout(async () => {
+                try {
+                  const retryResponse = await axios.get(
+                    `${API_URL}/trades/${tradeId}`, 
+                    { withCredentials: true }
+                  );
+                  
+                  if (retryResponse.data) {
+                    console.log('Trade verified on retry, navigating to trade details:', tradeId);
+                    navigate(`/trades/${tradeId}`);
+                  } else {
+                    throw new Error('Trade verification failed on retry');
+                  }
+                } catch (retryError) {
+                  console.error('Error verifying trade on retry:', retryError);
+                  // Show error and redirect to trades page
+                  if (window.showNotification) {
+                    window.showNotification(
+                      'Trade Processing Issue',
+                      'There was an issue processing your trade. Please check your trades page.',
+                      'WARNING'
+                    );
+                  }
+                  navigate('/trades');
+                }
+              }, 2000); // Longer delay for retry
+            }
+          }, 1500); // Initial delay
+        } else {
+          // No trade ID in response
+          if (window.showNotification) {
+            window.showNotification(
+              'Trade Processing Issue',
+              'No trade ID returned. Please check your trades page.',
+              'WARNING'
+            );
+          }
+          setTimeout(() => navigate('/trades'), 1500);
+        }
         
       } catch (err) {
         console.error('Error buying item:', err);

@@ -525,6 +525,10 @@ const TradeDetails = ({ tradeId, onError, setLoadingParent }) => {
       
       try {
         console.log('Fetching trade details for ID:', tradeId);
+        
+        // Add a small delay before fetching to ensure the server has processed the trade
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
         const response = await axios.get(`${API_URL}/trades/${tradeId}`, {
           withCredentials: true
         });
@@ -534,6 +538,11 @@ const TradeDetails = ({ tradeId, onError, setLoadingParent }) => {
           console.log('Trade details received:', response.data);
           setTrade(response.data);
           setLoading(false);
+          
+          // Notify parent that loading is complete
+          if (setLoadingParent && typeof setLoadingParent === 'function') {
+            setLoadingParent(false);
+          }
         }, 500);
       } catch (err) {
         console.error('Error fetching trade details:', err);
@@ -552,6 +561,16 @@ const TradeDetails = ({ tradeId, onError, setLoadingParent }) => {
         if (onError && typeof onError === 'function') {
           onError(errorData);
         }
+        
+        // If this was the first attempt, retry automatically after a delay
+        if (!retryAttempted.current) {
+          console.log('Automatically retrying to fetch trade details after delay');
+          retryAttempted.current = true;
+          
+          setTimeout(() => {
+            handleRetryLoad();
+          }, 2000);
+        }
       }
     };
     
@@ -559,7 +578,7 @@ const TradeDetails = ({ tradeId, onError, setLoadingParent }) => {
       // Add a small delay before fetching to ensure server has time to process
       const timer = setTimeout(() => {
         fetchTradeDetails();
-      }, 500);
+      }, 1000);
       
       return () => clearTimeout(timer);
     }
@@ -600,7 +619,7 @@ const TradeDetails = ({ tradeId, onError, setLoadingParent }) => {
             onError(errorData);
           }
         }
-      }, 1500);
+      }, 2500);
     }
   };
 
